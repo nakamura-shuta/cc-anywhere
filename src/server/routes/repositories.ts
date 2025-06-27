@@ -18,29 +18,33 @@ export const repositoryRoutes: FastifyPluginAsync = async (fastify) => {
   // Get repositories list
   fastify.get<{
     Reply: RepositoriesConfig;
-  }>("/repositories", {
-    preHandler: checkApiKey,
-  }, (_request, reply) => {
-    try {
-      const configPath = join(process.cwd(), "config", "repositories.json");
-      const configContent = readFileSync(configPath, "utf-8");
-      const config = JSON.parse(configContent) as RepositoriesConfig;
+  }>(
+    "/repositories",
+    {
+      preHandler: checkApiKey,
+    },
+    (_request, reply) => {
+      try {
+        const configPath = join(process.cwd(), "config", "repositories.json");
+        const configContent = readFileSync(configPath, "utf-8");
+        const config = JSON.parse(configContent) as RepositoriesConfig;
 
-      logger.info("Loaded repositories config", { count: config.repositories.length });
+        logger.info("Loaded repositories config", { count: config.repositories.length });
 
-      void reply.send(config);
-    } catch (error) {
-      logger.error("Failed to load repositories config", { error });
+        void reply.send(config);
+      } catch (error) {
+        logger.error("Failed to load repositories config", { error });
 
-      // デフォルト値を返す
-      void reply.send({
-        repositories: [
-          {
-            name: "cc-anywhere",
-            path: process.cwd(),
-          },
-        ],
-      });
-    }
-  });
+        // デフォルト値を返す
+        void reply.send({
+          repositories: [
+            {
+              name: "cc-anywhere",
+              path: process.cwd(),
+            },
+          ],
+        });
+      }
+    },
+  );
 };

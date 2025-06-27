@@ -1,10 +1,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config";
 
-export async function checkApiKey(
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<void> {
+export async function checkApiKey(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   // Skip auth if not enabled
   if (!config.auth.enabled) {
     return;

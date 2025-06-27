@@ -182,6 +182,39 @@ npm run clean && npm run build
    curl "http://localhost:5000/api/tasks?apiKey=your-secret-api-key"
    ```
 
+## 外部アクセス（ngrok）
+
+開発中にローカルサーバーを外部からアクセス可能にするため、ngrok統合を提供しています。
+
+### 使用方法
+
+1. `.env`ファイルで`ENABLE_NGROK=true`を設定
+2. サーバーを起動すると、自動的にngrok tunnelが開始されます
+3. コンソールに外部アクセス用のURLが表示されます
+
+```bash
+# .envファイル
+ENABLE_NGROK=true
+API_KEY=your-secret-api-key
+
+# サーバー起動
+npm run dev
+
+# 以下のような情報が表示されます：
+# ========================================
+# 🌐 External Access Information
+# ========================================
+# 
+# 📡 ngrok URL: https://xxxx-xxx-xxx-xxx-xxx.ngrok.io
+# 🔒 API Key: your-secret-api-key
+# 
+# 🌍 Web UI Access:
+#    https://xxxx-xxx-xxx-xxx-xxx.ngrok.io/?apiKey=your-secret-api-key
+# 
+# 📱 API Access:
+#    curl -H "X-API-Key: your-secret-api-key" https://xxxx-xxx-xxx-xxx-xxx.ngrok.io/api/tasks
+```
+
 ## クイックスタート
 
 ### 即座にタスクを実行

@@ -139,7 +139,7 @@ export class WebSocketServer {
 
   private handleAuth(ws: AuthenticatedWebSocket, message: AuthMessage): void {
     const { apiKey } = message.payload;
-    
+
     // Check if authentication is enabled
     if (!config.auth.enabled) {
       // If auth is disabled, always authenticate
@@ -163,7 +163,6 @@ export class WebSocketServer {
     }
 
     if (ws.authenticated) {
-
       const successMessage: SuccessMessage = {
         type: "auth:success",
         payload: {

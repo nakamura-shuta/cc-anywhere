@@ -30,6 +30,10 @@ const envSchema = z.object({
   WEBSOCKET_HEARTBEAT_INTERVAL: z.string().default("30000").transform(Number),
   WEBSOCKET_HEARTBEAT_TIMEOUT: z.string().default("60000").transform(Number),
   WEBSOCKET_AUTH_TIMEOUT: z.string().default("10000").transform(Number),
+  ENABLE_NGROK: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
 });
 
 // Parse and validate environment variables
@@ -77,5 +81,8 @@ export const config = {
     heartbeatInterval: env.WEBSOCKET_HEARTBEAT_INTERVAL,
     heartbeatTimeout: env.WEBSOCKET_HEARTBEAT_TIMEOUT,
     authTimeout: env.WEBSOCKET_AUTH_TIMEOUT,
+  },
+  ngrok: {
+    enabled: env.ENABLE_NGROK,
   },
 } as const;

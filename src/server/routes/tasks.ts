@@ -274,248 +274,264 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { taskId: string };
     Reply: TaskResponse | ErrorResponse;
-  }>("/tasks/:taskId", {
-    preHandler: checkApiKey,
-  }, (request, reply) => {
-    const record = repository.getById(request.params.taskId);
+  }>(
+    "/tasks/:taskId",
+    {
+      preHandler: checkApiKey,
+    },
+    (request, reply) => {
+      const record = repository.getById(request.params.taskId);
 
-    if (!record) {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Task not found",
-          statusCode: 404,
-          code: "TASK_NOT_FOUND",
-        },
+      if (!record) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Task not found",
+            statusCode: 404,
+            code: "TASK_NOT_FOUND",
+          },
+        };
+        void reply.status(404).send(errorResponse);
+        return;
+      }
+
+      const queuedTask = repository.toQueuedTask(record);
+      const task: TaskResponse = {
+        taskId: queuedTask.id,
+        status: queuedTask.status,
+        instruction: queuedTask.request.instruction,
+        createdAt: queuedTask.addedAt,
+        startedAt: queuedTask.startedAt,
+        completedAt: queuedTask.completedAt,
+        result: queuedTask.result?.result,
+        error: queuedTask.error
+          ? {
+              message: queuedTask.error.message,
+              code: "EXECUTION_ERROR",
+            }
+          : undefined,
+        logs: queuedTask.result?.logs,
+        retryMetadata: queuedTask.retryMetadata,
+        allowedTools: queuedTask.request.options?.allowedTools,
+        workingDirectory: queuedTask.request.context?.workingDirectory,
       };
-      void reply.status(404).send(errorResponse);
-      return;
-    }
 
-    const queuedTask = repository.toQueuedTask(record);
-    const task: TaskResponse = {
-      taskId: queuedTask.id,
-      status: queuedTask.status,
-      instruction: queuedTask.request.instruction,
-      createdAt: queuedTask.addedAt,
-      startedAt: queuedTask.startedAt,
-      completedAt: queuedTask.completedAt,
-      result: queuedTask.result?.result,
-      error: queuedTask.error
-        ? {
-            message: queuedTask.error.message,
-            code: "EXECUTION_ERROR",
-          }
-        : undefined,
-      logs: queuedTask.result?.logs,
-      retryMetadata: queuedTask.retryMetadata,
-      allowedTools: queuedTask.request.options?.allowedTools,
-      workingDirectory: queuedTask.request.context?.workingDirectory,
-    };
-
-    void reply.send(task);
-  });
+      void reply.send(task);
+    },
+  );
 
   // Get task logs
   fastify.get<{
     Params: { taskId: string };
     Reply: TaskLogResponse | ErrorResponse;
-  }>("/tasks/:taskId/logs", {
-    preHandler: checkApiKey,
-  }, (request, reply) => {
-    const record = repository.getById(request.params.taskId);
+  }>(
+    "/tasks/:taskId/logs",
+    {
+      preHandler: checkApiKey,
+    },
+    (request, reply) => {
+      const record = repository.getById(request.params.taskId);
 
-    if (!record) {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Task not found",
-          statusCode: 404,
-          code: "TASK_NOT_FOUND",
-        },
+      if (!record) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Task not found",
+            statusCode: 404,
+            code: "TASK_NOT_FOUND",
+          },
+        };
+        void reply.status(404).send(errorResponse);
+        return;
+      }
+
+      const queuedTask = repository.toQueuedTask(record);
+      const logResponse: TaskLogResponse = {
+        taskId: request.params.taskId,
+        logs: queuedTask.result?.logs || [],
       };
-      void reply.status(404).send(errorResponse);
-      return;
-    }
-
-    const queuedTask = repository.toQueuedTask(record);
-    const logResponse: TaskLogResponse = {
-      taskId: request.params.taskId,
-      logs: queuedTask.result?.logs || [],
-    };
-    void reply.send(logResponse);
-  });
+      void reply.send(logResponse);
+    },
+  );
 
   // Cancel a task
   fastify.delete<{
     Params: { taskId: string };
     Reply: TaskCancelResponse | ErrorResponse;
-  }>("/tasks/:taskId", {
-    preHandler: checkApiKey,
-  }, async (request, reply) => {
-    const record = repository.getById(request.params.taskId);
+  }>(
+    "/tasks/:taskId",
+    {
+      preHandler: checkApiKey,
+    },
+    async (request, reply) => {
+      const record = repository.getById(request.params.taskId);
 
-    if (!record) {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Task not found",
-          statusCode: 404,
-          code: "TASK_NOT_FOUND",
-        },
+      if (!record) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Task not found",
+            statusCode: 404,
+            code: "TASK_NOT_FOUND",
+          },
+        };
+        return reply.status(404).send(errorResponse);
+      }
+
+      if (record.status !== "pending" && record.status !== "running") {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Task cannot be cancelled in current state",
+            statusCode: 400,
+            code: "INVALID_STATE",
+          },
+        };
+        return reply.status(400).send(errorResponse);
+      }
+
+      // Cancel the task
+      const success = await taskQueue.cancelTask(request.params.taskId);
+
+      if (!success) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Failed to cancel task",
+            statusCode: 500,
+            code: "CANCEL_FAILED",
+          },
+        };
+        return reply.status(500).send(errorResponse);
+      }
+
+      const cancelResponse: TaskCancelResponse = {
+        message: "Task cancelled successfully",
+        taskId: request.params.taskId,
       };
-      return reply.status(404).send(errorResponse);
-    }
-
-    if (record.status !== "pending" && record.status !== "running") {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Task cannot be cancelled in current state",
-          statusCode: 400,
-          code: "INVALID_STATE",
-        },
-      };
-      return reply.status(400).send(errorResponse);
-    }
-
-    // Cancel the task
-    const success = await taskQueue.cancelTask(request.params.taskId);
-
-    if (!success) {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Failed to cancel task",
-          statusCode: 500,
-          code: "CANCEL_FAILED",
-        },
-      };
-      return reply.status(500).send(errorResponse);
-    }
-
-    const cancelResponse: TaskCancelResponse = {
-      message: "Task cancelled successfully",
-      taskId: request.params.taskId,
-    };
-    return reply.send(cancelResponse);
-  });
+      return reply.send(cancelResponse);
+    },
+  );
 
   // Retry a failed task
   fastify.post<{
     Params: { taskId: string };
     Reply: TaskResponse | ErrorResponse;
-  }>("/tasks/:taskId/retry", {
-    preHandler: checkApiKey,
-  }, async (request, reply) => {
-    const record = repository.getById(request.params.taskId);
+  }>(
+    "/tasks/:taskId/retry",
+    {
+      preHandler: checkApiKey,
+    },
+    async (request, reply) => {
+      const record = repository.getById(request.params.taskId);
 
-    if (!record) {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Task not found",
-          statusCode: 404,
-          code: "TASK_NOT_FOUND",
-        },
-      };
-      return reply.status(404).send(errorResponse);
-    }
-
-    // Check if task can be retried
-    if (record.status !== "failed") {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Only failed tasks can be retried",
-          statusCode: 400,
-          code: "INVALID_STATE",
-        },
-      };
-      return reply.status(400).send(errorResponse);
-    }
-
-    // Check if task has retries configured
-    const queuedTask = repository.toQueuedTask(record);
-    const retryConfig = RetryService.getRetryConfig(queuedTask.request.options);
-
-    if (!retryConfig.maxRetries || retryConfig.maxRetries === 0) {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Task does not have retry configured",
-          statusCode: 400,
-          code: "NO_RETRY_CONFIG",
-        },
-      };
-      return reply.status(400).send(errorResponse);
-    }
-
-    // Check if max retries already reached
-    if (record.current_attempt >= record.max_retries) {
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Maximum retry attempts already reached",
-          statusCode: 400,
-          code: "MAX_RETRIES_REACHED",
-        },
-      };
-      return reply.status(400).send(errorResponse);
-    }
-
-    try {
-      // Reset task for retry
-      repository.resetTaskForRetry(request.params.taskId);
-
-      // Update retry metadata
-      const error = queuedTask.error || new Error("Previous attempt failed");
-      const errorInfo = {
-        message: error.message,
-        code: "MANUAL_RETRY",
-      };
-
-      const updatedRetryMetadata = RetryService.updateRetryMetadata(
-        queuedTask.retryMetadata,
-        errorInfo,
-        queuedTask.startedAt || new Date(),
-        queuedTask.completedAt || new Date(),
-        retryConfig,
-      );
-
-      repository.updateRetryMetadata(
-        request.params.taskId,
-        updatedRetryMetadata,
-        undefined, // No delay for manual retry
-      );
-
-      // Re-add task to queue
-      const newTaskId = taskQueue.add(queuedTask.request, queuedTask.priority);
-
-      // Get the new task
-      const newTask = taskQueue.get(newTaskId);
-      if (!newTask) {
-        throw new Error("Failed to create retry task");
+      if (!record) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Task not found",
+            statusCode: 404,
+            code: "TASK_NOT_FOUND",
+          },
+        };
+        return reply.status(404).send(errorResponse);
       }
 
-      const response: TaskResponse = {
-        taskId: newTaskId,
-        status: TaskStatus.PENDING,
-        instruction: newTask.request.instruction,
-        createdAt: newTask.addedAt,
-        retryMetadata: updatedRetryMetadata,
-      };
+      // Check if task can be retried
+      if (record.status !== "failed") {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Only failed tasks can be retried",
+            statusCode: 400,
+            code: "INVALID_STATE",
+          },
+        };
+        return reply.status(400).send(errorResponse);
+      }
 
-      logger.info("Task manually retried", {
-        originalTaskId: request.params.taskId,
-        newTaskId,
-        currentAttempt: updatedRetryMetadata.currentAttempt,
-        maxRetries: updatedRetryMetadata.maxRetries,
-      });
+      // Check if task has retries configured
+      const queuedTask = repository.toQueuedTask(record);
+      const retryConfig = RetryService.getRetryConfig(queuedTask.request.options);
 
-      return reply.status(201).send(response);
-    } catch (error) {
-      logger.error("Failed to retry task", { taskId: request.params.taskId, error });
+      if (!retryConfig.maxRetries || retryConfig.maxRetries === 0) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Task does not have retry configured",
+            statusCode: 400,
+            code: "NO_RETRY_CONFIG",
+          },
+        };
+        return reply.status(400).send(errorResponse);
+      }
 
-      const errorResponse: ErrorResponse = {
-        error: {
-          message: "Failed to retry task",
-          statusCode: 500,
-          code: "RETRY_FAILED",
-        },
-      };
-      return reply.status(500).send(errorResponse);
-    }
-  });
+      // Check if max retries already reached
+      if (record.current_attempt >= record.max_retries) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Maximum retry attempts already reached",
+            statusCode: 400,
+            code: "MAX_RETRIES_REACHED",
+          },
+        };
+        return reply.status(400).send(errorResponse);
+      }
+
+      try {
+        // Reset task for retry
+        repository.resetTaskForRetry(request.params.taskId);
+
+        // Update retry metadata
+        const error = queuedTask.error || new Error("Previous attempt failed");
+        const errorInfo = {
+          message: error.message,
+          code: "MANUAL_RETRY",
+        };
+
+        const updatedRetryMetadata = RetryService.updateRetryMetadata(
+          queuedTask.retryMetadata,
+          errorInfo,
+          queuedTask.startedAt || new Date(),
+          queuedTask.completedAt || new Date(),
+          retryConfig,
+        );
+
+        repository.updateRetryMetadata(
+          request.params.taskId,
+          updatedRetryMetadata,
+          undefined, // No delay for manual retry
+        );
+
+        // Re-add task to queue
+        const newTaskId = taskQueue.add(queuedTask.request, queuedTask.priority);
+
+        // Get the new task
+        const newTask = taskQueue.get(newTaskId);
+        if (!newTask) {
+          throw new Error("Failed to create retry task");
+        }
+
+        const response: TaskResponse = {
+          taskId: newTaskId,
+          status: TaskStatus.PENDING,
+          instruction: newTask.request.instruction,
+          createdAt: newTask.addedAt,
+          retryMetadata: updatedRetryMetadata,
+        };
+
+        logger.info("Task manually retried", {
+          originalTaskId: request.params.taskId,
+          newTaskId,
+          currentAttempt: updatedRetryMetadata.currentAttempt,
+          maxRetries: updatedRetryMetadata.maxRetries,
+        });
+
+        return reply.status(201).send(response);
+      } catch (error) {
+        logger.error("Failed to retry task", { taskId: request.params.taskId, error });
+
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Failed to retry task",
+            statusCode: 500,
+            code: "RETRY_FAILED",
+          },
+        };
+        return reply.status(500).send(errorResponse);
+      }
+    },
+  );
 };
