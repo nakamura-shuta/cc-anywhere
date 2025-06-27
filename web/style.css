@@ -1,0 +1,467 @@
+/* リセットとベーススタイル */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #3b82f6;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --text-color: #1f2937;
+    --bg-color: #f9fafb;
+    --border-color: #e5e7eb;
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--bg-color);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* ヘッダー */
+header {
+    background: white;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+h1 {
+    font-size: 24px;
+    color: var(--primary-color);
+}
+
+/* 接続ステータス */
+.status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--border-color);
+}
+
+.status.connected .status-dot {
+    background-color: var(--success-color);
+}
+
+.status.disconnected .status-dot {
+    background-color: var(--error-color);
+}
+
+/* メインコンテンツ */
+main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+@media (max-width: 768px) {
+    main {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* セクション */
+section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+h2 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: var(--text-color);
+}
+
+/* フォーム */
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.repository-select {
+    min-height: 100px;
+    font-family: monospace;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ボタン */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #2563eb;
+}
+
+.btn-secondary {
+    background-color: #f3f4f6;
+    color: var(--text-color);
+}
+
+.btn-secondary:hover {
+    background-color: #e5e7eb;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* タスクフィルター */
+.task-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+select {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* タスクリスト */
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.task-item {
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.task-item:hover {
+    border-color: var(--primary-color);
+    background-color: #f9fafb;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.task-id {
+    font-family: monospace;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.task-status {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.task-status.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.task-status.running {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.task-status.completed {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.task-status.failed {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.task-status.cancelled {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.task-instruction {
+    font-size: 14px;
+    color: var(--text-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-meta {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* モーダル */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6b7280;
+}
+
+.close:hover {
+    color: var(--text-color);
+}
+
+/* タスク詳細 */
+#task-detail {
+    margin-bottom: 20px;
+}
+
+.detail-row {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.detail-label {
+    font-weight: 500;
+    width: 120px;
+    color: #6b7280;
+}
+
+.detail-value {
+    flex: 1;
+}
+
+/* ログコンテナ */
+.log-container {
+    background-color: #1f2937;
+    color: #f3f4f6;
+    padding: 15px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    margin-bottom: 5px;
+}
+
+.log-timestamp {
+    color: #9ca3af;
+    margin-right: 8px;
+}
+
+/* ログタグスタイル */
+.log-tag {
+    background-color: #374151;
+    color: #e5e7eb;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+.log-tag-success {
+    background-color: #065f46;
+    color: #6ee7b7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+.log-tag-error {
+    background-color: #7f1d1d;
+    color: #fca5a5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+/* ローディング */
+.loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* エラーメッセージ */
+.error-message {
+    padding: 10px;
+    background-color: #fee2e2;
+    color: #991b1b;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+/* 成功メッセージ */
+.success-message {
+    padding: 10px;
+    background-color: #d1fae5;
+    color: #065f46;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+/* チェックボックスグループ */
+.checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.form-group small {
+    color: #6b7280;
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+}
+
+.custom-tools-group {
+    margin-top: 15px;
+}
+
+.custom-tools-group label {
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+/* 許可ツールリスト */
+.allowed-tools-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.allowed-tool-item {
+    background-color: #e0e7ff;
+    color: #4338ca;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-family: monospace;
+}

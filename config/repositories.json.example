@@ -1,0 +1,12 @@
+{
+  "repositories": [
+    {
+      "name": "my-project",
+      "path": "/path/to/my-project"
+    },
+    {
+      "name": "another-project",
+      "path": "/path/to/another-project"
+    }
+  ]
+}
