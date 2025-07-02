@@ -17,13 +17,18 @@ export interface RetryConfig {
   policy?: RetryPolicy; // Retry policy (default: exponential)
 }
 
+// Task context type
+export interface TaskContext {
+  workingDirectory?: string;
+  files?: string[];
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 // Task request type
 export interface TaskRequest {
   instruction: string;
-  context?: {
-    workingDirectory?: string;
-    files?: string[];
-  };
+  context?: TaskContext;
   options?: {
     timeout?: number | TimeoutConfig;
     async?: boolean;

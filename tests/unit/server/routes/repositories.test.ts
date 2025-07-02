@@ -46,6 +46,9 @@ describe("Repository Routes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/repositories",
+        headers: {
+          "X-API-Key": "test-api-key",
+        },
       });
 
       expect(response.statusCode).toBe(200);
@@ -61,6 +64,9 @@ describe("Repository Routes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/repositories",
+        headers: {
+          "X-API-Key": "test-api-key",
+        },
       });
 
       expect(response.statusCode).toBe(200);

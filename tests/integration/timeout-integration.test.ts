@@ -28,7 +28,7 @@ describe("Timeout Integration", () => {
         method: "POST",
         url: "/api/tasks",
         headers: {
-          "X-API-Key": "test-key",
+          "X-API-Key": "test-api-key",
         },
         payload: task,
       });
@@ -60,7 +60,7 @@ describe("Timeout Integration", () => {
         method: "POST",
         url: "/api/tasks",
         headers: {
-          "X-API-Key": "test-key",
+          "X-API-Key": "test-api-key",
         },
         payload: task,
       });
@@ -88,7 +88,7 @@ describe("Timeout Integration", () => {
         method: "POST",
         url: "/api/tasks",
         headers: {
-          "X-API-Key": "test-key",
+          "X-API-Key": "test-api-key",
         },
         payload: task,
       });
@@ -117,7 +117,7 @@ describe("Timeout Integration", () => {
         method: "POST",
         url: "/api/tasks",
         headers: {
-          "X-API-Key": "test-key",
+          "X-API-Key": "test-api-key",
         },
         payload: task,
       });
@@ -130,7 +130,7 @@ describe("Timeout Integration", () => {
         method: "GET",
         url: `/api/tasks/${taskId}/logs`,
         headers: {
-          "X-API-Key": "test-key",
+          "X-API-Key": "test-api-key",
         },
       });
 

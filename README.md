@@ -166,6 +166,82 @@ npm run build
 npm run clean && npm run build
 ```
 
+## スラッシュコマンド
+
+CC-Anywhereは、`/project:` および `/user:` プレフィックスを使用したカスタムスラッシュコマンドをサポートしています。
+
+### 使用方法
+
+- `/project:<command>` - プロジェクトのリポジトリ内の `.claude/commands/` ディレクトリからコマンドを実行
+- `/user:<command>` - ユーザーのホームディレクトリの `~/.claude/commands/` からコマンドを実行
+
+### 例
+
+```bash
+# プロジェクト固有のコマンドを実行
+curl -X POST http://localhost:5000/api/tasks \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruction": "/project:analyze src",
+    "context": {
+      "workingDirectory": "/path/to/project"
+    }
+  }'
+
+# ユーザー固有のコマンドを実行
+curl -X POST http://localhost:5000/api/tasks \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruction": "/user:daily-report"
+  }'
+```
+
+### カスタムコマンドの作成
+
+コマンドはMarkdownファイルとして定義され、YAMLフロントマターでメタデータを指定します。
+
+例: `.claude/commands/analyze.md`
+```markdown
+---
+description: Analyze code quality and security
+parameters:
+  - name: target
+    type: string
+    required: true
+    description: Target directory or file
+  - name: depth
+    type: number
+    required: false
+    default: 2
+---
+Analyze the code in {{target}} with the following criteria:
+- Code quality assessment
+- Security vulnerabilities
+- Performance considerations
+{{#if depth >= 2}}
+- Include detailed analysis of dependencies
+{{/if}}
+
+Arguments: $ARGUMENTS
+```
+
+### テンプレート構文
+
+CC-Anywhereは2つのテンプレート構文をサポートしています：
+
+1. **Claude Code互換構文** (環境変数スタイル)
+   - `$ARGUMENTS` - すべての引数
+   - `$VARIABLE_NAME` - 大文字の変数名（パラメータは小文字で定義）
+
+2. **Handlebars風構文**
+   - `{{variable}}` - 変数の展開
+   - `{{#if condition}}...{{/if}}` - 条件分岐
+   - `{{#each array}}...{{/each}}` - ループ処理
+
+詳細は [Claude Code ドキュメント](https://docs.anthropic.com/en/docs/claude-code/slash-commands) を参照してください。
+
 ## API認証
 
 `.env`ファイルに`API_KEY`を設定すると、すべてのAPIエンドポイントで認証が必要になります。

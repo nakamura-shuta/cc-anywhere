@@ -3,6 +3,7 @@ let apiClient;
 let currentTasks = new Map();
 let selectedTaskId = null;
 let statusFilter = '';
+let detailRefreshInterval = null;
 
 // クエリパラメータからAPIキーを取得
 function getApiKeyFromQuery() {
@@ -212,6 +213,12 @@ function createTaskElement(task) {
 async function showTaskDetail(taskId) {
     selectedTaskId = taskId;
     
+    // 既存の定期更新を停止
+    if (detailRefreshInterval) {
+        clearInterval(detailRefreshInterval);
+        detailRefreshInterval = null;
+    }
+    
     try {
         const task = await apiClient.getTask(taskId);
         
@@ -238,9 +245,28 @@ async function showTaskDetail(taskId) {
         
         document.getElementById('task-modal').classList.remove('hidden');
         
-        // 実行中の場合はサブスクライブ
-        if (task.status === 'running') {
+        // 実行中の場合はサブスクライブと定期更新を開始
+        if (task.status === 'running' || task.status === 'pending') {
             apiClient.subscribeToTask(taskId);
+            
+            // 3秒ごとに詳細を更新（WebSocketが不安定な場合のフォールバック）
+            detailRefreshInterval = setInterval(async () => {
+                if (selectedTaskId === taskId) {
+                    try {
+                        const updatedTask = await apiClient.getTask(taskId);
+                        currentTasks.set(taskId, updatedTask);
+                        renderTaskDetail(updatedTask);
+                        
+                        // タスクが完了したら定期更新を停止
+                        if (updatedTask.status !== 'running' && updatedTask.status !== 'pending') {
+                            clearInterval(detailRefreshInterval);
+                            detailRefreshInterval = null;
+                        }
+                    } catch (error) {
+                        console.error('Failed to refresh task detail:', error);
+                    }
+                }
+            }, 3000);
         }
     } catch (error) {
         showError(`タスク詳細の取得に失敗しました: ${error.message}`);
@@ -412,58 +438,73 @@ async function handleTaskUpdate(payload) {
     
     console.log('Task update received:', payload);
     
-    // タスクが完了または失敗した場合は、詳細を再取得
-    if (payload.status === 'completed' || payload.status === 'failed') {
+    // 詳細モーダルが開いている場合は、常に最新の情報を取得
+    if (selectedTaskId === taskId) {
         try {
             const updatedTask = await apiClient.getTask(taskId);
             currentTasks.set(taskId, updatedTask);
             
-            // 詳細モーダルが開いている場合は更新
-            if (selectedTaskId === taskId) {
-                renderTaskDetail(updatedTask);
-                // ログも更新
-                if (updatedTask.logs && Array.isArray(updatedTask.logs)) {
-                    renderTaskLogs(updatedTask.logs);
-                } else {
-                    const logs = updatedTask.logs || [];
-                    const logObjects = Array.isArray(logs) 
-                        ? logs.map((log, index) => ({
-                            message: typeof log === 'string' ? log : log.message || log,
-                            timestamp: new Date().toISOString()
-                        }))
-                        : [];
-                    renderTaskLogs(logObjects);
-                }
+            // 詳細を再描画
+            renderTaskDetail(updatedTask);
+            
+            // ログも更新
+            if (updatedTask.logs && Array.isArray(updatedTask.logs)) {
+                renderTaskLogs(updatedTask.logs);
+            } else {
+                const logs = updatedTask.logs || [];
+                const logObjects = Array.isArray(logs) 
+                    ? logs.map((log, index) => ({
+                        message: typeof log === 'string' ? log : log.message || log,
+                        timestamp: new Date().toISOString()
+                    }))
+                    : [];
+                renderTaskLogs(logObjects);
             }
             
-            showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
+            // タスクが完了または失敗した場合は通知
+            if (payload.status === 'completed' || payload.status === 'failed') {
+                showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
+            }
         } catch (error) {
             console.error('Failed to fetch updated task:', error);
+            // エラーが発生してもローカル更新は試みる
+            updateLocalTaskData(taskId, payload);
         }
     } else {
-        // 実行中の場合は、ステータスのみ更新
-        const task = currentTasks.get(taskId);
-        if (task) {
-            task.status = payload.status;
-            if (payload.metadata?.error) {
-                task.error = payload.metadata.error;
-            }
-            if (payload.metadata?.completedAt) {
-                task.completedAt = payload.metadata.completedAt;
-            }
-            if (payload.metadata?.result) {
-                task.result = payload.metadata.result;
-            }
-            
-            // 詳細モーダルが開いている場合は更新
-            if (selectedTaskId === taskId) {
-                renderTaskDetail(task);
+        // 詳細モーダルが開いていない場合は、ローカルデータのみ更新
+        updateLocalTaskData(taskId, payload);
+        
+        // タスクが完了または失敗した場合は、詳細を再取得して最新状態を保持
+        if (payload.status === 'completed' || payload.status === 'failed') {
+            try {
+                const updatedTask = await apiClient.getTask(taskId);
+                currentTasks.set(taskId, updatedTask);
+                showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
+            } catch (error) {
+                console.error('Failed to fetch updated task:', error);
             }
         }
     }
     
     // タスク一覧を再描画
     renderTasks();
+}
+
+// ローカルタスクデータの更新
+function updateLocalTaskData(taskId, payload) {
+    const task = currentTasks.get(taskId);
+    if (task) {
+        task.status = payload.status;
+        if (payload.metadata?.error) {
+            task.error = payload.metadata.error;
+        }
+        if (payload.metadata?.completedAt) {
+            task.completedAt = payload.metadata.completedAt;
+        }
+        if (payload.metadata?.result) {
+            task.result = payload.metadata.result;
+        }
+    }
 }
 
 // タスクログ処理
@@ -524,6 +565,13 @@ function updateConnectionStatus(connected) {
 // モーダルを閉じる
 function closeModal() {
     document.getElementById('task-modal').classList.add('hidden');
+    
+    // 定期更新を停止
+    if (detailRefreshInterval) {
+        clearInterval(detailRefreshInterval);
+        detailRefreshInterval = null;
+    }
+    
     if (selectedTaskId) {
         apiClient.unsubscribeFromTask(selectedTaskId);
         selectedTaskId = null;

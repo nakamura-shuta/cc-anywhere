@@ -8,6 +8,7 @@ import { resolve } from "path";
 import { RetryHandler, type RetryHandlerOptions } from "../services/retry-handler";
 import { TimeoutManager } from "../services/timeout-manager";
 import { TimeoutPhase, TimeoutError, type TimeoutConfig } from "../types/timeout";
+import { InstructionProcessor } from "../services/slash-commands/instruction-processor";
 
 export class TaskExecutorImpl implements TaskExecutor {
   private client: ClaudeClient;
@@ -15,12 +16,16 @@ export class TaskExecutorImpl implements TaskExecutor {
   private useClaudeCode: boolean;
   private runningTasks: Map<string, AbortController> = new Map();
   private retryHandler: RetryHandler;
+  private instructionProcessor?: InstructionProcessor;
 
   constructor(useClaudeCode = true) {
     this.client = new ClaudeClient();
     this.codeClient = new ClaudeCodeClient();
     this.useClaudeCode = useClaudeCode;
     this.retryHandler = new RetryHandler();
+
+    // Initialize instruction processor
+    this.instructionProcessor = new InstructionProcessor();
   }
 
   async execute(
@@ -102,8 +107,31 @@ export class TaskExecutorImpl implements TaskExecutor {
     );
 
     try {
+      // Process slash commands if enabled
+      let processedTask = task;
+      if (this.instructionProcessor) {
+        const processed = await this.instructionProcessor.process(task.instruction, task.context);
+        processedTask = {
+          ...task,
+          instruction: processed.instruction,
+          context: { ...task.context, ...processed.context },
+        };
+
+        // Log if a command was processed
+        if (processed.metadata?.originalCommand) {
+          const commandInfo =
+            processed.metadata.commandName || processed.metadata.ignoredCommand || "unknown";
+          logs.push(`Processed slash command: ${commandInfo}`);
+          logger.info("Slash command processed", {
+            command: commandInfo,
+            original: processed.metadata.originalCommand,
+            reason: processed.metadata.reason,
+          });
+        }
+      }
+
       // Build the prompt
-      const prompt = this.buildPrompt(task);
+      const prompt = this.buildPrompt(processedTask);
 
       let output: unknown;
 
@@ -114,8 +142,8 @@ export class TaskExecutorImpl implements TaskExecutor {
           timeoutManager.transitionToPhase(TimeoutPhase.SETUP);
 
           // Notify progress: Starting task
-          if (task.options?.onProgress) {
-            await task.options.onProgress({
+          if (processedTask.options?.onProgress) {
+            await processedTask.options.onProgress({
               type: "log",
               message: "タスク実行を開始します...",
             });
@@ -123,8 +151,8 @@ export class TaskExecutorImpl implements TaskExecutor {
 
           // Validate and set working directory if specified
           let workingDirectory: string | undefined;
-          if (task.context?.workingDirectory) {
-            workingDirectory = resolve(task.context.workingDirectory);
+          if (processedTask.context?.workingDirectory) {
+            workingDirectory = resolve(processedTask.context.workingDirectory);
 
             // Check if directory exists
             if (!existsSync(workingDirectory)) {
@@ -134,8 +162,8 @@ export class TaskExecutorImpl implements TaskExecutor {
             logs.push(`Working directory: ${workingDirectory}`);
             logger.info("Using working directory", { cwd: workingDirectory });
 
-            if (task.options?.onProgress) {
-              await task.options.onProgress({
+            if (processedTask.options?.onProgress) {
+              await processedTask.options.onProgress({
                 type: "log",
                 message: `作業ディレクトリ: ${workingDirectory}`,
               });
@@ -146,8 +174,8 @@ export class TaskExecutorImpl implements TaskExecutor {
           timeoutManager.transitionToPhase(TimeoutPhase.EXECUTION);
 
           // Notify progress: Execution phase
-          if (task.options?.onProgress) {
-            await task.options.onProgress({
+          if (processedTask.options?.onProgress) {
+            await processedTask.options.onProgress({
               type: "log",
               message: "Claude Codeを実行中...",
             });
@@ -158,8 +186,8 @@ export class TaskExecutorImpl implements TaskExecutor {
             cwd: workingDirectory,
             abortController,
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            allowedTools: task.options?.allowedTools,
-            onProgress: task.options?.onProgress,
+            allowedTools: processedTask.options?.allowedTools,
+            onProgress: processedTask.options?.onProgress,
           });
 
           if (!result.success) {
