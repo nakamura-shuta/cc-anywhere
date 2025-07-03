@@ -20,15 +20,17 @@ export class TaskRepository {
     priority?: number;
     status?: TaskStatus;
     retryMetadata?: TaskResponse["retryMetadata"];
+    groupId?: string;
+    repositoryName?: string;
   }): TaskRecord {
     const maxRetries = task.options?.retry?.maxRetries ?? 0;
 
     const stmt = this.db.getDb().prepare(`
       INSERT INTO tasks (
         id, instruction, context, options, priority, status,
-        retry_metadata, current_attempt, max_retries
+        retry_metadata, current_attempt, max_retries, group_id, repository_name
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -41,6 +43,8 @@ export class TaskRepository {
       task.retryMetadata ? JSON.stringify(task.retryMetadata) : null,
       0, // current_attempt starts at 0
       maxRetries,
+      task.groupId || null,
+      task.repositoryName || null,
     );
 
     if (result.changes === 0) {
@@ -272,5 +276,24 @@ export class TaskRepository {
     `);
 
     stmt.run(id);
+  }
+
+  // Find tasks by group ID
+  findByGroupId(groupId: string): TaskRecord[] {
+    const stmt = this.db.getDb().prepare(`
+      SELECT * FROM tasks 
+      WHERE group_id = ?
+      ORDER BY created_at ASC
+    `);
+
+    const records = stmt.all(groupId) as TaskRecord[];
+    return records.map(record => ({
+      ...record,
+      context: record.context ? JSON.parse(record.context) : undefined,
+      options: record.options ? JSON.parse(record.options) : undefined,
+      result: record.result ? JSON.parse(record.result) : undefined,
+      error: record.error ? JSON.parse(record.error) : undefined,
+      retry_metadata: record.retry_metadata ? JSON.parse(record.retry_metadata) : undefined,
+    }));
   }
 }

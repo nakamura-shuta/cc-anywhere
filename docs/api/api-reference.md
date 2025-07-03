@@ -257,6 +257,114 @@ POST /api/echo
 **レスポンス:**
 リクエストボディと同じ内容
 
+## バッチタスクエンドポイント
+
+### バッチタスクの作成
+
+```
+POST /api/batch/tasks
+```
+
+複数のリポジトリに対して同じタスクを並列実行します。
+
+**ヘッダー:**
+- `X-API-Key` (必須): APIキー
+- `Content-Type`: `application/json`
+
+**リクエストボディ:**
+```json
+{
+  "instruction": "実行する指示（必須）",
+  "repositories": [
+    {
+      "name": "リポジトリ名（必須）",
+      "path": "リポジトリのパス（必須）",
+      "timeout": 300000,  // オプション：リポジトリ固有のタイムアウト
+      "retryOptions": {   // オプション：リポジトリ固有のリトライ設定
+        "maxRetries": 3,
+        "initialDelay": 1000,
+        "maxDelay": 10000
+      }
+    }
+  ],
+  "options": {
+    "timeout": 600000,  // デフォルトタイムアウト（ミリ秒）
+    "allowedTools": ["Bash", "Read", "Write"],  // 許可するツール
+    "retry": {
+      "maxRetries": 2,
+      "initialDelay": 1000,
+      "maxDelay": 10000
+    }
+  }
+}
+```
+
+**レスポンス:**
+```json
+{
+  "groupId": "group_abc123",
+  "tasks": [
+    {
+      "taskId": "task1",
+      "repository": "app1",
+      "status": "pending"
+    },
+    {
+      "taskId": "task2",
+      "repository": "app2",
+      "status": "pending"
+    }
+  ]
+}
+```
+
+### バッチタスクのステータス確認
+
+```
+GET /api/batch/tasks/{groupId}/status
+```
+
+グループIDを使用してバッチタスクの実行状況を確認します。
+
+**パラメータ:**
+- `groupId` (必須): バッチタスクのグループID
+
+**ヘッダー:**
+- `X-API-Key` (必須): APIキー
+
+**レスポンス:**
+```json
+{
+  "groupId": "group_abc123",
+  "summary": {
+    "total": 3,
+    "pending": 1,
+    "running": 1,
+    "completed": 1,
+    "failed": 0
+  },
+  "tasks": [
+    {
+      "taskId": "task1",
+      "repository": "app1",
+      "status": "completed",
+      "duration": 5000,
+      "result": {...}
+    },
+    {
+      "taskId": "task2",
+      "repository": "app2",
+      "status": "running"
+    },
+    {
+      "taskId": "task3",
+      "repository": "app3",
+      "status": "pending"
+    }
+  ]
+}
+```
+
 ## エラーレスポンス
 
 すべてのエラーは以下の形式で返されます：

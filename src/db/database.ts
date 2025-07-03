@@ -70,7 +70,10 @@ CREATE TABLE IF NOT EXISTS tasks (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   started_at DATETIME,
   completed_at DATETIME,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  -- Batch task support
+  group_id TEXT,
+  repository_name TEXT
 );
 
 -- Indexes for better query performance
@@ -91,6 +94,26 @@ BEGIN
 END;`;
 
       this.db.exec(schema);
+      
+      // Add new columns if they don't exist (for backward compatibility)
+      try {
+        this.db.exec(`ALTER TABLE tasks ADD COLUMN group_id TEXT`);
+      } catch (e) {
+        // Column already exists
+      }
+      
+      try {
+        this.db.exec(`ALTER TABLE tasks ADD COLUMN repository_name TEXT`);
+      } catch (e) {
+        // Column already exists
+      }
+      
+      // Create index for group_id if it doesn't exist
+      try {
+        this.db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_group_id ON tasks(group_id)`);
+      } catch (e) {
+        // Index already exists
+      }
     } catch (error) {
       console.error("Failed to run migrations:", error);
       throw error;

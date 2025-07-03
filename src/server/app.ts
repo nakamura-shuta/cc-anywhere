@@ -12,6 +12,7 @@ import queueRoutes from "./routes/queue";
 import { historyRoutes } from "./routes/history";
 import { workerRoutes } from "./routes/workers";
 import { repositoryRoutes } from "./routes/repositories";
+import { batchTaskRoutes } from "./routes/batch-tasks";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { TaskQueueImpl } from "../queue";
@@ -200,6 +201,7 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   await app.register(queueRoutes, { prefix: "/api" });
   await app.register(historyRoutes, { prefix: "/api" });
   await app.register(repositoryRoutes, { prefix: "/api" });
+  await app.register(batchTaskRoutes, { prefix: "/api" });
 
   // Register worker routes only in managed mode
   if (workerMode === "managed") {

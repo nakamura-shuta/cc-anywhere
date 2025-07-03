@@ -130,6 +130,8 @@ export const historyRoutes: FastifyPluginAsync = async (fastify) => {
         startedAt: record.started_at,
         completedAt: record.completed_at,
         updatedAt: record.updated_at,
+        repositoryName: record.repository_name,
+        groupId: record.group_id,
       }));
 
       return {

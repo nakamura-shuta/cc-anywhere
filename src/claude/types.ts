@@ -81,6 +81,8 @@ export interface TaskResponse {
   };
   allowedTools?: string[];
   workingDirectory?: string;
+  repositoryName?: string;
+  groupId?: string;
 }
 
 // Claude execution result

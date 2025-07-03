@@ -115,30 +115,50 @@ async function handleTaskSubmit(e) {
 
     // 選択されたリポジトリを取得
     const selectedRepos = Array.from(document.getElementById('repositories').selectedOptions)
-        .map(option => option.value);
+        .map(option => ({ name: option.text, path: option.value }));
     
-    // 最初に選択されたリポジトリを作業ディレクトリとして使用
-    if (selectedRepos.length > 0) {
-        taskData.context.workingDirectory = selectedRepos[0];
-        
-        // 複数選択された場合は、instructionに追記
-        if (selectedRepos.length > 1) {
-            taskData.instruction += `\n\n対象リポジトリ:\n${selectedRepos.join('\n')}`;
-        }
-    }
-
     try {
-        const response = await apiClient.createTask(taskData);
-        showSuccess('タスクを作成しました');
-        e.target.reset();
+        let response;
         
-        // タスクリストに追加
-        const taskId = response.taskId || response.id;
-        currentTasks.set(taskId, response);
+        if (selectedRepos.length > 1) {
+            // 複数リポジトリの場合はバッチタスクを作成
+            const batchData = {
+                instruction: formData.get('instruction'),
+                repositories: selectedRepos,
+                options: {
+                    timeout: timeoutSeconds * 1000,
+                    allowedTools: allowedTools.length > 0 ? allowedTools : undefined
+                }
+            };
+            
+            response = await apiClient.createBatchTasks(batchData);
+            showSuccess(`${selectedRepos.length}件のバッチタスクを作成しました`);
+            
+            // バッチで作成されたタスクをリストに追加
+            if (response.tasks) {
+                response.tasks.forEach(task => {
+                    apiClient.subscribeToTask(task.taskId);
+                });
+            }
+        } else if (selectedRepos.length === 1) {
+            // 単一リポジトリの場合は通常のタスクを作成
+            taskData.context.workingDirectory = selectedRepos[0].path;
+            response = await apiClient.createTask(taskData);
+            showSuccess('タスクを作成しました');
+            
+            const taskId = response.taskId || response.id;
+            currentTasks.set(taskId, response);
+            apiClient.subscribeToTask(taskId);
+        } else {
+            showError('リポジトリを選択してください');
+            return;
+        }
+        
+        e.target.reset();
         renderTasks();
         
-        // WebSocketでサブスクライブ
-        apiClient.subscribeToTask(taskId);
+        // タスク一覧を再読み込み
+        setTimeout(loadTasks, 1000);
     } catch (error) {
         showError(`タスクの作成に失敗しました: ${error.message}`);
     }
@@ -199,10 +219,11 @@ function createTaskElement(task) {
 
     div.innerHTML = `
         <div class="task-header">
-            <span class="task-id">${taskId.substring(0, 8)}</span>
+            <span class="task-id" title="${taskId}">${taskId.substring(0, 8)}</span>
             <span class="task-status ${statusClass}">${getStatusText(task.status)}</span>
         </div>
         <div class="task-instruction">${escapeHtml(task.instruction)}</div>
+        ${task.repositoryName ? `<div class="task-repository">📁 ${escapeHtml(task.repositoryName)}</div>` : ''}
         <div class="task-meta">作成日時: ${createdAt}</div>
     `;
 

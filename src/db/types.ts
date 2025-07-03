@@ -15,6 +15,9 @@ export interface TaskRecord {
   started_at: string | null;
   completed_at: string | null;
   updated_at: string;
+  // Batch task support
+  group_id: string | null;
+  repository_name: string | null;
 }
 
 export interface TaskFilter {

@@ -166,6 +166,70 @@ npm run build
 npm run clean && npm run build
 ```
 
+## バッチタスク
+
+複数のリポジトリに対して同じタスクを並列実行する機能です。
+
+### APIでの使用
+
+```bash
+# 複数リポジトリでテストを実行
+curl -X POST http://localhost:5000/api/batch/tasks \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruction": "npm test",
+    "repositories": [
+      {"name": "app1", "path": "/path/to/app1"},
+      {"name": "app2", "path": "/path/to/app2"},
+      {"name": "app3", "path": "/path/to/app3"}
+    ],
+    "options": {
+      "timeout": 300000,
+      "allowedTools": ["Bash", "Read", "Write"]
+    }
+  }'
+```
+
+### Web UIでの使用
+
+1. 複数のリポジトリを選択（Ctrl/Cmdキーを押しながらクリック）
+2. プロンプトを入力
+3. 「タスクを実行」をクリック
+
+選択された各リポジトリに対して独立したタスクが作成され、並列で実行されます。
+
+### バッチタスクのステータス確認
+
+```bash
+# グループIDを使用してバッチタスクのステータスを確認
+curl -X GET http://localhost:5000/api/batch/tasks/{groupId}/status \
+  -H "X-API-Key: your-api-key"
+```
+
+レスポンス例：
+```json
+{
+  "groupId": "group_123",
+  "summary": {
+    "total": 3,
+    "pending": 1,
+    "running": 1,
+    "completed": 1,
+    "failed": 0
+  },
+  "tasks": [
+    {
+      "taskId": "task1",
+      "repository": "app1",
+      "status": "completed",
+      "duration": 5000
+    },
+    // ...
+  ]
+}
+```
+
 ## スラッシュコマンド
 
 CC-Anywhereは、`/project:` および `/user:` プレフィックスを使用したカスタムスラッシュコマンドをサポートしています。

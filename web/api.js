@@ -46,6 +46,11 @@ class APIClient {
         return this.request('POST', '/api/tasks', taskData);
     }
 
+    // バッチタスクAPI
+    async createBatchTasks(batchData) {
+        return this.request('POST', '/api/batch/tasks', batchData);
+    }
+
     async getTasks(status = null) {
         const query = status ? `?status=${status}` : '';
         return this.request('GET', `/api/tasks${query}`);

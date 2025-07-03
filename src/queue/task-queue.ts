@@ -54,7 +54,7 @@ export class TaskQueueImpl implements TaskQueue {
     });
   }
 
-  add(request: TaskRequest, priority = 0): string {
+  add(request: TaskRequest, priority = 0, metadata?: { groupId?: string; repositoryName?: string }): string {
     const taskId = uuidv4();
 
     // Initialize retry metadata if retry is configured
@@ -83,6 +83,8 @@ export class TaskQueueImpl implements TaskQueue {
         priority,
         status: TaskStatus.PENDING,
         retryMetadata,
+        groupId: metadata?.groupId,
+        repositoryName: metadata?.repositoryName,
       });
     } catch (error) {
       logger.error("Failed to persist task", { taskId, error });
