@@ -13,9 +13,9 @@ export enum TimeoutBehavior {
 
 // Timeout configuration
 export interface TimeoutConfig {
-  total?: number; // Total timeout in ms (default: 300000)
+  total?: number; // Total timeout in ms (default: 600000)
   setup?: number; // Setup phase timeout in ms (default: 30000)
-  execution?: number; // Execution phase timeout in ms (default: 240000)
+  execution?: number; // Execution phase timeout in ms (default: 540000)
   cleanup?: number; // Cleanup phase timeout in ms (default: 30000)
   warningThreshold?: number; // Warning threshold as percentage (0-1, default: 0.9)
   behavior?: TimeoutBehavior; // Timeout behavior (default: soft)
@@ -72,9 +72,9 @@ export interface TimeoutWarning {
 
 // Default timeout configuration
 export const DEFAULT_TIMEOUT_CONFIG: Required<TimeoutConfig> = {
-  total: 300000, // 5 minutes
+  total: 600000, // 10 minutes
   setup: 30000, // 30 seconds
-  execution: 240000, // 4 minutes
+  execution: 540000, // 9 minutes
   cleanup: 30000, // 30 seconds
   warningThreshold: 0.9, // 90%
   behavior: TimeoutBehavior.SOFT,

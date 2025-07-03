@@ -17,6 +17,10 @@ CC-Anywhereは、Claude Code SDKを使用してHTTP経由でタスクを実行�
 - [ワーカーシステム](./architecture/worker-system.md) - 並行タスク処理
 - [キューアーキテクチャ](./architecture/queue-architecture.md) - タスクキューの設計
 
+### 機能
+- [スラッシュコマンド](./features/slash-commands.md) - カスタムコマンドの作成と使用
+- [ngrok統合](./features/ngrok-integration.md) - 外部アクセスの設定
+
 ### コード例
 - [サンプルコード](./examples/) - WebSocketクライアントなどの実装例
 
@@ -68,6 +72,8 @@ ws.on('message', (data) => {
 - **自動リトライ**: エラー時の自動再試行
 - **並行処理**: 複数のワーカーによる効率的な処理
 - **永続化**: SQLiteによるタスク履歴の保存
+- **スラッシュコマンド**: /project:や/user:プレフィックスを使ったカスタムコマンド
+- **外部アクセス**: ngrok統合による簡単な外部公開
 
 ## アーキテクチャ
 

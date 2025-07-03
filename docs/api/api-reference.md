@@ -36,12 +36,12 @@ POST /api/tasks
 
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|-----|------|------|
-| instruction | string | ✓ | Claudeに実行させたいタスクの指示 |
+| instruction | string | ✓ | Claudeに実行させたいタスクの指示。スラッシュコマンド（例: `/project:analyze`）もサポート |
 | context | object | - | タスク実行時のコンテキスト情報 |
 | context.workingDirectory | string | - | 作業ディレクトリのパス |
 | context.files | string[] | - | 関連ファイルのリスト |
 | options | object | - | タスク実行オプション |
-| options.timeout | number | - | タイムアウト時間（ミリ秒）。デフォルト: 300000 (5分)、最大: 600000 (10分) |
+| options.timeout | number | - | タイムアウト時間（ミリ秒）。デフォルト: 600000 (10分)、最大: 1800000 (30分) |
 | options.async | boolean | - | 非同期実行フラグ。デフォルト: false |
 | options.allowedTools | string[] | - | Claude Codeが使用できるツールを制限。例: ["Read", "Write", "Bash"] |
 | options.retry | object | - | リトライ設定 |
@@ -467,7 +467,7 @@ POST /api/queue/tasks
 
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|-----|------|------|
-| instruction | string | ✓ | Claudeに実行させたいタスクの指示 |
+| instruction | string | ✓ | Claudeに実行させたいタスクの指示。スラッシュコマンド（例: `/project:analyze`）もサポート |
 | context | object | - | タスク実行時のコンテキスト情報 |
 | context.workingDirectory | string | - | 作業ディレクトリのパス |
 | context.files | string[] | - | 関連ファイルのリスト |

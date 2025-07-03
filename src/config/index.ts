@@ -13,7 +13,7 @@ const envSchema = z.object({
   CLAUDE_API_KEY: z.string(),
   API_KEY: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
-  TASK_TIMEOUT_MS: z.string().default("300000").transform(Number),
+  TASK_TIMEOUT_MS: z.string().default("600000").transform(Number), // 10 minutes
   MAX_CONCURRENT_TASKS: z.string().default("10").transform(Number),
   USE_CLAUDE_CODE_SDK: z
     .string()

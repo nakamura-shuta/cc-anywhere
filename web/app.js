@@ -330,8 +330,26 @@ function renderTaskDetail(task) {
         ${task.error ? `
         <div class="detail-row">
             <span class="detail-label">エラー:</span>
-            <span class="detail-value" style="color: var(--error-color);">${escapeHtml(task.error.message)}</span>
+            <span class="detail-value" style="color: var(--error-color);">${escapeHtml(task.error.message || task.error)}</span>
         </div>
+        ${task.error.phase ? `
+        <div class="detail-row">
+            <span class="detail-label">タイムアウトフェーズ:</span>
+            <span class="detail-value">${escapeHtml(task.error.phase)}</span>
+        </div>
+        ` : ''}
+        ${task.error.elapsed ? `
+        <div class="detail-row">
+            <span class="detail-label">経過時間:</span>
+            <span class="detail-value">${Math.round(task.error.elapsed / 1000)}秒</span>
+        </div>
+        ` : ''}
+        ${task.error.limit ? `
+        <div class="detail-row">
+            <span class="detail-label">制限時間:</span>
+            <span class="detail-value">${Math.round(task.error.limit / 1000)}秒</span>
+        </div>
+        ` : ''}
         ` : ''}
         ${task.status === 'running' ? `
         <div class="detail-row">
