@@ -1,4 +1,5 @@
 import ngrok from "ngrok";
+import * as qrcode from "qrcode-terminal";
 import { logger } from "./logger";
 import { config } from "../config";
 
@@ -37,6 +38,7 @@ export async function startNgrok(port: number): Promise<string | null> {
 /* eslint-disable no-console */
 export function displayAccessInfo(ngrokUrl: string): void {
   const apiKey = config.auth.apiKey;
+  const showQRCode = process.env.SHOW_QR_CODE === "true";
 
   console.log("\n========================================");
   console.log("🌐 External Access Information");
@@ -45,11 +47,22 @@ export function displayAccessInfo(ngrokUrl: string): void {
   console.log(`🔒 API Key: ${apiKey || "Not set (authentication disabled)"}`);
 
   if (apiKey) {
+    const webUIUrl = `${ngrokUrl}/?apiKey=${apiKey}`;
+    
     console.log("\n🌍 Web UI Access:");
-    console.log(`   ${ngrokUrl}/?apiKey=${apiKey}`);
+    console.log(`   ${webUIUrl}`);
 
     console.log("\n📱 API Access:");
     console.log(`   curl -H "X-API-Key: ${apiKey}" ${ngrokUrl}/api/tasks`);
+    
+    // QRコード表示
+    if (showQRCode) {
+      console.log("\n📱 Scan QR code with your phone:");
+      console.log("");
+      qrcode.generate(webUIUrl, { small: true }, (qrcode) => {
+        console.log(qrcode);
+      });
+    }
   } else {
     console.log("\n⚠️  Warning: API authentication is disabled!");
     console.log("   Set API_KEY in .env to enable authentication");
@@ -59,6 +72,15 @@ export function displayAccessInfo(ngrokUrl: string): void {
 
     console.log("\n📱 API Access:");
     console.log(`   curl ${ngrokUrl}/api/tasks`);
+    
+    // QRコード表示
+    if (showQRCode) {
+      console.log("\n📱 Scan QR code with your phone:");
+      console.log("");
+      qrcode.generate(ngrokUrl, { small: true }, (qrcode) => {
+        console.log(qrcode);
+      });
+    }
   }
 
   console.log("\n========================================\n");

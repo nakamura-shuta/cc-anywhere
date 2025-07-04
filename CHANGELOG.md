@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 各タスクにリポジトリ名を表示
   - グループIDによるバッチタスクのステータス確認API
 - タスクキューにメタデータ（groupId, repositoryName）のサポートを追加
+- モバイル対応Web UI
+  - レスポンシブデザインの実装
+  - タッチ操作に最適化されたUI要素
+  - モバイルでのタスクID表示とコピー機能
+- QRコード表示機能（ngrok使用時）
+  - `SHOW_QR_CODE=true`でターミナルにQRコードを表示
+  - スマートフォンからの簡単アクセス
 
 ### Fixed
 - Task detail view not updating when left open during task execution

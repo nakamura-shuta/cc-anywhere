@@ -1,14 +1,12 @@
 import { v4 as uuidv4 } from "uuid";
-import type { TaskRepository } from "../db/repositories/task-repository";
+import type { TaskRepository } from "../db/task-repository";
 import type { TaskQueue } from "../queue/task-queue";
 import type {
-  BatchRepository,
   CreateBatchTaskParams,
   BatchTaskResponse,
   BatchTaskStatus,
 } from "../types/batch-task";
-import type { CreateTaskRequest } from "../claude/types";
-import { TaskStatus } from "../claude/types";
+import { TaskStatus, type TaskRequest } from "../claude/types";
 import { logger } from "../utils/logger";
 
 export class BatchTaskService {
@@ -39,7 +37,7 @@ export class BatchTaskService {
 
     // 各リポジトリに対してタスクを作成
     for (const repo of params.repositories) {
-      const taskRequest: CreateTaskRequest = {
+      const taskRequest: TaskRequest = {
         instruction: params.instruction,
         context: {
           workingDirectory: repo.path,
@@ -92,7 +90,7 @@ export class BatchTaskService {
       failed: 0,
     };
 
-    const taskDetails = tasks.map((task) => {
+    const taskDetails = tasks.map((task: any) => {
       // ステータスの集計
       switch (task.status) {
         case TaskStatus.PENDING:

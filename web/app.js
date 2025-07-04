@@ -77,6 +77,26 @@ function setupEventListeners() {
             closeModal();
         }
     });
+    
+    // モバイルでのタスクIDコピー機能
+    if ('ontouchstart' in window) {
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('task-id')) {
+                // タスクIDをクリップボードにコピー
+                const taskId = e.target.textContent;
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(taskId).then(() => {
+                        // 簡易的なフィードバック
+                        const originalText = e.target.textContent;
+                        e.target.textContent = 'コピー済み!';
+                        setTimeout(() => {
+                            e.target.textContent = originalText;
+                        }, 1000);
+                    });
+                }
+            }
+        });
+    }
 }
 
 // タスク送信処理

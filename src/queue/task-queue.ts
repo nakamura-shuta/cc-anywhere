@@ -9,6 +9,8 @@ import { TaskRepository } from "../db/task-repository";
 import { RetryService } from "../services/retry-service";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
 
+export { TaskQueue };
+
 export class TaskQueueImpl implements TaskQueue {
   private queue: PQueue;
   private tasks: Map<string, QueuedTask> = new Map();

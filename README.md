@@ -6,6 +6,19 @@ Claude Code SDKを使用してHTTP経由で指示できるアプリです。
 
 CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、様々なタスクを実行できるAPIサーバーです。
 
+### 主な機能
+
+- 🚀 Claude Code SDKをHTTP API経由で利用
+- 📱 モバイル対応Web UI
+- 🔄 非同期タスク実行とキュー管理
+- 📦 複数リポジトリへの一括実行（バッチタスク）
+- 💬 スラッシュコマンドサポート
+- 🌐 ngrok統合による外部アクセス
+- 📱 QRコード表示によるモバイルアクセス
+- 🔐 APIキー認証
+- 📊 リアルタイムタスク進捗表示（WebSocket）
+- 🔁 自動リトライ機能
+
 ## セットアップ
 
 ### 前提条件
@@ -329,13 +342,19 @@ CC-Anywhereは2つのテンプレート構文をサポートしています：
 ### 使用方法
 
 1. `.env`ファイルで`ENABLE_NGROK=true`を設定
-2. サーバーを起動すると、自動的にngrok tunnelが開始されます
-3. コンソールに外部アクセス用のURLが表示されます
+2. オプション：`SHOW_QR_CODE=true`を設定するとQRコードも表示されます
+3. サーバーを起動すると、自動的にngrok tunnelが開始されます
+4. コンソールに外部アクセス用のURL（とQRコード）が表示されます
+
+### QRコード表示
+
+`SHOW_QR_CODE=true`を設定すると、スマートフォンでスキャン可能なQRコードがターミナルに表示されます。これにより、モバイルデバイスから簡単にWeb UIにアクセスできます。
 
 ```bash
 # .envファイル
 ENABLE_NGROK=true
 API_KEY=your-secret-api-key
+SHOW_QR_CODE=true  # QRコードを表示する場合
 
 # サーバー起動
 npm run dev
@@ -353,6 +372,16 @@ npm run dev
 # 
 # 📱 API Access:
 #    curl -H "X-API-Key: your-secret-api-key" https://xxxx-xxx-xxx-xxx-xxx.ngrok.io/api/tasks
+#
+# 📱 Scan QR code with your phone:
+#
+#     █▀▀▀▀▀█ ▄▀▄ ▄▄▀▄▄ █▀▀▀▀▀█
+#     █ ███ █ ▀▄▀▄▀▄▀▄▀ █ ███ █
+#     █ ▀▀▀ █ ▄▀▄▀▄ ▀▄▀ █ ▀▀▀ █
+#     ▀▀▀▀▀▀▀ █ ▀ █ ▀ █ ▀▀▀▀▀▀▀
+#     ▀▄▀▄▀▄▀ ▄▀▄ ▀▄▀▄ ▀▄▀▄▀▄▀
+#     █ ▀▄▀▄▀ ▄▀▄▀▄ ▀▄ ▀▄▀▄▀ █
+#     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 ```
 
 ## クイックスタート
