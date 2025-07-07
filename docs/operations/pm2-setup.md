@@ -17,7 +17,7 @@ CC-AnywhereをPM2で管理し、MacBookを閉じても（クラムシェルモ�
 
 最も簡単な方法：
 ```bash
-./scripts/start-pm2.sh
+./scripts/start-clamshell.sh
 ```
 
 このスクリプトは以下を実行します：

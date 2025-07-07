@@ -3,6 +3,7 @@ import { logger } from "../logger";
 import { config } from "../../config";
 import { NgrokTunnelProvider } from "./ngrok-provider";
 import { CloudflareTunnelProvider } from "./cloudflare";
+import { QRFileManager } from "./qr-file-manager";
 import type { TunnelProvider, TunnelInfo } from "./types";
 
 class TunnelManager {
@@ -80,7 +81,13 @@ class TunnelManager {
         console.log("\n📱 Scan QR code with your phone:");
         console.log("");
         qrcode.generate(webUIUrl, { small: true }, (qrcode) => {
-          console.log(qrcode);
+          // 改行を追加してPM2のタイムスタンプとQRコードを分離
+          console.log("\n" + qrcode);
+        });
+        
+        // QRコードをファイルに保存
+        QRFileManager.saveQRCode(webUIUrl).catch((err) => {
+          logger.error("Failed to save QR code:", err);
         });
       }
     } else {
@@ -98,12 +105,27 @@ class TunnelManager {
         console.log("\n📱 Scan QR code with your phone:");
         console.log("");
         qrcode.generate(tunnelUrl, { small: true }, (qrcode) => {
-          console.log(qrcode);
+          // 改行を追加してPM2のタイムスタンプとQRコードを分離
+          console.log("\n" + qrcode);
+        });
+        
+        // QRコードをファイルに保存
+        QRFileManager.saveQRCode(tunnelUrl).catch((err) => {
+          logger.error("Failed to save QR code:", err);
         });
       }
     }
 
     console.log("\n========================================\n");
+    
+    // アクセス情報をファイルに保存
+    QRFileManager.saveAccessInfo({
+      url: tunnelUrl,
+      type: tunnelType,
+      apiKey,
+      webUIUrl: apiKey ? `${tunnelUrl}/?apiKey=${apiKey}` : undefined,
+      timestamp: new Date(),
+    });
   }
   /* eslint-enable no-console */
 }

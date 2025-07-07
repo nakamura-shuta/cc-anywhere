@@ -132,6 +132,10 @@ case "$1" in
     stop)
         stop_app
         ;;
+    start-clamshell)
+        # start-clamshell.shにリダイレクト
+        "$SCRIPT_DIR/start-clamshell.sh"
+        ;;
     restart)
         pm2 restart $APP_NAME
         ;;

@@ -21,7 +21,29 @@ CC-Anywhereは以下の2つの方法で外部アクセスを提供します：
 
 ### セットアップ
 
-#### 1. cloudflaredのインストール
+#### 方法1: 自動セットアップ（推奨）
+
+API経由で自動的にトンネルを作成する方法：
+
+```bash
+# セットアップスクリプトを実行
+./scripts/setup-cloudflare-tunnel.sh
+```
+
+このスクリプトは以下を自動で行います：
+- Cloudflare APIを使用してトンネルを作成
+- 認証トークンを生成
+- `.env`ファイルを更新
+- オプションでカスタムドメインを設定
+
+必要な情報：
+- Cloudflare Email
+- Global API Key（[プロファイル設定](https://dash.cloudflare.com/profile/api-tokens)から取得）
+- Account ID（[ダッシュボード](https://dash.cloudflare.com)の右サイドバーに表示）
+
+#### 方法2: 手動セットアップ
+
+##### 1. cloudflaredのインストール
 
 ```bash
 # macOS
@@ -33,7 +55,7 @@ chmod +x cloudflared
 sudo mv cloudflared /usr/local/bin/
 ```
 
-#### 2. 設定
+##### 2. 設定
 
 `.env`ファイルに追加：
 
@@ -43,12 +65,12 @@ TUNNEL_TYPE=cloudflare
 SHOW_QR_CODE=true
 ```
 
-#### 3. 起動
+##### 3. 起動
 
 ```bash
 npm run dev
 # または
-./scripts/start-pm2.sh
+./scripts/start-clamshell.sh
 ```
 
 自動的にトンネルが作成され、URLが表示されます：
@@ -65,9 +87,18 @@ npm run dev
    https://example.trycloudflare.com/?apiKey=your-api-key
 ```
 
-### 永続的なトンネル（上級者向け）
+### 永続的なトンネル（固定URL）
 
 固定URLが必要な場合：
+
+#### 自動作成（推奨）
+
+```bash
+./scripts/setup-cloudflare-tunnel.sh
+# カスタムドメインの設定も可能
+```
+
+#### 手動作成
 
 ```bash
 # Cloudflareにログイン
@@ -153,7 +184,7 @@ cloudflared tunnel --url http://localhost:5000
 pm2 logs cc-anywhere | grep -i tunnel
 
 # または専用スクリプト
-./scripts/show-cloudflare-url.sh
+./scripts/tunnel-manager.sh show
 ```
 
 ### アクセスできない
