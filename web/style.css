@@ -5,6 +5,11 @@
     box-sizing: border-box;
 }
 
+/* ボックスモデルの確実な適用 */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 :root {
     --primary-color: #3b82f6;
     --success-color: #10b981;
@@ -16,6 +21,11 @@
     --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
+html {
+    overflow-x: hidden;
+    width: 100%;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     line-height: 1.6;
@@ -23,12 +33,16 @@ body {
     background-color: var(--bg-color);
     /* モバイルでのズーム防止 */
     -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+    width: 100%;
+    min-width: 0;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+    overflow-x: hidden; /* 横スクロール防止 */
 }
 
 /* モバイル対応 */
@@ -48,6 +62,7 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    overflow: hidden; /* 横スクロール防止 */
 }
 
 h1 {
@@ -97,11 +112,16 @@ main {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 30px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
     main {
         grid-template-columns: 1fr;
+        gap: 20px;
+        width: 100%;
+        overflow-x: hidden;
     }
 }
 
@@ -113,6 +133,17 @@ section {
     box-shadow: var(--shadow);
 }
 
+/* フォームセクション */
+.task-form-section {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#task-form {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 h2 {
     font-size: 18px;
     margin-bottom: 20px;
@@ -122,6 +153,8 @@ h2 {
 /* フォーム */
 .form-group {
     margin-bottom: 15px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 label {
@@ -141,6 +174,7 @@ select {
     border-radius: 4px;
     font-size: 14px;
     transition: border-color 0.2s;
+    box-sizing: border-box; /* パディングを含めた幅計算 */
 }
 
 .repository-select {
@@ -168,6 +202,17 @@ textarea {
     select {
         padding: 12px;
         font-size: 16px; /* iOS自動ズーム防止 */
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* placeholderの省略 */
+    input::placeholder,
+    textarea::placeholder {
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
     }
     
     textarea {
@@ -202,6 +247,9 @@ textarea {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap; /* テキストの折り返しを防ぐ */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .btn-primary {
@@ -234,6 +282,10 @@ textarea {
         font-size: 16px;
         min-height: 44px; /* iOS推奨のタップターゲットサイズ */
         width: 100%;
+        max-width: 100%;
+        box-sizing: border-box; /* パディングを含めた幅計算 */
+        display: block; /* ブロック要素として表示 */
+        margin: 0 auto; /* 中央揃え */
     }
     
     /* ボタンのホバー効果を無効化（タッチデバイス） */
@@ -245,6 +297,69 @@ textarea {
         .btn-secondary:hover {
             background-color: #f3f4f6;
         }
+    }
+}
+
+/* スマートフォン縦画面専用の追加調整 */
+@media (max-width: 480px) and (orientation: portrait) {
+    /* コンテナとセクションの調整 */
+    .container {
+        padding: 5px;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+    
+    main {
+        gap: 10px;
+        padding: 0;
+        width: 100%;
+    }
+    
+    section {
+        padding: 10px;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 4px;
+    }
+    
+    .task-form-section,
+    .task-list-section {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+    }
+    
+    /* ボタンの調整 */
+    .btn {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 12px 10px;
+    }
+    
+    /* フォーム要素の調整 */
+    .form-group {
+        padding: 0;
+        margin-bottom: 15px;
+        width: 100%;
+        overflow: hidden;
+    }
+    
+    #task-form {
+        padding: 0;
+        width: 100%;
+    }
+    
+    /* 入力フィールドの調整 */
+    input[type="text"],
+    input[type="number"],
+    textarea,
+    select {
+        padding: 10px;
+        width: 100%;
+        max-width: 100%;
     }
 }
 
@@ -326,6 +441,7 @@ select {
     padding: 2px 4px;
     box-shadow: var(--shadow);
     max-width: none;
+    word-break: break-all; /* 長いIDも折り返す */
 }
 
 .task-status {
@@ -632,6 +748,8 @@ select {
     display: block;
     margin-top: 5px;
     font-size: 12px;
+    word-wrap: break-word;
+    word-break: break-word;
 }
 
 .custom-tools-group {
@@ -641,6 +759,11 @@ select {
 .custom-tools-group label {
     font-size: 13px;
     margin-bottom: 5px;
+}
+
+.custom-tools-group input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* 許可ツールリスト */
@@ -662,9 +785,30 @@ select {
 
 /* 全体的なモバイル最適化 */
 @media (max-width: 768px) {
+    /* 横スクロール完全防止 */
+    html, body {
+        overflow-x: hidden;
+        width: 100%;
+    }
+    
     /* スクロール改善 */
     body {
         -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
+    }
+    
+    /* コンテナの横幅制限 */
+    .container {
+        width: 100%;
+        max-width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+    
+    /* セクションの横幅制限 */
+    section {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     
     /* タスク詳細の調整 */
@@ -680,6 +824,7 @@ select {
     
     .detail-value {
         font-size: 14px;
+        word-break: break-word; /* 長いテキストを折り返す */
     }
     
     /* エラー・成功メッセージの調整 */
@@ -687,6 +832,7 @@ select {
     .success-message {
         font-size: 14px;
         padding: 15px;
+        word-wrap: break-word;
     }
     
     /* ツールリストの調整 */
@@ -697,6 +843,15 @@ select {
     .allowed-tool-item {
         font-size: 12px;
         padding: 3px 10px;
+    }
+    
+    /* 長いテキストの折り返し */
+    .task-instruction,
+    .task-id,
+    pre,
+    code {
+        word-wrap: break-word;
+        word-break: break-word;
     }
 }
 
