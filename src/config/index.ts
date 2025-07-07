@@ -30,10 +30,32 @@ const envSchema = z.object({
   WEBSOCKET_HEARTBEAT_INTERVAL: z.string().default("30000").transform(Number),
   WEBSOCKET_HEARTBEAT_TIMEOUT: z.string().default("60000").transform(Number),
   WEBSOCKET_AUTH_TIMEOUT: z.string().default("10000").transform(Number),
+  // Tunnel configuration
+  TUNNEL_TYPE: z.enum(["none", "ngrok", "cloudflare"]).default("none"),
   ENABLE_NGROK: z
     .string()
     .default("false")
     .transform((v) => v === "true"),
+  CLOUDFLARE_TUNNEL_TOKEN: z.string().optional(),
+  CLOUDFLARE_TUNNEL_NAME: z.string().default("cc-anywhere"),
+  SHOW_QR_CODE: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+  // Worktree設定
+  ENABLE_WORKTREE: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+  WORKTREE_BASE_PATH: z.string().default(".worktrees"),
+  MAX_WORKTREES: z.string().default("5").transform(Number),
+  WORKTREE_AUTO_CLEANUP: z
+    .string()
+    .default("true")
+    .transform((v) => v === "true"),
+  WORKTREE_CLEANUP_DELAY: z.string().default("300000").transform(Number), // 5分
+  WORKTREE_PREFIX: z.string().default("cc-anywhere"),
+  WORKTREE_DEFAULT_BASE_BRANCH: z.string().default("master"),
 });
 
 // Parse and validate environment variables
@@ -82,7 +104,26 @@ export const config = {
     heartbeatTimeout: env.WEBSOCKET_HEARTBEAT_TIMEOUT,
     authTimeout: env.WEBSOCKET_AUTH_TIMEOUT,
   },
+  tunnel: {
+    type: env.TUNNEL_TYPE,
+    enabled: env.TUNNEL_TYPE !== "none" || env.ENABLE_NGROK, // 後方互換性
+    showQRCode: env.SHOW_QR_CODE,
+  },
   ngrok: {
-    enabled: env.ENABLE_NGROK,
+    enabled: env.ENABLE_NGROK || env.TUNNEL_TYPE === "ngrok",
+  },
+  cloudflare: {
+    enabled: env.TUNNEL_TYPE === "cloudflare",
+    token: env.CLOUDFLARE_TUNNEL_TOKEN,
+    name: env.CLOUDFLARE_TUNNEL_NAME,
+  },
+  worktree: {
+    enabled: env.ENABLE_WORKTREE,
+    basePath: env.WORKTREE_BASE_PATH,
+    maxWorktrees: env.MAX_WORKTREES,
+    autoCleanup: env.WORKTREE_AUTO_CLEANUP,
+    cleanupDelay: env.WORKTREE_CLEANUP_DELAY,
+    prefix: env.WORKTREE_PREFIX,
+    defaultBaseBranch: env.WORKTREE_DEFAULT_BASE_BRANCH,
   },
 } as const;

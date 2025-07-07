@@ -20,9 +20,9 @@ describe("TemplateEngine - Claude Code Compatibility", () => {
     it("should substitute uppercase parameter variables", () => {
       const template = "Target: $TARGET, Mode: $MODE";
       const context: CommandContext = {
-        parameters: { 
+        parameters: {
           target: "src",
-          mode: "debug"
+          mode: "debug",
         },
         args: [],
         options: {},

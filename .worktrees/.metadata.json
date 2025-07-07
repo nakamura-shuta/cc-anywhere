@@ -1,0 +1,206 @@
+{
+  "worktrees": [
+    {
+      "id": "cc-anywhere-581ac5c0-34cb-4320-b96e-be1661add594",
+      "taskId": "581ac5c0-34cb-4320-b96e-be1661add594",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-581ac5c0-34cb-4320-b96e-be1661add594",
+      "branch": "cc-anywhere/581ac5c0-34cb-4320-b96e-be1661add594-1751848597768",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T00:36:37.845Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-e969b825-260d-4b41-b650-332a137e476e",
+      "taskId": "e969b825-260d-4b41-b650-332a137e476e",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-e969b825-260d-4b41-b650-332a137e476e",
+      "branch": "test/custom-branch-1751848613",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T00:36:53.206Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-e7fab69d-08be-4f07-88dc-77c64217961c",
+      "taskId": "e7fab69d-08be-4f07-88dc-77c64217961c",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-e7fab69d-08be-4f07-88dc-77c64217961c",
+      "branch": "cc-anywhere/e7fab69d-08be-4f07-88dc-77c64217961c-1751848624203",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T00:37:04.300Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-9647f701-eb82-45c8-8962-2a0d7748a107",
+      "taskId": "9647f701-eb82-45c8-8962-2a0d7748a107",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-9647f701-eb82-45c8-8962-2a0d7748a107",
+      "branch": "cc-anywhere/9647f701-eb82-45c8-8962-2a0d7748a107-1751848639277",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T00:37:19.359Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-89390ef8-260c-4e40-b2b0-21e61ed3b0dc",
+      "taskId": "89390ef8-260c-4e40-b2b0-21e61ed3b0dc",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-89390ef8-260c-4e40-b2b0-21e61ed3b0dc",
+      "branch": "cc-anywhere/89390ef8-260c-4e40-b2b0-21e61ed3b0dc-1751848653530",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T00:37:33.682Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-d93856f7-d5f7-417c-a1c0-9792d12f3489",
+      "taskId": "d93856f7-d5f7-417c-a1c0-9792d12f3489",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-d93856f7-d5f7-417c-a1c0-9792d12f3489",
+      "branch": "keep/quick-test",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T00:46:18.286Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-149c88ff-16b3-4361-a829-c6c09ad5a978",
+      "taskId": "149c88ff-16b3-4361-a829-c6c09ad5a978",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-149c88ff-16b3-4361-a829-c6c09ad5a978",
+      "branch": "keep/test-1751849355",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T00:49:15.528Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-78a16048-5fc6-4603-b9bd-304aaa4106f4",
+      "taskId": "78a16048-5fc6-4603-b9bd-304aaa4106f4",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-78a16048-5fc6-4603-b9bd-304aaa4106f4",
+      "branch": "keep/test-branch",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T02:30:59.938Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-5081823e-ad81-4b3a-befb-f164f176ebb1",
+      "taskId": "5081823e-ad81-4b3a-befb-f164f176ebb1",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-5081823e-ad81-4b3a-befb-f164f176ebb1",
+      "branch": "keep/test-1751855573",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T02:32:53.716Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-5351375d-d355-4b51-b8df-253c06372c1e",
+      "taskId": "5351375d-d355-4b51-b8df-253c06372c1e",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-5351375d-d355-4b51-b8df-253c06372c1e",
+      "branch": "keep/quick-test",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T02:47:19.020Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-50a9ee47-5720-4daf-a12d-a60668e32006",
+      "taskId": "50a9ee47-5720-4daf-a12d-a60668e32006",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-50a9ee47-5720-4daf-a12d-a60668e32006",
+      "branch": "keep/test-1751856593",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T02:49:53.540Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-dfd26036-ed99-46cc-984c-e17e4875c9c9",
+      "taskId": "dfd26036-ed99-46cc-984c-e17e4875c9c9",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-dfd26036-ed99-46cc-984c-e17e4875c9c9",
+      "branch": "keep/test-1751856669",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T02:51:09.198Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-d484e0ae-8108-46c9-b39b-7e2a164f285f",
+      "taskId": "d484e0ae-8108-46c9-b39b-7e2a164f285f",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-d484e0ae-8108-46c9-b39b-7e2a164f285f",
+      "branch": "keep/test-1751857109",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T02:58:29.500Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-416f3700-5d00-4d2f-b1c4-c8ef811acf85",
+      "taskId": "416f3700-5d00-4d2f-b1c4-c8ef811acf85",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-416f3700-5d00-4d2f-b1c4-c8ef811acf85",
+      "branch": "keep/quick-test",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T02:59:25.732Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-3f4227d7-5fdc-4a5b-8c22-4166e991e238",
+      "taskId": "3f4227d7-5fdc-4a5b-8c22-4166e991e238",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-3f4227d7-5fdc-4a5b-8c22-4166e991e238",
+      "branch": "keep/test-1751857200",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T03:00:00.714Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-63bf6b11-c707-4b4e-9312-40376f747753",
+      "taskId": "63bf6b11-c707-4b4e-9312-40376f747753",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-63bf6b11-c707-4b4e-9312-40376f747753",
+      "branch": "cc-anywhere/63bf6b11-c707-4b4e-9312-40376f747753-1751857294779",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T03:01:34.889Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-a4442e8a-57db-4e51-8c59-f27ad800db17",
+      "taskId": "a4442e8a-57db-4e51-8c59-f27ad800db17",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-a4442e8a-57db-4e51-8c59-f27ad800db17",
+      "branch": "ui-test/feature-x",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T03:01:52.245Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-ea017449-c11d-4aaa-b078-c3d40b1be6a3",
+      "taskId": "ea017449-c11d-4aaa-b078-c3d40b1be6a3",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-ea017449-c11d-4aaa-b078-c3d40b1be6a3",
+      "branch": "cc-anywhere/ea017449-c11d-4aaa-b078-c3d40b1be6a3-1751857425700",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T03:03:45.869Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-84c4815d-1eab-4f88-a53f-7251b653b799",
+      "taskId": "84c4815d-1eab-4f88-a53f-7251b653b799",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-84c4815d-1eab-4f88-a53f-7251b653b799",
+      "branch": "test/parallel-1751859509",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T03:38:29.818Z",
+      "status": "active"
+    },
+    {
+      "id": "cc-anywhere-33e1acb8-cee9-43a9-a606-07fc9221b9bb",
+      "taskId": "33e1acb8-cee9-43a9-a606-07fc9221b9bb",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-33e1acb8-cee9-43a9-a606-07fc9221b9bb",
+      "branch": "keep/test-1751861148",
+      "baseBranch": "master",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-07T04:05:49.144Z",
+      "status": "active"
+    }
+  ],
+  "lastUpdated": "2025-07-07T04:30:25.322Z",
+  "version": "1.0.0"
+}

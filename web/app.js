@@ -78,6 +78,12 @@ function setupEventListeners() {
         }
     });
     
+    // Worktreeオプションの表示/非表示
+    document.getElementById('use-worktree').addEventListener('change', (e) => {
+        const worktreeOptions = document.getElementById('worktree-options');
+        worktreeOptions.style.display = e.target.checked ? 'block' : 'none';
+    });
+    
     // モバイルでのタスクIDコピー機能
     if ('ontouchstart' in window) {
         document.addEventListener('click', (e) => {
@@ -133,6 +139,22 @@ async function handleTaskSubmit(e) {
         taskData.options.allowedTools = allowedTools;
     }
 
+    // Worktreeオプションの追加
+    if (formData.get('useWorktree')) {
+        taskData.options.useWorktree = true;
+        
+        const branchName = formData.get('worktreeBranch');
+        const keepWorktree = formData.get('keepWorktree');
+        
+        if (branchName || keepWorktree) {
+            taskData.options.worktree = {
+                enabled: true,
+                branchName: branchName || undefined,
+                keepAfterCompletion: !!keepWorktree
+            };
+        }
+    }
+
     // 選択されたリポジトリを取得
     const selectedRepos = Array.from(document.getElementById('repositories').selectedOptions)
         .map(option => ({ name: option.text, path: option.value }));
@@ -150,6 +172,22 @@ async function handleTaskSubmit(e) {
                     allowedTools: allowedTools.length > 0 ? allowedTools : undefined
                 }
             };
+            
+            // バッチタスクにもWorktreeオプションを追加
+            if (formData.get('useWorktree')) {
+                batchData.options.useWorktree = true;
+                
+                const branchName = formData.get('worktreeBranch');
+                const keepWorktree = formData.get('keepWorktree');
+                
+                if (branchName || keepWorktree) {
+                    batchData.options.worktree = {
+                        enabled: true,
+                        branchName: branchName || undefined,
+                        keepAfterCompletion: !!keepWorktree
+                    };
+                }
+            }
             
             response = await apiClient.createBatchTasks(batchData);
             showSuccess(`${selectedRepos.length}件のバッチタスクを作成しました`);
@@ -340,6 +378,18 @@ function renderTaskDetail(task) {
         <div class="detail-row">
             <span class="detail-label">作業ディレクトリ:</span>
             <span class="detail-value">${escapeHtml(task.workingDirectory)}</span>
+        </div>
+        ` : ''}
+        ${task.useWorktree || (task.options && task.options.useWorktree) ? `
+        <div class="detail-row">
+            <span class="detail-label">Git Worktree:</span>
+            <span class="detail-value">
+                <span style="color: #10b981;">✓ 有効</span>
+                ${task.options && task.options.worktree && task.options.worktree.branchName ? 
+                    `<br>ブランチ: ${escapeHtml(task.options.worktree.branchName)}` : ''}
+                ${task.options && task.options.worktree && task.options.worktree.keepAfterCompletion ? 
+                    `<br>タスク完了後も保持` : ''}
+            </span>
         </div>
         ` : ''}
         <div class="detail-row">

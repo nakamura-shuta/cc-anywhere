@@ -699,3 +699,36 @@ select {
         padding: 3px 10px;
     }
 }
+
+/* Worktreeオプション */
+.worktree-options {
+    background: #f9fafb;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.worktree-options .form-group {
+    margin-bottom: 10px;
+}
+
+.worktree-options .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.worktree-options input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.worktree-options .checkbox-label {
+    margin-top: 10px;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    .worktree-options {
+        padding: 12px;
+    }
+}

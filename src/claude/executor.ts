@@ -9,6 +9,8 @@ import { RetryHandler, type RetryHandlerOptions } from "../services/retry-handle
 import { TimeoutManager } from "../services/timeout-manager";
 import { TimeoutPhase, TimeoutError, type TimeoutConfig } from "../types/timeout";
 import { InstructionProcessor } from "../services/slash-commands/instruction-processor";
+import { WorktreeManager } from "../services/worktree/worktree-manager";
+import type { Worktree, WorktreeConfig } from "../services/worktree/types";
 
 export class TaskExecutorImpl implements TaskExecutor {
   private client: ClaudeClient;
@@ -17,6 +19,7 @@ export class TaskExecutorImpl implements TaskExecutor {
   private runningTasks: Map<string, AbortController> = new Map();
   private retryHandler: RetryHandler;
   private instructionProcessor?: InstructionProcessor;
+  private worktreeManager?: WorktreeManager;
 
   constructor(useClaudeCode = true) {
     this.client = new ClaudeClient();
@@ -26,6 +29,18 @@ export class TaskExecutorImpl implements TaskExecutor {
 
     // Initialize instruction processor
     this.instructionProcessor = new InstructionProcessor();
+
+    // Initialize worktree manager if enabled
+    if (config.worktree?.enabled) {
+      const worktreeConfig: WorktreeConfig = {
+        maxWorktrees: config.worktree.maxWorktrees,
+        baseDirectory: config.worktree.basePath,
+        autoCleanup: config.worktree.autoCleanup,
+        cleanupDelay: config.worktree.cleanupDelay,
+        worktreePrefix: config.worktree.prefix,
+      };
+      this.worktreeManager = new WorktreeManager(worktreeConfig);
+    }
   }
 
   async execute(
@@ -106,15 +121,23 @@ export class TaskExecutorImpl implements TaskExecutor {
       },
     );
 
+    // Track worktree for cleanup
+    let createdWorktree: Worktree | null = null;
+
     try {
       // Process slash commands if enabled
       let processedTask = task;
+      logger.info("Task processing started", {
+        hasInstructionProcessor: !!this.instructionProcessor,
+        originalOptions: task.options,
+      });
       if (this.instructionProcessor) {
         const processed = await this.instructionProcessor.process(task.instruction, task.context);
         processedTask = {
           ...task,
           instruction: processed.instruction,
           context: { ...task.context, ...processed.context },
+          options: task.options, // Preserve options including worktree settings
         };
 
         // Log if a command was processed
@@ -128,6 +151,48 @@ export class TaskExecutorImpl implements TaskExecutor {
             reason: processed.metadata.reason,
           });
         }
+      }
+
+      // Handle worktree creation if enabled
+      let workingDirectory = processedTask.context?.workingDirectory;
+      const shouldUseWorktree = this.shouldUseWorktree(processedTask);
+
+      logger.info("Worktree evaluation", {
+        shouldUseWorktree,
+        processedTaskOptions: processedTask.options,
+        worktreeOptions: processedTask.options?.worktree,
+        useWorktree: processedTask.options?.useWorktree,
+      });
+
+      if (shouldUseWorktree && taskId && workingDirectory) {
+        logger.info("Worktree creation requested", { taskId, workingDirectory });
+
+        // Create worktree
+        const worktreeOptions = this.getWorktreeOptions(processedTask);
+        logger.info("Creating worktree with options", {
+          taskId,
+          worktreeOptions,
+          processedTaskOptions: processedTask.options,
+        });
+        createdWorktree = await this.createWorktree(
+          taskId,
+          workingDirectory,
+          worktreeOptions,
+          processedTask.options?.onProgress,
+        );
+
+        // Update working directory to worktree path
+        workingDirectory = createdWorktree.path;
+        logs.push(`Created worktree: ${createdWorktree.id} at ${createdWorktree.path}`);
+
+        // Update processedTask context with new working directory
+        processedTask = {
+          ...processedTask,
+          context: {
+            ...processedTask.context,
+            workingDirectory,
+          },
+        };
       }
 
       // Build the prompt
@@ -150,22 +215,24 @@ export class TaskExecutorImpl implements TaskExecutor {
           }
 
           // Validate and set working directory if specified
-          let workingDirectory: string | undefined;
-          if (processedTask.context?.workingDirectory) {
-            workingDirectory = resolve(processedTask.context.workingDirectory);
+          // Note: If worktree was created, processedTask.context.workingDirectory is already updated
+          const resolvedWorkingDirectory = processedTask.context?.workingDirectory
+            ? resolve(processedTask.context.workingDirectory)
+            : undefined;
 
+          if (resolvedWorkingDirectory) {
             // Check if directory exists
-            if (!existsSync(workingDirectory)) {
-              throw new Error(`Working directory does not exist: ${workingDirectory}`);
+            if (!existsSync(resolvedWorkingDirectory)) {
+              throw new Error(`Working directory does not exist: ${resolvedWorkingDirectory}`);
             }
 
-            logs.push(`Working directory: ${workingDirectory}`);
-            logger.info("Using working directory", { cwd: workingDirectory });
+            logs.push(`Working directory: ${resolvedWorkingDirectory}`);
+            logger.info("Using working directory", { cwd: resolvedWorkingDirectory });
 
             if (processedTask.options?.onProgress) {
               await processedTask.options.onProgress({
                 type: "log",
-                message: `作業ディレクトリ: ${workingDirectory}`,
+                message: `作業ディレクトリ: ${resolvedWorkingDirectory}`,
               });
             }
           }
@@ -183,7 +250,7 @@ export class TaskExecutorImpl implements TaskExecutor {
 
           const result = await this.codeClient.executeTask(prompt, {
             maxTurns: 5,
-            cwd: workingDirectory,
+            cwd: resolvedWorkingDirectory,
             abortController,
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             allowedTools: processedTask.options?.allowedTools,
@@ -259,6 +326,20 @@ export class TaskExecutorImpl implements TaskExecutor {
         this.runningTasks.delete(taskId);
       }
 
+      // Clean up worktree if needed
+      if (createdWorktree) {
+        const shouldCleanup = this.shouldCleanupWorktree(processedTask);
+        logger.info("Worktree cleanup decision", {
+          worktreeId: createdWorktree.id,
+          shouldCleanup,
+          keepAfterCompletion: processedTask.options?.worktree?.keepAfterCompletion,
+        });
+
+        if (shouldCleanup) {
+          await this.cleanupWorktree(createdWorktree, processedTask.options?.onProgress);
+        }
+      }
+
       return {
         success: true,
         output,
@@ -279,6 +360,15 @@ export class TaskExecutorImpl implements TaskExecutor {
       timeoutManager.dispose();
       if (taskId) {
         this.runningTasks.delete(taskId);
+      }
+
+      // Clean up worktree even on error
+      if (createdWorktree && this.shouldCleanupWorktree(task)) {
+        try {
+          await this.cleanupWorktree(createdWorktree, task.options?.onProgress);
+        } catch (cleanupError) {
+          logger.error("Failed to cleanup worktree after error", { cleanupError });
+        }
       }
 
       return {
@@ -357,5 +447,196 @@ export class TaskExecutorImpl implements TaskExecutor {
 You help users with various programming and development tasks. 
 Provide clear, concise, and accurate responses. 
 When providing code, ensure it follows best practices and is well-documented.`;
+  }
+
+  /**
+   * Check if worktree should be used for this task
+   */
+  private shouldUseWorktree(task: TaskRequest): boolean {
+    // Check if worktree is globally enabled
+    if (!config.worktree?.enabled || !this.worktreeManager) {
+      return false;
+    }
+
+    // Check if task explicitly enables worktree
+    if (task.options?.useWorktree) {
+      return true;
+    }
+
+    // Check if task has detailed worktree configuration
+    if (task.options?.worktree?.enabled) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Get worktree options from task
+   */
+  private getWorktreeOptions(task: TaskRequest) {
+    // If detailed worktree options are provided, use them
+    if (task.options?.worktree) {
+      logger.info("Using provided worktree options", {
+        options: task.options.worktree,
+        keepAfterCompletion: task.options.worktree.keepAfterCompletion,
+      });
+      return task.options.worktree;
+    }
+
+    // Otherwise return default options
+    const defaultOptions = {
+      enabled: true,
+      keepAfterCompletion: false,
+      autoCommit: false,
+      autoMerge: false,
+    };
+    logger.info("Using default worktree options", { options: defaultOptions });
+    return defaultOptions;
+  }
+
+  /**
+   * Create worktree for task execution
+   */
+  private async createWorktree(
+    taskId: string,
+    workingDirectory: string,
+    options: {
+      enabled: boolean;
+      baseBranch?: string;
+      branchName?: string;
+      keepAfterCompletion?: boolean;
+      autoCommit?: boolean;
+      commitMessage?: string;
+      autoMerge?: boolean;
+      mergeStrategy?: "merge" | "rebase" | "squash";
+      targetBranch?: string;
+    },
+    onProgress?: (progress: { type: string; message: string }) => void | Promise<void>,
+  ): Promise<Worktree> {
+    if (!this.worktreeManager) {
+      throw new Error("Worktree manager not initialized");
+    }
+
+    // Notify progress
+    if (onProgress) {
+      await onProgress({
+        type: "log",
+        message: "Worktreeを作成中...",
+      });
+    }
+
+    try {
+      const worktree = await this.worktreeManager.createWorktree({
+        taskId,
+        repositoryPath: workingDirectory,
+        baseBranch: options.baseBranch || config.worktree?.defaultBaseBranch || "master",
+        branchName: options.branchName,
+      });
+
+      // Check worktree health
+      const isHealthy = await this.worktreeManager.isWorktreeHealthy(worktree);
+      if (!isHealthy) {
+        throw new Error("Worktree is not healthy");
+      }
+
+      if (onProgress) {
+        await onProgress({
+          type: "log",
+          message: `Worktree作成完了: ${worktree.branch} (${worktree.path})`,
+        });
+      }
+
+      return worktree;
+    } catch (error) {
+      logger.error("Failed to create worktree", { error, taskId });
+      throw error;
+    }
+  }
+
+  /**
+   * Check if worktree should be cleaned up
+   */
+  private shouldCleanupWorktree(task: TaskRequest): boolean {
+    // If task explicitly wants to keep worktree, don't cleanup
+    if (task.options?.worktree?.keepAfterCompletion) {
+      logger.info("Worktree will be kept due to keepAfterCompletion flag", {
+        keepAfterCompletion: task.options.worktree.keepAfterCompletion,
+      });
+      return false;
+    }
+
+    // If global auto cleanup is disabled, don't cleanup
+    if (config.worktree?.autoCleanup === false) {
+      logger.info("Worktree will be kept due to global autoCleanup setting", {
+        autoCleanup: config.worktree.autoCleanup,
+      });
+      return false;
+    }
+
+    logger.info("Worktree will be cleaned up", {
+      keepAfterCompletion: task.options?.worktree?.keepAfterCompletion,
+      autoCleanup: config.worktree?.autoCleanup,
+    });
+    return true;
+  }
+
+  /**
+   * Clean up worktree after task completion
+   */
+  private async cleanupWorktree(
+    worktree: Worktree,
+    onProgress?: (progress: { type: string; message: string }) => void | Promise<void>,
+  ): Promise<void> {
+    if (!this.worktreeManager) {
+      return;
+    }
+
+    // Schedule cleanup with delay
+    const cleanupDelay = config.worktree?.cleanupDelay || 0;
+
+    if (cleanupDelay > 0) {
+      // Schedule for later
+      setTimeout(() => {
+        void (async () => {
+          try {
+            await this.worktreeManager!.removeWorktree(worktree.id, {
+              force: false,
+              saveUncommitted: true,
+            });
+            logger.info("Worktree cleaned up", { worktreeId: worktree.id });
+          } catch (error) {
+            logger.error("Failed to cleanup worktree", { error, worktreeId: worktree.id });
+          }
+        })();
+      }, cleanupDelay);
+
+      if (onProgress) {
+        await onProgress({
+          type: "log",
+          message: `Worktreeのクリーンアップを${cleanupDelay / 1000}秒後に予定しました`,
+        });
+      }
+    } else {
+      // Clean up immediately
+      if (onProgress) {
+        await onProgress({
+          type: "log",
+          message: "Worktreeをクリーンアップ中...",
+        });
+      }
+
+      await this.worktreeManager.removeWorktree(worktree.id, {
+        force: false,
+        saveUncommitted: true,
+      });
+
+      if (onProgress) {
+        await onProgress({
+          type: "log",
+          message: "Worktreeのクリーンアップが完了しました",
+        });
+      }
+    }
   }
 }

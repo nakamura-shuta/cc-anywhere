@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { FastifyInstance } from "fastify";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { FastifyInstance } from "fastify";
 import { createApp } from "../../../../src/server/app";
-import { config } from "../../../../src/config";
 
 describe("POST /api/batch/tasks", () => {
   let app: FastifyInstance;
@@ -39,14 +38,14 @@ describe("POST /api/batch/tasks", () => {
     if (response.statusCode !== 201) {
       console.error("Response body:", response.body);
     }
-    
+
     expect(response.statusCode).toBe(201);
     const body = JSON.parse(response.body);
-    
+
     expect(body).toHaveProperty("groupId");
     expect(body).toHaveProperty("tasks");
     expect(body.tasks).toHaveLength(3);
-    
+
     // 各タスクが正しく作成されているか確認
     body.tasks.forEach((task: any, index: number) => {
       expect(task).toHaveProperty("taskId");
@@ -67,16 +66,15 @@ describe("POST /api/batch/tasks", () => {
       },
       payload: {
         // instructionが不足
-        repositories: [
-          { name: "app1", path: "/repos/app1" },
-        ],
+        repositories: [{ name: "app1", path: "/repos/app1" }],
       },
     });
 
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
     // Fastify schema validation returns error in a specific format
-    const errorMessage = typeof body.error === 'object' ? body.error.message : body.error || body.message;
+    const errorMessage =
+      typeof body.error === "object" ? body.error.message : body.error || body.message;
     expect(errorMessage).toContain("instruction");
   });
 
@@ -97,7 +95,8 @@ describe("POST /api/batch/tasks", () => {
     expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
     // Schema validation for minItems:1 returns a different error message
-    const errorMessage = typeof body.error === 'object' ? body.error.message : body.error || body.message;
+    const errorMessage =
+      typeof body.error === "object" ? body.error.message : body.error || body.message;
     expect(errorMessage).toContain("repositories");
   });
 
@@ -112,14 +111,14 @@ describe("POST /api/batch/tasks", () => {
       payload: {
         instruction: "npm test",
         repositories: [
-          { 
-            name: "app1", 
+          {
+            name: "app1",
             path: "/repos/app1",
-            timeout: 600000 // app1は長いタイムアウト
+            timeout: 600000, // app1は長いタイムアウト
           },
-          { 
-            name: "app2", 
-            path: "/repos/app2"
+          {
+            name: "app2",
+            path: "/repos/app2",
             // デフォルトのタイムアウトを使用
           },
         ],
@@ -132,7 +131,7 @@ describe("POST /api/batch/tasks", () => {
     expect(response.statusCode).toBe(201);
     const body = JSON.parse(response.body);
     expect(body.tasks).toHaveLength(2);
-    
+
     // TODO: タスクの詳細を取得して、実際のタイムアウト値を確認
   });
 
@@ -146,9 +145,7 @@ describe("POST /api/batch/tasks", () => {
       },
       payload: {
         instruction: "npm audit fix",
-        repositories: [
-          { name: "app1", path: "/repos/app1" },
-        ],
+        repositories: [{ name: "app1", path: "/repos/app1" }],
       },
     });
 

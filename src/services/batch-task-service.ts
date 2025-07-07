@@ -12,7 +12,7 @@ import { logger } from "../utils/logger";
 export class BatchTaskService {
   constructor(
     private readonly taskRepository: TaskRepository,
-    private readonly taskQueue: TaskQueue
+    private readonly taskQueue: TaskQueue,
   ) {}
 
   async createBatchTasks(params: CreateBatchTaskParams): Promise<BatchTaskResponse> {

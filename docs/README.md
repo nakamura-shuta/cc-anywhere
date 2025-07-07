@@ -1,86 +1,69 @@
-# CC-Anywhere Documentation
+# CC-Anywhere ドキュメント
 
 CC-Anywhereは、Claude Code SDKを使用してHTTP経由でタスクを実行できるサーバーアプリケーションです。
 
-## 目次
+## 📚 ドキュメント構成
 
-### APIドキュメント
+### 🚀 はじめに
+- [クイックスタート](./getting-started/quickstart.md) - 5分で始める
+- [インストールガイド](./getting-started/installation.md) - 詳細なセットアップ
+- [設定ガイド](./getting-started/configuration.md) - 環境変数と設定オプション
+
+### 📡 API
 - [APIリファレンス](./api/api-reference.md) - 全エンドポイントの詳細
-- [API使用例](./api/api-examples.md) - 実際の使用例とサンプルコード
+- [API使用例](./api/api-examples.md) - 実践的なサンプルコード
 
-### 実装ガイド
-- [WebSocket通信](./guides/websocket.md) - リアルタイムログとステータス更新
-- [タイムアウト処理](./guides/timeout-handling.md) - 高度なタイムアウト制御
-- [ワーカー使用ガイド](./guides/worker-usage.md) - ワーカーシステムの詳細な使用方法
+### 🔧 主要機能
+- [Git Worktree](./features/git-worktree.md) - 独立した作業環境での実行
+- [外部アクセス](./features/external-access.md) - Cloudflare Tunnel/ngrok統合
+- [WebSocket通信](./features/websocket.md) - リアルタイムログとステータス
+- [スラッシュコマンド](./features/slash-commands.md) - カスタムコマンド
 
-### アーキテクチャ
+### 🏗️ アーキテクチャ
+- [システム概要](./architecture/overview.md) - 全体アーキテクチャ
 - [ワーカーシステム](./architecture/worker-system.md) - 並行タスク処理
-- [キューアーキテクチャ](./architecture/queue-architecture.md) - タスクキューの設計
+- [キューシステム](./architecture/queue-architecture.md) - タスク管理
 
-### 機能
-- [スラッシュコマンド](./features/slash-commands.md) - カスタムコマンドの作成と使用
-- [ngrok統合](./features/ngrok-integration.md) - 外部アクセスの設定
+### 🛠️ 運用
+- [PM2運用ガイド](./operations/pm2-setup.md) - プロセス管理とクラムシェルモード
+- [タイムアウト処理](./operations/timeout-handling.md) - 高度なタイムアウト制御
+- [トラブルシューティング](./operations/troubleshooting.md) - よくある問題と解決方法
 
-### コード例
-- [サンプルコード](./examples/) - WebSocketクライアントなどの実装例
+### 💻 開発
+- [開発環境セットアップ](./development/setup.md) - 開発者向けガイド
+- [コントリビューション](./development/contributing.md) - 貢献方法
+- [サンプルコード](./examples/) - 実装例とテンプレート
 
-## クイックスタート
+## 🎯 主な特徴
 
-### 1. サーバーの起動
+- **Claude Code SDK統合** - 高度なAI支援タスク実行
+- **非同期処理** - ノンブロッキングなタスク実行
+- **リアルタイム通信** - WebSocketによるライブアップデート
+- **スケーラブル** - ワーカープールによる並行処理
+- **セキュア** - APIキー認証とアクセス制御
+- **柔軟な設定** - 環境変数による詳細な制御
+
+## 🚦 クイックスタート
 
 ```bash
+# インストール
+git clone https://github.com/your-org/cc-anywhere.git
+cd cc-anywhere
 npm install
+
+# 環境設定
+cp .env.example .env
+# .envファイルを編集してCLAUDE_API_KEYを設定
+
+# 起動
 npm run dev
+
+# または本番環境向け（PM2使用）
+./scripts/quick-start.sh
 ```
 
-### 2. タスクの作成
+## 📖 関連リソース
 
-```bash
-curl -X POST http://localhost:3000/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "instruction": "ファイルの内容を読み取って要約してください",
-    "context": {
-      "workingDirectory": "/path/to/project"
-    }
-  }'
-```
-
-### 3. WebSocket接続
-
-```javascript
-const ws = new WebSocket('ws://localhost:3000/ws?apiKey=your-key');
-
-ws.on('open', () => {
-  ws.send(JSON.stringify({
-    type: 'subscribe',
-    payload: { taskId: 'task-123' }
-  }));
-});
-
-ws.on('message', (data) => {
-  const message = JSON.parse(data);
-  console.log('Received:', message);
-});
-```
-
-## 主な機能
-
-- **非同期タスク実行**: Claude Code SDKを使用した高度なタスク処理
-- **リアルタイム通信**: WebSocketによるログストリーミング
-- **柔軟なタイムアウト**: フェーズ別のタイムアウト制御
-- **自動リトライ**: エラー時の自動再試行
-- **並行処理**: 複数のワーカーによる効率的な処理
-- **永続化**: SQLiteによるタスク履歴の保存
-- **スラッシュコマンド**: /project:や/user:プレフィックスを使ったカスタムコマンド
-- **外部アクセス**: ngrok統合による簡単な外部公開
-
-## アーキテクチャ
-
-CC-Anywhereは以下のコンポーネントで構成されています：
-
-1. **HTTPサーバー** (Fastify) - RESTful APIの提供
-2. **WebSocketサーバー** - リアルタイム通信
-3. **タスクキュー** - 効率的なタスク管理
-4. **ワーカープール** - 並行タスク処理
-5. **データベース** (SQLite) - タスクの永続化
+- [Claude API ドキュメント](https://docs.anthropic.com/)
+- [プロジェクトリポジトリ](https://github.com/your-org/cc-anywhere)
+- [問題報告](https://github.com/your-org/cc-anywhere/issues)

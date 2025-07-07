@@ -1,7 +1,7 @@
 import { createApp } from "./server/app";
 import { logger } from "./utils/logger";
 import { config } from "./config";
-import { startNgrok, displayAccessInfo } from "./utils/ngrok";
+import { tunnelManager } from "./utils/tunnel";
 
 async function start() {
   try {
@@ -14,13 +14,13 @@ async function start() {
       `Health check available at http://${config.server.host}:${config.server.port}/health`,
     );
 
-    // ngrokを起動（有効な場合）
-    if (config.ngrok.enabled) {
-      const ngrokUrl = await startNgrok(config.server.port);
-      if (ngrokUrl) {
-        displayAccessInfo(ngrokUrl);
+    // トンネルを起動（有効な場合）
+    if (config.tunnel.enabled) {
+      const tunnelInfo = await tunnelManager.start(config.server.port);
+      if (tunnelInfo) {
+        logger.info(`${tunnelInfo.type} tunnel is ready at ${tunnelInfo.url}`);
       } else {
-        logger.warn("ngrok is enabled but failed to start");
+        logger.warn("Tunnel is enabled but failed to start");
       }
     }
   } catch (err) {

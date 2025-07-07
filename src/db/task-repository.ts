@@ -287,7 +287,7 @@ export class TaskRepository {
     `);
 
     const records = stmt.all(groupId) as TaskRecord[];
-    return records.map(record => ({
+    return records.map((record) => ({
       ...record,
       context: record.context ? JSON.parse(record.context) : undefined,
       options: record.options ? JSON.parse(record.options) : undefined,

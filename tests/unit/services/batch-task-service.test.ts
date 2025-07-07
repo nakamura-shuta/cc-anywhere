@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BatchTaskService } from "../../../src/services/batch-task-service";
-import { TaskRepository } from "../../../src/db/repositories/task-repository";
-import { TaskQueue } from "../../../src/queue/task-queue";
+import type { TaskRepository } from "../../../src/db/repositories/task-repository";
+import type { TaskQueue } from "../../../src/queue/task-queue";
 import { v4 as uuidv4 } from "uuid";
 
 vi.mock("uuid");
@@ -16,7 +16,7 @@ describe("BatchTaskService", () => {
     mockTaskRepository = {
       create: vi.fn().mockImplementation((task) => ({
         ...task,
-        status: task.status || 'pending',
+        status: task.status || "pending",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })),
@@ -36,7 +36,7 @@ describe("BatchTaskService", () => {
     it("should create multiple tasks with same group ID", async () => {
       const mockGroupId = "123";
       const mockTaskIds = ["task_1", "task_2", "task_3"];
-      
+
       vi.mocked(uuidv4)
         .mockReturnValueOnce(mockGroupId)
         .mockReturnValueOnce(mockTaskIds[0])
@@ -63,13 +63,13 @@ describe("BatchTaskService", () => {
 
       // 各タスクがキューに追加されていることを確認
       expect(mockTaskQueue.add).toHaveBeenCalledTimes(3);
-      
+
       // 各タスクが正しいパラメータでキューに追加されていることを確認
       for (let i = 0; i < 3; i++) {
         const addCall = vi.mocked(mockTaskQueue.add).mock.calls[i];
         const taskRequest = addCall[0];
         const metadata = addCall[2];
-        
+
         expect(taskRequest.instruction).toBe("npm test");
         expect(taskRequest.context.workingDirectory).toBe(params.repositories[i].path);
         expect(metadata.groupId).toBe(`group_${mockGroupId}`);
@@ -81,13 +81,13 @@ describe("BatchTaskService", () => {
       const params = {
         instruction: "npm test",
         repositories: [
-          { 
-            name: "app1", 
+          {
+            name: "app1",
             path: "/repos/app1",
             timeout: 600000, // カスタムタイムアウト
           },
-          { 
-            name: "app2", 
+          {
+            name: "app2",
             path: "/repos/app2",
             // デフォルトを使用
           },
@@ -113,8 +113,9 @@ describe("BatchTaskService", () => {
         options: {},
       };
 
-      await expect(batchTaskService.createBatchTasks(params))
-        .rejects.toThrow("At least one repository is required");
+      await expect(batchTaskService.createBatchTasks(params)).rejects.toThrow(
+        "At least one repository is required",
+      );
     });
   });
 
@@ -122,20 +123,20 @@ describe("BatchTaskService", () => {
     it("should aggregate status from all tasks in group", async () => {
       const groupId = "group_123";
       const mockTasks = [
-        { 
-          id: "task_1", 
+        {
+          id: "task_1",
           status: "completed",
           repository_name: "app1",
           groupId,
         },
-        { 
-          id: "task_2", 
+        {
+          id: "task_2",
           status: "running",
           repository_name: "app2",
           groupId,
         },
-        { 
-          id: "task_3", 
+        {
+          id: "task_3",
           status: "pending",
           repository_name: "app3",
           groupId,

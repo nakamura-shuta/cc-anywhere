@@ -56,7 +56,11 @@ export class TaskQueueImpl implements TaskQueue {
     });
   }
 
-  add(request: TaskRequest, priority = 0, metadata?: { groupId?: string; repositoryName?: string }): string {
+  add(
+    request: TaskRequest,
+    priority = 0,
+    metadata?: { groupId?: string; repositoryName?: string },
+  ): string {
     const taskId = uuidv4();
 
     // Initialize retry metadata if retry is configured
@@ -198,7 +202,7 @@ export class TaskQueueImpl implements TaskQueue {
       } else {
         const error = result.error || new Error("Unknown error");
         const errorInfo = {
-          message: error.message,
+          message: error instanceof Error ? error.message : String(error),
           code: "EXECUTION_ERROR",
         };
 

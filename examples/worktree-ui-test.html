@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worktree UI Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        code {
+            background: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        pre {
+            background: #f1f3f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Git Worktree UI機能テスト</h1>
+
+    <div class="test-section">
+        <h2>1. UI要素の確認</h2>
+        <div class="status info">
+            <strong>確認項目:</strong> Webインターフェースに以下の要素が表示されていることを確認してください
+        </div>
+        <ul>
+            <li>✅ 「Git Worktreeを使用」チェックボックス</li>
+            <li>✅ チェック時に表示される追加オプション（ブランチ名入力、保持オプション）</li>
+            <li>✅ タスク詳細画面でWorktree使用状況の表示</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Worktreeタスクの作成テスト</h2>
+        <div class="status info">
+            <strong>手順:</strong> ブラウザで <code>http://localhost:5000</code> にアクセスして以下を実行
+        </div>
+        <ol>
+            <li>「実行内容」に以下を入力:
+                <pre>pwd && git branch --show-current && echo "Worktree test successful!"</pre>
+            </li>
+            <li>リポジトリを選択（cc-anywhereなど）</li>
+            <li>「Git Worktreeを使用」にチェック</li>
+            <li>ブランチ名に <code>test/ui-worktree</code> を入力</li>
+            <li>「タスクを実行」をクリック</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 実行結果の確認</h2>
+        <div class="status success">
+            <strong>期待される結果:</strong>
+        </div>
+        <ul>
+            <li>タスクが作成され、実行される</li>
+            <li>タスク詳細に「Git Worktree: ✓ 有効」と表示される</li>
+            <li>指定したブランチ名が表示される</li>
+            <li>実行ログに新しいWorktreeのパスが表示される（例: <code>/.worktrees/cc-anywhere-task-xxx</code>）</li>
+            <li>実行ログに指定したブランチ名が表示される</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Worktreeの確認</h2>
+        <div class="status info">
+            <strong>ターミナルで以下のコマンドを実行:</strong>
+        </div>
+        <pre>
+# Worktreeの一覧を確認
+git worktree list
+
+# Worktreeディレクトリを確認
+ls -la .worktrees/
+
+# 作成されたブランチを確認
+git branch -a | grep test/ui-worktree
+        </pre>
+    </div>
+
+    <div class="test-section">
+        <h2>5. 複数タスクの並列実行テスト</h2>
+        <div class="status warning">
+            <strong>高度なテスト:</strong> 複数のWorktreeタスクを同時に実行
+        </div>
+        <ol>
+            <li>3つの異なるタスクを連続して作成（それぞれ異なるブランチ名を指定）</li>
+            <li>全てのタスクが独立したWorktreeで実行されることを確認</li>
+            <li><code>git worktree list</code> で複数のWorktreeが表示されることを確認</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>6. クリーンアップの確認</h2>
+        <div class="status info">
+            <strong>自動クリーンアップ:</strong> タスク完了後、設定した時間（デフォルト5分）でWorktreeが自動削除される
+        </div>
+        <p>手動クリーンアップ:</p>
+        <pre>
+# 特定のWorktreeを削除
+git worktree remove .worktrees/cc-anywhere-task-xxx
+
+# 全てのWorktreeをクリーンアップ
+git worktree prune
+        </pre>
+    </div>
+
+    <script>
+        console.log('Worktree UI test page loaded');
+        console.log('環境変数 ENABLE_WORKTREE が true に設定されていることを確認してください');
+    </script>
+</body>
+</html>

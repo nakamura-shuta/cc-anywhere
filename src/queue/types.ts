@@ -41,7 +41,11 @@ export interface QueueStats {
 // Task queue interface
 export interface TaskQueue {
   // Add task to queue
-  add(task: TaskRequest, priority?: number, metadata?: { groupId?: string; repositoryName?: string }): string;
+  add(
+    task: TaskRequest,
+    priority?: number,
+    metadata?: { groupId?: string; repositoryName?: string },
+  ): string;
 
   // Get task by ID
   get(taskId: string): QueuedTask | undefined;

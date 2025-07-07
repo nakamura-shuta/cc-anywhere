@@ -102,6 +102,30 @@
                         <small>Claude Codeが使用できるツールを選択してください。カスタムツールではワイルドカード(*)や特定のコマンドを許可できます。</small>
                     </div>
                     
+                    <!-- Git Worktreeオプション -->
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="use-worktree" name="useWorktree">
+                            Git Worktreeを使用（独立した作業ディレクトリで実行）
+                        </label>
+                        <div id="worktree-options" class="worktree-options" style="display: none; margin-top: 10px; padding-left: 20px;">
+                            <div class="form-group">
+                                <label for="worktree-branch">ブランチ名（オプション）</label>
+                                <input 
+                                    type="text" 
+                                    id="worktree-branch" 
+                                    name="worktreeBranch"
+                                    placeholder="例: feature/task-123"
+                                >
+                                <small>指定しない場合は自動生成されます</small>
+                            </div>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="keepWorktree">
+                                タスク完了後もWorktreeを保持
+                            </label>
+                        </div>
+                    </div>
+                    
                     <button type="submit" class="btn btn-primary">タスクを実行</button>
                 </form>
             </section>

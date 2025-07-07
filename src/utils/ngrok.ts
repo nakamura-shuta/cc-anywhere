@@ -48,13 +48,13 @@ export function displayAccessInfo(ngrokUrl: string): void {
 
   if (apiKey) {
     const webUIUrl = `${ngrokUrl}/?apiKey=${apiKey}`;
-    
+
     console.log("\n🌍 Web UI Access:");
     console.log(`   ${webUIUrl}`);
 
     console.log("\n📱 API Access:");
     console.log(`   curl -H "X-API-Key: ${apiKey}" ${ngrokUrl}/api/tasks`);
-    
+
     // QRコード表示
     if (showQRCode) {
       console.log("\n📱 Scan QR code with your phone:");
@@ -72,7 +72,7 @@ export function displayAccessInfo(ngrokUrl: string): void {
 
     console.log("\n📱 API Access:");
     console.log(`   curl ${ngrokUrl}/api/tasks`);
-    
+
     // QRコード表示
     if (showQRCode) {
       console.log("\n📱 Scan QR code with your phone:");

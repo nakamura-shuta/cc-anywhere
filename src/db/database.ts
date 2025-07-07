@@ -94,20 +94,20 @@ BEGIN
 END;`;
 
       this.db.exec(schema);
-      
+
       // Add new columns if they don't exist (for backward compatibility)
       try {
         this.db.exec(`ALTER TABLE tasks ADD COLUMN group_id TEXT`);
       } catch (e) {
         // Column already exists
       }
-      
+
       try {
         this.db.exec(`ALTER TABLE tasks ADD COLUMN repository_name TEXT`);
       } catch (e) {
         // Column already exists
       }
-      
+
       // Create index for group_id if it doesn't exist
       try {
         this.db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_group_id ON tasks(group_id)`);

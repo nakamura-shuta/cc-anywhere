@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { FastifyInstance } from "fastify";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { FastifyInstance } from "fastify";
 import { createApp } from "../../../../src/server/app";
 import { config } from "../../../../src/config";
 

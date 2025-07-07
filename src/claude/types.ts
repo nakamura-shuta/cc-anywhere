@@ -1,4 +1,5 @@
 import type { TimeoutConfig } from "../types/timeout.js";
+import type { WorktreeOptions } from "../services/worktree/types.js";
 
 // Retry policy types
 export enum RetryPolicy {
@@ -35,6 +36,9 @@ export interface TaskRequest {
     allowedTools?: string[];
     retry?: RetryConfig; // Retry configuration
     onProgress?: (progress: { type: string; message: string }) => void | Promise<void>; // Progress callback
+    // Worktree options
+    useWorktree?: boolean; // Simple flag to enable worktree
+    worktree?: WorktreeOptions; // Detailed worktree configuration
   };
 }
 

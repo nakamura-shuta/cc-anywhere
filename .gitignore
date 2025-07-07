@@ -51,3 +51,7 @@ CLAUDE.md
 # Private data
 *.local
 *.private
+
+# PM2
+.caffeinate.pid
+.pm2/
