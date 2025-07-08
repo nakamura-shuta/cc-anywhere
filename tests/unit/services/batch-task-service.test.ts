@@ -37,7 +37,8 @@ describe("BatchTaskService", () => {
       const mockGroupId = "123";
       const mockTaskIds = ["task_1", "task_2", "task_3"];
 
-      vi.mocked(uuidv4)
+      const mockedUuid = vi.mocked(uuidv4);
+      mockedUuid
         .mockReturnValueOnce(mockGroupId)
         .mockReturnValueOnce(mockTaskIds[0])
         .mockReturnValueOnce(mockTaskIds[1])
@@ -62,11 +63,12 @@ describe("BatchTaskService", () => {
       expect(result.tasks).toHaveLength(3);
 
       // 各タスクがキューに追加されていることを確認
-      expect(mockTaskQueue.add).toHaveBeenCalledTimes(3);
+      const mockedAdd = vi.mocked(mockTaskQueue.add);
+      expect(mockedAdd).toHaveBeenCalledTimes(3);
 
       // 各タスクが正しいパラメータでキューに追加されていることを確認
       for (let i = 0; i < 3; i++) {
-        const addCall = vi.mocked(mockTaskQueue.add).mock.calls[i];
+        const addCall = mockedAdd.mock.calls[i];
         const taskRequest = addCall[0];
         const metadata = addCall[2];
 
@@ -99,8 +101,9 @@ describe("BatchTaskService", () => {
 
       await batchTaskService.createBatchTasks(params);
 
-      const firstCall = vi.mocked(mockTaskQueue.add).mock.calls[0];
-      const secondCall = vi.mocked(mockTaskQueue.add).mock.calls[1];
+      const mockedAdd = vi.mocked(mockTaskQueue.add);
+      const firstCall = mockedAdd.mock.calls[0];
+      const secondCall = mockedAdd.mock.calls[1];
 
       expect(firstCall[0].options.timeout).toBe(600000); // カスタム値
       expect(secondCall[0].options.timeout).toBe(300000); // デフォルト値
@@ -143,7 +146,8 @@ describe("BatchTaskService", () => {
         },
       ];
 
-      vi.mocked(mockTaskRepository.findByGroupId).mockResolvedValue(mockTasks);
+      const mockedFindByGroupId = vi.mocked(mockTaskRepository.findByGroupId);
+      mockedFindByGroupId.mockResolvedValue(mockTasks);
 
       const result = await batchTaskService.getBatchTaskStatus(groupId);
 
@@ -159,7 +163,8 @@ describe("BatchTaskService", () => {
     });
 
     it("should return null if no tasks found", async () => {
-      vi.mocked(mockTaskRepository.findByGroupId).mockResolvedValue([]);
+      const mockedFindByGroupId = vi.mocked(mockTaskRepository.findByGroupId);
+      mockedFindByGroupId.mockResolvedValue([]);
 
       const result = await batchTaskService.getBatchTaskStatus("non-existent");
       expect(result).toBeNull();

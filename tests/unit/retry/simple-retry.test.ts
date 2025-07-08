@@ -67,7 +67,11 @@ describe("Simple Retry Handler Test", () => {
 
     const resultPromise = retryHandler.executeWithRetry(task, executeFn);
 
-    await vi.advanceTimersByTimeAsync(100);
+    // Handle the promise and advance timers
+    await Promise.allSettled([
+      vi.advanceTimersByTimeAsync(100),
+      resultPromise.catch(() => {}), // Catch to prevent unhandled rejection
+    ]);
 
     await expect(resultPromise).rejects.toThrow("Always fails");
     expect(executeFn).toHaveBeenCalledTimes(2); // initial + 1 retry

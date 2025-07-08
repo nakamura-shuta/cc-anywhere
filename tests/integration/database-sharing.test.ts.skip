@@ -1,0 +1,222 @@
+/**
+ * Integration test to ensure database instances are properly shared across routes
+ * This test would catch issues where multiple database instances are created
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { createApp } from "../../src/server/app";
+import type { FastifyInstance } from "fastify";
+import { v4 as uuidv4 } from "uuid";
+
+describe("Database Sharing Integration Test", () => {
+  let app: FastifyInstance;
+  const testApiKey = "test-api-key";
+
+  beforeEach(async () => {
+    // Set test API key
+    process.env.API_KEY = testApiKey;
+
+    // Create app instance
+    app = await createApp({
+      logger: false, // Disable logging in tests
+    });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("should share database instance between task creation and listing", async () => {
+    // Create a task via POST /api/tasks
+    const taskData = {
+      instruction: "Test task for database sharing",
+      context: {},
+      options: {
+        timeout: 60000,
+      },
+    };
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/tasks",
+      headers: {
+        "X-API-Key": testApiKey,
+        "Content-Type": "application/json",
+      },
+      payload: taskData,
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const createdTask = JSON.parse(createResponse.body);
+    const taskId = createdTask.taskId || createdTask.id;
+    expect(taskId).toBeTruthy();
+
+    // Immediately fetch task list via GET /api/tasks
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/tasks",
+      headers: {
+        "X-API-Key": testApiKey,
+      },
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    const taskList = JSON.parse(listResponse.body);
+
+    // The created task should be in the list
+    const foundTask = taskList.tasks.find((t: any) => t.taskId === taskId);
+    expect(foundTask).toBeTruthy();
+    expect(foundTask.instruction).toBe(taskData.instruction);
+  });
+
+  it("should share database instance between different routes", async () => {
+    // Create a task
+    const taskData = {
+      instruction: "Test cross-route database sharing",
+      context: {},
+      options: {
+        timeout: 60000,
+      },
+    };
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/tasks",
+      headers: {
+        "X-API-Key": testApiKey,
+        "Content-Type": "application/json",
+      },
+      payload: taskData,
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const createdTask = JSON.parse(createResponse.body);
+    const taskId = createdTask.taskId || createdTask.id;
+
+    // Wait a bit for task to complete (or at least start)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Fetch via history route
+    const historyResponse = await app.inject({
+      method: "GET",
+      url: "/api/history/tasks",
+      headers: {
+        "X-API-Key": testApiKey,
+      },
+    });
+
+    expect(historyResponse.statusCode).toBe(200);
+    const historyData = JSON.parse(historyResponse.body);
+
+    // The task should be in history
+    const foundInHistory = historyData.data.find((t: any) => t.id === taskId);
+    expect(foundInHistory).toBeTruthy();
+    expect(foundInHistory.instruction).toBe(taskData.instruction);
+
+    // Also check specific task endpoint
+    const taskDetailResponse = await app.inject({
+      method: "GET",
+      url: `/api/tasks/${taskId}`,
+      headers: {
+        "X-API-Key": testApiKey,
+      },
+    });
+
+    expect(taskDetailResponse.statusCode).toBe(200);
+    const taskDetail = JSON.parse(taskDetailResponse.body);
+    expect(taskDetail.taskId).toBe(taskId);
+  });
+
+  it("should ensure repository instances are the same across routes", async () => {
+    // This test verifies that the repository instance is shared
+    // by checking that the same data is visible from all routes
+
+    const testId = uuidv4();
+    const instruction = `Shared instance test ${testId}`;
+
+    // Create task
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/tasks",
+      headers: {
+        "X-API-Key": testApiKey,
+        "Content-Type": "application/json",
+      },
+      payload: {
+        instruction,
+        context: {},
+        options: { timeout: 60000 },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+
+    // Check from multiple endpoints simultaneously
+    const [tasksResponse, historyResponse] = await Promise.all([
+      app.inject({
+        method: "GET",
+        url: "/api/tasks",
+        headers: { "X-API-Key": testApiKey },
+      }),
+      app.inject({
+        method: "GET",
+        url: "/api/history/tasks",
+        headers: { "X-API-Key": testApiKey },
+      }),
+    ]);
+
+    const tasks = JSON.parse(tasksResponse.body);
+    const history = JSON.parse(historyResponse.body);
+
+    // Both should contain our task
+    const foundInTasks = tasks.tasks.some((t: any) => t.instruction === instruction);
+    const foundInHistory = history.data.some((t: any) => t.instruction === instruction);
+
+    expect(foundInTasks).toBe(true);
+    expect(foundInHistory).toBe(true);
+  });
+
+  it("should handle concurrent requests with shared database", async () => {
+    // Create multiple tasks concurrently
+    const taskPromises = Array.from({ length: 5 }, (_, i) =>
+      app.inject({
+        method: "POST",
+        url: "/api/tasks",
+        headers: {
+          "X-API-Key": testApiKey,
+          "Content-Type": "application/json",
+        },
+        payload: {
+          instruction: `Concurrent task ${i}`,
+          context: {},
+          options: { timeout: 60000 },
+        },
+      }),
+    );
+
+    const responses = await Promise.all(taskPromises);
+
+    // All should succeed
+    responses.forEach((response) => {
+      expect(response.statusCode).toBe(201);
+    });
+
+    // Verify all tasks are in the list
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/tasks",
+      headers: { "X-API-Key": testApiKey },
+    });
+
+    const taskList = JSON.parse(listResponse.body);
+
+    // Should have at least 5 tasks
+    expect(taskList.tasks.length).toBeGreaterThanOrEqual(5);
+
+    // All our concurrent tasks should be there
+    for (let i = 0; i < 5; i++) {
+      const found = taskList.tasks.some((t: any) => t.instruction === `Concurrent task ${i}`);
+      expect(found).toBe(true);
+    }
+  });
+});

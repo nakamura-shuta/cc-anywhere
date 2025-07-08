@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WebSocket update handling to fetch fresh data from server
 - バッチタスクで重複したタスクが表示される問題を修正
 - Web UIでタスクIDが切れて表示される問題を修正（ホバーで全体表示）
+- タスク一覧でリポジトリ名が「デフォルト」と表示される問題を修正
+  - Fastifyのレスポンススキーマに`workingDirectory`フィールドを追加
+  - GET /api/tasks, POST /api/tasks, GET /api/tasks/:taskIdのスキーマを更新
+- タスク詳細画面を開いたままにすると実行ログが消える問題を修正
+  - 定期更新時にログ表示処理を追加
+  - ログ表示ロジックを共通関数`displayTaskLogs`として抽出
 
 ### Changed
 - Template engine now supports dual syntax for maximum compatibility

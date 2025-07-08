@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import type { TaskRepository } from "../db/task-repository";
+import type { TaskRepositoryAdapter } from "../repositories/task-repository-adapter";
 import type { TaskQueue } from "../queue/task-queue";
 import type {
   CreateBatchTaskParams,
@@ -12,7 +12,7 @@ import { ValidationError } from "../utils/errors";
 
 export class BatchTaskService {
   constructor(
-    private readonly taskRepository: TaskRepository,
+    private readonly taskRepository: TaskRepositoryAdapter,
     private readonly taskQueue: TaskQueue,
   ) {}
 
@@ -110,7 +110,7 @@ export class BatchTaskService {
 
       return {
         taskId: task.id,
-        repository: task.repository_name || "unknown",
+        repository: task.repositoryName || "unknown",
         status: task.status,
         duration: task.duration,
         result: task.result,

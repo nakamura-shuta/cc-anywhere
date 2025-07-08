@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { TaskRepository } from "../../db/task-repository.js";
 import type { TaskFilter, PaginationOptions } from "../../db/types.js";
 
 // Schema for query parameters
@@ -39,8 +38,8 @@ const taskDetailSchema = z.object({
 });
 
 export const historyRoutes: FastifyPluginAsync = async (fastify) => {
-  // Create a new repository instance for simplicity
-  const repository = new TaskRepository();
+  // Use shared repository instance
+  const repository = fastify.repository;
 
   // Get task history with filters and pagination
   fastify.get<{
@@ -120,18 +119,18 @@ export const historyRoutes: FastifyPluginAsync = async (fastify) => {
       const transformedData = result.data.map((record) => ({
         id: record.id,
         instruction: record.instruction,
-        context: record.context ? JSON.parse(record.context) : null,
-        options: record.options ? JSON.parse(record.options) : null,
+        context: record.context,
+        options: record.options,
         priority: record.priority,
         status: record.status,
-        result: record.result ? JSON.parse(record.result) : null,
-        error: record.error ? JSON.parse(record.error) : null,
-        createdAt: record.created_at,
-        startedAt: record.started_at,
-        completedAt: record.completed_at,
-        updatedAt: record.updated_at,
-        repositoryName: record.repository_name,
-        groupId: record.group_id,
+        result: record.result,
+        error: record.error,
+        createdAt: record.createdAt.toISOString(),
+        startedAt: record.startedAt?.toISOString() || null,
+        completedAt: record.completedAt?.toISOString() || null,
+        updatedAt: record.updatedAt.toISOString(),
+        repositoryName: record.repositoryName,
+        groupId: record.groupId,
       }));
 
       return {
@@ -197,16 +196,16 @@ export const historyRoutes: FastifyPluginAsync = async (fastify) => {
       return {
         id: record.id,
         instruction: record.instruction,
-        context: record.context ? JSON.parse(record.context) : null,
-        options: record.options ? JSON.parse(record.options) : null,
+        context: record.context,
+        options: record.options,
         priority: record.priority,
         status: record.status,
-        result: record.result ? JSON.parse(record.result) : null,
-        error: record.error ? JSON.parse(record.error) : null,
-        createdAt: record.created_at,
-        startedAt: record.started_at,
-        completedAt: record.completed_at,
-        updatedAt: record.updated_at,
+        result: record.result,
+        error: record.error,
+        createdAt: record.createdAt.toISOString(),
+        startedAt: record.startedAt?.toISOString() || null,
+        completedAt: record.completedAt?.toISOString() || null,
+        updatedAt: record.updatedAt.toISOString(),
       };
     },
   );

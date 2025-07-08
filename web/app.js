@@ -205,6 +205,12 @@ async function handleTaskSubmit(e) {
             showSuccess('タスクを作成しました');
             
             const taskId = response.taskId || response.id;
+            // workingDirectoryを保持
+            if (!response.workingDirectory && taskData.context.workingDirectory) {
+                response.workingDirectory = taskData.context.workingDirectory;
+            }
+            console.log('[DEBUG] Task created - response:', response);
+            console.log('[DEBUG] Task workingDirectory:', response.workingDirectory);
             currentTasks.set(taskId, response);
             apiClient.subscribeToTask(taskId);
         } else {
@@ -265,6 +271,14 @@ function renderTasks() {
     });
 }
 
+// 作業ディレクトリからリポジトリ名を抽出
+function extractRepoName(workingDirectory) {
+    if (!workingDirectory) return 'デフォルト';
+    // パスの最後の部分を取得
+    const parts = workingDirectory.split('/');
+    return parts[parts.length - 1] || 'デフォルト';
+}
+
 // タスク要素作成
 function createTaskElement(task) {
     const div = document.createElement('div');
@@ -274,14 +288,19 @@ function createTaskElement(task) {
 
     const statusClass = task.status.toLowerCase();
     const createdAt = new Date(task.createdAt).toLocaleString('ja-JP');
+    
+    // workingDirectoryからリポジトリ名を抽出
+    const repoName = extractRepoName(task.workingDirectory);
 
     div.innerHTML = `
         <div class="task-header">
-            <span class="task-id" title="${taskId}">${taskId.substring(0, 8)}</span>
+            <div class="task-id-section">
+                <span class="task-id" title="${taskId}">ID: ${taskId.substring(0, 8)}</span>
+                <span class="task-repository">📁 ${escapeHtml(repoName)}</span>
+            </div>
             <span class="task-status ${statusClass}">${getStatusText(task.status)}</span>
         </div>
         <div class="task-instruction">${escapeHtml(task.instruction)}</div>
-        ${task.repositoryName ? `<div class="task-repository">📁 ${escapeHtml(task.repositoryName)}</div>` : ''}
         <div class="task-meta">作成日時: ${createdAt}</div>
     `;
 
@@ -302,25 +321,7 @@ async function showTaskDetail(taskId) {
         const task = await apiClient.getTask(taskId);
         
         renderTaskDetail(task);
-        
-        // タスクに logs プロパティがある場合はそれを使用
-        if (task.logs && Array.isArray(task.logs) && task.logs.length > 0) {
-            renderTaskLogs(task.logs);
-        } else if (task.status === 'running') {
-            // 実行中でログがまだない場合は、待機メッセージを表示
-            const logContainer = document.getElementById('task-logs');
-            logContainer.innerHTML = '<div class="log-entry" style="color: #9ca3af;">実行ログを待機中...</div>';
-        } else {
-            // それ以外の場合は通常のログ処理
-            const logs = task.logs || [];
-            const logObjects = Array.isArray(logs) 
-                ? logs.map((log, index) => ({
-                    message: typeof log === 'string' ? log : log.message || log,
-                    timestamp: new Date().toISOString()
-                }))
-                : [];
-            renderTaskLogs(logObjects);
-        }
+        displayTaskLogs(task);
         
         document.getElementById('task-modal').classList.remove('hidden');
         
@@ -335,6 +336,7 @@ async function showTaskDetail(taskId) {
                         const updatedTask = await apiClient.getTask(taskId);
                         currentTasks.set(taskId, updatedTask);
                         renderTaskDetail(updatedTask);
+                        displayTaskLogs(updatedTask);
                         
                         // タスクが完了したら定期更新を停止
                         if (updatedTask.status !== 'running' && updatedTask.status !== 'pending') {
@@ -450,6 +452,35 @@ function renderTaskDetail(task) {
     `;
 }
 
+// タスクのログを表示する（タスクオブジェクトから適切なログを取得）
+function displayTaskLogs(task) {
+    let logsToRender = [];
+    
+    // まずresult内のlogsを確認（完了したタスクの標準的な場所）
+    if (task.result && task.result.logs && Array.isArray(task.result.logs)) {
+        logsToRender = task.result.logs;
+    } 
+    // 次にtask.logsを確認（実行中のタスクやレガシーな場合）
+    else if (task.logs && Array.isArray(task.logs)) {
+        logsToRender = task.logs;
+    }
+    
+    // ログがある場合は表示
+    if (logsToRender.length > 0) {
+        renderTaskLogs(logsToRender);
+    } 
+    // 実行中でログがまだない場合
+    else if (task.status === 'running') {
+        const logContainer = document.getElementById('task-logs');
+        logContainer.innerHTML = '<div class="log-entry" style="color: #9ca3af;">実行ログを待機中...</div>';
+    } 
+    // それ以外（ログがない場合）
+    else {
+        const logContainer = document.getElementById('task-logs');
+        logContainer.innerHTML = '<div class="log-entry">ログがありません</div>';
+    }
+}
+
 // タスクログレンダリング
 function renderTaskLogs(logs) {
     const logContainer = document.getElementById('task-logs');
@@ -545,7 +576,6 @@ function handleWebSocketMessage(event) {
 async function handleTaskUpdate(payload) {
     const taskId = payload.taskId;
     
-    console.log('Task update received:', payload);
     
     // 詳細モーダルが開いている場合は、常に最新の情報を取得
     if (selectedTaskId === taskId) {
@@ -555,20 +585,7 @@ async function handleTaskUpdate(payload) {
             
             // 詳細を再描画
             renderTaskDetail(updatedTask);
-            
-            // ログも更新
-            if (updatedTask.logs && Array.isArray(updatedTask.logs)) {
-                renderTaskLogs(updatedTask.logs);
-            } else {
-                const logs = updatedTask.logs || [];
-                const logObjects = Array.isArray(logs) 
-                    ? logs.map((log, index) => ({
-                        message: typeof log === 'string' ? log : log.message || log,
-                        timestamp: new Date().toISOString()
-                    }))
-                    : [];
-                renderTaskLogs(logObjects);
-            }
+            displayTaskLogs(updatedTask);
             
             // タスクが完了または失敗した場合は通知
             if (payload.status === 'completed' || payload.status === 'failed') {
@@ -586,7 +603,13 @@ async function handleTaskUpdate(payload) {
         // タスクが完了または失敗した場合は、詳細を再取得して最新状態を保持
         if (payload.status === 'completed' || payload.status === 'failed') {
             try {
+                const oldTask = currentTasks.get(taskId);
+                const oldWorkingDirectory = oldTask?.workingDirectory;
                 const updatedTask = await apiClient.getTask(taskId);
+                // workingDirectoryを保持
+                if (!updatedTask.workingDirectory && oldWorkingDirectory) {
+                    updatedTask.workingDirectory = oldWorkingDirectory;
+                }
                 currentTasks.set(taskId, updatedTask);
                 showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
             } catch (error) {
@@ -603,6 +626,7 @@ async function handleTaskUpdate(payload) {
 function updateLocalTaskData(taskId, payload) {
     const task = currentTasks.get(taskId);
     if (task) {
+        const oldWorkingDirectory = task.workingDirectory; // workingDirectoryを保持
         task.status = payload.status;
         if (payload.metadata?.error) {
             task.error = payload.metadata.error;
@@ -613,6 +637,13 @@ function updateLocalTaskData(taskId, payload) {
         if (payload.metadata?.result) {
             task.result = payload.metadata.result;
         }
+        // WebSocketメッセージからworkingDirectoryを取得、またはoldを保持
+        if (payload.metadata?.workingDirectory) {
+            task.workingDirectory = payload.metadata.workingDirectory;
+        } else if (!task.workingDirectory && oldWorkingDirectory) {
+            task.workingDirectory = oldWorkingDirectory;
+        } else {
+        }
     }
 }
 
@@ -621,9 +652,9 @@ function handleTaskLog(payload) {
     if (selectedTaskId === payload.taskId) {
         const logContainer = document.getElementById('task-logs');
         
-        // 初回のログ受信時に「ログがありません」を削除
+        // 初回のログ受信時に「ログがありません」または「実行ログを待機中...」を削除
         const noLogMessage = logContainer.querySelector('.log-entry');
-        if (noLogMessage && noLogMessage.textContent === 'ログがありません') {
+        if (noLogMessage && (noLogMessage.textContent === 'ログがありません' || noLogMessage.textContent === '実行ログを待機中...')) {
             logContainer.innerHTML = '';
         }
         

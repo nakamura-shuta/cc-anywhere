@@ -3,23 +3,24 @@ import type { TaskStatus } from "../claude/types";
 export interface TaskRecord {
   id: string;
   instruction: string;
-  context: string | null; // JSON string
-  options: string | null; // JSON string
+  context?: any; // Parsed JSON
+  options?: any; // Parsed JSON
   priority: number;
   status: TaskStatus;
-  result: string | null; // JSON string
-  error: string | null; // JSON string
-  retry_metadata: string | null; // JSON string containing retry history
-  current_attempt: number;
-  max_retries: number;
-  next_retry_at: string | null;
-  created_at: string;
-  started_at: string | null;
-  completed_at: string | null;
-  updated_at: string;
+  result?: any; // Parsed JSON
+  error?: any; // Parsed JSON
+  retryMetadata?: any; // Parsed JSON containing retry history
+  retryCount: number;
+  maxRetries: number;
+  nextRetryAt?: Date;
+  createdAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  updatedAt: Date;
+  cancelledAt?: Date;
   // Batch task support
-  group_id: string | null;
-  repository_name: string | null;
+  groupId?: string;
+  repositoryName?: string;
 }
 
 export interface TaskFilter {
@@ -28,13 +29,17 @@ export interface TaskFilter {
   createdAfter?: Date;
   createdBefore?: Date;
   search?: string;
+  groupId?: string;
+  repositoryName?: string;
 }
 
 export interface PaginationOptions {
-  limit: number;
-  offset: number;
+  limit?: number;
+  offset?: number;
   orderBy?: "created_at" | "updated_at" | "priority";
   orderDirection?: "ASC" | "DESC";
+  sortBy?: string;
+  sortOrder?: "ASC" | "DESC";
 }
 
 export interface PaginatedResult<T> {

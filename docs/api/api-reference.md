@@ -103,7 +103,13 @@ GET /api/tasks/{taskId}
   "status": "running",
   "instruction": "Calculate the sum of 1 to 100",
   "createdAt": "2024-01-01T00:00:00.000Z",
-  "startedAt": "2024-01-01T00:00:00.100Z"
+  "startedAt": "2024-01-01T00:00:00.100Z",
+  "workingDirectory": "/path/to/project",
+  "allowedTools": ["Write", "Read", "Edit", "Bash"],
+  "retryMetadata": {
+    "currentAttempt": 1,
+    "maxRetries": 3
+  }
 }
 ```
 
@@ -167,9 +173,15 @@ GET /api/tasks
       "createdAt": "2024-01-01T00:00:00.000Z",
       "startedAt": "2024-01-01T00:00:00.100Z",
       "completedAt": "2024-01-01T00:00:05.000Z",
+      "workingDirectory": "/path/to/project",
       "result": {
         "message": "The sum of 1 to 100 is 5050"
-      }
+      },
+      "logs": [
+        "Task started: Calculate the sum of 1 to 100",
+        "Received 2 messages from Claude Code",
+        "Task completed successfully"
+      ]
     }
   ],
   "total": 1,

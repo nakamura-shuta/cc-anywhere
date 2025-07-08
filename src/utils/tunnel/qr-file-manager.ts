@@ -50,7 +50,7 @@ export class QRFileManager {
     return null;
   }
 
-  static readAccessInfo(): any | null {
+  static readAccessInfo(): unknown {
     try {
       if (fs.existsSync(this.INFO_FILE_PATH)) {
         const content = fs.readFileSync(this.INFO_FILE_PATH, "utf8");

@@ -3,7 +3,6 @@ import { TaskStatus, type TaskRequest, type TaskResponse } from "../../claude/ty
 import { logger } from "../../utils/logger";
 import type { ErrorResponse, TaskLogResponse, TaskCancelResponse } from "../../types/api";
 import { RetryService } from "../../services/retry-service";
-import { TaskRepository } from "../../db/task-repository";
 import { checkApiKey } from "../middleware/auth";
 import { SystemError } from "../../utils/errors";
 
@@ -11,7 +10,7 @@ import { SystemError } from "../../utils/errors";
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   // Use shared services from app instance
   const taskQueue = fastify.queue;
-  const repository = new TaskRepository();
+  const repository = fastify.repository;
 
   // Get all tasks
   fastify.get<{
@@ -66,6 +65,10 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                         code: { type: "string", nullable: true },
                       },
                     },
+                    workingDirectory: { type: "string", nullable: true },
+                    logs: { type: "array", nullable: true, items: { type: "string" } },
+                    retryMetadata: { nullable: true, additionalProperties: true },
+                    allowedTools: { type: "array", nullable: true, items: { type: "string" } },
                   },
                 },
               },
@@ -87,7 +90,15 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       // Convert TaskRecords to TaskResponses
       const tasks = result.data.map((record) => {
         const queuedTask = repository.toQueuedTask(record);
-        return {
+
+        logger.debug("Task record context:", {
+          taskId: record.id,
+          recordContext: record.context,
+          queuedTaskContext: queuedTask.request.context,
+          workingDirectory: queuedTask.request.context?.workingDirectory,
+        });
+
+        const taskResponse = {
           taskId: queuedTask.id,
           status: queuedTask.status,
           instruction: queuedTask.request.instruction,
@@ -105,15 +116,29 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           retryMetadata: queuedTask.retryMetadata,
           allowedTools: queuedTask.request.options?.allowedTools,
           workingDirectory: queuedTask.request.context?.workingDirectory,
-        } as TaskResponse;
+        };
+
+        return taskResponse;
       });
 
-      void reply.send({
+      const response = {
         tasks,
         total: result.total,
         limit: result.limit,
         offset: result.offset,
+      };
+
+      logger.debug("Final API response:", {
+        taskCount: tasks.length,
+        firstTask: tasks[0]
+          ? {
+              taskId: tasks[0].taskId,
+              workingDirectory: tasks[0].workingDirectory,
+            }
+          : null,
       });
+
+      void reply.send(response);
     },
   );
 
@@ -182,6 +207,10 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                   code: { type: "string", nullable: true },
                 },
               },
+              workingDirectory: { type: "string", nullable: true },
+              logs: { type: "array", nullable: true, items: { type: "string" } },
+              retryMetadata: { nullable: true, additionalProperties: true },
+              allowedTools: { type: "array", nullable: true, items: { type: "string" } },
             },
           },
           202: {
@@ -191,6 +220,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
               status: { type: "string" },
               instruction: { type: "string" },
               createdAt: { type: "string" },
+              workingDirectory: { type: "string", nullable: true },
+              retryMetadata: { nullable: true, additionalProperties: true },
             },
           },
         },
@@ -212,6 +243,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         instruction: request.body.instruction,
         createdAt: queuedTask.addedAt,
         retryMetadata: queuedTask.retryMetadata,
+        workingDirectory: request.body.context?.workingDirectory,
       };
 
       // Handle async tasks
@@ -314,8 +346,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         retryMetadata: queuedTask.retryMetadata,
         allowedTools: queuedTask.request.options?.allowedTools,
         workingDirectory: queuedTask.request.context?.workingDirectory,
-        repositoryName: record.repository_name || undefined,
-        groupId: record.group_id || undefined,
+        repositoryName: record.repositoryName || undefined,
+        groupId: record.groupId || undefined,
       };
 
       void reply.send(task);
@@ -462,7 +494,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Check if max retries already reached
-      if (record.current_attempt >= record.max_retries) {
+      if (record.retryCount >= record.maxRetries) {
         const errorResponse: ErrorResponse = {
           error: {
             message: "Maximum retry attempts already reached",
@@ -492,11 +524,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           retryConfig,
         );
 
-        repository.updateRetryMetadata(
-          request.params.taskId,
-          updatedRetryMetadata,
-          undefined, // No delay for manual retry
-        );
+        repository.updateRetryMetadata(request.params.taskId, updatedRetryMetadata);
 
         // Re-add task to queue
         const newTaskId = taskQueue.add(queuedTask.request, queuedTask.priority);

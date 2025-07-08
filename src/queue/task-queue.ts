@@ -5,9 +5,11 @@ import { TaskStatus } from "../claude/types";
 import type { QueuedTask, QueueOptions, QueueStats, TaskQueue } from "./types";
 import { TaskExecutorImpl } from "../claude/executor";
 import { logger } from "../utils/logger";
-import { TaskRepository } from "../db/task-repository";
+import { getSharedRepository } from "../db/shared-instance";
+import type { TaskRepositoryAdapter } from "../repositories/task-repository-adapter";
 import { RetryService } from "../services/retry-service";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
+import { getTypedEventBus, type TypedEventBus } from "../events";
 
 export { TaskQueue };
 
@@ -17,10 +19,11 @@ export class TaskQueueImpl implements TaskQueue {
   private executor: TaskExecutorImpl;
   private completedCount = 0;
   private failedCount = 0;
-  private repository: TaskRepository;
+  private repository: TaskRepositoryAdapter;
   private wsServer?: WebSocketServer;
+  private eventBus: TypedEventBus;
 
-  // Event handlers
+  // Legacy event handlers (deprecated - will be removed)
   private onCompleteHandlers: Array<(task: QueuedTask) => void> = [];
   private onErrorHandlers: Array<(task: QueuedTask, error: Error) => void> = [];
 
@@ -45,7 +48,9 @@ export class TaskQueueImpl implements TaskQueue {
     this.queue = new PQueue(queueOptions);
 
     this.executor = new TaskExecutorImpl(true); // Use Claude Code by default
-    this.repository = new TaskRepository(); // Will use config.database.path
+    // Use shared repository instance
+    this.repository = getSharedRepository();
+    this.eventBus = getTypedEventBus(); // Initialize event bus
 
     // Restore pending tasks from database
     this.restorePendingTasks();
@@ -96,6 +101,14 @@ export class TaskQueueImpl implements TaskQueue {
       logger.error("Failed to persist task", { taskId, error });
     }
 
+    // Emit task created event
+    void this.eventBus.emit("task.created", {
+      taskId,
+      request,
+      priority,
+      createdAt: queuedTask.addedAt,
+    });
+
     // Add task to queue with priority
     void this.queue.add(
       async () => {
@@ -131,6 +144,12 @@ export class TaskQueueImpl implements TaskQueue {
         taskId: task.id,
         instruction: task.request.instruction,
         currentAttempt: task.retryMetadata?.currentAttempt ?? 0,
+      });
+
+      // Emit task started event
+      void this.eventBus.emit("task.started", {
+        taskId: task.id,
+        startedAt: task.startedAt,
       });
 
       // Set up progress handler for WebSocket log streaming
@@ -178,15 +197,24 @@ export class TaskQueueImpl implements TaskQueue {
 
         this.completedCount++;
 
-        // Update result in database
+        // Update result and status in database
         try {
           this.repository.updateResult(task.id, task.result);
+          this.repository.updateStatus(task.id, TaskStatus.COMPLETED);
           logger.info("Task result updated in database", { taskId: task.id, status: task.status });
         } catch (error) {
           logger.error("Failed to update task result in database", { taskId: task.id, error });
         }
 
-        // Notify complete handlers
+        // Emit task completed event
+        void this.eventBus.emit("task.completed", {
+          taskId: task.id,
+          result: task.result,
+          duration: result.duration || 0,
+          completedAt: task.completedAt,
+        });
+
+        // Notify complete handlers (backward compatibility)
         this.onCompleteHandlers.forEach((handler) => {
           try {
             handler(task);
@@ -234,11 +262,7 @@ export class TaskQueueImpl implements TaskQueue {
 
           // Update retry metadata in database
           try {
-            this.repository.updateRetryMetadata(
-              task.id,
-              updatedRetryMetadata,
-              updatedRetryMetadata.nextRetryAt,
-            );
+            this.repository.updateRetryMetadata(task.id, updatedRetryMetadata);
             this.repository.resetTaskForRetry(task.id);
           } catch (dbError) {
             logger.error("Failed to update retry metadata in database", {
@@ -255,6 +279,14 @@ export class TaskQueueImpl implements TaskQueue {
             delay,
             errorInfo,
           );
+
+          // Emit retry scheduled event
+          void this.eventBus.emit("task.retry.scheduled", {
+            taskId: task.id,
+            attemptNumber: updatedRetryMetadata.currentAttempt,
+            scheduledFor: new Date(Date.now() + delay),
+            previousError: errorInfo.message,
+          });
 
           // Schedule retry
           setTimeout(() => {
@@ -304,7 +336,16 @@ export class TaskQueueImpl implements TaskQueue {
           });
         }
 
-        // Notify error handlers
+        // Emit task failed event
+        void this.eventBus.emit("task.failed", {
+          taskId: task.id,
+          error: errorInfo,
+          failedAt: task.completedAt,
+          willRetry: false,
+          retryCount: task.retryMetadata?.currentAttempt,
+        });
+
+        // Notify error handlers (backward compatibility)
         this.onErrorHandlers.forEach((handler) => {
           try {
             handler(task, error);
@@ -339,6 +380,13 @@ export class TaskQueueImpl implements TaskQueue {
           });
         }
 
+        // Emit task cancelled event
+        void this.eventBus.emit("task.cancelled", {
+          taskId: task.id,
+          reason: "User requested cancellation",
+          cancelledAt: task.completedAt,
+        });
+
         logger.info("Task cancelled during execution", { taskId: task.id });
 
         // Don't count cancellations as failures
@@ -366,7 +414,19 @@ export class TaskQueueImpl implements TaskQueue {
         error,
       });
 
-      // Notify error handlers
+      // Emit task failed event
+      void this.eventBus.emit("task.failed", {
+        taskId: task.id,
+        error: {
+          message: task.error.message,
+          code: "UNEXPECTED_ERROR",
+          stack: task.error.stack,
+        },
+        failedAt: task.completedAt,
+        willRetry: false,
+      });
+
+      // Notify error handlers (backward compatibility)
       this.onErrorHandlers.forEach((handler) => {
         try {
           handler(task, task.error!);
@@ -483,6 +543,13 @@ export class TaskQueueImpl implements TaskQueue {
       logger.error("Failed to update task status in database", { taskId, error });
     }
 
+    // Emit task cancelled event
+    void this.eventBus.emit("task.cancelled", {
+      taskId: task.id,
+      reason: "Cancelled via API",
+      cancelledAt: task.completedAt,
+    });
+
     logger.info("Task cancelled", { taskId });
     return true;
   }
@@ -521,7 +588,7 @@ export class TaskQueueImpl implements TaskQueue {
       if (pendingTasks.length > 0) {
         logger.info("Restoring pending tasks from database", { count: pendingTasks.length });
 
-        pendingTasks.forEach((task) => {
+        pendingTasks.forEach((task: QueuedTask) => {
           // Reset running tasks to pending
           if (task.status === TaskStatus.RUNNING) {
             task.status = TaskStatus.PENDING;

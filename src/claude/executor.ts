@@ -15,7 +15,7 @@ import { NotFoundError, TaskCancelledError, SystemError } from "../utils/errors"
 
 /**
  * Task execution engine that handles Claude API interactions
- * 
+ *
  * This class is responsible for:
  * - Processing task requests with optional preprocessing (slash commands)
  * - Managing Git worktrees for isolated task execution
@@ -84,14 +84,14 @@ export class TaskExecutorImpl implements TaskExecutor {
 
   /**
    * Core task execution logic
-   * 
+   *
    * Execution flow:
    * 1. Setup phase: Initialize timeout manager, abort controller, and logging
    * 2. Preprocessing: Apply slash commands if instruction processor is available
    * 3. Worktree setup: Create isolated Git worktree if requested
    * 4. Task execution: Run task via Claude API or Claude Code SDK
    * 5. Cleanup phase: Clean up worktree and resources
-   * 
+   *
    * @param task - The task request to execute
    * @param taskId - Optional task ID for tracking and cancellation
    * @param retryMetadata - Metadata from previous retry attempts

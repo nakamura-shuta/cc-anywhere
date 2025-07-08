@@ -31,7 +31,6 @@ CC-Anywhereは、Claude Code SDKを使用してHTTP経由でタスクを実行�
 
 ### 💻 開発
 - [開発環境セットアップ](./development/setup.md) - 開発者向けガイド
-- [コントリビューション](./development/contributing.md) - 貢献方法
 - [サンプルコード](./examples/) - 実装例とテンプレート
 
 ## 🎯 主な特徴

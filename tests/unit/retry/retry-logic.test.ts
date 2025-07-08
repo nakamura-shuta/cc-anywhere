@@ -185,8 +185,11 @@ describe("Retry Logic Implementation", () => {
         retryAttempts.push(attempt);
       });
 
-      // Fast-forward through all retry delays
-      await vi.advanceTimersByTimeAsync(30); // 10ms + 20ms
+      // Fast-forward through all retry delays and handle the promise
+      await Promise.allSettled([
+        vi.advanceTimersByTimeAsync(30), // 10ms + 20ms
+        resultPromise.catch(() => {}), // Catch to prevent unhandled rejection
+      ]);
 
       await expect(resultPromise).rejects.toThrow("Persistent error");
       expect(executeFn).toHaveBeenCalledTimes(3); // initial + 2 retries
@@ -220,8 +223,11 @@ describe("Retry Logic Implementation", () => {
         },
       );
 
-      // Fast-forward through all delays
-      await vi.advanceTimersByTimeAsync(100 + 200 + 400 + 800);
+      // Fast-forward through all delays and handle the promise
+      await Promise.allSettled([
+        vi.advanceTimersByTimeAsync(100 + 200 + 400 + 800),
+        resultPromise.catch(() => {}), // Catch to prevent unhandled rejection
+      ]);
 
       await expect(resultPromise).rejects.toThrow();
 
@@ -255,8 +261,11 @@ describe("Retry Logic Implementation", () => {
         },
       );
 
-      // Fast-forward
-      await vi.advanceTimersByTimeAsync(20000);
+      // Fast-forward and handle the promise
+      await Promise.allSettled([
+        vi.advanceTimersByTimeAsync(20000),
+        resultPromise.catch(() => {}), // Catch to prevent unhandled rejection
+      ]);
 
       await expect(resultPromise).rejects.toThrow();
 
@@ -290,7 +299,11 @@ describe("Retry Logic Implementation", () => {
         },
       );
 
-      await vi.advanceTimersByTimeAsync(2000);
+      // Handle the promise and advance timers
+      await Promise.allSettled([
+        vi.advanceTimersByTimeAsync(2000),
+        resultPromise.catch(() => {}), // Catch to prevent unhandled rejection
+      ]);
 
       await expect(resultPromise).rejects.toThrow();
 
@@ -322,7 +335,11 @@ describe("Retry Logic Implementation", () => {
 
       const resultPromise = retryHandler.executeWithRetry(task, executeFn);
 
-      await vi.advanceTimersByTimeAsync(20);
+      // Handle the promise and advance timers
+      await Promise.allSettled([
+        vi.advanceTimersByTimeAsync(20),
+        resultPromise.catch(() => {}), // Catch to prevent unhandled rejection
+      ]);
 
       // Should retry network error but not auth error
       await expect(resultPromise).rejects.toThrow("AUTH_ERROR");
@@ -349,8 +366,11 @@ describe("Retry Logic Implementation", () => {
         retryAttempts.push(attempt);
       });
 
-      // Fast forward through all delays (10ms * 3)
-      await vi.advanceTimersByTimeAsync(100);
+      // Fast forward through all delays (10ms * 3) and handle the promise
+      await Promise.allSettled([
+        vi.advanceTimersByTimeAsync(100),
+        resultPromise.catch(() => {}), // Catch to prevent unhandled rejection
+      ]);
 
       // Should retry all errors when array is empty (default behavior)
       await expect(resultPromise).rejects.toThrow("Any error");
@@ -377,7 +397,12 @@ describe("Retry Logic Implementation", () => {
       };
 
       const resultPromise = retryHandler.executeWithRetry(task, executeFn);
-      await vi.advanceTimersByTimeAsync(50);
+
+      // Handle the promise and advance timers
+      await Promise.allSettled([
+        vi.advanceTimersByTimeAsync(50),
+        resultPromise.catch(() => {}), // Catch to prevent unhandled rejection
+      ]);
 
       await expect(resultPromise).rejects.toThrow();
       expect(executeFn).toHaveBeenCalledTimes(3); // Should retry

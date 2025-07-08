@@ -1,4 +1,5 @@
 // Vitest setup file
+import "reflect-metadata";
 import { vi } from "vitest";
 import dotenv from "dotenv";
 import path from "path";
@@ -16,4 +17,13 @@ global.console = {
   // Keep warn and error for important messages
   warn: console.warn,
   error: console.error,
+};
+
+// Suppress unhandled promise rejection warnings during tests
+const originalEmitWarning = process.emitWarning.bind(process);
+process.emitWarning = (warning: any, ...args: any[]) => {
+  if (typeof warning === "string" && warning.includes("PromiseRejectionHandledWarning")) {
+    return;
+  }
+  originalEmitWarning(warning, ...args);
 };

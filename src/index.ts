@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { createApp } from "./server/app";
 import { logger } from "./utils/logger";
 import { config } from "./config";

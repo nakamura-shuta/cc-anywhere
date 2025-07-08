@@ -290,14 +290,31 @@ export class WorktreeManager {
   private async loadMetadata(): Promise<WorktreeMetadata> {
     try {
       const data = await fs.readFile(this.metadataPath, "utf-8");
-      const metadata = JSON.parse(data);
+      const rawMetadata = JSON.parse(data) as {
+        worktrees: Array<{
+          id: string;
+          taskId: string;
+          name: string;
+          path: string;
+          branch: string;
+          baseBranch: string;
+          repository: string;
+          status: "active" | "completed" | "failed" | "cleanup_required";
+          createdAt: string;
+        }>;
+        lastUpdated: string;
+        version?: string;
+      };
 
       // Date型に変換
-      metadata.worktrees = metadata.worktrees.map((w: any) => ({
-        ...w,
-        createdAt: new Date(w.createdAt),
-      }));
-      metadata.lastUpdated = new Date(metadata.lastUpdated);
+      const metadata: WorktreeMetadata = {
+        worktrees: rawMetadata.worktrees.map((w) => ({
+          ...w,
+          createdAt: new Date(w.createdAt),
+        })),
+        lastUpdated: new Date(rawMetadata.lastUpdated),
+        version: rawMetadata.version || "1.0.0",
+      };
 
       return metadata;
     } catch (error) {

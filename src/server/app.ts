@@ -18,6 +18,8 @@ import { config } from "../config";
 import { TaskQueueImpl } from "../queue";
 import { WorkerManager } from "../worker/worker-manager";
 import { WebSocketServer } from "../websocket/websocket-server";
+import { getSharedDbProvider, getSharedRepository } from "../db/shared-instance";
+import { getTypedEventBus } from "../events";
 
 export interface AppOptions extends FastifyServerOptions {
   workerMode?: "inline" | "standalone" | "managed";
@@ -122,6 +124,12 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
 
   app.decorate("queue", taskQueue);
 
+  // Use shared database and repository instances
+  const dbProvider = getSharedDbProvider();
+  const repository = getSharedRepository();
+  app.decorate("dbProvider", dbProvider);
+  app.decorate("repository", repository);
+
   // Initialize WebSocket server
   if (config.websocket?.enabled !== false) {
     wsServer = new WebSocketServer({
@@ -151,6 +159,7 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
               ? task.completedAt.getTime() - task.startedAt.getTime()
               : undefined,
           result: task.result?.result,
+          workingDirectory: task.request.context?.workingDirectory,
         },
       });
     });
@@ -165,12 +174,30 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
             message: error.message,
             code: "EXECUTION_ERROR",
           },
+          workingDirectory: task.request.context?.workingDirectory,
         },
       });
     });
 
     // Set WebSocket server for log streaming
     taskQueue.setWebSocketServer(wsServer);
+
+    // Listen for task started events
+    const eventBus = getTypedEventBus();
+    void eventBus.on("task.started", (payload) => {
+      const task = taskQueue.get(payload.taskId);
+      if (task) {
+        wsServer?.broadcastTaskUpdate({
+          taskId: task.id,
+          status: task.status,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            startedAt: task.startedAt,
+            workingDirectory: task.request.context?.workingDirectory,
+          },
+        });
+      }
+    });
 
     logger.info("WebSocket server initialized");
   }

@@ -20,13 +20,22 @@ vi.mock("../../../src/utils/logger", () => ({
   },
 }));
 
-// Mock TaskRepository to avoid database dependency
-vi.mock("../../../src/db/task-repository", () => ({
-  TaskRepository: vi.fn().mockImplementation(() => ({
+// Mock shared repository to avoid database dependency
+vi.mock("../../../src/db/shared-instance", () => ({
+  getSharedRepository: vi.fn().mockImplementation(() => ({
     create: vi.fn(),
     updateStatus: vi.fn(),
     updateResult: vi.fn(),
     getPendingTasks: vi.fn().mockReturnValue([]),
+  })),
+  getSharedDbProvider: vi.fn(),
+  getTypedEventBus: vi.fn().mockImplementation(() => ({
+    emit: vi.fn().mockResolvedValue(undefined),
+    on: vi.fn(),
+    off: vi.fn(),
+    once: vi.fn(),
+    removeAllListeners: vi.fn(),
+    getListenerCount: vi.fn().mockReturnValue(0),
   })),
 }));
 
@@ -37,6 +46,16 @@ describe("TaskQueue", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
 
+    // Reset the shared repository mock for each test
+    const { getSharedRepository } = await import("../../../src/db/shared-instance");
+    const mockRepository = {
+      create: vi.fn(),
+      updateStatus: vi.fn(),
+      updateResult: vi.fn(),
+      getPendingTasks: vi.fn().mockReturnValue([]),
+    };
+    (getSharedRepository as any).mockReturnValue(mockRepository);
+
     // Create queue with concurrency of 2
     queue = new TaskQueueImpl({ concurrency: 2, autoStart: false });
 
@@ -45,9 +64,13 @@ describe("TaskQueue", () => {
     mockExecutor = (TaskExecutorImpl as any).mock.results[0].value;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     if (queue) {
+      // Stop the queue first to ensure no tasks are running
+      queue.pause();
       queue.clear();
+      // Wait a bit to ensure all tasks are cleaned up
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   });
 

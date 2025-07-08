@@ -422,6 +422,13 @@ select {
     margin-bottom: 8px;
 }
 
+.task-id-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
 .task-id {
     font-family: monospace;
     font-size: 12px;
@@ -430,6 +437,16 @@ select {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.task-repository {
+    font-size: 12px;
+    color: #059669;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
 }
 
 /* タスクIDのホバー表示 */
@@ -502,9 +519,19 @@ select {
         gap: 8px;
     }
     
+    .task-id-section {
+        width: 100%;
+        gap: 8px;
+    }
+    
     .task-id {
         font-size: 10px;
         max-width: 100%;
+    }
+    
+    .task-repository {
+        font-size: 10px;
+        max-width: 120px;
     }
     
     .task-instruction {

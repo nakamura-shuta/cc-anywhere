@@ -124,7 +124,7 @@ export interface ClaudeExecutionResult {
 
 /**
  * Interface for task execution services
- * 
+ *
  * Implementations handle the actual execution of tasks,
  * including Claude API calls, timeout management, and cancellation
  */
@@ -141,7 +141,7 @@ export interface TaskExecutor {
     taskId?: string,
     retryMetadata?: TaskResponse["retryMetadata"],
   ): Promise<ClaudeExecutionResult>;
-  
+
   /**
    * Cancel a running task
    * @param taskId - ID of the task to cancel

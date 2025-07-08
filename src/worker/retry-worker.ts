@@ -1,4 +1,4 @@
-import { TaskRepository } from "../db/task-repository";
+import { getSharedRepository } from "../db/shared-instance";
 import type { TaskQueueImpl } from "../queue/task-queue";
 import { logger } from "../utils/logger";
 import { TaskStatus } from "../claude/types";
@@ -9,7 +9,7 @@ export interface RetryWorkerOptions {
 }
 
 export class RetryWorker {
-  private repository: TaskRepository;
+  private repository = getSharedRepository();
   private taskQueue: TaskQueueImpl;
   private isRunning = false;
   private pollTimer?: NodeJS.Timeout;
@@ -17,7 +17,6 @@ export class RetryWorker {
   private batchSize: number;
 
   constructor(taskQueue: TaskQueueImpl, options: RetryWorkerOptions = {}) {
-    this.repository = new TaskRepository();
     this.taskQueue = taskQueue;
     this.pollInterval = options.pollInterval ?? 10000; // 10 seconds default
     this.batchSize = options.batchSize ?? 10;
@@ -86,8 +85,8 @@ export class RetryWorker {
 
           logger.info("[RetryWorker] Re-queueing task for retry", {
             taskId: queuedTask.id,
-            currentAttempt: taskRecord.current_attempt,
-            maxRetries: taskRecord.max_retries,
+            currentAttempt: taskRecord.retryCount,
+            maxRetries: taskRecord.maxRetries,
           });
 
           // Re-add task to queue
