@@ -1,4 +1,4 @@
-import type { TimeoutConfig } from "../types/timeout.js";
+import type { TimeoutOptions } from "../types/timeout.js";
 import type { WorktreeOptions } from "../services/worktree/types.js";
 
 // Retry policy types
@@ -8,8 +8,8 @@ export enum RetryPolicy {
   LINEAR = "linear",
 }
 
-// Retry configuration
-export interface RetryConfig {
+// Retry options for task execution
+export interface RetryOptions {
   maxRetries?: number; // Maximum number of retry attempts (default: 3)
   initialDelay?: number; // Initial delay in ms (default: 1000)
   maxDelay?: number; // Maximum delay in ms (default: 60000)
@@ -46,10 +46,10 @@ export interface TaskRequest {
   instruction: string;
   context?: TaskContext;
   options?: {
-    timeout?: number | TimeoutConfig;
+    timeout?: number | TimeoutOptions;
     async?: boolean;
     allowedTools?: string[]; // 後方互換性のため残す
-    retry?: RetryConfig; // Retry configuration
+    retry?: RetryOptions; // Retry options
     onProgress?: (progress: { type: string; message: string }) => void | Promise<void>; // Progress callback
     // Worktree options
     useWorktree?: boolean; // Simple flag to enable worktree
@@ -106,21 +106,46 @@ export interface TaskResponse {
   groupId?: string;
 }
 
-// Claude execution result
+/**
+ * Result of Claude task execution
+ */
 export interface ClaudeExecutionResult {
+  /** Whether the task completed successfully */
   success: boolean;
+  /** Task output (structure depends on execution mode) */
   output?: unknown;
+  /** Error if task failed */
   error?: Error;
+  /** Execution logs collected during task run */
   logs: string[];
+  /** Total execution duration in milliseconds */
   duration: number;
 }
 
-// Task executor interface
+/**
+ * Interface for task execution services
+ * 
+ * Implementations handle the actual execution of tasks,
+ * including Claude API calls, timeout management, and cancellation
+ */
 export interface TaskExecutor {
+  /**
+   * Execute a task request
+   * @param task - The task to execute
+   * @param taskId - Optional ID for tracking and cancellation
+   * @param retryMetadata - Metadata from previous retry attempts
+   * @returns Execution result with status, output, and logs
+   */
   execute(
     task: TaskRequest,
     taskId?: string,
     retryMetadata?: TaskResponse["retryMetadata"],
   ): Promise<ClaudeExecutionResult>;
+  
+  /**
+   * Cancel a running task
+   * @param taskId - ID of the task to cancel
+   * @throws Error if task not found or already completed
+   */
   cancel(taskId: string): Promise<void>;
 }

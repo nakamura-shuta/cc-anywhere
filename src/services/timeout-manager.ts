@@ -2,8 +2,8 @@ import {
   TimeoutPhase,
   TimeoutBehavior,
   TimeoutError,
-  DEFAULT_TIMEOUT_CONFIG,
-  type TimeoutConfig,
+  DEFAULT_TIMEOUT_OPTIONS,
+  type TimeoutOptions,
   type TimeoutState,
   type TimeoutWarning,
 } from "../types/timeout";
@@ -17,7 +17,7 @@ export class TimeoutManager {
   private disposed = false;
 
   constructor(
-    config: TimeoutConfig = {},
+    config: TimeoutOptions = {},
     onWarning?: (warning: TimeoutWarning) => void,
     onTimeout?: (error: TimeoutError) => void,
   ) {
@@ -25,7 +25,7 @@ export class TimeoutManager {
     this.onTimeout = onTimeout;
 
     // Merge with defaults
-    const fullConfig = { ...DEFAULT_TIMEOUT_CONFIG, ...config };
+    const fullConfig = { ...DEFAULT_TIMEOUT_OPTIONS, ...config };
 
     // Initialize state
     this.state = {
@@ -284,13 +284,13 @@ export class TimeoutManager {
     this.timers.clear();
   }
 
-  private getConfigFromState(): Required<TimeoutConfig> {
+  private getConfigFromState(): Required<TimeoutOptions> {
     return {
       total: this.state.totalTimeout,
       setup: this.state.phaseTimeouts[TimeoutPhase.SETUP],
       execution: this.state.phaseTimeouts[TimeoutPhase.EXECUTION],
       cleanup: this.state.phaseTimeouts[TimeoutPhase.CLEANUP],
-      warningThreshold: DEFAULT_TIMEOUT_CONFIG.warningThreshold,
+      warningThreshold: DEFAULT_TIMEOUT_OPTIONS.warningThreshold,
       behavior: this.state.behavior,
     };
   }

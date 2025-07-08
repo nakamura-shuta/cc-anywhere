@@ -1,5 +1,5 @@
 import { logger } from "../utils/logger";
-import type { RetryConfig, RetryAttempt, TaskResponse } from "../claude/types";
+import type { RetryOptions, RetryAttempt, TaskResponse } from "../claude/types";
 import { RetryPolicy } from "../claude/types";
 
 export class RetryService {
@@ -11,7 +11,7 @@ export class RetryService {
   /**
    * Calculate the delay for the next retry attempt
    */
-  static calculateRetryDelay(currentAttempt: number, config: RetryConfig = {}): number {
+  static calculateRetryDelay(currentAttempt: number, config: RetryOptions = {}): number {
     const policy = config.policy || RetryPolicy.EXPONENTIAL;
     const initialDelay = config.initialDelay || this.DEFAULT_INITIAL_DELAY;
     const maxDelay = config.maxDelay || this.DEFAULT_MAX_DELAY;
@@ -48,7 +48,7 @@ export class RetryService {
    */
   static isRetryableError(
     error: Error | { message: string; code?: string },
-    config: RetryConfig = {},
+    config: RetryOptions = {},
   ): boolean {
     // If no specific retryable errors configured, retry all errors
     if (!config.retryableErrors || config.retryableErrors.length === 0) {
@@ -59,7 +59,7 @@ export class RetryService {
     const errorCode = "code" in error ? error.code : undefined;
 
     // Check if error message or code matches any retryable pattern
-    return config.retryableErrors.some((pattern) => {
+    return config.retryableErrors.some((pattern: string) => {
       const patternLower = pattern.toLowerCase();
       return (
         errorMessage.includes(patternLower) ||
@@ -74,7 +74,7 @@ export class RetryService {
   static shouldRetry(
     currentAttempt: number,
     error: Error | { message: string; code?: string },
-    config: RetryConfig = {},
+    config: RetryOptions = {},
   ): boolean {
     const maxRetries = config.maxRetries ?? this.DEFAULT_MAX_RETRIES;
 
@@ -99,7 +99,7 @@ export class RetryService {
   /**
    * Create retry metadata for a new task
    */
-  static createInitialRetryMetadata(config: RetryConfig = {}): TaskResponse["retryMetadata"] {
+  static createInitialRetryMetadata(config: RetryOptions = {}): TaskResponse["retryMetadata"] {
     const maxRetries = config.maxRetries ?? this.DEFAULT_MAX_RETRIES;
 
     return {
@@ -117,7 +117,7 @@ export class RetryService {
     error: { message: string; code?: string },
     startedAt: Date,
     completedAt: Date,
-    config: RetryConfig = {},
+    config: RetryOptions = {},
   ): NonNullable<TaskResponse["retryMetadata"]> {
     const metadata = currentMetadata ?? this.createInitialRetryMetadata(config);
 
@@ -150,7 +150,7 @@ export class RetryService {
   /**
    * Get retry configuration from task options
    */
-  static getRetryConfig(options?: { retry?: RetryConfig }): RetryConfig {
+  static getRetryOptions(options?: { retry?: RetryOptions }): RetryOptions {
     // If no retry config provided, return config with maxRetries = 0
     if (!options?.retry) {
       return { maxRetries: 0 };

@@ -13,8 +13,8 @@ export enum TimeoutBehavior {
   SOFT = "soft", // Graceful shutdown with cleanup
 }
 
-// Timeout configuration
-export interface TimeoutConfig {
+// Timeout options for task execution
+export interface TimeoutOptions {
   total?: number; // Total timeout in ms (default: 600000)
   setup?: number; // Setup phase timeout in ms (default: 30000)
   execution?: number; // Execution phase timeout in ms (default: 540000)
@@ -77,8 +77,8 @@ export interface TimeoutWarning {
   percentage: number;
 }
 
-// Default timeout configuration
-export const DEFAULT_TIMEOUT_CONFIG: Required<TimeoutConfig> = {
+// Default timeout options
+export const DEFAULT_TIMEOUT_OPTIONS: Required<TimeoutOptions> = {
   total: 600000, // 10 minutes
   setup: 30000, // 30 seconds
   execution: 540000, // 9 minutes

@@ -448,7 +448,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Check if task has retries configured
       const queuedTask = repository.toQueuedTask(record);
-      const retryConfig = RetryService.getRetryConfig(queuedTask.request.options);
+      const retryConfig = RetryService.getRetryOptions(queuedTask.request.options);
 
       if (!retryConfig.maxRetries || retryConfig.maxRetries === 0) {
         const errorResponse: ErrorResponse = {

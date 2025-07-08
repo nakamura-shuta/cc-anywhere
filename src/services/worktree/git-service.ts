@@ -2,6 +2,7 @@ import type { SimpleGitOptions } from "simple-git";
 import simpleGit from "simple-git";
 import type { GitOperationResult, GitStatus } from "./types";
 import { WorktreeError, WorktreeErrorCode } from "./types";
+import { logger } from "../../utils/logger";
 
 /**
  * Git操作を管理するサービス
@@ -19,6 +20,10 @@ export class GitService {
       const git = simpleGit(path);
       return await git.checkIsRepo();
     } catch (error) {
+      logger.debug("Repository check failed", {
+        path,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }

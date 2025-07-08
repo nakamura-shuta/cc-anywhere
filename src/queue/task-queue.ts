@@ -64,7 +64,7 @@ export class TaskQueueImpl implements TaskQueue {
     const taskId = uuidv4();
 
     // Initialize retry metadata if retry is configured
-    const retryConfig = RetryService.getRetryConfig(request.options);
+    const retryConfig = RetryService.getRetryOptions(request.options);
     const retryMetadata = retryConfig.maxRetries
       ? RetryService.createInitialRetryMetadata(retryConfig)
       : undefined;
@@ -207,7 +207,7 @@ export class TaskQueueImpl implements TaskQueue {
         };
 
         // Check if task should be retried
-        const retryConfig = RetryService.getRetryConfig(task.request.options);
+        const retryConfig = RetryService.getRetryOptions(task.request.options);
         const shouldRetry = RetryService.shouldRetry(
           task.retryMetadata?.currentAttempt ?? 0,
           error,

@@ -7,12 +7,22 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { RetryHandler, type RetryHandlerOptions } from "../services/retry-handler";
 import { TimeoutManager } from "../services/timeout-manager";
-import { TimeoutPhase, TimeoutError, type TimeoutConfig } from "../types/timeout";
+import { TimeoutPhase, TimeoutError, type TimeoutOptions } from "../types/timeout";
 import { InstructionProcessor } from "../services/slash-commands/instruction-processor";
 import { WorktreeManager } from "../services/worktree/worktree-manager";
 import type { Worktree, WorktreeConfig } from "../services/worktree/types";
 import { NotFoundError, TaskCancelledError, SystemError } from "../utils/errors";
 
+/**
+ * Task execution engine that handles Claude API interactions
+ * 
+ * This class is responsible for:
+ * - Processing task requests with optional preprocessing (slash commands)
+ * - Managing Git worktrees for isolated task execution
+ * - Handling timeouts and cancellations
+ * - Integrating with Claude API or Claude Code SDK
+ * - Providing progress updates and log streaming
+ */
 export class TaskExecutorImpl implements TaskExecutor {
   private client: ClaudeClient;
   private codeClient: ClaudeCodeClient;
@@ -72,6 +82,24 @@ export class TaskExecutorImpl implements TaskExecutor {
     return this.executeCore(task, taskId, retryMetadata);
   }
 
+  /**
+   * Core task execution logic
+   * 
+   * Execution flow:
+   * 1. Setup phase: Initialize timeout manager, abort controller, and logging
+   * 2. Preprocessing: Apply slash commands if instruction processor is available
+   * 3. Worktree setup: Create isolated Git worktree if requested
+   * 4. Task execution: Run task via Claude API or Claude Code SDK
+   * 5. Cleanup phase: Clean up worktree and resources
+   * 
+   * @param task - The task request to execute
+   * @param taskId - Optional task ID for tracking and cancellation
+   * @param retryMetadata - Metadata from previous retry attempts
+   * @returns Execution result with success status, output, logs, and duration
+   * @throws TimeoutError when task exceeds configured timeout
+   * @throws TaskCancelledError when task is cancelled via abort signal
+   * @throws Error for other execution failures
+   */
   private async executeCore(
     task: TaskRequest,
     taskId?: string,
@@ -97,7 +125,7 @@ export class TaskExecutorImpl implements TaskExecutor {
     }
 
     // Set up timeout configuration
-    let timeoutConfig: TimeoutConfig;
+    let timeoutConfig: TimeoutOptions;
     if (typeof task.options?.timeout === "number") {
       // Legacy number timeout - use as total timeout
       timeoutConfig = { total: task.options.timeout };
