@@ -84,7 +84,7 @@ class TunnelManager {
           // 改行を追加してPM2のタイムスタンプとQRコードを分離
           console.log("\n" + qrcode);
         });
-        
+
         // QRコードをファイルに保存
         QRFileManager.saveQRCode(webUIUrl).catch((err) => {
           logger.error("Failed to save QR code:", err);
@@ -108,7 +108,7 @@ class TunnelManager {
           // 改行を追加してPM2のタイムスタンプとQRコードを分離
           console.log("\n" + qrcode);
         });
-        
+
         // QRコードをファイルに保存
         QRFileManager.saveQRCode(tunnelUrl).catch((err) => {
           logger.error("Failed to save QR code:", err);
@@ -117,7 +117,7 @@ class TunnelManager {
     }
 
     console.log("\n========================================\n");
-    
+
     // アクセス情報をファイルに保存
     QRFileManager.saveAccessInfo({
       url: tunnelUrl,

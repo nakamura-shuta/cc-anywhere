@@ -1,12 +1,10 @@
+import type { RetryConfig, TaskStatus } from "../claude/types";
+
 export interface BatchRepository {
   name: string;
   path: string;
   timeout?: number;
-  retryOptions?: {
-    maxRetries?: number;
-    initialDelay?: number;
-    maxDelay?: number;
-  };
+  retryOptions?: Pick<RetryConfig, "maxRetries" | "initialDelay" | "maxDelay">;
 }
 
 export interface CreateBatchTaskParams {
@@ -15,11 +13,7 @@ export interface CreateBatchTaskParams {
   options?: {
     timeout?: number;
     allowedTools?: string[];
-    retry?: {
-      maxRetries?: number;
-      initialDelay?: number;
-      maxDelay?: number;
-    };
+    retry?: Pick<RetryConfig, "maxRetries" | "initialDelay" | "maxDelay">;
   };
 }
 
@@ -28,7 +22,7 @@ export interface BatchTaskResponse {
   tasks: Array<{
     taskId: string;
     repository: string;
-    status: string;
+    status: TaskStatus;
   }>;
 }
 
@@ -44,7 +38,7 @@ export interface BatchTaskStatus {
   tasks: Array<{
     taskId: string;
     repository: string;
-    status: string;
+    status: TaskStatus;
     duration?: number;
     result?: any;
     error?: any;

@@ -62,6 +62,7 @@ vi.mock("../../src/config", () => ({
     tasks: { defaultTimeout: 300000 },
     database: { path: ":memory:" },
     queue: { concurrency: 1 },
+    claudeCodeSDK: { defaultMaxTurns: 3 },
   },
 }));
 

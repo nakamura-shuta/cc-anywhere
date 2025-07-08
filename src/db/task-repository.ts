@@ -204,7 +204,7 @@ export class TaskRepository {
       addedAt: new Date(record.created_at),
       startedAt: record.started_at ? new Date(record.started_at) : undefined,
       completedAt: record.completed_at ? new Date(record.completed_at) : undefined,
-      status: record.status as TaskStatus,
+      status: record.status,
       result: record.result ? (JSON.parse(record.result) as TaskResponse) : undefined,
       error: record.error ? new Error(JSON.parse(record.error) as string) : undefined,
       retryMetadata: record.retry_metadata

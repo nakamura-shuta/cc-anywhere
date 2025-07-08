@@ -5,6 +5,7 @@ import type { ErrorResponse, TaskLogResponse, TaskCancelResponse } from "../../t
 import { RetryService } from "../../services/retry-service";
 import { TaskRepository } from "../../db/task-repository";
 import { checkApiKey } from "../middleware/auth";
+import { SystemError } from "../../utils/errors";
 
 // eslint-disable-next-line @typescript-eslint/require-await
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
@@ -202,7 +203,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       // Get task details
       const queuedTask = taskQueue.get(taskId);
       if (!queuedTask) {
-        throw new Error("Failed to create task");
+        throw new SystemError("Failed to create task", { taskId });
       }
 
       const task: TaskResponse = {
@@ -503,7 +504,10 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         // Get the new task
         const newTask = taskQueue.get(newTaskId);
         if (!newTask) {
-          throw new Error("Failed to create retry task");
+          throw new SystemError("Failed to create retry task", {
+            originalTaskId: request.params.taskId,
+            newTaskId,
+          });
         }
 
         const response: TaskResponse = {

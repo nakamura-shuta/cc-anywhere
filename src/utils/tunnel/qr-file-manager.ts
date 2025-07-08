@@ -16,7 +16,7 @@ export class QRFileManager {
   static saveQRCode(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.ensureDataDir();
-      
+
       qrcode.generate(url, { small: true }, (qrcode) => {
         try {
           fs.writeFileSync(this.QR_FILE_PATH, qrcode, "utf8");

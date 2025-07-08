@@ -56,13 +56,11 @@ export interface LogStreamMessage extends WebSocketMessage {
   };
 }
 
+import type { ErrorDetails } from "../utils/errors";
+
 export interface ErrorMessage extends WebSocketMessage {
   type: "error";
-  payload: {
-    message: string;
-    code: string;
-    details?: unknown;
-  };
+  payload: Pick<ErrorDetails, "message" | "code" | "details">;
 }
 
 export interface SuccessMessage extends WebSocketMessage {

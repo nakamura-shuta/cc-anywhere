@@ -1,10 +1,12 @@
+import type { TaskStatus } from "../claude/types";
+
 export interface TaskRecord {
   id: string;
   instruction: string;
   context: string | null; // JSON string
   options: string | null; // JSON string
   priority: number;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  status: TaskStatus;
   result: string | null; // JSON string
   error: string | null; // JSON string
   retry_metadata: string | null; // JSON string containing retry history

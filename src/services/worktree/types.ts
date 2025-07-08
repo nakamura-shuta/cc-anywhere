@@ -2,6 +2,8 @@
  * Git Worktree関連の型定義
  */
 
+import { AppError } from "../../utils/errors";
+
 /**
  * Worktreeオプション（タスク実行時に指定）
  */
@@ -170,19 +172,16 @@ export interface WorktreeLogEntry {
 
 /**
  * Worktreeエラー
+ * AppErrorを継承して統一的なエラーハンドリングを実現
  */
-export class WorktreeError extends Error {
+export class WorktreeError extends AppError {
   constructor(
     message: string,
-    public readonly code: string,
-    public readonly details?: Record<string, any>,
+    public readonly code: WorktreeErrorCodeType,
+    details?: Record<string, any>,
   ) {
-    super(message);
+    super(message, 500, code, details);
     this.name = "WorktreeError";
-  }
-
-  toString(): string {
-    return this.message;
   }
 }
 

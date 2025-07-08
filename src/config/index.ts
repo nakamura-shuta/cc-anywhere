@@ -56,6 +56,8 @@ const envSchema = z.object({
   WORKTREE_CLEANUP_DELAY: z.string().default("300000").transform(Number), // 5分
   WORKTREE_PREFIX: z.string().default("cc-anywhere"),
   WORKTREE_DEFAULT_BASE_BRANCH: z.string().default("master"),
+  // Claude Code SDK設定
+  DEFAULT_MAX_TURNS: z.string().default("3").transform(Number),
 });
 
 // Parse and validate environment variables
@@ -125,5 +127,8 @@ export const config = {
     cleanupDelay: env.WORKTREE_CLEANUP_DELAY,
     prefix: env.WORKTREE_PREFIX,
     defaultBaseBranch: env.WORKTREE_DEFAULT_BASE_BRANCH,
+  },
+  claudeCodeSDK: {
+    defaultMaxTurns: env.DEFAULT_MAX_TURNS,
   },
 } as const;

@@ -40,7 +40,7 @@ export class ClaudeCodeClient {
         prompt,
         abortController,
         options: {
-          maxTurns: options.maxTurns || 3,
+          maxTurns: options.maxTurns || config.claudeCodeSDK.defaultMaxTurns,
           cwd: options.cwd,
           allowedTools: options.allowedTools,
         },
@@ -62,7 +62,7 @@ export class ClaudeCodeClient {
           if (message.type === "assistant" && turnCount === 1) {
             await options.onProgress({
               type: "log",
-              message: `[開始] ターン ${turnCount}/${options.maxTurns || 3}`,
+              message: `[開始] ターン ${turnCount}/${options.maxTurns || config.claudeCodeSDK.defaultMaxTurns}`,
             });
           }
 

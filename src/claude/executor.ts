@@ -11,6 +11,7 @@ import { TimeoutPhase, TimeoutError, type TimeoutConfig } from "../types/timeout
 import { InstructionProcessor } from "../services/slash-commands/instruction-processor";
 import { WorktreeManager } from "../services/worktree/worktree-manager";
 import type { Worktree, WorktreeConfig } from "../services/worktree/types";
+import { NotFoundError, TaskCancelledError, SystemError } from "../utils/errors";
 
 export class TaskExecutorImpl implements TaskExecutor {
   private client: ClaudeClient;
@@ -223,7 +224,9 @@ export class TaskExecutorImpl implements TaskExecutor {
           if (resolvedWorkingDirectory) {
             // Check if directory exists
             if (!existsSync(resolvedWorkingDirectory)) {
-              throw new Error(`Working directory does not exist: ${resolvedWorkingDirectory}`);
+              throw new NotFoundError(
+                `Working directory does not exist: ${resolvedWorkingDirectory}`,
+              );
             }
 
             logs.push(`Working directory: ${resolvedWorkingDirectory}`);
@@ -248,12 +251,17 @@ export class TaskExecutorImpl implements TaskExecutor {
             });
           }
 
+          // SDKオプションの取得（リクエストから、またはデフォルト設定から）
+          const sdkOptions = processedTask.options?.sdk || {};
+          const maxTurns = sdkOptions.maxTurns ?? config.claudeCodeSDK.defaultMaxTurns;
+          const allowedTools = sdkOptions.allowedTools ?? processedTask.options?.allowedTools;
+
           const result = await this.codeClient.executeTask(prompt, {
-            maxTurns: 5,
+            maxTurns,
             cwd: resolvedWorkingDirectory,
             abortController,
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            allowedTools: processedTask.options?.allowedTools,
+            allowedTools,
             onProgress: processedTask.options?.onProgress,
           });
 
@@ -268,7 +276,7 @@ export class TaskExecutorImpl implements TaskExecutor {
             // Check if this was a cancellation or timeout
             const wasCancelled = taskId && !this.runningTasks.has(taskId);
             if (wasCancelled) {
-              throw new Error("Task was cancelled");
+              throw new TaskCancelledError();
             }
             // TimeoutManager already logged the timeout details
             throw error instanceof TimeoutError ? error : new Error("Task execution timed out");
@@ -293,7 +301,7 @@ export class TaskExecutorImpl implements TaskExecutor {
             // Check if this was a cancellation or timeout
             const wasCancelled = taskId && !this.runningTasks.has(taskId);
             if (wasCancelled) {
-              throw new Error("Task was cancelled");
+              throw new TaskCancelledError();
             }
             // TimeoutManager already logged the timeout details
             throw error instanceof TimeoutError ? error : new Error("Task execution timed out");
@@ -515,7 +523,9 @@ When providing code, ensure it follows best practices and is well-documented.`;
     onProgress?: (progress: { type: string; message: string }) => void | Promise<void>,
   ): Promise<Worktree> {
     if (!this.worktreeManager) {
-      throw new Error("Worktree manager not initialized");
+      throw new SystemError("Worktree manager not initialized", {
+        worktreeEnabled: config.worktree?.enabled,
+      });
     }
 
     // Notify progress
@@ -537,7 +547,10 @@ When providing code, ensure it follows best practices and is well-documented.`;
       // Check worktree health
       const isHealthy = await this.worktreeManager.isWorktreeHealthy(worktree);
       if (!isHealthy) {
-        throw new Error("Worktree is not healthy");
+        throw new SystemError("Worktree is not healthy", {
+          worktreeId: worktree.id,
+          worktreePath: worktree.path,
+        });
       }
 
       if (onProgress) {

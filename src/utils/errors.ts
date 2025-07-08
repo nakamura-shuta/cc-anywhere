@@ -1,12 +1,42 @@
+/**
+ * 基底エラークラス
+ * すべてのアプリケーションエラーはこのクラスを継承する
+ */
 export class AppError extends Error {
+  public readonly timestamp: Date;
+
   constructor(
     message: string,
     public statusCode: number = 500,
     public code?: string,
+    public details?: Record<string, any>,
   ) {
     super(message);
     this.name = "AppError";
+    this.timestamp = new Date();
     Error.captureStackTrace(this, this.constructor);
+  }
+
+  /**
+   * エラーをJSON形式で出力
+   */
+  toJSON(): Record<string, any> {
+    return {
+      name: this.name,
+      message: this.message,
+      code: this.code,
+      statusCode: this.statusCode,
+      details: this.details,
+      timestamp: this.timestamp,
+      stack: this.stack,
+    };
+  }
+
+  /**
+   * エラーの文字列表現
+   */
+  toString(): string {
+    return `${this.name}: ${this.message} (code: ${this.code || "N/A"})`;
   }
 }
 
@@ -50,4 +80,30 @@ export class RateLimitError extends AppError {
     super(message, 429, "RATE_LIMIT_EXCEEDED");
     this.name = "RateLimitError";
   }
+}
+
+export class TaskCancelledError extends AppError {
+  constructor(message: string = "Task was cancelled") {
+    super(message, 499, "TASK_CANCELLED");
+    this.name = "TaskCancelledError";
+  }
+}
+
+export class SystemError extends AppError {
+  constructor(message: string, details?: Record<string, any>) {
+    super(message, 500, "SYSTEM_ERROR", details);
+    this.name = "SystemError";
+  }
+}
+
+/**
+ * 共通のエラーレスポンス構造
+ */
+export interface ErrorDetails {
+  message: string;
+  code?: string;
+  statusCode?: number;
+  details?: Record<string, any>;
+  timestamp?: Date | string;
+  stack?: string;
 }

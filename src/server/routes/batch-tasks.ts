@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { BatchTaskService } from "../../services/batch-task-service";
 import { TaskRepository } from "../../db/task-repository";
 import { checkApiKey } from "../middleware/auth";
+import { SystemError } from "../../utils/errors";
 
 export const batchTaskRoutes: FastifyPluginAsync = async (app: any) => {
   // Initialize services
@@ -10,7 +11,7 @@ export const batchTaskRoutes: FastifyPluginAsync = async (app: any) => {
   // Ensure queue is available
   if (!app.queue) {
     app.log.error("Task queue not initialized");
-    throw new Error("Task queue not initialized");
+    throw new SystemError("Task queue not initialized");
   }
 
   const batchTaskService = new BatchTaskService(taskRepository, app.queue);

@@ -27,18 +27,35 @@ export interface TaskContext {
 }
 
 // Task request type
+// Claude Code SDK specific options
+export interface ClaudeCodeSDKOptions {
+  maxTurns?: number;
+  allowedTools?: string[];
+  disallowedTools?: string[];
+  systemPrompt?: string;
+  permissionMode?: "ask" | "allow" | "deny";
+  executable?: string;
+  executableArgs?: string[];
+  mcpConfig?: Record<string, any>;
+  continueSession?: string;
+  outputFormat?: "text" | "json" | "stream-json";
+  verbose?: boolean;
+}
+
 export interface TaskRequest {
   instruction: string;
   context?: TaskContext;
   options?: {
     timeout?: number | TimeoutConfig;
     async?: boolean;
-    allowedTools?: string[];
+    allowedTools?: string[]; // 後方互換性のため残す
     retry?: RetryConfig; // Retry configuration
     onProgress?: (progress: { type: string; message: string }) => void | Promise<void>; // Progress callback
     // Worktree options
     useWorktree?: boolean; // Simple flag to enable worktree
     worktree?: WorktreeOptions; // Detailed worktree configuration
+    // Claude Code SDK options
+    sdk?: ClaudeCodeSDKOptions;
   };
 }
 
@@ -97,9 +114,6 @@ export interface ClaudeExecutionResult {
   logs: string[];
   duration: number;
 }
-
-// Task result type alias
-export type TaskResult = ClaudeExecutionResult;
 
 // Task executor interface
 export interface TaskExecutor {

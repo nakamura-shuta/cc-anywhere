@@ -1,14 +1,11 @@
 import type { TaskQueue } from "../queue/types.js";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
 import type { WorkerManager } from "../worker/worker-manager.js";
+import type { ErrorDetails } from "../utils/errors.js";
 
 // API Error Response types
 export interface ErrorResponse {
-  error: {
-    message: string;
-    statusCode: number;
-    code?: string;
-    stack?: string;
+  error: ErrorDetails & {
     originalMessage?: string;
   };
 }

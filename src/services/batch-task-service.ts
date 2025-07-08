@@ -8,6 +8,7 @@ import type {
 } from "../types/batch-task";
 import { TaskStatus, type TaskRequest } from "../claude/types";
 import { logger } from "../utils/logger";
+import { ValidationError } from "../utils/errors";
 
 export class BatchTaskService {
   constructor(
@@ -18,16 +19,16 @@ export class BatchTaskService {
   async createBatchTasks(params: CreateBatchTaskParams): Promise<BatchTaskResponse> {
     // バリデーション
     if (!params.instruction) {
-      throw new Error("instruction is required");
+      throw new ValidationError("instruction is required");
     }
 
     if (!params.repositories || params.repositories.length === 0) {
-      throw new Error("At least one repository is required");
+      throw new ValidationError("At least one repository is required");
     }
 
     // グループIDを生成
     const groupId = `group_${uuidv4()}`;
-    const tasks: Array<{ taskId: string; repository: string; status: string }> = [];
+    const tasks: Array<{ taskId: string; repository: string; status: TaskStatus }> = [];
 
     logger.info("Creating batch tasks", {
       groupId,

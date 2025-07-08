@@ -1,3 +1,5 @@
+import { AppError } from "../utils/errors";
+
 // Timeout phase enum
 export enum TimeoutPhase {
   SETUP = "setup",
@@ -38,7 +40,7 @@ export interface TimeoutState {
 }
 
 // Timeout error with context
-export class TimeoutError extends Error {
+export class TimeoutError extends AppError {
   constructor(
     message: string,
     public readonly phase: TimeoutPhase,
@@ -46,7 +48,12 @@ export class TimeoutError extends Error {
     public readonly limit: number,
     public readonly behavior: TimeoutBehavior,
   ) {
-    super(message);
+    super(message, 408, "TIMEOUT_ERROR", {
+      phase,
+      elapsed,
+      limit,
+      behavior,
+    });
     this.name = "TimeoutError";
   }
 
