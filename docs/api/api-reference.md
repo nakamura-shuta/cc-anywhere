@@ -48,9 +48,36 @@ POST /api/tasks
 | options.retry.maxRetries | number | - | 最大リトライ回数。デフォルト: 0（リトライなし） |
 | options.retry.initialDelay | number | - | 初回リトライまでの遅延（ミリ秒）。デフォルト: 1000 |
 | options.retry.maxDelay | number | - | 最大遅延時間（ミリ秒）。デフォルト: 60000 |
+| options.sdk | object | - | Claude Code SDK用の詳細設定（下記参照） |
+| options.useWorktree | boolean | - | Git Worktreeを使用するかどうか。デフォルト: false |
+| options.worktree | object | - | Git Worktree詳細設定（下記参照） |
 | options.retry.backoffMultiplier | number | - | 指数バックオフの倍率。デフォルト: 2 |
 | options.retry.policy | string | - | リトライポリシー: "none", "linear", "exponential"。デフォルト: "exponential" |
 | options.retry.retryableErrors | string[] | - | リトライ対象のエラーコード/メッセージ。空の場合は全エラーがリトライ対象 |
+
+**SDKオプション (options.sdk):**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| maxTurns | number | - | Claudeが実行できる最大ステップ数。デフォルト: 3 |
+| permissionMode | string | - | ツール実行時の確認動作: "ask", "allow", "deny", "plan"。デフォルト: "ask" |
+| systemPrompt | string | - | Claudeの動作を制御するカスタムプロンプト |
+| allowedTools | string[] | - | 使用を許可するツールのリスト。例: ["Read", "Write", "Edit"] |
+| disallowedTools | string[] | - | 使用を禁止するツールのリスト |
+| outputFormat | string | - | 出力形式: "text", "json"。デフォルト: "text" |
+| executable | string | - | 実行環境: "node", "python", "bash"。デフォルト: "node" |
+| mcpConfig | object | - | Model Context Protocol設定 |
+| continueSession | boolean | - | 前回のセッションを継続するか。デフォルト: false |
+| verbose | boolean | - | 詳細ログを出力するか。デフォルト: false |
+
+**Worktreeオプション (options.worktree):**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| enabled | boolean | - | Worktreeを使用するか（useWorktreeより優先）。デフォルト: false |
+| baseBranch | string | - | ベースブランチ名。省略時は現在のブランチを使用 |
+| branchName | string | - | 作成するWorktreeのブランチ名。省略時は自動生成 |
+| keepAfterCompletion | boolean | - | タスク完了後もWorktreeを保持するか。デフォルト: false |
 
 **レスポンス（同期実行）:**
 ```json
@@ -684,6 +711,297 @@ DELETE /api/queue/tasks/{taskId}
 **エラーレスポンス:**
 - `404`: タスクが見つからない
 - `400`: タスクが既に完了またはキャンセル済み
+
+## プリセット管理
+
+### プリセット一覧の取得
+
+```
+GET /api/presets
+```
+
+保存されているプリセット（システムプリセットとユーザープリセット）の一覧を取得します。
+
+**ヘッダー:**
+- `X-API-Key` (必須): APIキー
+
+**レスポンス:**
+```json
+{
+  "presets": [
+    {
+      "id": "default",
+      "name": "デフォルト設定",
+      "description": "一般的なタスク用の標準設定",
+      "isSystem": true,
+      "settings": {
+        "sdk": {
+          "maxTurns": 3,
+          "permissionMode": "ask",
+          "allowedTools": ["Read", "Write", "Edit"],
+          "outputFormat": "text"
+        },
+        "timeout": 600000,
+        "useWorktree": false
+      }
+    }
+  ],
+  "userPresets": [
+    {
+      "id": "user-123",
+      "name": "開発用設定",
+      "description": "開発作業用のカスタム設定",
+      "isSystem": false,
+      "settings": {
+        "sdk": {
+          "maxTurns": 10,
+          "permissionMode": "allow",
+          "allowedTools": ["*"]
+        },
+        "timeout": 1800000,
+        "useWorktree": true
+      },
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+### 特定プリセットの取得
+
+```
+GET /api/presets/{presetId}
+```
+
+指定されたIDのプリセットを取得します。
+
+**パラメータ:**
+- `presetId` (必須): プリセットID
+
+**ヘッダー:**
+- `X-API-Key` (必須): APIキー
+
+**レスポンス:**
+```json
+{
+  "id": "user-123",
+  "name": "開発用設定",
+  "description": "開発作業用のカスタム設定",
+  "isSystem": false,
+  "settings": {
+    "sdk": {
+      "maxTurns": 10,
+      "permissionMode": "allow",
+      "allowedTools": ["*"]
+    },
+    "timeout": 1800000,
+    "useWorktree": true
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### プリセットの作成
+
+```
+POST /api/presets
+```
+
+新しいユーザープリセットを作成します。
+
+**ヘッダー:**
+- `X-API-Key` (必須): APIキー
+- `Content-Type`: `application/json`
+
+**リクエストボディ:**
+```json
+{
+  "name": "カスタムプリセット",
+  "description": "特定のタスク用の設定",
+  "settings": {
+    "sdk": {
+      "maxTurns": 5,
+      "permissionMode": "ask",
+      "allowedTools": ["Read", "Write", "Edit", "Bash"],
+      "systemPrompt": "コードの品質とセキュリティに注意してください",
+      "outputFormat": "json"
+    },
+    "timeout": 900000,
+    "useWorktree": true,
+    "worktree": {
+      "keepAfterCompletion": true
+    }
+  }
+}
+```
+
+**レスポンス (201 Created):**
+```json
+{
+  "id": "user-456",
+  "name": "カスタムプリセット",
+  "description": "特定のタスク用の設定",
+  "isSystem": false,
+  "settings": { ... },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### プリセットの更新
+
+```
+PUT /api/presets/{presetId}
+```
+
+ユーザープリセットを更新します。システムプリセットは更新できません。
+
+**パラメータ:**
+- `presetId` (必須): プリセットID
+
+**ヘッダー:**
+- `X-API-Key` (必須): APIキー
+- `Content-Type`: `application/json`
+
+**リクエストボディ:**
+```json
+{
+  "name": "更新されたプリセット名",
+  "description": "更新された説明",
+  "settings": {
+    "sdk": {
+      "maxTurns": 7
+    }
+  }
+}
+```
+
+### プリセットの削除
+
+```
+DELETE /api/presets/{presetId}
+```
+
+ユーザープリセットを削除します。システムプリセットは削除できません。
+
+**パラメータ:**
+- `presetId` (必須): プリセットID
+
+**ヘッダー:**
+- `X-API-Key` (必須): APIキー
+
+**レスポンス (200 OK):**
+```json
+{
+  "message": "Preset deleted successfully"
+}
+```
+
+**エラーレスポンス:**
+- `403`: システムプリセットの変更・削除を試みた場合
+- `404`: プリセットが見つからない場合
+
+### プリセットを使用したタスク作成
+
+タスク作成時に、プリセットの設定を参照して使用できます：
+
+```json
+{
+  "instruction": "ファイルを分析してください",
+  "context": {
+    "workingDirectory": "/project"
+  },
+  "options": {
+    "presetId": "development",  // プリセットIDを指定
+    "sdk": {
+      "maxTurns": 15  // プリセットの設定を部分的に上書き
+    }
+  }
+}
+```
+
+注意: `presetId`を指定した場合、プリセットの設定がベースとなり、`options`で指定した個別の設定で上書きされます。
+
+## Worktree使用例
+
+### 基本的なWorktree使用
+
+```bash
+curl -X POST http://localhost:5000/api/tasks \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "instruction": "破壊的なテストを実行",
+    "context": {
+      "workingDirectory": "/path/to/repo"
+    },
+    "options": {
+      "useWorktree": true
+    }
+  }'
+```
+
+### 詳細なWorktree設定
+
+```bash
+curl -X POST http://localhost:5000/api/tasks \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "instruction": "実験的な機能を実装",
+    "context": {
+      "workingDirectory": "/path/to/repo"
+    },
+    "options": {
+      "worktree": {
+        "enabled": true,
+        "baseBranch": "develop",
+        "branchName": "feature/experiment-123",
+        "keepAfterCompletion": true
+      }
+    }
+  }'
+```
+
+### 並列タスク実行の例
+
+```bash
+# 複数のタスクを異なるWorktreeで同時実行
+
+# タスク1: バックエンドAPI実装
+curl -X POST http://localhost:5000/api/queue/tasks \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "instruction": "TODO APIをExpressで実装",
+    "options": {
+      "worktree": {
+        "enabled": true,
+        "branchName": "feature/backend-api"
+      }
+    }
+  }' &
+
+# タスク2: フロントエンドUI実装
+curl -X POST http://localhost:5000/api/queue/tasks \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "instruction": "ReactでTODOアプリのUIを実装",
+    "options": {
+      "worktree": {
+        "enabled": true,
+        "branchName": "feature/frontend-ui"
+      }
+    }
+  }' &
+
+wait
+```
+
+各タスクは独立したWorktreeで実行されるため、ファイルの競合を避けて安全に並列実行できます。
 
 ## 非同期タスクの処理
 

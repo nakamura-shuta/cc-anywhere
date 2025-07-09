@@ -7,10 +7,24 @@ class APIClient {
         this.authenticated = false;
         this.pendingSubscriptions = new Set();
         this.activeSubscriptions = new Set();
+        
+        // headers プロパティを追加
+        this.headers = {
+            'Content-Type': 'application/json'
+        };
+        if (this.apiKey) {
+            this.headers['X-API-Key'] = this.apiKey;
+        }
     }
 
     setApiKey(apiKey) {
         this.apiKey = apiKey;
+        // ヘッダーも更新
+        if (apiKey) {
+            this.headers['X-API-Key'] = apiKey;
+        } else {
+            delete this.headers['X-API-Key'];
+        }
     }
 
     async request(method, path, body = null) {
@@ -44,6 +58,27 @@ class APIClient {
     // タスク関連API
     async createTask(taskData) {
         return this.request('POST', '/api/tasks', taskData);
+    }
+
+    // プリセット関連API
+    async getPresets() {
+        return this.request('GET', '/api/presets');
+    }
+
+    async getPreset(id) {
+        return this.request('GET', `/api/presets/${id}`);
+    }
+
+    async createPreset(presetData) {
+        return this.request('POST', '/api/presets', presetData);
+    }
+
+    async updatePreset(id, presetData) {
+        return this.request('PUT', `/api/presets/${id}`, presetData);
+    }
+
+    async deletePreset(id) {
+        return this.request('DELETE', `/api/presets/${id}`);
     }
 
     // バッチタスクAPI
@@ -184,6 +219,74 @@ class APIClient {
         
         // キューをクリア
         this.pendingSubscriptions.clear();
+    }
+
+    // プリセット一覧取得
+    async getPresets() {
+        const response = await fetch(`${this.baseURL}/api/presets`, {
+            headers: this.headers
+        });
+        if (!response.ok) {
+            throw new Error('Failed to fetch presets');
+        }
+        return response.json();
+    }
+
+    // 特定のプリセット取得
+    async getPreset(presetId) {
+        const response = await fetch(`${this.baseURL}/api/presets/${presetId}`, {
+            headers: this.headers
+        });
+        if (!response.ok) {
+            throw new Error('Failed to fetch preset');
+        }
+        return response.json();
+    }
+
+    // プリセット作成
+    async createPreset(presetData) {
+        const response = await fetch(`${this.baseURL}/api/presets`, {
+            method: 'POST',
+            headers: {
+                ...this.headers,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(presetData)
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.message || `Failed to create preset (${response.status})`;
+            throw new Error(errorMessage);
+        }
+        return response.json();
+    }
+
+    // プリセット更新
+    async updatePreset(presetId, presetData) {
+        const response = await fetch(`${this.baseURL}/api/presets/${presetId}`, {
+            method: 'PUT',
+            headers: {
+                ...this.headers,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(presetData)
+        });
+        if (!response.ok) {
+            throw new Error('Failed to update preset');
+        }
+        return response.json();
+    }
+
+    // プリセット削除
+    async deletePreset(presetId) {
+        const response = await fetch(`${this.baseURL}/api/presets/${presetId}`, {
+            method: 'DELETE',
+            headers: this.headers
+        });
+        if (!response.ok) {
+            throw new Error('Failed to delete preset');
+        }
+        return response.json();
     }
 }
 

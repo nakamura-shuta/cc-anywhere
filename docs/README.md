@@ -15,6 +15,7 @@ CC-Anywhereは、Claude Code SDKを使用してHTTP経由でタスクを実行�
 
 ### 🔧 主要機能
 - [Git Worktree](./features/git-worktree.md) - 独立した作業環境での実行
+- [プリセット管理](./features/preset-management.md) - SDKオプションの保存と再利用
 - [外部アクセス](./features/external-access.md) - Cloudflare Tunnel/ngrok統合
 - [WebSocket通信](./features/websocket.md) - リアルタイムログとステータス
 - [スラッシュコマンド](./features/slash-commands.md) - カスタムコマンド
@@ -36,6 +37,8 @@ CC-Anywhereは、Claude Code SDKを使用してHTTP経由でタスクを実行�
 ## 🎯 主な特徴
 
 - **Claude Code SDK統合** - 高度なAI支援タスク実行
+- **Git Worktree対応** - 独立した環境での安全な並列実行
+- **プリセット機能** - 頑繁に使用する設定の保存と共有
 - **非同期処理** - ノンブロッキングなタスク実行
 - **リアルタイム通信** - WebSocketによるライブアップデート
 - **スケーラブル** - ワーカープールによる並行処理

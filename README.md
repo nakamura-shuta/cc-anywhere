@@ -12,6 +12,7 @@ CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、�
 - 📱 モバイル対応Web UI
 - 🔄 非同期タスク実行とキュー管理
 - 📦 複数リポジトリへの一括実行
+- 🌿 Git Worktree統合（独立した作業環境）
 - 💬 スラッシュコマンドサポート
 - 🌐 Cloudflare Tunnel統合
 - 🔐 APIキー認証
@@ -109,10 +110,25 @@ npm run dev
 ```
 
 サーバーはデフォルトで `http://localhost:5000` で起動します。
-.envに記述したAPI_KEYをクエリパラメータ(apiKey)としてアクセスしてください。
+
+### Web UI について
+
+cc-anywhere には2つのWeb UIバージョンがあります：
+
+- **標準版** (`/index.html`) - フル機能版（デフォルト）
+  - Claude Code SDKの全オプション設定
+  - プリセット保存・管理機能
+  - 詳細な実行設定
+- **シンプル版** (`/index-simple.html`) - 基本機能のみ
+
 Web UIにアクセス：
 ```
 http://localhost:5000/?apiKey=your-secret-api-key
+```
+
+シンプル版を使用する場合：
+```
+http://localhost:5000/index-simple.html?apiKey=your-secret-api-key
 ```
 
 別のポートで起動する場合：
@@ -256,6 +272,40 @@ curl -X POST http://localhost:5000/api/tasks \
 ```
 
 詳細は[スラッシュコマンドドキュメント](docs/features/slash-commands.md)を参照してください。
+
+## Git Worktree統合
+
+独立した作業環境でタスクを実行できます。メインのリポジトリに影響を与えずに安全にタスクを実行可能です。
+
+### 基本的な使い方
+
+```bash
+# APIでWorktreeを使用
+curl -X POST http://localhost:5000/api/tasks \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "instruction": "npm test を実行",
+    "context": {
+      "workingDirectory": "/path/to/repo"
+    },
+    "options": {
+      "useWorktree": true
+    }
+  }'
+```
+
+### Web UIでの使用
+
+タスク作成フォームで「Git Worktreeを使用」にチェックを入れるだけです。
+
+### 動作の仕組み
+
+- **現在のブランチ**から新しいWorktreeブランチを作成
+- 独立した作業ディレクトリでタスクを実行
+- タスク完了後、自動的にクリーンアップ（設定により保持も可能）
+
+詳細は[Git Worktreeドキュメント](docs/features/git-worktree.md)を参照してください。
 
 ## API認証
 

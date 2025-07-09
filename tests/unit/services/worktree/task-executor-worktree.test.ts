@@ -106,7 +106,7 @@ describe("TaskExecutor Worktree Integration", () => {
       expect(mockWorktreeManager.createWorktree).toHaveBeenCalledWith({
         taskId: "task-123",
         repositoryPath: "/repos/test",
-        baseBranch: "master",
+        baseBranch: undefined,
         branchName: undefined,
       });
 

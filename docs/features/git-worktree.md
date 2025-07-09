@@ -79,7 +79,7 @@ WORKTREE_PREFIX=cc-anywhere
   "options": {
     "worktree": {
       "enabled": true,
-      "baseBranch": "develop",
+      "baseBranch": "develop",  // 省略可能: デフォルトは現在のブランチ
       "branchName": "feature/test-123",
       "keepAfterCompletion": true
     }
@@ -87,14 +87,39 @@ WORKTREE_PREFIX=cc-anywhere
 }
 ```
 
+#### オプションの説明
+
+- `enabled`: Worktree機能を有効にする（`useWorktree: true`でも可）
+- `baseBranch`: ベースとなるブランチ（省略時は現在のブランチ）
+- `branchName`: 作成するWorktreeのブランチ名（省略時は自動生成）
+- `keepAfterCompletion`: タスク完了後もWorktreeを保持する
+
 ## 動作の仕組み
 
 1. **タスク受信**: Worktreeオプション付きタスクを受信
 2. **Worktree作成**: 
-   - 新しいブランチを作成
+   - **現在のブランチ**から新しいブランチを作成
    - `.worktrees/cc-anywhere-task-{id}`にWorktreeを作成
 3. **タスク実行**: Worktree内でタスクを実行
 4. **クリーンアップ**: タスク完了後、自動的にWorktreeを削除
+
+### ベースブランチの選択
+
+Worktreeは以下の優先順位でベースブランチを決定します：
+
+1. **明示的な指定**: `options.worktree.baseBranch`で指定されたブランチ
+2. **現在のブランチ**: 指定がない場合は、**現在チェックアウトしているブランチ**から作成
+3. **コミットハッシュ**: HEADの場合は実際のコミットハッシュを使用
+4. **フォールバック**: コミットが存在しない場合は`main`または`master`
+
+#### 例
+
+現在のブランチが`feature/user-auth`の場合：
+```
+feature/user-auth → worktree/cc-anywhere-task-123
+```
+
+これにより、作業中のコンテキストを維持したままタスクを実行できます。
 
 ## ユースケース
 
@@ -186,6 +211,24 @@ rm -rf .worktrees/cc-anywhere-*
    pm2 logs cc-anywhere | grep -i worktree
    ```
 
+### "invalid reference: master"エラー
+
+このエラーは、ベースブランチが存在しない場合に発生します。CC-Anywhereは現在のブランチを自動的に使用するため、通常はこのエラーは発生しません。
+
+```bash
+# 現在のブランチを確認
+ git branch --show-current
+
+# 必要に応じてベースブランチを明示的に指定
+{
+  "options": {
+    "worktree": {
+      "baseBranch": "main"  // または実在するブランチ名
+    }
+  }
+}
+```
+
 ### 最大数エラー
 
 ```bash
@@ -218,20 +261,25 @@ du -sh .worktrees/
 
 3. **ブランチ戦略**
    - 意味のあるブランチ名を使用
-   - ベースブランチを明示的に指定
+   - 現在作業中のブランチからのWorktree作成を活用
+   - 必要に応じてベースブランチを明示的に指定
 
 4. **エラーハンドリング**
    - Worktree作成失敗時の代替処理を検討
 
+5. **タスク結果の統合**
+   - keepAfterCompletionを使用して結果を確認
+   - 必要に応じてプルリクエストで統合
+
 ## 複数タスク実行について
 
-### アーキテクチャの制限
+### 並列実行のアーキテクチャ
 
 CC-Anywhereでは、タスクの実行はキューシステムによって制御されます：
 
-- **キューの並行数**: `QUEUE_CONCURRENCY`で設定（デフォルト: 3）
+- **キューの並行数**: `QUEUE_CONCURRENCY`で設定（デフォルト: 2）
 - **Worktreeの最大数**: `MAX_WORKTREES`で設定（デフォルト: 5）
-- **実行モデル**: タスクは順次実行されますが、各タスクは独立したWorktreeで実行
+- **実行モデル**: タスクは並列で実行され、各タスクは独立したWorktreeで実行
 
 ### 実際の動作
 
@@ -244,6 +292,23 @@ CC-Anywhereでは、タスクの実行はキューシステムによって制御
    - タスク間の完全な独立性
    - ファイルシステムレベルでの分離
    - 異なるブランチでの同時作業
+
+### 並列実行テスト
+
+並列実行機能をテストするためのスクリプトが提供されています：
+
+```bash
+# テストプロジェクトのセットアップ
+.work/sandbox/setup-test-project.sh
+
+# 並列タスクの実行
+.work/sandbox/simple-parallel-tasks.sh /path/to/project
+
+# 司令塔パターンでの実行
+.work/sandbox/orchestrated-parallel-tasks.sh
+```
+
+詳細は[.work/sandbox/README.md](.work/sandbox/README.md)を参照してください。
 
 ## 関連ドキュメント
 

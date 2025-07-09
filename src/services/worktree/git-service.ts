@@ -34,14 +34,64 @@ export class GitService {
   async getCurrentBranch(repositoryPath: string): Promise<string> {
     try {
       const git = simpleGit(repositoryPath);
-      const branchInfo = await git.branch();
-      return branchInfo.current;
+      const branch = await git.revparse(["--abbrev-ref", "HEAD"]);
+      return branch.trim();
     } catch (error) {
-      throw new WorktreeError(
-        `Failed to get current branch: ${error}`,
-        WorktreeErrorCode.CREATION_FAILED,
-        { repositoryPath, error: String(error) },
-      );
+      logger.warn("Failed to get current branch, using HEAD", { error });
+      return "HEAD";
+    }
+  }
+
+  /**
+   * worktreeのベースブランチを取得（通常は現在のブランチ）
+   */
+  async getBaseBranch(repositoryPath: string): Promise<string> {
+    try {
+      // 現在のブランチから作成する方が直感的なので、現在のブランチを返す
+      const currentBranch = await this.getCurrentBranch(repositoryPath);
+      if (currentBranch !== "HEAD") {
+        return currentBranch;
+      }
+
+      // HEADの場合は、実際のコミットハッシュを取得
+      const git = simpleGit(repositoryPath);
+      const hash = await git.revparse(["HEAD"]);
+      return hash.trim();
+    } catch (error) {
+      logger.warn("Failed to get current branch, fallback to main/master", { error });
+
+      try {
+        const git = simpleGit(repositoryPath);
+        const branches = await git.branchLocal();
+
+        // フォールバック: よく使われるブランチ名を確認
+        if (branches.all.includes("main")) {
+          return "main";
+        } else if (branches.all.includes("master")) {
+          return "master";
+        }
+
+        // 最初のブランチを使用
+        if (branches.all.length > 0 && branches.all[0]) {
+          return branches.all[0];
+        }
+
+        // ブランチがない場合はコミットハッシュを使用
+        try {
+          const hash = await git.revparse(["HEAD"]);
+          return hash.trim();
+        } catch (e) {
+          // 何もない場合は初期化されていないリポジトリ
+          throw new WorktreeError(
+            "Repository has no commits or branches",
+            WorktreeErrorCode.NOT_GIT_REPOSITORY,
+            { repositoryPath },
+          );
+        }
+      } catch (e) {
+        logger.error("Failed to get any branch", { error: e });
+        throw e;
+      }
     }
   }
 
@@ -56,17 +106,19 @@ export class GitService {
   ): Promise<GitOperationResult> {
     try {
       const git = simpleGit(repositoryPath);
-      const args = ["worktree", "add", "-b", branchName, worktreePath];
 
-      if (baseBranch) {
-        args.push(baseBranch);
+      // baseBranchが指定されていない場合は現在のブランチを使用
+      if (!baseBranch) {
+        baseBranch = await this.getBaseBranch(repositoryPath);
       }
+
+      const args = ["worktree", "add", "-b", branchName, worktreePath, baseBranch];
 
       await git.raw(args);
 
       return {
         success: true,
-        output: `Worktree created at ${worktreePath} with branch ${branchName}`,
+        output: `Worktree created at ${worktreePath} with branch ${branchName} based on ${baseBranch}`,
       };
     } catch (error) {
       return {

@@ -66,7 +66,7 @@ export class WorktreeManager {
     this.logger.logWorktreeCreation(taskId, worktreeId, {
       repositoryPath,
       worktreePath,
-      baseBranch,
+      baseBranch: baseBranch || "current",
       targetBranch,
     });
 

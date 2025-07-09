@@ -72,6 +72,9 @@ WORKTREE_CLEANUP_DELAY=300000
 
 # Worktree名のプレフィックス
 WORKTREE_PREFIX=cc-anywhere
+
+# デフォルトのベースブランチ（省略時は現在のブランチを使用）
+# WORKTREE_DEFAULT_BASE_BRANCH=main
 ```
 
 ### 外部アクセス
@@ -165,8 +168,21 @@ module.exports = {
       NODE_ENV: 'production'
     },
     // その他の設定...
-  }]
+  }],
+  
+  // デプロイ設定
+  deploy: {
+    production: {
+      ref: process.env.DEPLOY_BRANCH || 'origin/main', // 環境変数で設定可能
+      // その他のデプロイ設定...
+    }
+  }
 }
+```
+
+デプロイ時のブランチは環境変数で設定可能：
+```env
+DEPLOY_BRANCH=origin/main  # または origin/master、origin/develop など
 ```
 
 ## リポジトリ設定

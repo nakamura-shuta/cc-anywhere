@@ -70,7 +70,7 @@ module.exports = {
     production: {
       user: 'node',
       host: 'your-server.com',
-      ref: 'origin/master',
+      ref: process.env.DEPLOY_BRANCH || 'origin/main', // デプロイブランチを環境変数で設定可能
       repo: 'git@github.com:your-username/cc-anywhere.git',
       path: '/var/www/cc-anywhere',
       'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',

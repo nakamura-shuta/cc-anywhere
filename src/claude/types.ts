@@ -27,19 +27,35 @@ export interface TaskContext {
 }
 
 // Task request type
+// MCP Server configuration
+export interface MCPServerConfig {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+}
+
 // Claude Code SDK specific options
 export interface ClaudeCodeSDKOptions {
+  // Priority: High
   maxTurns?: number;
   allowedTools?: string[];
   disallowedTools?: string[];
   systemPrompt?: string;
-  permissionMode?: "ask" | "allow" | "deny";
-  executable?: string;
+  permissionMode?: "ask" | "allow" | "deny" | "acceptEdits" | "bypassPermissions" | "plan";
+
+  // Priority: Medium
+  executable?: "node" | "bun" | "deno";
   executableArgs?: string[];
-  mcpConfig?: Record<string, any>;
-  continueSession?: string;
+  mcpConfig?: Record<string, MCPServerConfig>;
+  continueSession?: boolean;
+  resumeSession?: string;
   outputFormat?: "text" | "json" | "stream-json";
+
+  // Priority: Low
   verbose?: boolean;
+  permissionPromptTool?: string;
+  pathToClaudeCodeExecutable?: string;
 }
 
 export interface TaskRequest {

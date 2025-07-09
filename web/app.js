@@ -1,4 +1,7 @@
-// Main application logic
+// CC-Anywhere Web UI - フル機能版
+// 基本機能 + SDKオプション対応
+
+// === 基本機能の変数定義 ===
 let apiClient;
 let currentTasks = new Map();
 let selectedTaskId = null;
@@ -11,33 +14,7 @@ function getApiKeyFromQuery() {
     return params.get('apiKey') || params.get('key');
 }
 
-// 初期化
-async function init() {
-    const apiKey = getApiKeyFromQuery();
-    
-    // APIキーが設定されている場合のみ使用
-    if (apiKey) {
-        apiClient = new APIClient(window.location.origin, apiKey);
-    } else {
-        apiClient = new APIClient(window.location.origin);
-    }
-
-    // WebSocket接続
-    const ws = apiClient.connectWebSocket();
-    ws.onmessage = handleWebSocketMessage;
-
-    // イベントリスナー設定
-    setupEventListeners();
-
-    // リポジトリ一覧を読み込み
-    await loadRepositories();
-
-    // タスク一覧を読み込み
-    loadTasks();
-    
-    // 定期的にタスク一覧を更新（5秒ごと）
-    setInterval(loadTasks, 5000);
-}
+// === SDKオプション関連の追加機能 ===
 
 // リポジトリ一覧を読み込み
 async function loadRepositories() {
@@ -45,21 +22,40 @@ async function loadRepositories() {
         const data = await apiClient.getRepositories();
         const select = document.getElementById('repositories');
         
-        data.repositories.forEach(repo => {
+        // 既存のオプションをクリア
+        select.innerHTML = '';
+        
+        // リポジトリ一覧を追加
+        data.repositories.forEach((repo, index) => {
             const option = document.createElement('option');
             option.value = repo.path;
-            option.textContent = repo.name;
+            option.text = `${repo.name} (${repo.path})`;
+            
+            // 最初のリポジトリをデフォルト選択
+            if (index === 0) {
+                option.selected = true;
+            }
+            
             select.appendChild(option);
         });
+        
+        // 選択状態の検証
+        validateRepositorySelection();
+        
     } catch (error) {
         console.error('Failed to load repositories:', error);
+        showError('リポジトリ一覧の読み込みに失敗しました');
     }
 }
 
-// イベントリスナー設定
+// 基本的なイベントリスナー設定
 function setupEventListeners() {
     // タスク作成フォーム
-    document.getElementById('task-form').addEventListener('submit', handleTaskSubmit);
+    document.getElementById('task-form').addEventListener('submit', handleTaskSubmitWithSDK);
+    
+    // リポジトリ選択の変更監視
+    const repositorySelect = document.getElementById('repositories');
+    repositorySelect.addEventListener('change', validateRepositorySelection);
 
     // ステータスフィルター
     document.getElementById('status-filter').addEventListener('change', (e) => {
@@ -88,11 +84,9 @@ function setupEventListeners() {
     if ('ontouchstart' in window) {
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('task-id')) {
-                // タスクIDをクリップボードにコピー
                 const taskId = e.target.textContent;
                 if (navigator.clipboard) {
                     navigator.clipboard.writeText(taskId).then(() => {
-                        // 簡易的なフィードバック
                         const originalText = e.target.textContent;
                         e.target.textContent = 'コピー済み!';
                         setTimeout(() => {
@@ -105,41 +99,761 @@ function setupEventListeners() {
     }
 }
 
-// タスク送信処理
-async function handleTaskSubmit(e) {
+// APIからプリセットを取得
+async function loadPresets() {
+    try {
+        console.log('Loading presets...', api);
+        if (!api) {
+            console.error('API client not initialized');
+            return;
+        }
+        
+        const data = await api.getPresets();
+        console.log('Presets loaded:', data);
+        
+        const presetSelector = document.getElementById('preset-selector');
+        if (!presetSelector) {
+            console.error('Preset selector element not found');
+            return;
+        }
+        
+        // 「読み込み中...」のオプションを削除
+        const loadingOption = presetSelector.querySelector('option[value="loading"]');
+        if (loadingOption) {
+            loadingOption.remove();
+        }
+        
+        // 既存のオプションをクリア（カスタム設定は残す）
+        while (presetSelector.options.length > 1) {
+            presetSelector.remove(1);
+        }
+        
+        // システムプリセットを追加
+        if (data.presets && Array.isArray(data.presets)) {
+            data.presets.forEach(preset => {
+                const option = document.createElement('option');
+                option.value = preset.id;
+                option.textContent = `${preset.name} (システム)`;
+                option.dataset.description = preset.description || '';
+                option.dataset.settings = JSON.stringify(preset.settings);
+                presetSelector.appendChild(option);
+            });
+        }
+        
+        // ユーザープリセットを追加
+        if (data.userPresets && Array.isArray(data.userPresets)) {
+            data.userPresets.forEach(preset => {
+                const option = document.createElement('option');
+                option.value = preset.id;
+                option.textContent = preset.name;
+                option.dataset.description = preset.description || '';
+                option.dataset.settings = JSON.stringify(preset.settings);
+                presetSelector.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('プリセットの読み込みに失敗しました:', error);
+        // showNotificationが未定義の場合は直接エラーメッセージを表示
+        if (typeof showNotification === 'function') {
+            showNotification('プリセットの読み込みに失敗しました', 'error');
+        } else if (typeof showError === 'function') {
+            showError('プリセットの読み込みに失敗しました');
+        } else {
+            console.error('プリセットの読み込みに失敗しました');
+        }
+    }
+}
+
+// SDKオプション関連のイベントリスナー設定
+function setupSDKOptionsListeners() {
+    // プリセット選択
+    const presetSelector = document.getElementById('preset-selector');
+    presetSelector.addEventListener('change', handlePresetChange);
+    
+    // プリセット保存・削除ボタン
+    const savePresetBtn = document.getElementById('save-preset-btn');
+    const deletePresetBtn = document.getElementById('delete-preset-btn');
+    
+    savePresetBtn.addEventListener('click', showSavePresetModal);
+    deletePresetBtn.addEventListener('click', deleteCurrentPreset);
+    
+    // スライダーと数値入力の同期
+    const maxTurnsSlider = document.getElementById('max-turns-slider');
+    const maxTurnsInput = document.getElementById('max-turns');
+    const maxTurnsValue = document.getElementById('max-turns-value');
+    
+    maxTurnsSlider.addEventListener('input', (e) => {
+        const value = e.target.value;
+        maxTurnsInput.value = value;
+        maxTurnsValue.textContent = value;
+    });
+    
+    maxTurnsInput.addEventListener('input', (e) => {
+        const value = e.target.value;
+        maxTurnsSlider.value = value;
+        maxTurnsValue.textContent = value;
+    });
+    
+    // 権限モードトグル
+    const toggleButtons = document.querySelectorAll('.toggle-group .toggle-btn');
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', handlePermissionModeToggle);
+    });
+    
+    // システムプロンプトの文字数カウント
+    const systemPrompt = document.getElementById('system-prompt');
+    const charCount = document.getElementById('system-prompt-count');
+    
+    systemPrompt.addEventListener('input', (e) => {
+        const length = e.target.value.length;
+        charCount.textContent = `${length} / 10,000`;
+        
+        if (length > 9000) {
+            charCount.classList.add('warning');
+        } else {
+            charCount.classList.remove('warning');
+        }
+        
+        if (length >= 10000) {
+            charCount.classList.add('error');
+        } else {
+            charCount.classList.remove('error');
+        }
+    });
+    
+    // タブ切り替え
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', handleTabSwitch);
+    });
+    
+    // ツールクイックアクション
+    const quickActionButtons = document.querySelectorAll('.quick-action-btn');
+    quickActionButtons.forEach(btn => {
+        btn.addEventListener('click', handleQuickAction);
+    });
+    
+    // MCP設定のバリデーション
+    const mcpConfig = document.getElementById('mcp-config');
+    const mcpValidation = document.getElementById('mcp-validation');
+    
+    mcpConfig.addEventListener('input', debounce((e) => {
+        validateMCPConfig(e.target.value, mcpValidation);
+    }, 500));
+    
+    // 高度な設定の開閉時のアイコン回転
+    const advancedSettings = document.querySelector('.advanced-settings');
+    advancedSettings.addEventListener('toggle', (e) => {
+        const icon = e.target.querySelector('.collapse-icon');
+        if (e.target.open) {
+            icon.style.transform = 'rotate(90deg)';
+        } else {
+            icon.style.transform = 'rotate(0deg)';
+        }
+    });
+}
+
+// プリセット変更処理
+function handlePresetChange(e) {
+    const presetId = e.target.value;
+    const description = document.getElementById('preset-description');
+    const selectedOption = e.target.selectedOptions[0];
+    const deleteBtn = document.getElementById('delete-preset-btn');
+    
+    if (!presetId) {
+        description.textContent = 'カスタム設定を使用します';
+        deleteBtn.style.display = 'none';
+        return;
+    }
+    
+    // 説明文の更新
+    description.textContent = selectedOption.dataset.description || '';
+    
+    // ユーザープリセットの場合のみ削除ボタンを表示
+    const isSystemPreset = selectedOption.textContent.includes('(システム)');
+    deleteBtn.style.display = isSystemPreset ? 'none' : 'inline-block';
+    
+    // プリセット設定の適用
+    try {
+        const settings = JSON.parse(selectedOption.dataset.settings || '{}');
+        applyPresetOptions(settings);
+    } catch (error) {
+        console.error('プリセット設定の適用に失敗しました:', error);
+    }
+}
+
+// プリセットオプションの適用
+function applyPresetOptions(settings) {
+    console.log('Applying preset options:', settings);
+    
+    // SDKオプションがある場合
+    const sdkOptions = settings.sdk || {};
+    
+    // maxTurns
+    if (sdkOptions.maxTurns !== undefined) {
+        console.log('Setting maxTurns to:', sdkOptions.maxTurns);
+        document.getElementById('max-turns').value = sdkOptions.maxTurns;
+        document.getElementById('max-turns-slider').value = sdkOptions.maxTurns;
+        document.getElementById('max-turns-value').textContent = sdkOptions.maxTurns;
+    }
+    
+    // permissionMode
+    if (sdkOptions.permissionMode) {
+        document.querySelectorAll('.toggle-group .toggle-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.value === sdkOptions.permissionMode) {
+                btn.classList.add('active');
+                updatePermissionDescription(btn);
+            }
+        });
+    }
+    
+    // systemPrompt
+    if (sdkOptions.systemPrompt) {
+        document.getElementById('system-prompt').value = sdkOptions.systemPrompt;
+        // 文字数カウント更新
+        const charCount = document.getElementById('system-prompt-count');
+        charCount.textContent = `${sdkOptions.systemPrompt.length} / 10,000`;
+    }
+    
+    // allowedTools
+    if (sdkOptions.allowedTools) {
+        // まず全てのチェックボックスを解除
+        document.querySelectorAll('input[name="allowedTools"]').forEach(cb => {
+            cb.checked = false;
+        });
+        
+        // プリセットで指定されたツールをチェック
+        if (sdkOptions.allowedTools.includes('*')) {
+            // すべて許可
+            document.querySelectorAll('input[name="allowedTools"]').forEach(cb => {
+                cb.checked = true;
+            });
+        } else {
+            sdkOptions.allowedTools.forEach(tool => {
+                const checkbox = document.querySelector(`input[name="allowedTools"][value="${tool}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+    }
+    
+    // disallowedTools
+    if (sdkOptions.disallowedTools) {
+        document.querySelectorAll('input[name="disallowedTools"]').forEach(cb => {
+            cb.checked = false;
+        });
+        
+        sdkOptions.disallowedTools.forEach(tool => {
+            const checkbox = document.querySelector(`input[name="disallowedTools"][value="${tool}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+        
+        // 禁止ツールタブに切り替え
+        document.querySelector('[data-tab="disallowed"]').click();
+    }
+    
+    // outputFormat
+    if (sdkOptions.outputFormat) {
+        const radio = document.querySelector(`input[name="outputFormat"][value="${sdkOptions.outputFormat}"]`);
+        if (radio) radio.checked = true;
+    }
+    
+    // verbose
+    if (sdkOptions.verbose !== undefined) {
+        document.getElementById('verbose').checked = sdkOptions.verbose;
+    }
+    
+    // タイムアウト（SDK外の設定）
+    if (settings.timeout !== undefined) {
+        document.getElementById('timeout').value = settings.timeout / 1000; // ミリ秒を秒に変換
+    }
+    
+    // Worktree設定
+    if (settings.useWorktree !== undefined) {
+        document.getElementById('use-worktree').checked = settings.useWorktree;
+        document.getElementById('worktree-options').style.display = settings.useWorktree ? 'block' : 'none';
+    }
+}
+
+// 権限モードトグル処理
+function handlePermissionModeToggle(e) {
+    const btn = e.currentTarget;
+    
+    // アクティブ状態の切り替え
+    document.querySelectorAll('.toggle-group .toggle-btn').forEach(b => {
+        b.classList.remove('active');
+    });
+    btn.classList.add('active');
+    
+    // 説明文の更新
+    updatePermissionDescription(btn);
+}
+
+// 権限モードの説明文更新
+function updatePermissionDescription(btn) {
+    const description = document.querySelector('.permission-description');
+    description.textContent = btn.dataset.description || '';
+}
+
+// タブ切り替え処理
+function handleTabSwitch(e) {
+    const btn = e.currentTarget;
+    const tabName = btn.dataset.tab;
+    
+    // ボタンのアクティブ状態切り替え
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+    });
+    btn.classList.add('active');
+    
+    // コンテンツの表示切り替え
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`${tabName}-tools-tab`).classList.add('active');
+}
+
+// ツールクイックアクション処理
+function handleQuickAction(e) {
+    const action = e.currentTarget.dataset.action;
+    const activeTab = document.querySelector('.tab-content.active');
+    const checkboxes = activeTab.querySelectorAll('input[type="checkbox"]');
+    
+    switch (action) {
+        case 'all':
+            checkboxes.forEach(cb => cb.checked = true);
+            break;
+        case 'none':
+            checkboxes.forEach(cb => cb.checked = false);
+            break;
+        case 'safe':
+            checkboxes.forEach(cb => {
+                const toolName = cb.value;
+                cb.checked = ['Read', 'LS', 'Glob', 'Grep'].includes(toolName);
+            });
+            break;
+    }
+}
+
+// MCP設定のバリデーション
+function validateMCPConfig(value, validationElement) {
+    if (!value.trim()) {
+        validationElement.style.display = 'none';
+        return;
+    }
+    
+    try {
+        const config = JSON.parse(value);
+        
+        // 各サーバー設定の検証
+        for (const [name, serverConfig] of Object.entries(config)) {
+            if (!serverConfig.command) {
+                throw new Error(`Server '${name}' is missing required 'command' field`);
+            }
+        }
+        
+        validationElement.textContent = '✓ 有効なJSON形式です';
+        validationElement.className = 'validation-message success';
+    } catch (error) {
+        validationElement.textContent = `✗ ${error.message}`;
+        validationElement.className = 'validation-message error';
+    }
+}
+
+// 現在の設定を収集（プリセット保存用）
+function collectCurrentSettings() {
+    const settings = {
+        sdk: {},
+        timeout: parseInt(document.getElementById('timeout').value) * 1000,
+        useWorktree: document.getElementById('use-worktree').checked
+    };
+    
+    // SDKオプション収集
+    const sdkOptions = collectSDKOptions();
+    settings.sdk = sdkOptions.sdk;
+    
+    // Worktree設定
+    if (settings.useWorktree) {
+        const branchName = document.getElementById('worktree-branch').value;
+        const keepWorktree = document.getElementById('keep-worktree')?.checked;
+        
+        if (branchName || keepWorktree) {
+            settings.worktree = {
+                branchName: branchName || undefined,
+                keepAfterCompletion: !!keepWorktree
+            };
+        }
+    }
+    
+    return settings;
+}
+
+// プリセット保存モーダル表示
+function showSavePresetModal() {
+    const modal = document.getElementById('save-preset-modal');
+    const form = document.getElementById('save-preset-form');
+    const nameInput = document.getElementById('preset-name');
+    const descInput = document.getElementById('preset-description');
+    
+    // フォームをリセット
+    form.reset();
+    
+    // モーダル表示
+    modal.classList.remove('hidden');
+    nameInput.focus();
+    
+    // 既存のプリセット名を取得（重複チェック用）
+    let existingNames = [];
+    const presetSelector = document.getElementById('preset-selector');
+    if (presetSelector) {
+        Array.from(presetSelector.options).forEach(option => {
+            if (option.value && option.value !== 'loading') {
+                // オプションのテキストから名前を抽出（" (システム)"を除去）
+                const name = option.textContent.replace(' (システム)', '').trim();
+                existingNames.push(name.toLowerCase());
+            }
+        });
+    }
+    
+    // 名前入力時の重複チェック
+    nameInput.oninput = (e) => {
+        const value = e.target.value.trim().toLowerCase();
+        if (existingNames.includes(value)) {
+            nameInput.setCustomValidity('この名前のプリセットは既に存在します');
+            nameInput.classList.add('error');
+        } else {
+            nameInput.setCustomValidity('');
+            nameInput.classList.remove('error');
+        }
+    };
+    
+    // フォーム送信イベント
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        await savePreset();
+    };
+    
+    // キャンセルボタン
+    document.getElementById('cancel-save-preset').onclick = () => {
+        modal.classList.add('hidden');
+    };
+    
+    // 閉じるボタン
+    modal.querySelector('.close').onclick = () => {
+        modal.classList.add('hidden');
+    };
+}
+
+// プリセット保存
+async function savePreset() {
+    const name = document.getElementById('preset-name').value.trim();
+    const description = document.getElementById('preset-description').value.trim();
+    
+    // 入力チェック
+    if (!name) {
+        if (typeof showError === 'function') {
+            showError('プリセット名を入力してください');
+        }
+        return;
+    }
+    
+    const settings = collectCurrentSettings();
+    
+    // デバッグ: 送信するデータを確認
+    const presetData = { name, description, settings };
+    console.log('Saving preset with data:', presetData);
+    
+    try {
+        await api.createPreset(presetData);
+        if (typeof showNotification === 'function') {
+            showNotification('プリセットを保存しました', 'success');
+        } else if (typeof showSuccess === 'function') {
+            showSuccess('プリセットを保存しました');
+        }
+        
+        // モーダルを閉じる
+        document.getElementById('save-preset-modal').classList.add('hidden');
+        
+        // プリセット一覧を再読み込み
+        await loadPresets();
+        
+    } catch (error) {
+        console.error('Preset save error:', error);
+        let errorMessage = '保存に失敗しました';
+        
+        // エラーメッセージをより分かりやすく
+        if (error.message.includes('already exists')) {
+            errorMessage = `「${name}」という名前のプリセットは既に存在します。別の名前を使用してください。`;
+        } else {
+            errorMessage = `保存に失敗しました: ${error.message}`;
+        }
+        
+        if (typeof showNotification === 'function') {
+            showNotification(errorMessage, 'error');
+        } else if (typeof showError === 'function') {
+            showError(errorMessage);
+        }
+    }
+}
+
+// プリセット管理モーダル表示
+async function showManagePresetsModal() {
+    const modal = document.getElementById('manage-presets-modal');
+    const listElement = document.getElementById('preset-list');
+    
+    // プリセット一覧を読み込み
+    try {
+        const data = await api.getPresets();
+        
+        // リストをクリア
+        listElement.innerHTML = '';
+        
+        // ユーザープリセットのみ表示（システムプリセットは削除不可）
+        if (data.userPresets.length === 0) {
+            listElement.innerHTML = '<p style="text-align: center; color: #999;">ユーザープリセットがありません</p>';
+        } else {
+            data.userPresets.forEach(preset => {
+                const item = createPresetItem(preset);
+                listElement.appendChild(item);
+            });
+        }
+        
+        // モーダル表示
+        modal.classList.remove('hidden');
+        
+    } catch (error) {
+        showNotification('プリセット一覧の取得に失敗しました', 'error');
+    }
+    
+    // 閉じるボタン
+    modal.querySelector('.close').onclick = () => {
+        modal.classList.add('hidden');
+    };
+}
+
+// プリセットアイテム作成
+function createPresetItem(preset) {
+    const item = document.createElement('div');
+    item.className = 'preset-item';
+    
+    item.innerHTML = `
+        <div class="preset-info">
+            <div class="preset-name">${preset.name}</div>
+            <div class="preset-description">${preset.description || '説明なし'}</div>
+        </div>
+        <div class="preset-actions">
+            <button class="btn btn-secondary btn-sm" onclick="applyPreset('${preset.id}')">適用</button>
+            <button class="btn btn-danger btn-sm" onclick="deletePreset('${preset.id}')">削除</button>
+        </div>
+    `;
+    
+    return item;
+}
+
+// 現在選択中のプリセットを削除
+async function deleteCurrentPreset() {
+    const selector = document.getElementById('preset-selector');
+    const selectedOption = selector.selectedOptions[0];
+    
+    if (!selectedOption || !selectedOption.value) {
+        return;
+    }
+    
+    const presetName = selectedOption.textContent.replace(' (システム)', '');
+    if (!confirm(`「${presetName}」を削除しますか？`)) {
+        return;
+    }
+    
+    try {
+        await api.deletePreset(selectedOption.value);
+        
+        if (typeof showSuccess === 'function') {
+            showSuccess('プリセットを削除しました');
+        }
+        
+        // カスタム設定に戻す
+        selector.value = '';
+        handlePresetChange({ target: selector });
+        
+        // プリセット一覧を再読み込み
+        await loadPresets();
+        
+    } catch (error) {
+        if (typeof showError === 'function') {
+            showError(`削除に失敗しました: ${error.message}`);
+        }
+    }
+}
+
+// プリセット適用（管理画面から）
+async function applyPreset(presetId) {
+    try {
+        const preset = await api.getPreset(presetId);
+        
+        // セレクトボックスの値を変更
+        document.getElementById('preset-selector').value = presetId;
+        
+        // 設定を適用
+        applyPresetOptions(preset.settings);
+        
+        // 説明文を更新
+        document.getElementById('preset-description').textContent = preset.description || '';
+        
+        // モーダルを閉じる
+        document.getElementById('manage-presets-modal').classList.add('hidden');
+        
+        showNotification('プリセットを適用しました', 'success');
+        
+    } catch (error) {
+        showNotification(`適用に失敗しました: ${error.message}`, 'error');
+    }
+}
+
+// 通知表示
+function showNotification(message, type = 'info') {
+    // 既存の通知があれば削除
+    const existing = document.querySelector('.notification');
+    if (existing) {
+        existing.remove();
+    }
+    
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // 3秒後に自動的に削除
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// SDKオプションの収集
+function collectSDKOptions() {
+    const options = {
+        sdk: {}
+    };
+    
+    // maxTurns
+    options.sdk.maxTurns = parseInt(document.getElementById('max-turns').value);
+    
+    // permissionMode
+    const activePermission = document.querySelector('.toggle-group .toggle-btn.active');
+    if (activePermission) {
+        options.sdk.permissionMode = activePermission.dataset.value;
+    }
+    
+    // systemPrompt
+    const systemPrompt = document.getElementById('system-prompt').value.trim();
+    if (systemPrompt) {
+        options.sdk.systemPrompt = systemPrompt;
+    }
+    
+    // ツール制限
+    const allowedTools = collectTools('allowed');
+    const disallowedTools = collectTools('disallowed');
+    
+    if (allowedTools.length > 0) {
+        options.sdk.allowedTools = allowedTools;
+    }
+    if (disallowedTools.length > 0) {
+        options.sdk.disallowedTools = disallowedTools;
+    }
+    
+    // 高度な設定（開いている場合のみ）
+    const advancedSettings = document.querySelector('.advanced-settings');
+    if (advancedSettings.open) {
+        // outputFormat
+        const outputFormat = document.querySelector('input[name="outputFormat"]:checked');
+        if (outputFormat) {
+            options.sdk.outputFormat = outputFormat.value;
+        }
+        
+        // executable
+        options.sdk.executable = document.getElementById('executable').value;
+        
+        // mcpConfig
+        const mcpConfig = document.getElementById('mcp-config').value.trim();
+        if (mcpConfig) {
+            try {
+                options.sdk.mcpConfig = JSON.parse(mcpConfig);
+            } catch (e) {
+                // エラーは事前にバリデーションで表示済み
+            }
+        }
+        
+        // continueSession
+        options.sdk.continueSession = document.getElementById('continue-session').checked;
+        
+        // verbose
+        options.sdk.verbose = document.getElementById('verbose').checked;
+    }
+    
+    return options;
+}
+
+// ツールの収集
+function collectTools(type) {
+    const tools = [];
+    const checkboxes = document.querySelectorAll(`#${type}-tools-tab input[type="checkbox"]:checked`);
+    
+    checkboxes.forEach(cb => {
+        tools.push(cb.value);
+    });
+    
+    // カスタムツールの追加
+    const customInput = document.getElementById(`custom-${type}-tools`);
+    if (customInput && customInput.value) {
+        const customTools = customInput.value.split(',').map(t => t.trim()).filter(t => t);
+        tools.push(...customTools);
+    }
+    
+    return tools;
+}
+
+// 改良版のタスク送信処理
+async function handleTaskSubmitWithSDK(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
     const timeoutSeconds = parseInt(formData.get('timeout'));
     
-    // 選択されたツールを収集
-    const allowedTools = [];
-    const checkboxes = e.target.querySelectorAll('input[name="allowedTools"]:checked');
-    checkboxes.forEach(checkbox => {
-        allowedTools.push(checkbox.value);
-    });
-    
-    // カスタムツールを追加
-    const customTools = formData.get('customAllowedTools');
-    if (customTools) {
-        const customToolsArray = customTools.split(',').map(tool => tool.trim()).filter(tool => tool);
-        allowedTools.push(...customToolsArray);
-    }
-    
+    // 基本的なタスクデータ
     const taskData = {
         instruction: formData.get('instruction'),
         context: {},
         options: {
-            timeout: timeoutSeconds * 1000, // 秒をミリ秒に変換
+            timeout: timeoutSeconds * 1000
         }
     };
-
-    // allowedToolsが選択されている場合のみ追加
-    if (allowedTools.length > 0) {
-        taskData.options.allowedTools = allowedTools;
+    
+    // SDKオプションの収集と追加
+    const sdkOptions = collectSDKOptions();
+    Object.assign(taskData.options, sdkOptions);
+    
+    // レガシーallowedToolsの処理（後方互換性）
+    // SDKオプションが優先される
+    if (!taskData.options.sdk?.allowedTools) {
+        const legacyAllowedTools = [];
+        const checkboxes = e.target.querySelectorAll('input[name="allowedTools"]:checked');
+        checkboxes.forEach(checkbox => {
+            legacyAllowedTools.push(checkbox.value);
+        });
+        
+        const customTools = formData.get('customAllowedTools');
+        if (customTools) {
+            const customToolsArray = customTools.split(',').map(tool => tool.trim()).filter(tool => tool);
+            legacyAllowedTools.push(...customToolsArray);
+        }
+        
+        if (legacyAllowedTools.length > 0) {
+            taskData.options.allowedTools = legacyAllowedTools;
+        }
     }
-
-    // Worktreeオプションの追加
+    
+    // Worktreeオプション（既存のコードをそのまま使用）
     if (formData.get('useWorktree')) {
         taskData.options.useWorktree = true;
         
@@ -154,10 +868,13 @@ async function handleTaskSubmit(e) {
             };
         }
     }
-
+    
     // 選択されたリポジトリを取得
     const selectedRepos = Array.from(document.getElementById('repositories').selectedOptions)
-        .map(option => ({ name: option.text, path: option.value }));
+        .map(option => ({ 
+            name: option.text.split(' (')[0],
+            path: option.value 
+        }));
     
     try {
         let response;
@@ -167,27 +884,8 @@ async function handleTaskSubmit(e) {
             const batchData = {
                 instruction: formData.get('instruction'),
                 repositories: selectedRepos,
-                options: {
-                    timeout: timeoutSeconds * 1000,
-                    allowedTools: allowedTools.length > 0 ? allowedTools : undefined
-                }
+                options: taskData.options
             };
-            
-            // バッチタスクにもWorktreeオプションを追加
-            if (formData.get('useWorktree')) {
-                batchData.options.useWorktree = true;
-                
-                const branchName = formData.get('worktreeBranch');
-                const keepWorktree = formData.get('keepWorktree');
-                
-                if (branchName || keepWorktree) {
-                    batchData.options.worktree = {
-                        enabled: true,
-                        branchName: branchName || undefined,
-                        keepAfterCompletion: !!keepWorktree
-                    };
-                }
-            }
             
             response = await apiClient.createBatchTasks(batchData);
             showSuccess(`${selectedRepos.length}件のバッチタスクを作成しました`);
@@ -209,8 +907,6 @@ async function handleTaskSubmit(e) {
             if (!response.workingDirectory && taskData.context.workingDirectory) {
                 response.workingDirectory = taskData.context.workingDirectory;
             }
-            console.log('[DEBUG] Task created - response:', response);
-            console.log('[DEBUG] Task workingDirectory:', response.workingDirectory);
             currentTasks.set(taskId, response);
             apiClient.subscribeToTask(taskId);
         } else {
@@ -228,541 +924,134 @@ async function handleTaskSubmit(e) {
     }
 }
 
-// タスク一覧読み込み
-async function loadTasks() {
-    try {
-        const response = await apiClient.getTasks();
-        const tasks = response.tasks || response; // APIが { tasks: [...] } または [...] のどちらかに対応
-        currentTasks.clear();
-        
-        if (Array.isArray(tasks)) {
-            tasks.forEach(task => {
-                currentTasks.set(task.taskId || task.id, task);
-                // 実行中のタスクにサブスクライブ
-                if (task.status === 'running' || task.status === 'pending') {
-                    apiClient.subscribeToTask(task.taskId || task.id);
-                }
-            });
-        }
-        
-        renderTasks();
-    } catch (error) {
-        showError(`タスクの読み込みに失敗しました: ${error.message}`);
-    }
-}
-
-// タスク一覧表示
-function renderTasks() {
-    const taskList = document.getElementById('task-list');
-    taskList.innerHTML = '';
-
-    const filteredTasks = Array.from(currentTasks.values())
-        .filter(task => !statusFilter || task.status === statusFilter)
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    if (filteredTasks.length === 0) {
-        taskList.innerHTML = '<div class="task-item">タスクがありません</div>';
-        return;
-    }
-
-    filteredTasks.forEach(task => {
-        const taskElement = createTaskElement(task);
-        taskList.appendChild(taskElement);
-    });
-}
-
-// 作業ディレクトリからリポジトリ名を抽出
-function extractRepoName(workingDirectory) {
-    if (!workingDirectory) return 'デフォルト';
-    // パスの最後の部分を取得
-    const parts = workingDirectory.split('/');
-    return parts[parts.length - 1] || 'デフォルト';
-}
-
-// タスク要素作成
-function createTaskElement(task) {
-    const div = document.createElement('div');
-    div.className = 'task-item';
-    const taskId = task.taskId || task.id;
-    div.onclick = () => showTaskDetail(taskId);
-
-    const statusClass = task.status.toLowerCase();
-    const createdAt = new Date(task.createdAt).toLocaleString('ja-JP');
-    
-    // workingDirectoryからリポジトリ名を抽出
-    const repoName = extractRepoName(task.workingDirectory);
-
-    div.innerHTML = `
-        <div class="task-header">
-            <div class="task-id-section">
-                <span class="task-id" title="${taskId}">ID: ${taskId.substring(0, 8)}</span>
-                <span class="task-repository">📁 ${escapeHtml(repoName)}</span>
-            </div>
-            <span class="task-status ${statusClass}">${getStatusText(task.status)}</span>
-        </div>
-        <div class="task-instruction">${escapeHtml(task.instruction)}</div>
-        <div class="task-meta">作成日時: ${createdAt}</div>
-    `;
-
-    return div;
-}
-
-// タスク詳細表示
-async function showTaskDetail(taskId) {
-    selectedTaskId = taskId;
-    
-    // 既存の定期更新を停止
-    if (detailRefreshInterval) {
-        clearInterval(detailRefreshInterval);
-        detailRefreshInterval = null;
-    }
-    
-    try {
-        const task = await apiClient.getTask(taskId);
-        
-        renderTaskDetail(task);
-        displayTaskLogs(task);
-        
-        document.getElementById('task-modal').classList.remove('hidden');
-        
-        // 実行中の場合はサブスクライブと定期更新を開始
-        if (task.status === 'running' || task.status === 'pending') {
-            apiClient.subscribeToTask(taskId);
-            
-            // 3秒ごとに詳細を更新（WebSocketが不安定な場合のフォールバック）
-            detailRefreshInterval = setInterval(async () => {
-                if (selectedTaskId === taskId) {
-                    try {
-                        const updatedTask = await apiClient.getTask(taskId);
-                        currentTasks.set(taskId, updatedTask);
-                        renderTaskDetail(updatedTask);
-                        displayTaskLogs(updatedTask);
-                        
-                        // タスクが完了したら定期更新を停止
-                        if (updatedTask.status !== 'running' && updatedTask.status !== 'pending') {
-                            clearInterval(detailRefreshInterval);
-                            detailRefreshInterval = null;
-                        }
-                    } catch (error) {
-                        console.error('Failed to refresh task detail:', error);
-                    }
-                }
-            }, 3000);
-        }
-    } catch (error) {
-        showError(`タスク詳細の取得に失敗しました: ${error.message}`);
-    }
-}
-
-// タスク詳細レンダリング
-function renderTaskDetail(task) {
-    const detailContainer = document.getElementById('task-detail');
-    const taskId = task.taskId || task.id;
-    const createdAt = new Date(task.createdAt).toLocaleString('ja-JP');
-    const completedAt = task.completedAt ? new Date(task.completedAt).toLocaleString('ja-JP') : '-';
-    
-    detailContainer.innerHTML = `
-        <div class="detail-row">
-            <span class="detail-label">ID:</span>
-            <span class="detail-value">${taskId}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">ステータス:</span>
-            <span class="detail-value">
-                <span class="task-status ${task.status.toLowerCase()}">${getStatusText(task.status)}</span>
-            </span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">実行内容:</span>
-            <span class="detail-value">${escapeHtml(task.instruction)}</span>
-        </div>
-        ${task.workingDirectory ? `
-        <div class="detail-row">
-            <span class="detail-label">作業ディレクトリ:</span>
-            <span class="detail-value">${escapeHtml(task.workingDirectory)}</span>
-        </div>
-        ` : ''}
-        ${task.useWorktree || (task.options && task.options.useWorktree) ? `
-        <div class="detail-row">
-            <span class="detail-label">Git Worktree:</span>
-            <span class="detail-value">
-                <span style="color: #10b981;">✓ 有効</span>
-                ${task.options && task.options.worktree && task.options.worktree.branchName ? 
-                    `<br>ブランチ: ${escapeHtml(task.options.worktree.branchName)}` : ''}
-                ${task.options && task.options.worktree && task.options.worktree.keepAfterCompletion ? 
-                    `<br>タスク完了後も保持` : ''}
-            </span>
-        </div>
-        ` : ''}
-        <div class="detail-row">
-            <span class="detail-label">作成日時:</span>
-            <span class="detail-value">${createdAt}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">完了日時:</span>
-            <span class="detail-value">${completedAt}</span>
-        </div>
-        ${task.allowedTools && task.allowedTools.length > 0 ? `
-        <div class="detail-row">
-            <span class="detail-label">許可ツール:</span>
-            <span class="detail-value">
-                <div class="allowed-tools-list">
-                    ${task.allowedTools.map(tool => `<span class="allowed-tool-item">${escapeHtml(tool)}</span>`).join('')}
-                </div>
-            </span>
-        </div>
-        ` : ''}
-        ${task.result ? `
-        <div class="detail-row">
-            <span class="detail-label">実行結果:</span>
-            <span class="detail-value" style="white-space: pre-wrap; background: #f5f5f5; padding: 10px; border-radius: 4px; display: block; margin-top: 5px;">
-                ${escapeHtml(typeof task.result === 'string' ? task.result : JSON.stringify(task.result, null, 2))}
-            </span>
-        </div>
-        ` : ''}
-        ${task.error ? `
-        <div class="detail-row">
-            <span class="detail-label">エラー:</span>
-            <span class="detail-value" style="color: var(--error-color);">${escapeHtml(task.error.message || task.error)}</span>
-        </div>
-        ${task.error.phase ? `
-        <div class="detail-row">
-            <span class="detail-label">タイムアウトフェーズ:</span>
-            <span class="detail-value">${escapeHtml(task.error.phase)}</span>
-        </div>
-        ` : ''}
-        ${task.error.elapsed ? `
-        <div class="detail-row">
-            <span class="detail-label">経過時間:</span>
-            <span class="detail-value">${Math.round(task.error.elapsed / 1000)}秒</span>
-        </div>
-        ` : ''}
-        ${task.error.limit ? `
-        <div class="detail-row">
-            <span class="detail-label">制限時間:</span>
-            <span class="detail-value">${Math.round(task.error.limit / 1000)}秒</span>
-        </div>
-        ` : ''}
-        ` : ''}
-        ${task.status === 'running' ? `
-        <div class="detail-row">
-            <button class="btn btn-secondary" onclick="cancelTask('${taskId}')">キャンセル</button>
-        </div>
-        ` : ''}
-    `;
-}
-
-// タスクのログを表示する（タスクオブジェクトから適切なログを取得）
-function displayTaskLogs(task) {
-    let logsToRender = [];
-    
-    // まずresult内のlogsを確認（完了したタスクの標準的な場所）
-    if (task.result && task.result.logs && Array.isArray(task.result.logs)) {
-        logsToRender = task.result.logs;
-    } 
-    // 次にtask.logsを確認（実行中のタスクやレガシーな場合）
-    else if (task.logs && Array.isArray(task.logs)) {
-        logsToRender = task.logs;
-    }
-    
-    // ログがある場合は表示
-    if (logsToRender.length > 0) {
-        renderTaskLogs(logsToRender);
-    } 
-    // 実行中でログがまだない場合
-    else if (task.status === 'running') {
-        const logContainer = document.getElementById('task-logs');
-        logContainer.innerHTML = '<div class="log-entry" style="color: #9ca3af;">実行ログを待機中...</div>';
-    } 
-    // それ以外（ログがない場合）
-    else {
-        const logContainer = document.getElementById('task-logs');
-        logContainer.innerHTML = '<div class="log-entry">ログがありません</div>';
-    }
-}
-
-// タスクログレンダリング
-function renderTaskLogs(logs) {
-    const logContainer = document.getElementById('task-logs');
-    logContainer.innerHTML = '';
-    
-    if (!logs || (Array.isArray(logs) && logs.length === 0)) {
-        logContainer.innerHTML = '<div class="log-entry">ログがありません</div>';
-        return;
-    }
-    
-    // ログが配列でない場合は配列に変換
-    const logArray = Array.isArray(logs) ? logs : [logs];
-    
-    logArray.forEach((log, index) => {
-        const logEntry = document.createElement('div');
-        logEntry.className = 'log-entry';
-        
-        // ログメッセージの取得（文字列またはオブジェクト）
-        const message = typeof log === 'string' ? log : (log.message || log.log || JSON.stringify(log));
-        
-        // タイムスタンプの取得（存在する場合）
-        const timestamp = log.timestamp 
-            ? new Date(log.timestamp).toLocaleTimeString('ja-JP')
-            : new Date().toLocaleTimeString('ja-JP');
-        
-        logEntry.innerHTML = `
-            <span class="log-timestamp">${timestamp}</span>
-            <span>${escapeHtml(message)}</span>
-        `;
-        
-        logContainer.appendChild(logEntry);
-    });
-    
-    // 最下部にスクロール
-    logContainer.scrollTop = logContainer.scrollHeight;
-}
-
-// タスクキャンセル
-async function cancelTask(taskId) {
-    if (!confirm('タスクをキャンセルしますか？')) {
-        return;
-    }
-    
-    try {
-        await apiClient.cancelTask(taskId);
-        showSuccess('タスクをキャンセルしました');
-        loadTasks();
-        closeModal();
-    } catch (error) {
-        showError(`タスクのキャンセルに失敗しました: ${error.message}`);
-    }
-}
-
-// WebSocketメッセージ処理
-function handleWebSocketMessage(event) {
-    const message = JSON.parse(event.data);
-    
-    // デバッグ用ログ（開発時のみ）
-    if (message.type === 'task:log') {
-        console.log('WebSocket log received:', message.payload);
-    }
-    
-    switch (message.type) {
-        case 'auth:success':
-            updateConnectionStatus(true);
-            // 認証成功時に保留中のサブスクリプションを処理
-            apiClient.onAuthenticated();
-            break;
-            
-        case 'auth:error':
-            updateConnectionStatus(false);
-            showError('WebSocket認証に失敗しました');
-            break;
-            
-        case 'task:update':
-            handleTaskUpdate(message.payload);
-            break;
-            
-        case 'task:log':
-            handleTaskLog(message.payload);
-            break;
-            
-        case 'heartbeat':
-            // ハートビート応答
-            if (apiClient.ws && apiClient.ws.readyState === WebSocket.OPEN) {
-                apiClient.ws.send(JSON.stringify({ type: 'heartbeat' }));
-            }
-            break;
-    }
-}
-
-// タスク更新処理
-async function handleTaskUpdate(payload) {
-    const taskId = payload.taskId;
-    
-    
-    // 詳細モーダルが開いている場合は、常に最新の情報を取得
-    if (selectedTaskId === taskId) {
-        try {
-            const updatedTask = await apiClient.getTask(taskId);
-            currentTasks.set(taskId, updatedTask);
-            
-            // 詳細を再描画
-            renderTaskDetail(updatedTask);
-            displayTaskLogs(updatedTask);
-            
-            // タスクが完了または失敗した場合は通知
-            if (payload.status === 'completed' || payload.status === 'failed') {
-                showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
-            }
-        } catch (error) {
-            console.error('Failed to fetch updated task:', error);
-            // エラーが発生してもローカル更新は試みる
-            updateLocalTaskData(taskId, payload);
-        }
-    } else {
-        // 詳細モーダルが開いていない場合は、ローカルデータのみ更新
-        updateLocalTaskData(taskId, payload);
-        
-        // タスクが完了または失敗した場合は、詳細を再取得して最新状態を保持
-        if (payload.status === 'completed' || payload.status === 'failed') {
-            try {
-                const oldTask = currentTasks.get(taskId);
-                const oldWorkingDirectory = oldTask?.workingDirectory;
-                const updatedTask = await apiClient.getTask(taskId);
-                // workingDirectoryを保持
-                if (!updatedTask.workingDirectory && oldWorkingDirectory) {
-                    updatedTask.workingDirectory = oldWorkingDirectory;
-                }
-                currentTasks.set(taskId, updatedTask);
-                showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
-            } catch (error) {
-                console.error('Failed to fetch updated task:', error);
-            }
-        }
-    }
-    
-    // タスク一覧を再描画
-    renderTasks();
-}
-
-// ローカルタスクデータの更新
-function updateLocalTaskData(taskId, payload) {
-    const task = currentTasks.get(taskId);
-    if (task) {
-        const oldWorkingDirectory = task.workingDirectory; // workingDirectoryを保持
-        task.status = payload.status;
-        if (payload.metadata?.error) {
-            task.error = payload.metadata.error;
-        }
-        if (payload.metadata?.completedAt) {
-            task.completedAt = payload.metadata.completedAt;
-        }
-        if (payload.metadata?.result) {
-            task.result = payload.metadata.result;
-        }
-        // WebSocketメッセージからworkingDirectoryを取得、またはoldを保持
-        if (payload.metadata?.workingDirectory) {
-            task.workingDirectory = payload.metadata.workingDirectory;
-        } else if (!task.workingDirectory && oldWorkingDirectory) {
-            task.workingDirectory = oldWorkingDirectory;
-        } else {
-        }
-    }
-}
-
-// タスクログ処理
-function handleTaskLog(payload) {
-    if (selectedTaskId === payload.taskId) {
-        const logContainer = document.getElementById('task-logs');
-        
-        // 初回のログ受信時に「ログがありません」または「実行ログを待機中...」を削除
-        const noLogMessage = logContainer.querySelector('.log-entry');
-        if (noLogMessage && (noLogMessage.textContent === 'ログがありません' || noLogMessage.textContent === '実行ログを待機中...')) {
-            logContainer.innerHTML = '';
-        }
-        
-        const logEntry = document.createElement('div');
-        logEntry.className = 'log-entry';
-        
-        const timestamp = new Date(payload.timestamp).toLocaleTimeString('ja-JP');
-        const logMessage = payload.log || '';
-        
-        // 進捗メッセージにスタイルを適用
-        let styledMessage = escapeHtml(logMessage);
-        if (logMessage.startsWith('[') && logMessage.includes(']')) {
-            // [Tag] 形式のメッセージを強調表示
-            styledMessage = logMessage.replace(/^\[([^\]]+)\](.*)$/, (match, tag, rest) => {
-                const tagClass = tag.includes('✓') ? 'log-tag-success' : 
-                                tag.includes('✗') ? 'log-tag-error' : 
-                                'log-tag';
-                return `<span class="${tagClass}">[${escapeHtml(tag)}]</span>${escapeHtml(rest)}`;
-            });
-        }
-        
-        logEntry.innerHTML = `
-            <span class="log-timestamp">${timestamp}</span>
-            <span>${styledMessage}</span>
-        `;
-        
-        logContainer.appendChild(logEntry);
-        
-        // スムーズなスクロール
-        requestAnimationFrame(() => {
-            logContainer.scrollTop = logContainer.scrollHeight;
-        });
-    }
-}
-
-// 接続ステータス更新
-function updateConnectionStatus(connected) {
-    const statusElement = document.getElementById('connection-status');
-    if (connected) {
-        statusElement.className = 'status connected';
-        statusElement.querySelector('.status-text').textContent = '接続中';
-    } else {
-        statusElement.className = 'status disconnected';
-        statusElement.querySelector('.status-text').textContent = '未接続';
-    }
-}
-
-// モーダルを閉じる
-function closeModal() {
-    document.getElementById('task-modal').classList.add('hidden');
-    
-    // 定期更新を停止
-    if (detailRefreshInterval) {
-        clearInterval(detailRefreshInterval);
-        detailRefreshInterval = null;
-    }
-    
-    if (selectedTaskId) {
-        apiClient.unsubscribeFromTask(selectedTaskId);
-        selectedTaskId = null;
-    }
-}
-
-// ステータステキスト取得
-function getStatusText(status) {
-    const statusMap = {
-        'pending': '待機中',
-        'running': '実行中',
-        'completed': '完了',
-        'failed': '失敗',
-        'cancelled': 'キャンセル'
+// ユーティリティ関数
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
     };
-    return statusMap[status] || status;
 }
 
-// HTMLエスケープ
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// メッセージ表示
-function showMessage(message, type) {
-    const existingMessage = document.querySelector(`.${type}-message`);
-    if (existingMessage) {
-        existingMessage.remove();
+// リポジトリ一覧の読み込み（改良版）
+async function loadRepositoriesWithDefault() {
+    try {
+        const data = await apiClient.getRepositories();
+        const select = document.getElementById('repositories');
+        
+        // 既存のオプションをクリア
+        select.innerHTML = '';
+        
+        // リポジトリ一覧を追加
+        data.repositories.forEach((repo, index) => {
+            const option = document.createElement('option');
+            option.value = repo.path;
+            option.text = `${repo.name} (${repo.path})`;
+            
+            // 最初のリポジトリをデフォルト選択
+            if (index === 0) {
+                option.selected = true;
+            }
+            
+            select.appendChild(option);
+        });
+        
+        // 選択状態の検証
+        validateRepositorySelection();
+        
+    } catch (error) {
+        console.error('Failed to load repositories:', error);
+        showError('リポジトリ一覧の読み込みに失敗しました');
     }
-    
-    const messageElement = document.createElement('div');
-    messageElement.className = `${type}-message`;
-    messageElement.textContent = message;
-    
-    const container = document.querySelector('.container');
-    container.insertBefore(messageElement, container.firstChild);
-    
-    setTimeout(() => {
-        messageElement.remove();
-    }, 5000);
 }
 
-function showError(message) {
-    showMessage(message, 'error');
+// リポジトリ選択の検証
+function validateRepositorySelection() {
+    const select = document.getElementById('repositories');
+    const selectedOptions = select.selectedOptions;
+    const submitButton = document.querySelector('button[type="submit"]');
+    const helpText = document.getElementById('repository-help');
+    
+    if (selectedOptions.length === 0) {
+        select.classList.add('error');
+        submitButton.disabled = true;
+        
+        // エラーメッセージを表示
+        if (!document.getElementById('repository-error')) {
+            const errorMsg = document.createElement('span');
+            errorMsg.id = 'repository-error';
+            errorMsg.className = 'error-message';
+            errorMsg.textContent = 'リポジトリを1つ以上選択してください';
+            helpText.appendChild(errorMsg);
+        }
+    } else {
+        select.classList.remove('error');
+        submitButton.disabled = false;
+        
+        // エラーメッセージを削除
+        const errorMsg = document.getElementById('repository-error');
+        if (errorMsg) {
+            errorMsg.remove();
+        }
+        
+        // 選択数を表示
+        const countText = selectedOptions.length === 1 
+            ? '1つのリポジトリが選択されています' 
+            : `${selectedOptions.length}つのリポジトリが選択されています`;
+        
+        const infoText = helpText.querySelector('.info-text');
+        infoText.textContent = countText;
+    }
 }
 
-function showSuccess(message) {
-    showMessage(message, 'success');
+// グローバル変数
+let api = null;
+
+// 初期化関数
+async function init() {
+    const apiKey = getApiKeyFromQuery();
+    
+    // APIクライアント初期化
+    if (apiKey) {
+        apiClient = new APIClient(window.location.origin, apiKey);
+        api = apiClient; // 両方の変数名をサポート
+    } else {
+        // デフォルトのAPIキーを使用（環境変数から取得された値）
+        apiClient = new APIClient(window.location.origin, 'hoge');
+        api = apiClient;
+    }
+
+    // WebSocket接続
+    const ws = apiClient.connectWebSocket();
+    ws.onmessage = handleWebSocketMessage;
+
+    // 基本的なイベントリスナー設定
+    setupEventListeners();
+    
+    // SDKオプション関連のイベントリスナー設定
+    setupSDKOptionsListeners();
+
+    // プリセット一覧を読み込み
+    await loadPresets();
+    
+    // リポジトリ一覧を読み込み
+    await loadRepositories();
+
+    // タスク一覧を読み込み
+    loadTasks();
+    
+    // 定期的にタスク一覧を更新（5秒ごと）
+    setInterval(loadTasks, 5000);
+    
+    // グローバル関数として公開（HTML内のonclickから呼び出すため）
+    window.applyPreset = applyPreset;
+    window.deletePreset = deletePreset;
+    window.cancelTask = cancelTask;
 }
 
-// 起動
+// DOMContentLoaded時に初期化
 document.addEventListener('DOMContentLoaded', init);

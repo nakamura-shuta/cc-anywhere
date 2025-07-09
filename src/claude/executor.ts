@@ -1,6 +1,12 @@
 import { ClaudeClient } from "./client";
 import { ClaudeCodeClient } from "./claude-code-client";
-import type { TaskRequest, TaskExecutor, ClaudeExecutionResult, TaskResponse } from "./types";
+import type {
+  TaskRequest,
+  TaskExecutor,
+  ClaudeExecutionResult,
+  TaskResponse,
+  ClaudeCodeSDKOptions,
+} from "./types";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { existsSync } from "fs";
@@ -279,17 +285,31 @@ export class TaskExecutorImpl implements TaskExecutor {
             });
           }
 
-          // SDKオプションの取得（リクエストから、またはデフォルト設定から）
-          const sdkOptions = processedTask.options?.sdk || {};
-          const maxTurns = sdkOptions.maxTurns ?? config.claudeCodeSDK.defaultMaxTurns;
-          const allowedTools = sdkOptions.allowedTools ?? processedTask.options?.allowedTools;
+          // SDKオプションの取得とマージ
+          const sdkOptions = this.mergeSDKOptions(
+            processedTask.options?.sdk,
+            processedTask.options,
+          );
 
+          // SDKオプションの検証
+          this.validateSDKOptions(sdkOptions);
+
+          // Claude Code SDKの実行
           const result = await this.codeClient.executeTask(prompt, {
-            maxTurns,
+            maxTurns: sdkOptions.maxTurns,
             cwd: resolvedWorkingDirectory,
             abortController,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            allowedTools,
+            allowedTools: sdkOptions.allowedTools,
+            disallowedTools: sdkOptions.disallowedTools,
+            systemPrompt: sdkOptions.systemPrompt,
+            permissionMode: sdkOptions.permissionMode,
+            executable: sdkOptions.executable,
+            executableArgs: sdkOptions.executableArgs,
+            mcpConfig: sdkOptions.mcpConfig,
+            continueSession: sdkOptions.continueSession,
+            resumeSession: sdkOptions.resumeSession,
+            outputFormat: sdkOptions.outputFormat,
+            verbose: sdkOptions.verbose,
             onProgress: processedTask.options?.onProgress,
           });
 
@@ -297,7 +317,14 @@ export class TaskExecutorImpl implements TaskExecutor {
             throw result.error || new Error("Task execution failed");
           }
 
-          output = this.codeClient.formatMessagesAsString(result.messages);
+          // Process result based on output format
+          const processedResult = this.processClaudeCodeResult(result, sdkOptions.outputFormat);
+
+          output =
+            sdkOptions.outputFormat === "json"
+              ? processedResult.output
+              : this.codeClient.formatMessagesAsString(result.messages);
+
           logs.push(`Received ${result.messages.length} messages from Claude Code`);
         } catch (error) {
           if (error instanceof Error && error.name === "AbortError") {
@@ -568,7 +595,7 @@ When providing code, ensure it follows best practices and is well-documented.`;
       const worktree = await this.worktreeManager.createWorktree({
         taskId,
         repositoryPath: workingDirectory,
-        baseBranch: options.baseBranch || config.worktree?.defaultBaseBranch || "master",
+        baseBranch: options.baseBranch || config.worktree?.defaultBaseBranch,
         branchName: options.branchName,
       });
 
@@ -679,5 +706,98 @@ When providing code, ensure it follows best practices and is well-documented.`;
         });
       }
     }
+  }
+
+  /**
+   * Merge SDK options with defaults and legacy options
+   */
+  private mergeSDKOptions(
+    sdkOptions?: ClaudeCodeSDKOptions,
+    legacyOptions?: TaskRequest["options"],
+  ): Required<ClaudeCodeSDKOptions> {
+    const defaultConfig = config.claudeCodeSDK || {};
+
+    return {
+      // Priority: High
+      maxTurns: sdkOptions?.maxTurns ?? defaultConfig.defaultMaxTurns ?? 3,
+      allowedTools: sdkOptions?.allowedTools ?? legacyOptions?.allowedTools ?? [],
+      disallowedTools: sdkOptions?.disallowedTools ?? [],
+      systemPrompt: sdkOptions?.systemPrompt ?? "",
+      permissionMode: sdkOptions?.permissionMode ?? "ask",
+
+      // Priority: Medium
+      executable: sdkOptions?.executable ?? "node",
+      executableArgs: sdkOptions?.executableArgs ?? [],
+      mcpConfig: sdkOptions?.mcpConfig ?? {},
+      continueSession: sdkOptions?.continueSession ?? false,
+      resumeSession: sdkOptions?.resumeSession ?? "",
+      outputFormat: sdkOptions?.outputFormat ?? "text",
+
+      // Priority: Low
+      verbose: sdkOptions?.verbose ?? false,
+      permissionPromptTool: sdkOptions?.permissionPromptTool ?? "",
+      pathToClaudeCodeExecutable: sdkOptions?.pathToClaudeCodeExecutable ?? "",
+    };
+  }
+
+  /**
+   * Validate SDK options
+   */
+  private validateSDKOptions(options: ClaudeCodeSDKOptions): void {
+    // Validate maxTurns
+    if (options.maxTurns !== undefined) {
+      if (options.maxTurns < 1 || options.maxTurns > 50) {
+        throw new Error("maxTurns must be between 1 and 50");
+      }
+    }
+
+    // Validate systemPrompt length
+    if (options.systemPrompt !== undefined) {
+      if (options.systemPrompt.length > 10000) {
+        throw new Error("systemPrompt must be 10000 characters or less");
+      }
+    }
+
+    // Warn about conflicting tool restrictions
+    if (options.allowedTools?.length && options.disallowedTools?.length) {
+      logger.warn("Both allowedTools and disallowedTools specified");
+    }
+
+    // Validate MCP config
+    if (options.mcpConfig) {
+      this.validateMCPConfig(options.mcpConfig);
+    }
+  }
+
+  /**
+   * Validate MCP configuration
+   */
+  private validateMCPConfig(mcpConfig: Record<string, any>): void {
+    for (const [name, config] of Object.entries(mcpConfig)) {
+      if (!config.command) {
+        throw new Error(`MCP server '${name}' is missing required 'command' field`);
+      }
+      if (typeof config.command !== "string") {
+        throw new Error(`MCP server '${name}' command must be a string`);
+      }
+    }
+  }
+
+  /**
+   * Process Claude Code result based on output format
+   */
+  private processClaudeCodeResult(result: any, outputFormat?: string): any {
+    if (outputFormat === "json" && typeof result.output === "string") {
+      try {
+        return {
+          ...result,
+          output: JSON.parse(result.output),
+        };
+      } catch {
+        // If JSON parsing fails, return as-is
+        return result;
+      }
+    }
+    return result;
   }
 }

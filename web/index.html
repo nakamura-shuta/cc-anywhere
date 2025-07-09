@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CC-Anywhere</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style-advanced.css">
 </head>
 <body>
     <div class="container">
@@ -33,100 +34,327 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="repositories">リポジトリ（オプション）</label>
+                        <label for="repositories">
+                            作業リポジトリ
+                            <span class="required">*</span>
+                        </label>
                         <select 
                             id="repositories" 
                             name="repositories"
                             multiple
                             size="5"
                             class="repository-select"
+                            required
                         >
                             <!-- オプションは動的に追加 -->
                         </select>
-                        <small>複数選択可能（Ctrl/Cmdキーを押しながらクリック）</small>
+                        <small id="repository-help">
+                            <span class="info-text">選択したリポジトリでタスクが実行されます</span>
+                            <span class="select-hint">（複数選択: Ctrl/Cmdキーを押しながらクリック）</span>
+                        </small>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="timeout">タイムアウト（秒）</label>
-                        <input 
-                            type="number" 
-                            id="timeout" 
-                            name="timeout"
-                            value="600"
-                            min="1"
-                            max="3600"
-                        >
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="allowed-tools">許可するツール（オプション）</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="allowedTools" value="Write" checked>
-                                ファイル作成・書き込み (Write)
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="allowedTools" value="Read" checked>
-                                ファイル読み取り (Read)
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="allowedTools" value="Edit" checked>
-                                ファイル編集 (Edit)
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="allowedTools" value="Bash" checked>
-                                コマンド実行 (Bash)
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="allowedTools" value="LS">
-                                ディレクトリ一覧 (LS)
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="allowedTools" value="Glob">
-                                ファイル検索 (Glob)
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="allowedTools" value="Grep">
-                                テキスト検索 (Grep)
-                            </label>
-                        </div>
-                        <div class="custom-tools-group">
-                            <label for="custom-allowed-tools">カスタムツール（カンマ区切り）</label>
-                            <input 
-                                type="text" 
-                                id="custom-allowed-tools" 
-                                name="customAllowedTools"
-                                placeholder="例: Bash(npm:*), Bash(node:*), mcp__filesystem__read_file"
-                            >
-                        </div>
-                        <small>Claude Codeが使用できるツールを選択してください。カスタムツールではワイルドカード(*)や特定のコマンドを許可できます。</small>
-                    </div>
-                    
-                    <!-- Git Worktreeオプション -->
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="use-worktree" name="useWorktree">
-                            Git Worktreeを使用（独立した作業ディレクトリで実行）
-                        </label>
-                        <div id="worktree-options" class="worktree-options" style="display: none; margin-top: 10px; padding-left: 20px;">
-                            <div class="form-group">
-                                <label for="worktree-branch">ブランチ名（オプション）</label>
-                                <input 
-                                    type="text" 
-                                    id="worktree-branch" 
-                                    name="worktreeBranch"
-                                    placeholder="例: feature/task-123"
-                                >
-                                <small>指定しない場合は自動生成されます</small>
+
+                    <!-- SDKオプション設定セクション -->
+                    <div class="sdk-options-section">
+                        <h3 class="section-title">実行設定</h3>
+                        
+                        <!-- プリセット選択 -->
+                        <div class="form-group preset-selector">
+                            <label for="preset-selector">設定プリセット</label>
+                            <div class="preset-controls">
+                                <select id="preset-selector" class="preset-select">
+                                    <option value="">カスタム設定</option>
+                                    <option value="loading" disabled>読み込み中...</option>
+                                </select>
+                                <button type="button" id="save-preset-btn" class="btn btn-secondary btn-sm" title="現在の設定を保存">
+                                    💾 保存
+                                </button>
+                                <button type="button" id="delete-preset-btn" class="btn btn-danger btn-sm" title="選択中のプリセットを削除" style="display: none;">
+                                    🗑️ 削除
+                                </button>
                             </div>
+                            <small id="preset-description" class="preset-description">
+                                カスタム設定を使用中
+                            </small>
+                        </div>
+
+                        <!-- 基本設定 -->
+                        <div class="basic-settings">
+                            <!-- 最大ターン数 -->
+                            <div class="form-group slider-group">
+                                <label for="max-turns">
+                                    最大ターン数
+                                    <span class="info-icon" title="Claudeが実行できる最大ステップ数">ⓘ</span>
+                                    <span class="current-value" id="max-turns-value">3</span>
+                                </label>
+                                <div class="slider-container">
+                                    <input type="range" id="max-turns-slider" 
+                                           min="1" max="50" value="3" 
+                                           class="slider">
+                                    <input type="number" id="max-turns" 
+                                           min="1" max="50" value="3" 
+                                           class="number-input">
+                                </div>
+                            </div>
+
+                            <!-- 権限モード -->
+                            <div class="form-group">
+                                <label>
+                                    権限モード
+                                    <span class="info-icon" title="ツール実行時の確認動作">ⓘ</span>
+                                </label>
+                                <div class="toggle-group" role="radiogroup">
+                                    <button type="button" class="toggle-btn active" 
+                                            data-value="ask" data-description="実行前に確認">
+                                        確認する
+                                    </button>
+                                    <button type="button" class="toggle-btn" 
+                                            data-value="allow" data-description="自動的に許可">
+                                        許可
+                                    </button>
+                                    <button type="button" class="toggle-btn" 
+                                            data-value="deny" data-description="すべて拒否">
+                                        拒否
+                                    </button>
+                                    <button type="button" class="toggle-btn" 
+                                            data-value="plan" data-description="計画のみ作成">
+                                        計画モード
+                                    </button>
+                                </div>
+                                <small class="permission-description">実行前に確認</small>
+                            </div>
+
+                            <!-- システムプロンプト（折りたたみ可能） -->
+                            <details class="form-group collapsible-group">
+                                <summary class="collapsible-header">
+                                    <span class="collapse-icon">▶</span>
+                                    システムプロンプト（オプション）
+                                </summary>
+                                <div class="collapsible-content">
+                                    <div class="char-count-container">
+                                        <span class="char-count" id="system-prompt-count">0 / 10,000</span>
+                                    </div>
+                                    <textarea id="system-prompt" 
+                                              rows="3" 
+                                              maxlength="10000"
+                                              placeholder="Claudeの動作を制御するプロンプト（例：専門的な回答を心がけてください）"
+                                              class="expanding-textarea"></textarea>
+                                </div>
+                            </details>
+                        </div>
+
+                        <!-- ツール制限設定 -->
+                        <div class="form-group tool-restrictions">
+                            <label>ツール制限</label>
+                            <div class="tab-container">
+                                <button type="button" class="tab-btn active" data-tab="allowed">
+                                    許可するツール
+                                </button>
+                                <button type="button" class="tab-btn" data-tab="disallowed">
+                                    禁止するツール
+                                </button>
+                            </div>
+                            
+                            <div class="tab-content active" id="allowed-tools-tab">
+                                <div class="tool-quick-actions">
+                                    <button type="button" class="quick-action-btn" data-action="all">すべて選択</button>
+                                    <button type="button" class="quick-action-btn" data-action="none">すべて解除</button>
+                                    <button type="button" class="quick-action-btn" data-action="safe">安全なツールのみ</button>
+                                </div>
+                                <div class="checkbox-group tools-grid">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="allowedTools" value="Read" checked>
+                                        <span class="checkbox-text">
+                                            <span class="tool-name">Read</span>
+                                            <span class="tool-desc">ファイル読み取り</span>
+                                        </span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="allowedTools" value="Write" checked>
+                                        <span class="checkbox-text">
+                                            <span class="tool-name">Write</span>
+                                            <span class="tool-desc">ファイル作成・書き込み</span>
+                                        </span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="allowedTools" value="Edit" checked>
+                                        <span class="checkbox-text">
+                                            <span class="tool-name">Edit</span>
+                                            <span class="tool-desc">ファイル編集</span>
+                                        </span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="allowedTools" value="Bash">
+                                        <span class="checkbox-text">
+                                            <span class="tool-name">Bash</span>
+                                            <span class="tool-desc">コマンド実行</span>
+                                        </span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="allowedTools" value="LS">
+                                        <span class="checkbox-text">
+                                            <span class="tool-name">LS</span>
+                                            <span class="tool-desc">ディレクトリ一覧</span>
+                                        </span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="allowedTools" value="Glob">
+                                        <span class="checkbox-text">
+                                            <span class="tool-name">Glob</span>
+                                            <span class="tool-desc">ファイル検索</span>
+                                        </span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="allowedTools" value="Grep">
+                                        <span class="checkbox-text">
+                                            <span class="tool-name">Grep</span>
+                                            <span class="tool-desc">テキスト検索</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="custom-tools-group">
+                                    <label for="custom-allowed-tools">カスタムツール（カンマ区切り）</label>
+                                    <input 
+                                        type="text" 
+                                        id="custom-allowed-tools" 
+                                        name="customAllowedTools"
+                                        placeholder="例: Bash(npm:*), mcp__filesystem__read_file"
+                                    >
+                                </div>
+                            </div>
+                            
+                            <div class="tab-content" id="disallowed-tools-tab">
+                                <div class="checkbox-group tools-grid">
+                                    <!-- 同様のチェックボックスリスト（name="disallowedTools"） -->
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="disallowedTools" value="Bash">
+                                        <span class="checkbox-text">
+                                            <span class="tool-name">Bash</span>
+                                            <span class="tool-desc">コマンド実行</span>
+                                        </span>
+                                    </label>
+                                    <!-- 他のツールも同様に -->
+                                </div>
+                                <div class="custom-tools-group">
+                                    <label for="custom-disallowed-tools">カスタムツール（カンマ区切り）</label>
+                                    <input 
+                                        type="text" 
+                                        id="custom-disallowed-tools" 
+                                        name="customDisallowedTools"
+                                        placeholder="例: Bash(rm:*), Bash(sudo:*)"
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 高度な設定（折りたたみ） -->
+                        <details class="advanced-settings">
+                            <summary class="advanced-toggle">
+                                <span class="collapse-icon">▶</span>
+                                高度な設定
+                            </summary>
+                            
+                            <div class="advanced-content">
+                                <!-- タイムアウト設定 -->
+                                <div class="form-group">
+                                    <label for="timeout">
+                                        タイムアウト（秒）
+                                        <span class="info-icon" title="タスクの最大実行時間">ⓘ</span>
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        id="timeout" 
+                                        name="timeout"
+                                        value="600"
+                                        min="1"
+                                        max="3600"
+                                        class="number-input"
+                                    >
+                                </div>
+
+                                <!-- 出力形式 -->
+                                <div class="form-group">
+                                    <label>出力形式</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio" name="outputFormat" value="text" checked>
+                                            <span>テキスト</span>
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio" name="outputFormat" value="json">
+                                            <span>JSON</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <!-- 実行環境 -->
+                                <div class="form-group">
+                                    <label for="executable">実行環境</label>
+                                    <select id="executable" class="select-input">
+                                        <option value="node">Node.js</option>
+                                        <option value="python">Python</option>
+                                        <option value="bash">Bash</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- MCP設定 -->
+                                <div class="form-group">
+                                    <label for="mcp-config">
+                                        MCP設定（JSON）
+                                        <span class="info-icon" title="Model Context Protocol設定">ⓘ</span>
+                                    </label>
+                                    <textarea id="mcp-config" 
+                                              rows="4" 
+                                              class="code-input"
+                                              placeholder='{"server-name": {"command": "path/to/server"}}'></textarea>
+                                    <div class="validation-message error" id="mcp-validation"></div>
+                                </div>
+                                
+                                <!-- セッション管理 -->
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="continue-session">
+                                        <span>前回のセッションを継続</span>
+                                    </label>
+                                </div>
+                                
+                                <!-- 詳細ログ -->
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="verbose">
+                                        <span>詳細ログを表示</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- Git Worktreeオプション -->
+                        <div class="form-group">
                             <label class="checkbox-label">
-                                <input type="checkbox" name="keepWorktree">
-                                タスク完了後もWorktreeを保持
+                                <input type="checkbox" id="use-worktree" name="useWorktree">
+                                <span>Git Worktreeを使用（独立した作業ディレクトリで実行）</span>
                             </label>
+                            <div id="worktree-options" class="worktree-options" style="display: none;">
+                                <div class="form-group">
+                                    <label for="worktree-branch">ブランチ名（オプション）</label>
+                                    <input 
+                                        type="text" 
+                                        id="worktree-branch" 
+                                        name="worktreeBranch"
+                                        placeholder="例: feature/task-123"
+                                        class="text-input"
+                                    >
+                                    <small>指定しない場合は自動生成されます</small>
+                                </div>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="keepWorktree">
+                                    <span>タスク完了後もWorktreeを保持</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">タスクを実行</button>
+                    <button type="submit" class="btn btn-primary btn-large">タスクを実行</button>
                 </form>
             </section>
 
@@ -134,7 +362,7 @@
             <section class="task-list-section">
                 <h2>タスク一覧</h2>
                 <div class="task-filters">
-                    <select id="status-filter">
+                    <select id="status-filter" class="select-input">
                         <option value="">すべて</option>
                         <option value="pending">待機中</option>
                         <option value="running">実行中</option>
@@ -166,9 +394,43 @@
                 </div>
             </div>
         </div>
+
+        <!-- プリセット保存モーダル -->
+        <div id="save-preset-modal" class="modal hidden">
+            <div class="modal-content modal-small">
+                <span class="close">&times;</span>
+                <h2>プリセットを保存</h2>
+                <form id="save-preset-form">
+                    <div class="form-group">
+                        <label for="preset-name">プリセット名</label>
+                        <input type="text" id="preset-name" required placeholder="例: 開発用設定">
+                    </div>
+                    <div class="form-group">
+                        <label for="preset-description">説明（オプション）</label>
+                        <textarea id="preset-description" rows="3" placeholder="このプリセットの用途を入力"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-save-preset">キャンセル</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- プリセット管理モーダル -->
+        <div id="manage-presets-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>プリセット管理</h2>
+                <div class="preset-list" id="preset-list">
+                    <!-- プリセット一覧がここに表示される -->
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="api.js"></script>
+    <script src="app-common.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

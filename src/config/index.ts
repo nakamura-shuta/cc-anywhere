@@ -55,7 +55,7 @@ const envSchema = z.object({
     .transform((v) => v === "true"),
   WORKTREE_CLEANUP_DELAY: z.string().default("300000").transform(Number), // 5分
   WORKTREE_PREFIX: z.string().default("cc-anywhere"),
-  WORKTREE_DEFAULT_BASE_BRANCH: z.string().default("master"),
+  WORKTREE_DEFAULT_BASE_BRANCH: z.string().optional(), // デフォルトは現在のブランチを使用
   // Claude Code SDK設定
   DEFAULT_MAX_TURNS: z.string().default("3").transform(Number),
 });

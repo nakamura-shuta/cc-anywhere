@@ -41,7 +41,7 @@ export interface Worktree {
   /** ブランチ名 */
   branch: string;
   /** ベースブランチ名 */
-  baseBranch: string;
+  baseBranch?: string;
   /** リポジトリパス */
   repository: string;
   /** 作成日時 */
@@ -104,8 +104,8 @@ export interface CreateWorktreeOptions {
   taskId: string;
   /** リポジトリパス */
   repositoryPath: string;
-  /** ベースブランチ */
-  baseBranch: string;
+  /** ベースブランチ（省略時は現在のブランチ） */
+  baseBranch?: string;
   /** ブランチ名（オプション） */
   branchName?: string;
 }

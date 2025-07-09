@@ -21,6 +21,13 @@ vi.mock("simple-git", () => {
     remove: vi.fn().mockReturnThis(),
     list: vi.fn().mockResolvedValue([]),
     raw: vi.fn().mockResolvedValue(""),
+    revparse: vi.fn().mockResolvedValue("abc123\n"),
+    branchLocal: vi.fn().mockResolvedValue({
+      all: ["main", "develop"],
+      branches: {},
+      current: "main",
+      detached: false
+    }),
     commit: vi.fn().mockResolvedValue({
       commit: "abc123",
       summary: { changes: 1, insertions: 10, deletions: 5 },
@@ -45,6 +52,33 @@ describe("GitService", () => {
     // simple-gitモジュールを再インポート
     const simpleGitModule = await import("simple-git");
     mockGit = simpleGitModule.default();
+    
+    // モックを再設定
+    mockGit.checkIsRepo.mockResolvedValue(true);
+    mockGit.status.mockResolvedValue({
+      current: "main",
+      files: [],
+      ahead: 0,
+      behind: 0,
+    });
+    mockGit.branch.mockResolvedValue({
+      current: "main",
+      all: ["main", "develop"],
+    });
+    mockGit.raw.mockResolvedValue("");
+    mockGit.revparse.mockResolvedValue("abc123\n");
+    mockGit.branchLocal.mockResolvedValue({
+      all: ["main", "develop"],
+      branches: {},
+      current: "main",
+      detached: false
+    });
+    mockGit.add.mockResolvedValue(undefined);
+    mockGit.commit.mockResolvedValue({
+      commit: "abc123",
+      summary: { changes: 1, insertions: 10, deletions: 5 },
+    });
+    mockGit.diff.mockResolvedValue("");
 
     gitService = new GitService();
   });
@@ -82,26 +116,27 @@ describe("GitService", () => {
 
   describe("getCurrentBranch", () => {
     it("現在のブランチ名を返す", async () => {
-      mockGit.branch.mockResolvedValue({
-        current: "feature/test",
-        all: ["main", "feature/test"],
-      });
+      mockGit.revparse.mockResolvedValue("feature/test\n");
 
       const result = await gitService.getCurrentBranch("/repos/test");
 
       expect(result).toBe("feature/test");
+      expect(mockGit.revparse).toHaveBeenCalledWith(["--abbrev-ref", "HEAD"]);
     });
 
-    it("エラー時はWorktreeErrorをスロー", async () => {
-      mockGit.branch.mockRejectedValue(new Error("Git error"));
+    it("エラー時はHEADを返す", async () => {
+      mockGit.revparse.mockRejectedValue(new Error("Git error"));
 
-      await expect(gitService.getCurrentBranch("/repos/test")).rejects.toThrow(WorktreeError);
+      const result = await gitService.getCurrentBranch("/repos/test");
+      
+      expect(result).toBe("HEAD");
     });
   });
 
   describe("createWorktree", () => {
     it("worktreeを作成できる", async () => {
-      mockGit.raw.mockResolvedValue("");
+      mockGit.revparse.mockResolvedValueOnce("main\n"); // getCurrentBranch用
+      mockGit.raw.mockResolvedValueOnce(""); // createWorktree用
 
       const result = await gitService.createWorktree(
         "/repos/test",
@@ -116,6 +151,7 @@ describe("GitService", () => {
         "-b",
         "feature/task-123",
         "/repos/test/.worktrees/task-123",
+        "main",
       ]);
     });
 
@@ -141,7 +177,8 @@ describe("GitService", () => {
     });
 
     it("作成エラー時は失敗結果を返す", async () => {
-      mockGit.raw.mockRejectedValue(new Error("worktree already exists"));
+      mockGit.revparse.mockResolvedValueOnce("main\n"); // getCurrentBranch用
+      mockGit.raw.mockRejectedValueOnce(new Error("worktree already exists")); // createWorktree用
 
       const result = await gitService.createWorktree(
         "/repos/test",

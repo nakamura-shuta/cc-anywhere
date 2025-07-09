@@ -914,3 +914,61 @@ select {
         padding: 12px;
     }
 }
+/* タスク一覧セクションの幅調整 */
+@media (min-width: 769px) {
+    .task-list-section {
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
+/* タスクフォームセクションの幅調整 */
+@media (min-width: 769px) {
+    .task-form-section {
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
+/* 入力フィールドのエラー状態 */
+input.error,
+textarea.error,
+select.error {
+    border-color: var(--error-color);
+    background-color: #fef2f2;
+}
+
+input.error:focus,
+textarea.error:focus,
+select.error:focus {
+    outline-color: var(--error-color);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* プリセットコントロールの改善 */
+.preset-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.preset-controls .preset-select {
+    flex: 1;
+}
+
+.preset-controls .btn-sm {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.btn-danger {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
+}

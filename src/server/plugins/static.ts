@@ -8,5 +8,7 @@ export async function registerStaticPlugin(fastify: FastifyInstance): Promise<vo
     root: path.join(process.cwd(), "web"),
     prefix: "/", // Serve at root level
     decorateReply: false, // Don't decorate reply
+    // デフォルトでindex.html（高機能版）を使用
+    index: ["index.html"],
   });
 }

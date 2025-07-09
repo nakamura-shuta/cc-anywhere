@@ -1,0 +1,39 @@
+{
+  "presets": [
+    {
+      "id": "default",
+      "name": "デフォルト設定",
+      "description": "一般的なタスク用の標準設定",
+      "isSystem": true,
+      "settings": {
+        "sdk": {
+          "maxTurns": 3,
+          "permissionMode": "ask",
+          "allowedTools": ["Read", "Write", "Edit"],
+          "outputFormat": "text"
+        },
+        "timeout": 600000,
+        "useWorktree": false
+      }
+    }
+  ],
+  "userPresets": [
+    {
+      "id": "my-custom-preset",
+      "name": "カスタムプリセット例",
+      "description": "ユーザー定義のプリセット",
+      "isSystem": false,
+      "settings": {
+        "sdk": {
+          "maxTurns": 5,
+          "permissionMode": "ask",
+          "allowedTools": ["Read", "Write", "Edit", "Bash"],
+          "systemPrompt": "コードの品質とセキュリティに注意してください",
+          "outputFormat": "json"
+        },
+        "timeout": 900000,
+        "useWorktree": true
+      }
+    }
+  ]
+}

@@ -7,6 +7,16 @@ export interface ClaudeCodeOptions {
   cwd?: string;
   abortController?: AbortController;
   allowedTools?: string[];
+  disallowedTools?: string[];
+  systemPrompt?: string;
+  permissionMode?: string;
+  executable?: string;
+  executableArgs?: string[];
+  mcpConfig?: Record<string, any>;
+  continueSession?: boolean;
+  resumeSession?: string;
+  outputFormat?: string;
+  verbose?: boolean;
   onProgress?: (progress: { type: string; message: string }) => void | Promise<void>;
 }
 

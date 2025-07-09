@@ -183,6 +183,101 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                   default: 300000,
                 },
                 async: { type: "boolean", default: false },
+                allowedTools: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Legacy option - use sdk.allowedTools instead",
+                },
+                sdk: {
+                  type: "object",
+                  properties: {
+                    // Priority: High
+                    maxTurns: {
+                      type: "integer",
+                      minimum: 1,
+                      maximum: 50,
+                      description: "Maximum conversation turns",
+                    },
+                    allowedTools: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "List of allowed tools",
+                    },
+                    disallowedTools: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "List of disallowed tools",
+                    },
+                    systemPrompt: {
+                      type: "string",
+                      maxLength: 10000,
+                      description: "Custom system prompt",
+                    },
+                    permissionMode: {
+                      type: "string",
+                      enum: ["ask", "allow", "deny", "acceptEdits", "bypassPermissions", "plan"],
+                      description: "Permission mode",
+                    },
+                    // Priority: Medium
+                    executable: {
+                      type: "string",
+                      enum: ["node", "bun", "deno"],
+                      description: "JavaScript execution environment",
+                    },
+                    executableArgs: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Additional arguments for executable",
+                    },
+                    mcpConfig: {
+                      type: "object",
+                      additionalProperties: {
+                        type: "object",
+                        properties: {
+                          command: { type: "string" },
+                          args: {
+                            type: "array",
+                            items: { type: "string" },
+                          },
+                          env: {
+                            type: "object",
+                            additionalProperties: { type: "string" },
+                          },
+                          cwd: { type: "string" },
+                        },
+                        required: ["command"],
+                      },
+                      description: "MCP configuration",
+                    },
+                    continueSession: {
+                      type: "boolean",
+                      description: "Continue latest session",
+                    },
+                    resumeSession: {
+                      type: "string",
+                      description: "Resume specific session ID",
+                    },
+                    outputFormat: {
+                      type: "string",
+                      enum: ["text", "json", "stream-json"],
+                      description: "Output format",
+                    },
+                    // Priority: Low
+                    verbose: {
+                      type: "boolean",
+                      description: "Enable verbose logging",
+                    },
+                    permissionPromptTool: {
+                      type: "string",
+                      description: "Custom permission prompt tool",
+                    },
+                    pathToClaudeCodeExecutable: {
+                      type: "string",
+                      description: "Path to Claude Code executable",
+                    },
+                  },
+                  additionalProperties: false,
+                },
               },
             },
           },

@@ -13,7 +13,7 @@
     "start:worker": "node dist/worker/index.js",
     "start:standalone": "WORKER_MODE=standalone node dist/index.js",
     "start:managed": "WORKER_MODE=managed node dist/index.js",
-    "test": "vitest",
+    "test": "echo '\\n❌ Error: Use specific test commands instead of watch mode\\n\\n✅ Available commands:\\n  - npm run test:unit       : Run unit tests once\\n  - npm run test:integration: Run integration tests once\\n  - npm run test:watch      : Run tests in watch mode (if needed)\\n' && exit 1",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:watch": "vitest",
