@@ -1,10 +1,13 @@
 # CC-Anywhere TODO List
 
+計画・実装時は以下のドキュメントの仕様に従って実装してください。
+* https://docs.anthropic.com/ja/docs/claude-code/sdk
+
 ## Claude Code SDK オプションパラメータ対応
 
 Claude Code SDKの実行時に指定可能なオプションパラメータへの対応を、優先度順に整理します。
 
-あと、そろそろUIの見直し（スマフォ版含む）も必要。
+これを実装したあと、UIの見直し（スマフォ版含む）も必要。
 
 ### 優先度: 高 🔴
 
