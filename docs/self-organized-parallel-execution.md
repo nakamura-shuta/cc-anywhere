@@ -10,7 +10,7 @@
 
 ```
 ┌─────────────────┐
-│   司令塔タスク   │ (Orchestrator)
+│   司令塔タスク    │ (Orchestrator)
 │ /api/tasks POST │
 └────────┬────────┘
          │ HTTP APIを通じて他のタスクを作成

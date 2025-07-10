@@ -17,7 +17,7 @@ cc-anywhereを使用して、複数のタスクを並列実行する方法を説
 # parallel-tasks.sh
 
 API_URL="http://localhost:5000/api/tasks"
-API_KEY="hoge"
+API_KEY="your key"
 
 # タスク1: バックエンド開発
 curl -X POST $API_URL \
@@ -117,9 +117,3 @@ curl -X POST http://localhost:5000/api/tasks \
 2. **適切なツール許可**: 必要なツールのみを`allowedTools`に含める
 3. **エラーハンドリング**: タスクの失敗を考慮した設計
 4. **リソース管理**: 同時実行タスク数を適切に制限
-
-## 実例
-
-完全な実装例は以下を参照：
-- `/docs/self-organized-parallel-execution.md`
-- `/.work/sandbox/self-orchestrated-with-commit.sh`

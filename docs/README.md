@@ -20,6 +20,10 @@ CC-Anywhereは、Claude Code SDKを使用してHTTP経由でタスクを実行�
 - [WebSocket通信](./features/websocket.md) - リアルタイムログとステータス
 - [スラッシュコマンド](./features/slash-commands.md) - カスタムコマンド
 
+### 🚀 並列実行
+- [並列実行クイックスタート](./parallel-execution-quickstart.md) - 複数タスクの同時実行
+- [自己組織化型並列実行](./self-organized-parallel-execution.md) - 司令塔パターンの実装例
+
 ### 🏗️ アーキテクチャ
 - [システム概要](./architecture/overview.md) - 全体アーキテクチャ
 - [ワーカーシステム](./architecture/worker-system.md) - 並行タスク処理
