@@ -392,9 +392,9 @@ function renderTaskDetail(task) {
         ${task.result ? `
         <div class="detail-row">
             <span class="detail-label">実行結果:</span>
-            <span class="detail-value" style="white-space: pre-wrap; background: #f5f5f5; padding: 10px; border-radius: 4px; display: block; margin-top: 5px;">
-                ${escapeHtml(typeof task.result === 'string' ? task.result : JSON.stringify(task.result, null, 2))}
-            </span>
+            <div class="detail-value result-container">
+                ${formatResult(task.result)}
+            </div>
         </div>
         ` : ''}
         ${task.error ? `
@@ -413,6 +413,15 @@ function renderTaskDetail(task) {
 
 // タスクのログを表示
 function displayTaskLogs(task) {
+    // 実行中のタスクの場合、進捗インジケーターを開始
+    if (task.status === 'running') {
+        lastLogUpdateTime = Date.now();
+        updateProgressIndicator();
+    } else {
+        // 完了済みのタスクの場合は進捗インジケーターを停止
+        stopProgressIndicator();
+    }
+    
     let logsToRender = [];
     
     // まずresult内のlogsを確認
@@ -583,6 +592,32 @@ function updateLocalTaskData(taskId, payload) {
     }
 }
 
+// ログパターンマッチング
+const LOG_PATTERNS = {
+    start: /タスク.*開始|Task started/,
+    setup: /作業ディレクトリ|Working directory/,
+    executing: /Claude Code.*実行中/,
+    messageCount: /Received (\d+) messages from Claude Code/,
+    complete: /Task completed|完了/,
+    error: /Error|エラー|失敗/
+};
+
+// ログタイプとアイコンのマッピング
+const LOG_ICONS = {
+    start: '🚀',
+    setup: '📁',
+    executing: '⚡',
+    messageCount: '💬',
+    complete: '✅',
+    error: '❌',
+    default: '📝'
+};
+
+// 進捗インジケーター管理
+let lastLogUpdateTime = Date.now();
+let progressUpdateInterval = null;
+let stillProcessingInterval = null;
+
 // タスクログ処理
 function handleTaskLog(payload) {
     if (selectedTaskId === payload.taskId) {
@@ -593,11 +628,33 @@ function handleTaskLog(payload) {
             logContainer.innerHTML = '';
         }
         
+        // 最終更新時刻を更新
+        lastLogUpdateTime = Date.now();
+        updateProgressIndicator();
+        
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry';
         
         const timestamp = new Date(payload.timestamp).toLocaleTimeString('ja-JP');
         const logMessage = payload.log || '';
+        
+        // ログタイプを判定
+        let logType = 'default';
+        let messageCount = null;
+        
+        for (const [type, pattern] of Object.entries(LOG_PATTERNS)) {
+            if (pattern.test(logMessage)) {
+                logType = type;
+                if (type === 'messageCount') {
+                    const match = logMessage.match(pattern);
+                    messageCount = match ? parseInt(match[1]) : null;
+                }
+                break;
+            }
+        }
+        
+        const icon = LOG_ICONS[logType];
+        const isAnimated = logType === 'executing';
         
         let styledMessage = escapeHtml(logMessage);
         if (logMessage.startsWith('[') && logMessage.includes(']')) {
@@ -609,17 +666,98 @@ function handleTaskLog(payload) {
             });
         }
         
+        // メッセージカウントの特別表示
+        if (messageCount !== null) {
+            styledMessage = `Claude Codeから<span class="message-count">${messageCount}</span>件のメッセージ`;
+        }
+        
         logEntry.innerHTML = `
             <span class="log-timestamp">${timestamp}</span>
-            <span>${styledMessage}</span>
+            <span class="log-icon ${isAnimated ? 'animated-pulse' : ''}">${icon}</span>
+            <span class="log-message">${styledMessage}</span>
         `;
+        
+        logEntry.classList.add(`log-type-${logType}`);
+        
+        // 最新のエントリーをハイライト
+        const previousLatest = logContainer.querySelector('.log-entry-latest');
+        if (previousLatest) {
+            previousLatest.classList.remove('log-entry-latest');
+        }
+        logEntry.classList.add('log-entry-latest');
         
         logContainer.appendChild(logEntry);
         
         requestAnimationFrame(() => {
             logContainer.scrollTop = logContainer.scrollHeight;
         });
+        
+        // タスク完了時は進捗インジケーターを停止
+        if (logType === 'complete' || logType === 'error') {
+            stopProgressIndicator();
+        }
     }
+}
+
+// 進捗インジケーターの更新
+function updateProgressIndicator() {
+    const logHeader = document.querySelector('.log-header');
+    if (!logHeader) return;
+    
+    // 最終更新からの経過時間を表示
+    if (!progressUpdateInterval) {
+        progressUpdateInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - lastLogUpdateTime) / 1000);
+            const indicator = document.querySelector('.progress-indicator');
+            if (indicator) {
+                indicator.textContent = `最終更新: ${elapsed}秒前`;
+            }
+            
+            // 30秒以上更新がない場合、「まだ処理中」メッセージを表示
+            if (elapsed >= 30 && !stillProcessingInterval) {
+                stillProcessingInterval = setInterval(() => {
+                    showStillProcessingMessage();
+                }, 5000);
+            }
+        }, 1000);
+    }
+}
+
+// 進捗インジケーターの停止
+function stopProgressIndicator() {
+    if (progressUpdateInterval) {
+        clearInterval(progressUpdateInterval);
+        progressUpdateInterval = null;
+    }
+    if (stillProcessingInterval) {
+        clearInterval(stillProcessingInterval);
+        stillProcessingInterval = null;
+    }
+    
+    const indicator = document.querySelector('.progress-indicator');
+    if (indicator) {
+        indicator.textContent = '';
+    }
+}
+
+// 「まだ処理中」メッセージの表示
+function showStillProcessingMessage() {
+    const logContainer = document.getElementById('task-logs');
+    if (!logContainer) return;
+    
+    const stillProcessingEntry = document.createElement('div');
+    stillProcessingEntry.className = 'log-entry log-type-processing';
+    stillProcessingEntry.innerHTML = `
+        <span class="log-timestamp">${new Date().toLocaleTimeString('ja-JP')}</span>
+        <span class="log-icon animated-pulse">⏳</span>
+        <span class="log-message">まだ処理中です...</span>
+    `;
+    
+    logContainer.appendChild(stillProcessingEntry);
+    
+    requestAnimationFrame(() => {
+        logContainer.scrollTop = logContainer.scrollHeight;
+    });
 }
 
 // 接続ステータス更新
@@ -668,6 +806,107 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// コンテンツタイプの判定
+function detectContentType(content) {
+    if (typeof content === 'object') return 'json';
+    
+    const str = String(content);
+    
+    // Markdown判定（見出し、リスト、コードブロックなど）
+    if (/^#{1,6}\s+.+/m.test(str) || /^\s*[-*+]\s+.+/m.test(str) || /^```/m.test(str)) {
+        return 'markdown';
+    }
+    
+    // JSON判定
+    try {
+        JSON.parse(str);
+        return 'json';
+    } catch {}
+    
+    return 'text';
+}
+
+// Markdownの簡易レンダリング
+function renderMarkdown(text) {
+    let html = escapeHtml(text);
+    
+    // コードブロック
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        return `<pre class="code-block"><code>${code}</code></pre>`;
+    });
+    
+    // インラインコード
+    html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    
+    // 見出し
+    html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+    
+    // 太字
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // リスト
+    html = html.replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    
+    // 改行を<br>に
+    html = html.replace(/\n/g, '<br>');
+    
+    return html;
+}
+
+// 結果の表示フォーマット
+function formatResult(result) {
+    const contentType = detectContentType(result);
+    
+    switch (contentType) {
+        case 'markdown':
+            return `
+                <div class="result-formatted">
+                    <div class="result-toolbar">
+                        <span class="result-type">Markdown</span>
+                        <button class="btn-small" onclick="toggleRawResult(this)">生データを表示</button>
+                        <button class="btn-small" onclick="copyResult(this)">コピー</button>
+                    </div>
+                    <div class="result-content markdown-content">
+                        ${renderMarkdown(result)}
+                    </div>
+                    <div class="result-raw" style="display: none;">
+                        <pre>${escapeHtml(result)}</pre>
+                    </div>
+                </div>
+            `;
+        
+        case 'json':
+            const jsonStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+            return `
+                <div class="result-formatted">
+                    <div class="result-toolbar">
+                        <span class="result-type">JSON</span>
+                        <button class="btn-small" onclick="copyResult(this)">コピー</button>
+                    </div>
+                    <div class="result-content">
+                        <pre class="json-content">${escapeHtml(jsonStr)}</pre>
+                    </div>
+                </div>
+            `;
+        
+        default:
+            return `
+                <div class="result-formatted">
+                    <div class="result-toolbar">
+                        <span class="result-type">Text</span>
+                        <button class="btn-small" onclick="copyResult(this)">コピー</button>
+                    </div>
+                    <div class="result-content">
+                        <pre>${escapeHtml(result)}</pre>
+                    </div>
+                </div>
+            `;
+    }
+}
+
 // エラー表示
 function showError(message) {
     console.error(message);
@@ -696,3 +935,37 @@ function showNotification(message, type = 'info') {
         notification.remove();
     }, 3000);
 }
+
+// 生データ表示の切り替え
+function toggleRawResult(button) {
+    const container = button.closest('.result-formatted');
+    const content = container.querySelector('.result-content');
+    const raw = container.querySelector('.result-raw');
+    
+    if (raw.style.display === 'none') {
+        content.style.display = 'none';
+        raw.style.display = 'block';
+        button.textContent = 'フォーマット表示';
+    } else {
+        content.style.display = 'block';
+        raw.style.display = 'none';
+        button.textContent = '生データを表示';
+    }
+}
+
+// 結果のコピー
+function copyResult(button) {
+    const container = button.closest('.result-formatted');
+    const raw = container.querySelector('.result-raw pre');
+    const content = raw ? raw.textContent : container.querySelector('pre').textContent;
+    
+    navigator.clipboard.writeText(content).then(() => {
+        showNotification('コピーしました', 'success');
+    }).catch(() => {
+        showError('コピーに失敗しました');
+    });
+}
+
+// グローバル関数として公開
+window.toggleRawResult = toggleRawResult;
+window.copyResult = copyResult;
