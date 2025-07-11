@@ -972,3 +972,140 @@ select.error:focus {
 .btn-danger:hover {
     background-color: #dc2626;
 }
+
+/* タスク一覧セクションの幅を固定 */
+.task-list-section {
+    min-height: 600px; /* 最小高さを設定 */
+}
+
+.task-list {
+    min-height: 400px; /* タスクリストの最小高さ */
+}
+
+/* タスクがない場合の表示 */
+.empty-state {
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 16px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-secondary);
+    opacity: 0.7;
+}
+
+/* ページネーションスタイル */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
+    padding: 15px;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+/* 下部のページネーション（ナビゲーションのみ） */
+.pagination-bottom {
+    justify-content: center;
+}
+
+.pagination-bottom .pagination-controls {
+    margin: 0;
+}
+
+.pagination-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.item-count {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.items-per-page {
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.pagination-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    min-width: 40px;
+    font-family: inherit;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: var(--bg-hover);
+    border-color: var(--primary-color);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.page-ellipsis {
+    padding: 0 10px;
+    color: var(--text-secondary);
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    .pagination-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .pagination-info {
+        justify-content: space-between;
+    }
+    
+    .pagination-controls {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .pagination-btn {
+        font-size: 12px;
+        padding: 6px 10px;
+        min-width: 35px;
+    }
+}

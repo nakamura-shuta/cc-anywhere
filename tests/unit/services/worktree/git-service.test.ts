@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { GitService } from "../../../../src/services/worktree/git-service";
-import { WorktreeError } from "../../../../src/services/worktree/types";
 
 // simple-gitのモック
 vi.mock("simple-git", () => {
@@ -26,7 +25,7 @@ vi.mock("simple-git", () => {
       all: ["main", "develop"],
       branches: {},
       current: "main",
-      detached: false
+      detached: false,
     }),
     commit: vi.fn().mockResolvedValue({
       commit: "abc123",
@@ -52,7 +51,7 @@ describe("GitService", () => {
     // simple-gitモジュールを再インポート
     const simpleGitModule = await import("simple-git");
     mockGit = simpleGitModule.default();
-    
+
     // モックを再設定
     mockGit.checkIsRepo.mockResolvedValue(true);
     mockGit.status.mockResolvedValue({
@@ -71,7 +70,7 @@ describe("GitService", () => {
       all: ["main", "develop"],
       branches: {},
       current: "main",
-      detached: false
+      detached: false,
     });
     mockGit.add.mockResolvedValue(undefined);
     mockGit.commit.mockResolvedValue({
@@ -128,7 +127,7 @@ describe("GitService", () => {
       mockGit.revparse.mockRejectedValue(new Error("Git error"));
 
       const result = await gitService.getCurrentBranch("/repos/test");
-      
+
       expect(result).toBe("HEAD");
     });
   });

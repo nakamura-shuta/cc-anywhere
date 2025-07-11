@@ -36,7 +36,7 @@ async function init() {
     loadTasks();
     
     // 定期的にタスク一覧を更新（5秒ごと）
-    setInterval(loadTasks, 5000);
+    setInterval(() => loadTasks(), 5000);
     
     // グローバル関数として公開
     window.cancelTask = cancelTask;
@@ -124,11 +124,9 @@ function setupEventListeners() {
     // ステータスフィルター
     document.getElementById('status-filter').addEventListener('change', (e) => {
         statusFilter = e.target.value;
-        renderTasks();
+        pagination.currentPage = 1; // フィルタ変更時は1ページ目にリセット
+        loadTasks(1);
     });
-
-    // 更新ボタン
-    document.getElementById('refresh-tasks').addEventListener('click', loadTasks);
 
     // モーダル閉じるボタン
     document.querySelector('.close').addEventListener('click', closeModal);

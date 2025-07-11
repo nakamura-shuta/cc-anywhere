@@ -1,10 +1,29 @@
 // 共通ユーティリティ関数と基本的なタスク管理機能
 // app.js と app-simple.js で共有される関数
 
-// タスク一覧読み込み
-async function loadTasks() {
+// ページネーション状態管理
+const pagination = {
+    currentPage: 1,
+    itemsPerPage: 20,
+    totalItems: 0,
+    totalPages: 0
+};
+
+// タスク一覧読み込み（ページネーション対応）
+async function loadTasks(page = null) {
     try {
-        const response = await apiClient.getTasks();
+        // ページ指定がある場合は更新
+        if (page !== null) {
+            pagination.currentPage = page;
+        }
+        
+        const offset = (pagination.currentPage - 1) * pagination.itemsPerPage;
+        const response = await apiClient.getTasks(statusFilter, pagination.itemsPerPage, offset);
+        
+        // ページネーション情報を更新
+        pagination.totalItems = response.total || 0;
+        pagination.totalPages = Math.ceil(pagination.totalItems / pagination.itemsPerPage);
+        
         const tasks = response.tasks || response;
         currentTasks.clear();
         
@@ -19,6 +38,7 @@ async function loadTasks() {
         }
         
         renderTasks();
+        renderPagination();
     } catch (error) {
         showError(`タスクの読み込みに失敗しました: ${error.message}`);
     }
@@ -34,7 +54,10 @@ function renderTasks() {
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     if (filteredTasks.length === 0) {
-        taskList.innerHTML = '<div class="task-item">タスクがありません</div>';
+        const emptyMessage = statusFilter 
+            ? `「${getStatusText(statusFilter)}」のタスクはありません` 
+            : 'タスクがありません';
+        taskList.innerHTML = `<div class="empty-state">${emptyMessage}</div>`;
         return;
     }
 
@@ -42,6 +65,165 @@ function renderTasks() {
         const taskElement = createTaskElement(task);
         taskList.appendChild(taskElement);
     });
+}
+
+// ページネーションUIをレンダリング
+function renderPagination() {
+    const paginationTop = document.getElementById('pagination-top');
+    const paginationBottom = document.getElementById('pagination-bottom');
+    
+    if (!paginationTop && !paginationBottom) return;
+    
+    // ページネーションが不要な場合（1ページ以下）
+    if (pagination.totalPages <= 1) {
+        if (paginationTop) paginationTop.innerHTML = '';
+        if (paginationBottom) paginationBottom.innerHTML = '';
+        return;
+    }
+    
+    const startItem = (pagination.currentPage - 1) * pagination.itemsPerPage + 1;
+    const endItem = Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems);
+    
+    // 上部のページネーション（表示件数情報と選択ボックス付き）
+    const paginationTopHTML = `
+        <div class="pagination-container">
+            <div class="pagination-info">
+                <span class="item-count">${startItem}-${endItem} / 全${pagination.totalItems}件</span>
+                <select class="items-per-page" id="items-per-page">
+                    <option value="10" ${pagination.itemsPerPage === 10 ? 'selected' : ''}>10件</option>
+                    <option value="20" ${pagination.itemsPerPage === 20 ? 'selected' : ''}>20件</option>
+                    <option value="50" ${pagination.itemsPerPage === 50 ? 'selected' : ''}>50件</option>
+                    <option value="100" ${pagination.itemsPerPage === 100 ? 'selected' : ''}>100件</option>
+                </select>
+            </div>
+            
+            <nav class="pagination-controls" aria-label="ページネーション">
+                <button 
+                    class="pagination-btn prev-page" 
+                    ${pagination.currentPage === 1 ? 'disabled' : ''}
+                    onclick="changePage(${pagination.currentPage - 1})"
+                    aria-label="前のページ"
+                >
+                    前へ
+                </button>
+                
+                <div class="page-numbers">
+                    ${generatePageNumbers()}
+                </div>
+                
+                <button 
+                    class="pagination-btn next-page" 
+                    ${pagination.currentPage === pagination.totalPages ? 'disabled' : ''}
+                    onclick="changePage(${pagination.currentPage + 1})"
+                    aria-label="次のページ"
+                >
+                    次へ
+                </button>
+            </nav>
+        </div>
+    `;
+    
+    // 下部のページネーション（ナビゲーションのみ）
+    const paginationBottomHTML = `
+        <div class="pagination-container pagination-bottom">
+            <nav class="pagination-controls" aria-label="ページネーション">
+                <button 
+                    class="pagination-btn prev-page" 
+                    ${pagination.currentPage === 1 ? 'disabled' : ''}
+                    onclick="changePage(${pagination.currentPage - 1})"
+                    aria-label="前のページ"
+                >
+                    前へ
+                </button>
+                
+                <div class="page-numbers">
+                    ${generatePageNumbers()}
+                </div>
+                
+                <button 
+                    class="pagination-btn next-page" 
+                    ${pagination.currentPage === pagination.totalPages ? 'disabled' : ''}
+                    onclick="changePage(${pagination.currentPage + 1})"
+                    aria-label="次のページ"
+                >
+                    次へ
+                </button>
+            </nav>
+        </div>
+    `;
+    
+    if (paginationTop) paginationTop.innerHTML = paginationTopHTML;
+    if (paginationBottom) paginationBottom.innerHTML = paginationBottomHTML;
+    
+    // 表示件数変更イベントを設定（上部のみ）
+    const itemsPerPageSelect = document.getElementById('items-per-page');
+    if (itemsPerPageSelect) {
+        itemsPerPageSelect.addEventListener('change', (e) => {
+            pagination.itemsPerPage = parseInt(e.target.value);
+            pagination.currentPage = 1; // 1ページ目にリセット
+            loadTasks(1);
+        });
+    }
+}
+
+// ページ番号ボタンを生成
+function generatePageNumbers() {
+    const pages = [];
+    const maxVisible = 7;
+    
+    if (pagination.totalPages <= maxVisible) {
+        // 全ページを表示
+        for (let i = 1; i <= pagination.totalPages; i++) {
+            pages.push(createPageButton(i));
+        }
+    } else {
+        // 省略記号を使用
+        if (pagination.currentPage <= 3) {
+            // 先頭付近
+            for (let i = 1; i <= 5; i++) pages.push(createPageButton(i));
+            pages.push('<span class="page-ellipsis">...</span>');
+            pages.push(createPageButton(pagination.totalPages));
+        } else if (pagination.currentPage >= pagination.totalPages - 2) {
+            // 末尾付近
+            pages.push(createPageButton(1));
+            pages.push('<span class="page-ellipsis">...</span>');
+            for (let i = pagination.totalPages - 4; i <= pagination.totalPages; i++) {
+                pages.push(createPageButton(i));
+            }
+        } else {
+            // 中間
+            pages.push(createPageButton(1));
+            pages.push('<span class="page-ellipsis">...</span>');
+            for (let i = pagination.currentPage - 1; i <= pagination.currentPage + 1; i++) {
+                pages.push(createPageButton(i));
+            }
+            pages.push('<span class="page-ellipsis">...</span>');
+            pages.push(createPageButton(pagination.totalPages));
+        }
+    }
+    
+    return pages.join('');
+}
+
+// ページ番号ボタンを作成
+function createPageButton(page) {
+    const isActive = page === pagination.currentPage;
+    return `
+        <button 
+            class="pagination-btn page-number ${isActive ? 'active' : ''}"
+            onclick="changePage(${page})"
+            ${isActive ? 'aria-current="page"' : ''}
+            aria-label="ページ ${page}"
+        >
+            ${page}
+        </button>
+    `;
+}
+
+// ページ変更処理
+function changePage(page) {
+    if (page < 1 || page > pagination.totalPages) return;
+    loadTasks(page);
 }
 
 // 作業ディレクトリからリポジトリ名を抽出
@@ -64,9 +246,9 @@ function createTaskElement(task) {
     // workingDirectoryからリポジトリ名を抽出
     const repoName = extractRepoName(task.workingDirectory);
     
-    // instructionを60文字で省略
-    const truncatedInstruction = task.instruction.length > 60 
-        ? task.instruction.substring(0, 60) + '...' 
+    // instructionを40文字で省略
+    const truncatedInstruction = task.instruction.length > 40 
+        ? task.instruction.substring(0, 40) + '...' 
         : task.instruction;
 
     div.innerHTML = `
@@ -270,7 +452,7 @@ function renderTaskLogs(logs) {
     
     const logArray = Array.isArray(logs) ? logs : [logs];
     
-    logArray.forEach((log, index) => {
+    logArray.forEach((log) => {
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry';
         
@@ -419,7 +601,7 @@ function handleTaskLog(payload) {
         
         let styledMessage = escapeHtml(logMessage);
         if (logMessage.startsWith('[') && logMessage.includes(']')) {
-            styledMessage = logMessage.replace(/^\[([^\]]+)\](.*)$/, (match, tag, rest) => {
+            styledMessage = logMessage.replace(/^\[([^\]]+)\](.*)$/, (_, tag, rest) => {
                 const tagClass = tag.includes('✓') ? 'log-tag-success' : 
                                 tag.includes('✗') ? 'log-tag-error' : 
                                 'log-tag';

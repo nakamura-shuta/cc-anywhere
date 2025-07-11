@@ -86,9 +86,13 @@ class APIClient {
         return this.request('POST', '/api/batch/tasks', batchData);
     }
 
-    async getTasks(status = null) {
-        const query = status ? `?status=${status}` : '';
-        return this.request('GET', `/api/tasks${query}`);
+    async getTasks(status = null, limit = 20, offset = 0) {
+        const params = new URLSearchParams();
+        if (status) params.append('status', status);
+        params.append('limit', String(limit));
+        params.append('offset', String(offset));
+        
+        return this.request('GET', `/api/tasks?${params}`);
     }
 
     async getTask(taskId) {
