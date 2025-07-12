@@ -105,16 +105,16 @@
                                 </label>
                                 <div class="toggle-group" role="radiogroup">
                                     <button type="button" class="toggle-btn active" 
-                                            data-value="ask" data-description="実行前に確認">
-                                        確認する
+                                            data-value="default" data-description="実行前に確認">
+                                        デフォルト
                                     </button>
                                     <button type="button" class="toggle-btn" 
-                                            data-value="allow" data-description="自動的に許可">
-                                        許可
+                                            data-value="acceptEdits" data-description="編集のみ自動許可">
+                                        編集を許可
                                     </button>
                                     <button type="button" class="toggle-btn" 
-                                            data-value="deny" data-description="すべて拒否">
-                                        拒否
+                                            data-value="bypassPermissions" data-description="すべて自動許可">
+                                        すべて許可
                                     </button>
                                     <button type="button" class="toggle-btn" 
                                             data-value="plan" data-description="計画のみ作成">
@@ -402,8 +402,6 @@
                 <div class="task-logs">
                     <div class="log-header">
                         <h3>実行ログ</h3>
-                        <span class="progress-indicator"></span>
-                        <span class="spinner" style="display: none;">⟳</span>
                     </div>
                     <div id="task-logs" class="log-container">
                         <!-- ログがここに表示される -->

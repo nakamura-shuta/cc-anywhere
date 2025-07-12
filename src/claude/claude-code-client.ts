@@ -9,8 +9,8 @@ export interface ClaudeCodeOptions {
   allowedTools?: string[];
   disallowedTools?: string[];
   systemPrompt?: string;
-  permissionMode?: string;
-  executable?: string;
+  permissionMode?: "default" | "acceptEdits" | "bypassPermissions" | "plan";
+  executable?: "bun" | "deno" | "node";
   executableArgs?: string[];
   mcpConfig?: Record<string, any>;
   continueSession?: boolean;
@@ -53,6 +53,15 @@ export class ClaudeCodeClient {
           maxTurns: options.maxTurns || config.claudeCodeSDK.defaultMaxTurns,
           cwd: options.cwd,
           allowedTools: options.allowedTools,
+          disallowedTools: options.disallowedTools,
+          customSystemPrompt: options.systemPrompt,
+          permissionMode: options.permissionMode,
+          executable: options.executable,
+          executableArgs: options.executableArgs,
+          mcpServers: options.mcpConfig,
+          continue: options.continueSession,
+          resume: options.resumeSession,
+          // outputFormat and verbose are not supported by SDK
         },
       })) {
         messages.push(message);
@@ -150,162 +159,168 @@ export class ClaudeCodeClient {
   }
 
   private extractProgressContent(message: SDKMessage): string | null {
-    // Extract meaningful log content from SDK messages
     if (message.type === "result") {
-      const resultMsg = message as unknown as {
-        result?: unknown;
-        subtype?: string;
-        tool?: string;
-        input?: unknown;
-      };
-
-      // Extract output from tool executions
-      if (resultMsg.tool) {
-        let output = "";
-
-        // Handle different tool types
-        switch (resultMsg.tool) {
-          case "bash":
-          case "Bash": {
-            // Extract command from input
-            let command = "";
-            if (
-              typeof resultMsg.input === "object" &&
-              resultMsg.input !== null &&
-              "command" in resultMsg.input
-            ) {
-              command = String((resultMsg.input as { command: unknown }).command);
-            }
-
-            if (command) {
-              output = `[Bash] 実行: ${command}\n`;
-            }
-
-            if (typeof resultMsg.result === "string") {
-              output += resultMsg.result;
-            } else if (
-              typeof resultMsg.result === "object" &&
-              resultMsg.result !== null &&
-              "output" in resultMsg.result
-            ) {
-              output += String((resultMsg.result as { output: unknown }).output);
-            }
-            break;
-          }
-
-          case "Write":
-            // Extract file path from input
-            if (
-              typeof resultMsg.input === "object" &&
-              resultMsg.input !== null &&
-              "file_path" in resultMsg.input
-            ) {
-              const filePath = String((resultMsg.input as { file_path: unknown }).file_path);
-              output = `[Write] ${resultMsg.subtype === "success" ? "✓" : "✗"} ファイル作成: ${filePath}`;
-            } else {
-              output = `[Write] ${resultMsg.subtype === "success" ? "✓" : "✗"} 実行完了`;
-            }
-            break;
-
-          case "Edit":
-            // Extract file path from input
-            if (
-              typeof resultMsg.input === "object" &&
-              resultMsg.input !== null &&
-              "file_path" in resultMsg.input
-            ) {
-              const filePath = String((resultMsg.input as { file_path: unknown }).file_path);
-              output = `[Edit] ${resultMsg.subtype === "success" ? "✓" : "✗"} ファイル編集: ${filePath}`;
-            } else {
-              output = `[Edit] ${resultMsg.subtype === "success" ? "✓" : "✗"} 実行完了`;
-            }
-            break;
-
-          case "Read":
-            // Extract file path from input
-            if (
-              typeof resultMsg.input === "object" &&
-              resultMsg.input !== null &&
-              "file_path" in resultMsg.input
-            ) {
-              const filePath = String((resultMsg.input as { file_path: unknown }).file_path);
-              output = `[Read] ${resultMsg.subtype === "success" ? "✓" : "✗"} ファイル読み取り: ${filePath}`;
-            } else {
-              output = `[Read] ${resultMsg.subtype === "success" ? "✓" : "✗"} 実行完了`;
-            }
-            break;
-
-          case "LS":
-          case "Glob":
-          case "Grep": {
-            // Extract search pattern or path
-            if (typeof resultMsg.input === "object" && resultMsg.input !== null) {
-              const input = resultMsg.input as Record<string, unknown>;
-              const pattern = input.pattern || input.path || "";
-              output = `[${resultMsg.tool}] ${resultMsg.subtype === "success" ? "✓" : "✗"} 検索: ${String(pattern)}`;
-            } else {
-              output = `[${resultMsg.tool}] ${resultMsg.subtype === "success" ? "✓" : "✗"} 実行完了`;
-            }
-            break;
-          }
-
-          default:
-            // For other tools, try to extract meaningful info
-            if (resultMsg.subtype === "success") {
-              output = `[${resultMsg.tool}] 実行完了`;
-            }
-        }
-
-        if (output) {
-          return output;
-        }
-      }
+      return this.extractResultMessage(message);
     } else if (message.type === "assistant") {
-      // Extract text content from assistant messages
-      const assistantMsg = message as unknown as {
-        message?: {
-          content?: Array<{
-            type: string;
-            text?: string;
-            tool_use?: { name?: string; input?: unknown };
-          }>;
-        };
+      return this.extractAssistantMessage(message);
+    }
+    return null;
+  }
+
+  private extractResultMessage(message: SDKMessage): string | null {
+    const resultMsg = message as unknown as {
+      result?: unknown;
+      subtype?: string;
+      tool?: string;
+      input?: unknown;
+    };
+
+    if (!resultMsg.tool) {
+      return null;
+    }
+
+    let output = "";
+
+    switch (resultMsg.tool) {
+      case "bash":
+      case "Bash": {
+        // Extract command from input
+        let command = "";
+        if (
+          typeof resultMsg.input === "object" &&
+          resultMsg.input !== null &&
+          "command" in resultMsg.input
+        ) {
+          command = String((resultMsg.input as { command: unknown }).command);
+        }
+
+        if (command) {
+          output = `[Bash] 実行: ${command}\n`;
+        }
+
+        if (typeof resultMsg.result === "string") {
+          output += resultMsg.result;
+        } else if (
+          typeof resultMsg.result === "object" &&
+          resultMsg.result !== null &&
+          "output" in resultMsg.result
+        ) {
+          output += String((resultMsg.result as { output: unknown }).output);
+        }
+        break;
+      }
+
+      case "Write":
+        // Extract file path from input
+        if (
+          typeof resultMsg.input === "object" &&
+          resultMsg.input !== null &&
+          "file_path" in resultMsg.input
+        ) {
+          const filePath = String((resultMsg.input as { file_path: unknown }).file_path);
+          output = `[Write] ${resultMsg.subtype === "success" ? "✓" : "✗"} ファイル作成: ${filePath}`;
+        } else {
+          output = `[Write] ${resultMsg.subtype === "success" ? "✓" : "✗"} 実行完了`;
+        }
+        break;
+
+      case "Edit":
+        // Extract file path from input
+        if (
+          typeof resultMsg.input === "object" &&
+          resultMsg.input !== null &&
+          "file_path" in resultMsg.input
+        ) {
+          const filePath = String((resultMsg.input as { file_path: unknown }).file_path);
+          output = `[Edit] ${resultMsg.subtype === "success" ? "✓" : "✗"} ファイル編集: ${filePath}`;
+        } else {
+          output = `[Edit] ${resultMsg.subtype === "success" ? "✓" : "✗"} 実行完了`;
+        }
+        break;
+
+      case "Read":
+        // Extract file path from input
+        if (
+          typeof resultMsg.input === "object" &&
+          resultMsg.input !== null &&
+          "file_path" in resultMsg.input
+        ) {
+          const filePath = String((resultMsg.input as { file_path: unknown }).file_path);
+          output = `[Read] ${resultMsg.subtype === "success" ? "✓" : "✗"} ファイル読み取り: ${filePath}`;
+        } else {
+          output = `[Read] ${resultMsg.subtype === "success" ? "✓" : "✗"} 実行完了`;
+        }
+        break;
+
+      case "LS":
+      case "Glob":
+      case "Grep": {
+        // Extract search pattern or path
+        if (typeof resultMsg.input === "object" && resultMsg.input !== null) {
+          const input = resultMsg.input as Record<string, unknown>;
+          const pattern = input.pattern || input.path || "";
+          output = `[${resultMsg.tool}] ${resultMsg.subtype === "success" ? "✓" : "✗"} 検索: ${String(pattern)}`;
+        } else {
+          output = `[${resultMsg.tool}] ${resultMsg.subtype === "success" ? "✓" : "✗"} 実行完了`;
+        }
+        break;
+      }
+
+      default:
+        // For other tools, try to extract meaningful info
+        if (resultMsg.subtype === "success") {
+          return `[${resultMsg.tool}] 実行完了`;
+        }
+    }
+
+    return output || null;
+  }
+
+  private extractAssistantMessage(message: SDKMessage): string | null {
+    // Extract text content from assistant messages
+    const assistantMsg = message as unknown as {
+      message?: {
+        content?: Array<{
+          type: string;
+          text?: string;
+          tool_use?: { name?: string; input?: unknown };
+        }>;
       };
-      if (assistantMsg.message?.content) {
-        for (const content of assistantMsg.message.content) {
-          if (content.type === "text" && content.text) {
-            // Emit progress updates for task descriptions
-            const text = content.text.trim();
+    };
+    if (assistantMsg.message?.content) {
+      for (const content of assistantMsg.message.content) {
+        if (content.type === "text" && content.text) {
+          // Emit progress updates for task descriptions
+          const text = content.text.trim();
 
-            // Look for action indicators in both Japanese and English
-            if (
-              text.match(
-                /^(実行|作成|編集|読み取り|検索|確認|分析|処理|インストール|Installing|Creating|Writing|Reading|Executing|Checking)/i,
-              )
-            ) {
-              return text.split("\n")[0] || null; // First line only
-            }
-
-            // Short status updates
-            if (text.length < 150 && !text.includes("\n\n")) {
-              return text;
-            }
-          } else if (content.type === "tool_use" && content.tool_use?.name) {
-            // Tool usage notification with details
-            const toolName = content.tool_use.name;
-            let detail = "";
-
-            if (content.tool_use.input && typeof content.tool_use.input === "object") {
-              const input = content.tool_use.input as Record<string, unknown>;
-              if (toolName === "Write" && input.file_path) {
-                detail = `: ${String(input.file_path)}`;
-              } else if ((toolName === "bash" || toolName === "Bash") && input.command) {
-                detail = `: ${String(input.command)}`;
-              }
-            }
-
-            return `[準備中] ${toolName}${detail}`;
+          // Look for action indicators in both Japanese and English
+          if (
+            text.match(
+              /^(実行|作成|編集|読み取り|検索|確認|分析|処理|インストール|Installing|Creating|Writing|Reading|Executing|Checking)/i,
+            )
+          ) {
+            return text.split("\n")[0] || null; // First line only
           }
+
+          // Short status updates
+          if (text.length < 150 && !text.includes("\n\n")) {
+            return text;
+          }
+        } else if (content.type === "tool_use" && content.tool_use?.name) {
+          // Tool usage notification with details
+          const toolName = content.tool_use.name;
+          let detail = "";
+
+          if (content.tool_use.input && typeof content.tool_use.input === "object") {
+            const input = content.tool_use.input as Record<string, unknown>;
+            if (toolName === "Write" && input.file_path) {
+              detail = `: ${String(input.file_path)}`;
+            } else if ((toolName === "bash" || toolName === "Bash") && input.command) {
+              detail = `: ${String(input.command)}`;
+            }
+          }
+
+          return `[準備中] ${toolName}${detail}`;
         }
       }
     }

@@ -173,8 +173,13 @@ function setupSDKOptionsListeners() {
     const savePresetBtn = document.getElementById('save-preset-btn');
     const deletePresetBtn = document.getElementById('delete-preset-btn');
     
-    savePresetBtn.addEventListener('click', showSavePresetModal);
-    deletePresetBtn.addEventListener('click', deleteCurrentPreset);
+    if (savePresetBtn) {
+        savePresetBtn.addEventListener('click', showSavePresetModal);
+    }
+    
+    if (deletePresetBtn) {
+        deletePresetBtn.addEventListener('click', deleteCurrentPreset);
+    }
     
     // スライダーと数値入力の同期
     const maxTurnsSlider = document.getElementById('max-turns-slider');
@@ -283,14 +288,12 @@ function handlePresetChange(e) {
 
 // プリセットオプションの適用
 function applyPresetOptions(settings) {
-    console.log('Applying preset options:', settings);
     
     // SDKオプションがある場合
     const sdkOptions = settings.sdk || {};
     
     // maxTurns
     if (sdkOptions.maxTurns !== undefined) {
-        console.log('Setting maxTurns to:', sdkOptions.maxTurns);
         document.getElementById('max-turns').value = sdkOptions.maxTurns;
         document.getElementById('max-turns-slider').value = sdkOptions.maxTurns;
         document.getElementById('max-turns-value').textContent = sdkOptions.maxTurns;
@@ -545,8 +548,16 @@ function showSavePresetModal() {
 
 // プリセット保存
 async function savePreset() {
-    const name = document.getElementById('preset-name').value.trim();
-    const description = document.getElementById('preset-description').value.trim();
+    const nameInput = document.getElementById('preset-name');
+    const descInput = document.getElementById('preset-description');
+    
+    if (!nameInput || !descInput) {
+        console.error('Preset input fields not found');
+        return;
+    }
+    
+    const name = nameInput.value ? nameInput.value.trim() : '';
+    const description = descInput.value ? descInput.value.trim() : '';
     
     // 入力チェック
     if (!name) {
@@ -650,6 +661,29 @@ function createPresetItem(preset) {
 }
 
 // 現在選択中のプリセットを削除
+// プリセット削除（HTMLのonclickから呼び出される）
+async function deletePreset(presetId) {
+    if (!confirm('このプリセットを削除しますか？')) {
+        return;
+    }
+    
+    try {
+        await api.deletePreset(presetId);
+        
+        if (typeof showSuccess === 'function') {
+            showSuccess('プリセットを削除しました');
+        }
+        
+        // プリセットリストを再読み込み
+        await loadPresets();
+    } catch (error) {
+        console.error('Failed to delete preset:', error);
+        if (typeof showError === 'function') {
+            showError('プリセットの削除に失敗しました');
+        }
+    }
+}
+
 async function deleteCurrentPreset() {
     const selector = document.getElementById('preset-selector');
     const selectedOption = selector.selectedOptions[0];

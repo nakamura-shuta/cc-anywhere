@@ -88,28 +88,32 @@ else
     echo -e "${RED}アクセス情報ファイルが見つかりません${NC}"
     echo ""
     
-    # PM2が動作している場合は、ログから取得を試みる
-    if pm2 describe cc-anywhere > /dev/null 2>&1; then
-        echo -e "${YELLOW}PM2ログから情報を取得します...${NC}"
+    # サーバーが動作している場合は、ログから取得を試みる
+    if curl -s http://localhost:5000/health > /dev/null 2>&1; then
+        echo -e "${YELLOW}サーバーログから情報を取得します...${NC}"
         echo ""
         
-        # 最新のExternal Access Informationを探す
-        pm2 logs cc-anywhere --lines 500 --nostream --raw | awk '
-            /External Access Information/ {
-                found=1
-                buffer=""
-            }
-            found {
-                buffer = buffer "\n" $0
-                if (/^=======================================$/ && buffer ~ /QR/) {
-                    print buffer
-                    exit
+        # server.logから最新のExternal Access Informationを探す
+        if [ -f "$PROJECT_DIR/server.log" ]; then
+            awk '
+                /External Access Information/ {
+                    found=1
+                    buffer=""
                 }
-            }
-        ' | tail -n 100
+                found {
+                    buffer = buffer "\n" $0
+                    if (/^=======================================$/ && buffer ~ /QR/) {
+                        print buffer
+                        exit
+                    }
+                }
+            ' "$PROJECT_DIR/server.log" | tail -n 100
+        else
+            echo -e "${RED}サーバーログが見つかりません${NC}"
+        fi
     else
         echo -e "${YELLOW}CC-Anywhereが起動していません${NC}"
-        echo "起動: ./scripts/start-clamshell.sh"
+        echo "起動: npm run dev"
     fi
 fi
 
@@ -117,4 +121,4 @@ echo ""
 echo -e "${GREEN}追加のコマンド:${NC}"
 echo "  URL再表示:     ./scripts/tunnel-manager.sh show"
 echo "  状態確認:      ./scripts/tunnel-manager.sh status"
-echo "  リアルタイムログ: pm2 logs cc-anywhere"
+echo "  リアルタイムログ: tail -f server.log"

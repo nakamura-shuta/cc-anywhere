@@ -393,7 +393,33 @@ function renderTaskDetail(task) {
         <div class="detail-row">
             <span class="detail-label">実行結果:</span>
             <div class="detail-value result-container">
-                ${formatResult(task.result)}
+                ${(() => {
+                    // task.resultがオブジェクトで、resultフィールドを持つ場合
+                    if (typeof task.result === 'object' && task.result.result) {
+                        const resultData = task.result;
+                        let detailsHtml = '';
+                        
+                        // 他のフィールドを表示（taskIdと既に表示されている情報は除外）
+                        // ログ情報がある場合
+                        if (resultData.logs && Array.isArray(resultData.logs) && resultData.logs.length > 0) {
+                            detailsHtml += `<div class="result-detail"><strong>実行ログ概要:</strong></div>`;
+                            detailsHtml += '<ul style="margin: 8px 0 16px 20px; font-size: 13px; color: #6b7280;">';
+                            resultData.logs.forEach(log => {
+                                detailsHtml += `<li>${escapeHtml(log)}</li>`;
+                            });
+                            detailsHtml += '</ul>';
+                        }
+                        
+                        // 結果の内容を表示
+                        detailsHtml += `<div class="result-detail"><strong>結果:</strong></div>`;
+                        detailsHtml += formatResult(resultData.result);
+                        
+                        return detailsHtml;
+                    } else {
+                        // 通常の結果
+                        return formatResult(task.result);
+                    }
+                })()}
             </div>
         </div>
         ` : ''}
@@ -615,7 +641,6 @@ const LOG_ICONS = {
 
 // 進捗インジケーター管理
 let lastLogUpdateTime = Date.now();
-let progressUpdateInterval = null;
 let stillProcessingInterval = null;
 
 // タスクログ処理
@@ -701,23 +726,15 @@ function handleTaskLog(payload) {
 
 // 進捗インジケーターの更新
 function updateProgressIndicator() {
-    const logHeader = document.querySelector('.log-header');
-    if (!logHeader) return;
-    
-    // 最終更新からの経過時間を表示
-    if (!progressUpdateInterval) {
-        progressUpdateInterval = setInterval(() => {
+    // 30秒以上更新がない場合の処理のみ
+    if (!stillProcessingInterval) {
+        stillProcessingInterval = setInterval(() => {
             const elapsed = Math.floor((Date.now() - lastLogUpdateTime) / 1000);
-            const indicator = document.querySelector('.progress-indicator');
-            if (indicator) {
-                indicator.textContent = `最終更新: ${elapsed}秒前`;
-            }
-            
-            // 30秒以上更新がない場合、「まだ処理中」メッセージを表示
-            if (elapsed >= 30 && !stillProcessingInterval) {
-                stillProcessingInterval = setInterval(() => {
-                    showStillProcessingMessage();
-                }, 5000);
+            if (elapsed >= 30) {
+                showStillProcessingMessage();
+                // 一度表示したら停止
+                clearInterval(stillProcessingInterval);
+                stillProcessingInterval = null;
             }
         }, 1000);
     }
@@ -725,18 +742,9 @@ function updateProgressIndicator() {
 
 // 進捗インジケーターの停止
 function stopProgressIndicator() {
-    if (progressUpdateInterval) {
-        clearInterval(progressUpdateInterval);
-        progressUpdateInterval = null;
-    }
     if (stillProcessingInterval) {
         clearInterval(stillProcessingInterval);
         stillProcessingInterval = null;
-    }
-    
-    const indicator = document.querySelector('.progress-indicator');
-    if (indicator) {
-        indicator.textContent = '';
     }
 }
 

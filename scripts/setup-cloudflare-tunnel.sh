@@ -141,28 +141,44 @@ echo -e "${YELLOW}.envファイルを更新中...${NC}"
 
 # TUNNEL_TYPEをcloudflareに設定
 if grep -q "TUNNEL_TYPE=" .env 2>/dev/null; then
-    sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env
+    else
+        sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env
+    fi
 else
     echo "TUNNEL_TYPE=cloudflare" >> .env
 fi
 
 # CLOUDFLARE_TUNNEL_TOKENを設定
 if grep -q "CLOUDFLARE_TUNNEL_TOKEN=" .env 2>/dev/null; then
-    sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$TOKEN_PAYLOAD/g" .env
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$TOKEN_PAYLOAD/g" .env
+    else
+        sed -i "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$TOKEN_PAYLOAD/g" .env
+    fi
 else
     echo "CLOUDFLARE_TUNNEL_TOKEN=$TOKEN_PAYLOAD" >> .env
 fi
 
 # CLOUDFLARE_TUNNEL_NAMEを設定
 if grep -q "CLOUDFLARE_TUNNEL_NAME=" .env 2>/dev/null; then
-    sed -i '' "s/CLOUDFLARE_TUNNEL_NAME=.*/CLOUDFLARE_TUNNEL_NAME=$TUNNEL_NAME/g" .env
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/CLOUDFLARE_TUNNEL_NAME=.*/CLOUDFLARE_TUNNEL_NAME=$TUNNEL_NAME/g" .env
+    else
+        sed -i "s/CLOUDFLARE_TUNNEL_NAME=.*/CLOUDFLARE_TUNNEL_NAME=$TUNNEL_NAME/g" .env
+    fi
 else
     echo "CLOUDFLARE_TUNNEL_NAME=$TUNNEL_NAME" >> .env
 fi
 
 # ENABLE_NGROKをfalseに設定
 if grep -q "ENABLE_NGROK=" .env 2>/dev/null; then
-    sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env
+    else
+        sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env
+    fi
 fi
 
 echo -e "${GREEN}✓ .envファイル更新完了${NC}"

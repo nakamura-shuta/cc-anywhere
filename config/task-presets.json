@@ -8,7 +8,7 @@
       "settings": {
         "sdk": {
           "maxTurns": 3,
-          "permissionMode": "ask",
+          "permissionMode": "default",
           "allowedTools": [
             "Read",
             "Write",
@@ -28,7 +28,7 @@
       "settings": {
         "sdk": {
           "maxTurns": 1,
-          "permissionMode": "deny",
+          "permissionMode": "plan",
           "allowedTools": [
             "Read",
             "LS",
@@ -54,7 +54,7 @@
       "settings": {
         "sdk": {
           "maxTurns": 10,
-          "permissionMode": "allow",
+          "permissionMode": "acceptEdits",
           "allowedTools": [
             "*"
           ],
@@ -71,52 +71,51 @@
   ],
   "userPresets": [
     {
-      "id": "8866da6b-8ef4-4b89-a521-0d778783ca76",
-      "name": "my test",
-      "isSystem": false,
-      "settings": {
-        "sdk": {
-          "maxTurns": 20,
-          "permissionMode": "allow",
-          "allowedTools": [
-            "Read",
-            "Write",
-            "Edit",
-            "Bash",
-            "LS",
-            "Glob",
-            "Grep"
-          ],
-          "outputFormat": "json",
-          "executable": "node",
-          "continueSession": true,
-          "verbose": true
-        },
-        "timeout": 600000,
-        "useWorktree": true
-      },
-      "createdAt": "2025-07-09T04:04:14.019Z",
-      "updatedAt": "2025-07-09T04:04:14.019Z"
-    },
-    {
-      "id": "44524016-a600-4e79-84aa-102daf4cb19e",
-      "name": "test",
+      "id": "81d7d4ab-c351-46fa-8287-96584d2ca6e5",
+      "name": "テスト用プリセット",
+      "description": "動作確認用のプリセット",
       "isSystem": false,
       "settings": {
         "sdk": {
           "maxTurns": 5,
-          "permissionMode": "ask",
+          "permissionMode": "bypassPermissions",
           "allowedTools": [
             "Read",
             "Write",
-            "Edit"
+            "Edit",
+            "Bash"
+          ],
+          "systemPrompt": "テスト用のシステムプロンプトです"
+        }
+      },
+      "createdAt": "2025-07-11T16:42:24.725Z",
+      "updatedAt": "2025-07-11T16:42:24.725Z"
+    },
+    {
+      "id": "e8ba11b8-0b1e-4ff0-9117-29773767a50b",
+      "name": "all",
+      "description": "",
+      "isSystem": false,
+      "settings": {
+        "sdk": {
+          "maxTurns": 28,
+          "permissionMode": "bypassPermissions",
+          "allowedTools": [
+            "Read",
+            "Write",
+            "Edit",
+            "MultiEdit",
+            "Bash",
+            "LS",
+            "Glob",
+            "Grep"
           ]
         },
         "timeout": 600000,
         "useWorktree": false
       },
-      "createdAt": "2025-07-09T04:35:17.955Z",
-      "updatedAt": "2025-07-09T04:35:17.955Z"
+      "createdAt": "2025-07-11T16:46:26.748Z",
+      "updatedAt": "2025-07-11T16:46:26.748Z"
     }
   ]
 }

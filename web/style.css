@@ -16,7 +16,12 @@
     --error-color: #ef4444;
     --warning-color: #f59e0b;
     --text-color: #1f2937;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
     --bg-color: #f9fafb;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f3f4f6;
+    --bg-hover: #f9fafb;
     --border-color: #e5e7eb;
     --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
@@ -1229,6 +1234,17 @@ select.error:focus {
 /* 結果表示の改善 */
 .result-container {
     margin-top: 10px;
+}
+
+.result-detail {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.result-detail strong {
+    color: var(--text-primary);
+    margin-right: 8px;
 }
 
 .result-formatted {

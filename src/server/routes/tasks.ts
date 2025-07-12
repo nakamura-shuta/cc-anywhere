@@ -215,8 +215,16 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                     },
                     permissionMode: {
                       type: "string",
-                      enum: ["ask", "allow", "deny", "acceptEdits", "bypassPermissions", "plan"],
-                      description: "Permission mode",
+                      enum: [
+                        "default",
+                        "acceptEdits",
+                        "bypassPermissions",
+                        "plan",
+                        "ask",
+                        "allow",
+                        "deny",
+                      ],
+                      description: "Permission mode (ask/allow/deny will be mapped to SDK modes)",
                     },
                     // Priority: Medium
                     executable: {

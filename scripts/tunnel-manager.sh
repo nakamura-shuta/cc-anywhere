@@ -73,8 +73,13 @@ setup_tunnel() {
     case $choice in
         1)
             echo -e "${GREEN}ngrokを設定します${NC}"
-            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' .env 2>/dev/null || echo "TUNNEL_TYPE=ngrok" >> .env
-            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' .env 2>/dev/null || echo "ENABLE_NGROK=true" >> .env
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' .env 2>/dev/null || echo "TUNNEL_TYPE=ngrok" >> .env
+                sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' .env 2>/dev/null || echo "ENABLE_NGROK=true" >> .env
+            else
+                sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' .env 2>/dev/null || echo "TUNNEL_TYPE=ngrok" >> .env
+                sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' .env 2>/dev/null || echo "ENABLE_NGROK=true" >> .env
+            fi
             echo -e "${GREEN}✓ ngrok設定完了${NC}"
             ;;
         2)
@@ -101,9 +106,15 @@ setup_tunnel() {
                     read -p "Cloudflare Tunnel Token: " cf_token
                     
                     if [ -n "$cf_token" ]; then
-                        sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env 2>/dev/null || echo "TUNNEL_TYPE=cloudflare" >> .env
-                        sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
-                        sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" .env 2>/dev/null || echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> .env
+                        if [[ "$OSTYPE" == "darwin"* ]]; then
+                            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env 2>/dev/null || echo "TUNNEL_TYPE=cloudflare" >> .env
+                            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
+                            sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" .env 2>/dev/null || echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> .env
+                        else
+                            sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env 2>/dev/null || echo "TUNNEL_TYPE=cloudflare" >> .env
+                            sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
+                            sed -i "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" .env 2>/dev/null || echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> .env
+                        fi
                         echo -e "${GREEN}✓ Cloudflare Tunnel設定完了${NC}"
                     else
                         echo -e "${RED}トークンが入力されませんでした${NC}"
@@ -118,8 +129,13 @@ setup_tunnel() {
             ;;
         3)
             echo -e "${YELLOW}外部アクセスを無効化します${NC}"
-            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' .env 2>/dev/null || echo "TUNNEL_TYPE=none" >> .env
-            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' .env 2>/dev/null || echo "TUNNEL_TYPE=none" >> .env
+                sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
+            else
+                sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' .env 2>/dev/null || echo "TUNNEL_TYPE=none" >> .env
+                sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
+            fi
             echo -e "${GREEN}✓ ローカルのみの設定完了${NC}"
             ;;
     esac
@@ -129,10 +145,10 @@ setup_tunnel() {
 show_tunnel_url() {
     cd "$PROJECT_DIR"
     
-    # PM2が動作しているか確認
-    if ! pm2 describe cc-anywhere > /dev/null 2>&1; then
+    # サーバーが動作しているか確認
+    if ! curl -s http://localhost:5000/health > /dev/null 2>&1; then
         echo -e "${RED}CC-Anywhereが起動していません${NC}"
-        echo "起動: ./scripts/start-clamshell.sh"
+        echo "起動: npm run dev"
         return 1
     fi
     
@@ -144,10 +160,24 @@ show_tunnel_url() {
     
     if [ "$tunnel_type" = "cloudflare" ]; then
         echo -e "${MAGENTA}Cloudflare Tunnel URL:${NC}"
-        pm2 logs cc-anywhere --lines 100 --nostream | grep -i "cloudflare.*https://" | tail -1
+        # server.logまたはアクセス情報ファイルから取得
+        if [ -f "$PROJECT_DIR/data/last-access-info.json" ]; then
+            jq -r '.url // "取得中..."' "$PROJECT_DIR/data/last-access-info.json" 2>/dev/null || echo "取得中..."
+        elif [ -f "$PROJECT_DIR/server.log" ]; then
+            grep -i "cloudflare.*ready at" "$PROJECT_DIR/server.log" | tail -1 | grep -o "https://[^ ]*" || echo "取得中..."
+        else
+            echo "取得中..."
+        fi
     elif [ "$tunnel_type" = "ngrok" ] || [ "$(grep "^ENABLE_NGROK=" .env 2>/dev/null | cut -d'=' -f2)" = "true" ]; then
         echo -e "${MAGENTA}ngrok URL:${NC}"
-        pm2 logs cc-anywhere --lines 100 --nostream | grep -i "ngrok.*started\|https://.*ngrok" | grep -v "ngrok-free" | tail -1
+        # server.logまたはアクセス情報ファイルから取得
+        if [ -f "$PROJECT_DIR/data/last-access-info.json" ]; then
+            jq -r '.url // "取得中..."' "$PROJECT_DIR/data/last-access-info.json" 2>/dev/null || echo "取得中..."
+        elif [ -f "$PROJECT_DIR/server.log" ]; then
+            grep -i "ngrok.*started\|https://.*ngrok" "$PROJECT_DIR/server.log" | tail -1 | grep -o "https://[^ ]*" || echo "取得中..."
+        else
+            echo "取得中..."
+        fi
     else
         echo -e "${YELLOW}外部アクセスは無効です${NC}"
     fi
@@ -162,9 +192,9 @@ show_tunnel_url() {
 show_qr_code() {
     cd "$PROJECT_DIR"
     
-    if ! pm2 describe cc-anywhere > /dev/null 2>&1; then
+    if ! curl -s http://localhost:5000/health > /dev/null 2>&1; then
         echo -e "${RED}CC-Anywhereが起動していません${NC}"
-        echo "起動: ./scripts/start-clamshell.sh"
+        echo "起動: npm run dev"
         return 1
     fi
     
@@ -182,16 +212,16 @@ check_tunnel_status() {
     show_current_config
     echo ""
     
-    if pm2 describe cc-anywhere > /dev/null 2>&1; then
+    if curl -s http://localhost:5000/health > /dev/null 2>&1; then
         echo -e "サーバー: ${GREEN}実行中${NC}"
         
         # 最新のトンネル状態をログから確認
         local tunnel_type=$(grep "^TUNNEL_TYPE=" .env 2>/dev/null | cut -d'=' -f2 || echo "none")
         
-        if [ "$tunnel_type" != "none" ]; then
+        if [ "$tunnel_type" != "none" ] && [ -f "$PROJECT_DIR/server.log" ]; then
             echo ""
             echo "最新のトンネルログ:"
-            pm2 logs cc-anywhere --lines 50 --nostream | grep -i "tunnel\|ngrok\|cloudflare" | tail -5
+            grep -i "tunnel\|ngrok\|cloudflare" "$PROJECT_DIR/server.log" | tail -5
         fi
     else
         echo -e "サーバー: ${RED}停止中${NC}"
@@ -210,7 +240,7 @@ case "$1" in
         setup_tunnel
         echo ""
         echo -e "${YELLOW}※ 設定を反映するにはサーバーを再起動してください${NC}"
-        echo "  ./scripts/pm2-manager.sh restart"
+        echo "  Ctrl+C で停止後、npm run dev で再起動"
         ;;
     qr)
         show_qr_code

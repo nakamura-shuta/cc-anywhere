@@ -18,6 +18,7 @@ import { InstructionProcessor } from "../services/slash-commands/instruction-pro
 import { WorktreeManager } from "../services/worktree/worktree-manager";
 import type { Worktree, WorktreeConfig } from "../services/worktree/types";
 import { NotFoundError, TaskCancelledError, SystemError } from "../utils/errors";
+import { mapPermissionMode } from "./permission-mode-mapper";
 
 /**
  * Task execution engine that handles Claude API interactions
@@ -302,7 +303,7 @@ export class TaskExecutorImpl implements TaskExecutor {
             allowedTools: sdkOptions.allowedTools,
             disallowedTools: sdkOptions.disallowedTools,
             systemPrompt: sdkOptions.systemPrompt,
-            permissionMode: sdkOptions.permissionMode,
+            permissionMode: mapPermissionMode(sdkOptions.permissionMode),
             executable: sdkOptions.executable,
             executableArgs: sdkOptions.executableArgs,
             mcpConfig: sdkOptions.mcpConfig,

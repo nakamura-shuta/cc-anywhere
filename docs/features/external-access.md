@@ -21,101 +21,22 @@ CC-Anywhereは以下の2つの方法で外部アクセスを提供します：
 
 ### セットアップ
 
-#### 方法1: 自動セットアップ（推奨）
+Cloudflare Tunnelの詳細なセットアップ手順については、[専用ガイド](../cloudflare-tunnel-setup-guide.md)を参照してください。
 
-API経由で自動的にトンネルを作成する方法：
-
-```bash
-# セットアップスクリプトを実行
-./scripts/setup-cloudflare-tunnel.sh
-```
-
-このスクリプトは以下を自動で行います：
-- Cloudflare APIを使用してトンネルを作成
-- 認証トークンを生成
-- `.env`ファイルを更新
-- オプションでカスタムドメインを設定
-
-必要な情報：
-- Cloudflare Email
-- Global API Key（[プロファイル設定](https://dash.cloudflare.com/profile/api-tokens)から取得）
-- Account ID（[ダッシュボード](https://dash.cloudflare.com)の右サイドバーに表示）
-
-#### 方法2: 手動セットアップ
-
-##### 1. cloudflaredのインストール
+#### クイックスタート
 
 ```bash
-# macOS
-brew install cloudflare/cloudflare/cloudflared
+# 1. cloudflaredのインストールが必要
+brew install cloudflare/cloudflare/cloudflared  # macOS
 
-# Linux
-curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
-chmod +x cloudflared
-sudo mv cloudflared /usr/local/bin/
-```
+# 2. 環境変数を設定
+echo "TUNNEL_TYPE=cloudflare" >> .env
 
-##### 2. 設定
-
-`.env`ファイルに追加：
-
-```env
-# Cloudflare Tunnelを使用
-TUNNEL_TYPE=cloudflare
-SHOW_QR_CODE=true
-```
-
-##### 3. 起動
-
-```bash
+# 3. サーバーを起動
 npm run dev
-# または
-./scripts/start-clamshell.sh
 ```
 
-自動的にトンネルが作成され、URLが表示されます：
-
-```
-========================================
-🌐 External Access Information (cloudflare)
-========================================
-
-📡 Cloudflare URL: https://example.trycloudflare.com
-🔒 API Key: your-api-key
-
-🌍 Web UI Access:
-   https://example.trycloudflare.com/?apiKey=your-api-key
-```
-
-### 永続的なトンネル（固定URL）
-
-固定URLが必要な場合：
-
-#### 自動作成（推奨）
-
-```bash
-./scripts/setup-cloudflare-tunnel.sh
-# カスタムドメインの設定も可能
-```
-
-#### 手動作成
-
-```bash
-# Cloudflareにログイン
-cloudflared tunnel login
-
-# トンネル作成
-cloudflared tunnel create cc-anywhere
-
-# トークン取得
-cloudflared tunnel token cc-anywhere
-```
-
-`.env`に設定：
-
-```env
-CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
-```
+これで自動的に一時的なトンネル（`*.trycloudflare.com`）が作成されます。
 
 ## ngrok（簡易アクセス）
 
@@ -181,7 +102,7 @@ cloudflared tunnel --url http://localhost:5000
 
 ```bash
 # ログ確認
-pm2 logs cc-anywhere | grep -i tunnel
+tail -f server.log | grep -i tunnel
 
 # または専用スクリプト
 ./scripts/tunnel-manager.sh show
@@ -203,7 +124,7 @@ pm2 logs cc-anywhere | grep -i tunnel
 
 3. **アクセスログの監視**
    ```bash
-   pm2 logs cc-anywhere | grep "API request"
+   tail -f server.log | grep "API request"
    ```
 
 4. **定期的なトークンローテーション**
@@ -211,6 +132,6 @@ pm2 logs cc-anywhere | grep -i tunnel
 
 ## 関連ドキュメント
 
+- [Cloudflare Tunnel詳細セットアップガイド](../cloudflare-tunnel-setup-guide.md)
 - [Cloudflare Tunnel公式](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
 - [セキュリティガイド](../operations/security.md)
-- [PM2運用ガイド](../operations/pm2-setup.md)
