@@ -6,11 +6,40 @@ let repositories = [];
 let currentFilter = 'all';
 let apiClient;
 
+// クエリパラメータからAPIキーを取得
+function getApiKeyFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('apiKey') || params.get('key');
+}
+
+// ナビゲーションリンクを更新する関数
+function updateNavigationLinks() {
+    const currentParams = new URLSearchParams(window.location.search);
+    const navLinks = document.querySelectorAll('.header-nav a');
+    
+    navLinks.forEach(link => {
+        const url = new URL(link.href, window.location.origin);
+        // 現在のクエリパラメータをリンクに追加
+        currentParams.forEach((value, key) => {
+            url.searchParams.set(key, value);
+        });
+        link.href = url.toString();
+    });
+}
+
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
     // APIクライアントの初期化
-    const apiKey = localStorage.getItem('apiKey') || 'hoge';  // デフォルト値を設定
+    const apiKey = getApiKeyFromQuery() || localStorage.getItem('apiKey') || 'hoge';  // クエリパラメータ優先
     apiClient = new APIClient(window.location.origin, apiKey);
+    
+    // クエリパラメータがある場合はlocalStorageに保存
+    if (getApiKeyFromQuery()) {
+        localStorage.setItem('apiKey', apiKey);
+    }
+    
+    // ナビゲーションリンクにクエリパラメータを引き継ぐ
+    updateNavigationLinks();
     
     // 接続状態の監視を開始
     setupConnectionStatus();
@@ -327,7 +356,7 @@ function createHistoryModal(schedule, history) {
                             </div>
                             ${item.taskId ? `
                                 <div class="history-details">
-                                    タスクID: <a href="/?taskId=${item.taskId}" target="_blank">${item.taskId}</a>
+                                    タスクID: <a href="${getTaskDetailUrl(item.taskId)}" target="_blank">${item.taskId}</a>
                                 </div>
                             ` : ''}
                             ${item.error ? `
@@ -395,6 +424,22 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+// タスク詳細URLを生成（クエリパラメータを引き継ぐ）
+function getTaskDetailUrl(taskId) {
+    const currentParams = new URLSearchParams(window.location.search);
+    const url = new URL('/', window.location.origin);
+    
+    // 現在のクエリパラメータを引き継ぐ
+    currentParams.forEach((value, key) => {
+        url.searchParams.set(key, value);
+    });
+    
+    // タスクIDを追加
+    url.searchParams.set('taskId', taskId);
+    
+    return url.toString();
 }
 
 // 接続状態の監視を設定

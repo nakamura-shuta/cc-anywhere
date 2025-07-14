@@ -1056,6 +1056,9 @@ async function init() {
         apiClient = new APIClient(window.location.origin, 'hoge');
         api = apiClient;
     }
+    
+    // ナビゲーションリンクにクエリパラメータを引き継ぐ
+    updateNavigationLinks();
 
     // WebSocket接続
     const ws = apiClient.connectWebSocket();
@@ -1083,6 +1086,21 @@ async function init() {
     window.applyPreset = applyPreset;
     window.deletePreset = deletePreset;
     window.cancelTask = cancelTask;
+}
+
+// ナビゲーションリンクを更新する関数
+function updateNavigationLinks() {
+    const currentParams = new URLSearchParams(window.location.search);
+    const navLinks = document.querySelectorAll('.header-nav a');
+    
+    navLinks.forEach(link => {
+        const url = new URL(link.href, window.location.origin);
+        // 現在のクエリパラメータをリンクに追加
+        currentParams.forEach((value, key) => {
+            url.searchParams.set(key, value);
+        });
+        link.href = url.toString();
+    });
 }
 
 // DOMContentLoaded時に初期化
