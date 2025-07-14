@@ -8,11 +8,7 @@ let selectedTaskId = null;
 let statusFilter = '';
 let detailRefreshInterval = null;
 
-// クエリパラメータからAPIキーを取得
-function getApiKeyFromQuery() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('apiKey') || params.get('key');
-}
+// クエリパラメータからAPIキーを取得はutils.jsから使用
 
 // === SDKオプション関連の追加機能 ===
 
@@ -742,24 +738,15 @@ async function applyPreset(presetId) {
     }
 }
 
-// 通知表示
+// 通知表示はutils.jsの関数を使用
+// スタイルの互換性のためnotification-${type}クラスを追加
+const _showNotification = showNotification;
 function showNotification(message, type = 'info') {
-    // 既存の通知があれば削除
-    const existing = document.querySelector('.notification');
-    if (existing) {
-        existing.remove();
+    _showNotification(message, type);
+    const notification = document.querySelector('.notification');
+    if (notification) {
+        notification.classList.add(`notification-${type}`);
     }
-    
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    // 3秒後に自動的に削除
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
 }
 
 // SDKオプションの収集
@@ -1088,20 +1075,7 @@ async function init() {
     window.cancelTask = cancelTask;
 }
 
-// ナビゲーションリンクを更新する関数
-function updateNavigationLinks() {
-    const currentParams = new URLSearchParams(window.location.search);
-    const navLinks = document.querySelectorAll('.header-nav a');
-    
-    navLinks.forEach(link => {
-        const url = new URL(link.href, window.location.origin);
-        // 現在のクエリパラメータをリンクに追加
-        currentParams.forEach((value, key) => {
-            url.searchParams.set(key, value);
-        });
-        link.href = url.toString();
-    });
-}
+// ナビゲーションリンク更新はutils.jsから使用
 
 // DOMContentLoaded時に初期化
 document.addEventListener('DOMContentLoaded', init);

@@ -1,0 +1,253 @@
+/* 共通スタイル */
+
+/* 通知 */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 1000;
+    max-width: 400px;
+    transition: opacity 0.3s;
+}
+
+.notification.success {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+
+.notification.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+.notification.info {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+}
+
+.notification.warning {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+
+/* app.jsの互換性のため */
+.notification-success { background-color: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.notification-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.notification-info { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.notification-warning { background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+/* 接続状態表示 */
+.status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    background-color: var(--bg-secondary);
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--border-color);
+}
+
+.status.connected .status-dot {
+    background-color: var(--success-color);
+}
+
+.status.disconnected .status-dot {
+    background-color: var(--error-color);
+}
+
+/* ローディング・エラー・空状態 */
+.loading, .error, .empty {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+
+.error {
+    color: var(--error-color);
+}
+
+/* モーダル基本スタイル */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: var(--bg-primary);
+    margin: 10% auto;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    width: 80%;
+    max-width: 600px;
+    position: relative;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.modal .close {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-secondary);
+    line-height: 1;
+}
+
+.modal .close:hover {
+    color: var(--text-primary);
+}
+
+/* モーダルのモバイル対応 */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        margin: 0;
+    }
+}
+
+/* フォームコントロール共通 */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+/* ボタン共通 */
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #2563eb;
+}
+
+.btn-secondary {
+    background-color: white;
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: var(--bg-secondary);
+}
+
+.btn-danger {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #dc2626;
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* ページネーション */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 20px 0;
+}
+
+.pagination-info {
+    margin: 0 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.page-size-selector {
+    margin-left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.page-size-selector select {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .pagination {
+        flex-wrap: wrap;
+    }
+    
+    .pagination-info {
+        width: 100%;
+        text-align: center;
+        margin: 8px 0;
+    }
+    
+    .page-size-selector {
+        width: 100%;
+        justify-content: center;
+        margin: 8px 0;
+    }
+}

@@ -226,12 +226,7 @@ function changePage(page) {
     loadTasks(page);
 }
 
-// 作業ディレクトリからリポジトリ名を抽出
-function extractRepoName(workingDirectory) {
-    if (!workingDirectory) return 'デフォルト';
-    const parts = workingDirectory.split('/');
-    return parts[parts.length - 1] || 'デフォルト';
-}
+// 作業ディレクトリからリポジトリ名を抽出はutils.jsから使用
 
 // タスク要素作成
 function createTaskElement(task) {
@@ -972,24 +967,9 @@ function closeModal() {
     }
 }
 
-// ステータステキスト取得
-function getStatusText(status) {
-    const statusMap = {
-        'pending': '待機中',
-        'running': '実行中',
-        'completed': '完了',
-        'failed': '失敗',
-        'cancelled': 'キャンセル'
-    };
-    return statusMap[status] || status;
-}
+// ステータステキスト取得はutils.jsから使用
 
-// HTMLエスケープ
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+// HTMLエスケープはutils.jsから使用
 
 // コンテンツタイプの判定
 function detectContentType(content) {

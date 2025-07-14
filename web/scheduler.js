@@ -6,26 +6,9 @@ let repositories = [];
 let currentFilter = 'all';
 let apiClient;
 
-// クエリパラメータからAPIキーを取得
-function getApiKeyFromQuery() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('apiKey') || params.get('key');
-}
+// クエリパラメータからAPIキーを取得はutils.jsから使用
 
-// ナビゲーションリンクを更新する関数
-function updateNavigationLinks() {
-    const currentParams = new URLSearchParams(window.location.search);
-    const navLinks = document.querySelectorAll('.header-nav a');
-    
-    navLinks.forEach(link => {
-        const url = new URL(link.href, window.location.origin);
-        // 現在のクエリパラメータをリンクに追加
-        currentParams.forEach((value, key) => {
-            url.searchParams.set(key, value);
-        });
-        link.href = url.toString();
-    });
-}
+// ナビゲーションリンクを更新する関数はutils.jsから使用
 
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
@@ -42,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateNavigationLinks();
     
     // 接続状態の監視を開始
-    setupConnectionStatus();
+    setupConnectionStatus(apiClient);
     
     await loadRepositories();
     await loadSchedules();
@@ -385,84 +368,12 @@ function createHistoryModal(schedule, history) {
     return modal;
 }
 
-// 通知を表示
-function showNotification(message, type = 'info') {
-    // 既存の通知を削除
-    const existing = document.querySelector('.notification');
-    if (existing) {
-        existing.remove();
-    }
+// 通知を表示はutils.jsから使用
 
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
+// 日時フォーマットはutils.jsから使用
 
-    // 3秒後に削除
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
-}
+// HTMLエスケープはutils.jsから使用
 
-// 日時フォーマット
-function formatDateTime(dateStr) {
-    if (!dateStr) return '-';
-    
-    const date = new Date(dateStr);
-    return date.toLocaleString('ja-JP', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
+// タスク詳細URLを生成はutils.jsから使用
 
-// HTMLエスケープ
-function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
-// タスク詳細URLを生成（クエリパラメータを引き継ぐ）
-function getTaskDetailUrl(taskId) {
-    const currentParams = new URLSearchParams(window.location.search);
-    const url = new URL('/', window.location.origin);
-    
-    // 現在のクエリパラメータを引き継ぐ
-    currentParams.forEach((value, key) => {
-        url.searchParams.set(key, value);
-    });
-    
-    // タスクIDを追加
-    url.searchParams.set('taskId', taskId);
-    
-    return url.toString();
-}
-
-// 接続状態の監視を設定
-function setupConnectionStatus() {
-    checkConnectionStatus();
-    // 5秒ごとに接続状態をチェック
-    setInterval(checkConnectionStatus, 5000);
-}
-
-// サーバーへの接続状態をチェック
-async function checkConnectionStatus() {
-    const statusElement = document.getElementById('connection-status');
-    const statusDot = statusElement.querySelector('.status-dot');
-    const statusText = statusElement.querySelector('.status-text');
-    
-    try {
-        await apiClient.request('GET', '/health');
-        statusElement.classList.remove('disconnected');
-        statusElement.classList.add('connected');
-        statusText.textContent = '接続中';
-    } catch (error) {
-        statusElement.classList.remove('connected');
-        statusElement.classList.add('disconnected');
-        statusText.textContent = '未接続';
-    }
-}
+// 接続状態の監視はutils.jsのsetupConnectionStatusを使用

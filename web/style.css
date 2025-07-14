@@ -142,20 +142,7 @@ h1 {
     font-size: 14px;
 }
 
-.status-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--border-color);
-}
-
-.status.connected .status-dot {
-    background-color: var(--success-color);
-}
-
-.status.disconnected .status-dot {
-    background-color: var(--error-color);
-}
+/* 接続状態表示はcommon.cssに移動 */
 
 /* メインコンテンツ */
 main {
