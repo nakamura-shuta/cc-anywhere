@@ -29,10 +29,6 @@ vi.mock("../../../src/utils/logger", () => ({
   },
 }));
 
-vi.mock("../../../src/claude/client", () => ({
-  ClaudeClient: vi.fn().mockImplementation(() => ({})),
-}));
-
 vi.mock("../../../src/claude/claude-code-client", () => ({
   ClaudeCodeClient: vi.fn().mockImplementation(() => ({})),
 }));

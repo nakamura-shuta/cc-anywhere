@@ -47,9 +47,6 @@ TASK_TIMEOUT_MS=600000
 
 # 最大同時実行タスク数
 MAX_CONCURRENT_TASKS=10
-
-# Claude Code SDK使用（常にtrue推奨）
-USE_CLAUDE_CODE_SDK=true
 ```
 
 ### Git Worktree機能

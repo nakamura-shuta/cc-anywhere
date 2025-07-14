@@ -22,9 +22,7 @@ vi.mock("../../src/config", () => ({
     claudeCodeSDK: {
       defaultMaxTurns: 3,
     },
-    tasks: {
-      useClaudeCodeSDK: true,
-    },
+    tasks: {},
   },
 }));
 

@@ -21,11 +21,7 @@ vi.mock("../../../../src/utils/logger", () => ({
   },
 }));
 
-// Mock Claude clients
-vi.mock("../../../../src/claude/client", () => ({
-  ClaudeClient: vi.fn().mockImplementation(() => ({})),
-}));
-
+// Mock Claude client
 vi.mock("../../../../src/claude/claude-code-client", () => ({
   ClaudeCodeClient: vi.fn().mockImplementation(() => ({})),
 }));
@@ -68,7 +64,6 @@ vi.mock("../../../../src/config", () => ({
     },
     tasks: {
       defaultTimeout: 300000,
-      useClaudeCodeSDK: true,
     },
     claudeCodeSDK: {
       defaultMaxTurns: 3,

@@ -4,12 +4,12 @@ Claude Code SDKを使用してHTTP経由で指示できるアプリです。
 
 ## 概要
 
-CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、様々なタスクを実行できるAPIサーバーです。
+CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、様々なタスクを実行できるAPIサーバーです。@anthropic-ai/claude-code SDKのみを使用し、通常のClaude APIは使用しません。
 
 ### 主な機能
 
-- 🚀 Claude Code SDKをHTTP API経由で利用
-- 📱 モバイル対応Web UI
+- 🚀 Claude Code SDK (v1.0.51+) をHTTP API経由で利用
+- 📱 モバイル対応Web UI（レスポンシブデザイン）
 - 🔄 非同期タスク実行とキュー管理
 - 📦 複数リポジトリへの一括実行
 - 🌿 Git Worktree統合（独立した作業環境）
@@ -19,13 +19,17 @@ CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、�
 - 📊 リアルタイムログ（WebSocket）
 - 🔁 自動リトライ機能
 - ⏰ スケジュール実行（Cron式対応）
+- 🎯 権限モード制御（default, acceptEdits, bypassPermissions, plan）
+- 💾 設定プリセット管理
+- 📄 タスク履歴とページネーション
 
 ## セットアップ
 
 ### 前提条件
 
 - Node.js 20以上
-- Claude API キー
+- npm 10以上
+- Claude API キー（Claude Code SDK用）
 
 ### インストール
 
@@ -64,7 +68,6 @@ LOG_LEVEL=debug
 # タスク実行設定
 TASK_TIMEOUT_MS=300000
 MAX_CONCURRENT_TASKS=10
-USE_CLAUDE_CODE_SDK=true
 QUEUE_CONCURRENCY=2
 
 # データベース（SQLite）
@@ -73,6 +76,12 @@ DB_PATH=./data/cc-anywhere.db
 # ワーカー設定
 WORKER_MODE=inline  # inline, standalone, managed
 WORKER_COUNT=1      # managed モードでのワーカー数
+
+# Git Worktree設定
+ENABLE_WORKTREE=true
+WORKTREE_AUTO_CLEANUP=true
+WORKTREE_CLEANUP_DELAY=10000
+MAX_WORKTREES=20
 ```
 
 ## 使用方法
@@ -117,14 +126,17 @@ npm run dev
 cc-anywhere のWeb UIは以下の機能を提供します：
 
 - **タスク実行画面** (`/index.html`) - メイン画面
-  - Claude Code SDKの全オプション設定
-  - プリセット保存・管理機能
+  - Claude Code SDKの全オプション設定（maxTurns, permissionMode, allowedTools等）
+  - プリセット保存・管理機能（システム/ユーザープリセット）
   - タスク一覧とリアルタイム更新
-  - ページネーション機能
+  - ページネーション機能（10/20/50/100件表示）
+  - Git Worktree設定
 - **スケジューラー画面** (`/scheduler.html`) - スケジュール管理
-  - Cron式による定期実行設定
+  - Cron式による定期実行設定（5フィールド形式）
   - ワンタイム実行の設定
+  - タイムゾーン対応
   - スケジュール一覧と管理
+  - 実行履歴の確認
 
 Web UIにアクセス：
 ```
@@ -149,12 +161,17 @@ CC-Anywhereは3つのワーカーモードをサポートします：
 ### テストの実行
 
 ```bash
-# 全テスト
-npm test
-
-# ユニットテストのみ
+# ユニットテストを実行
 npm run test:unit
+
+# 統合テストを実行
+npm run test:integration
+
+# watchモードでテスト（開発時）
+npm run test:watch
 ```
+
+**注意**: `npm test`は誤ってwatchモードで実行されることを防ぐため、エラーメッセージを表示します。常に特定のテストコマンドを使用してください。
 
 ### その他のコマンド
 

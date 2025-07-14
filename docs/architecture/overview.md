@@ -95,12 +95,12 @@ interface TaskManager {
 
 ### 5. Claude統合
 
-Claude APIとの通信レイヤー：
+Claude Code SDKとの通信レイヤー：
 
-- **Claude Code SDK**: ファイル操作、コード実行
-- **通常のClaude API**: 汎用的なAIタスク
+- **Claude Code SDK**: ファイル操作、コード実行、AIタスク実行
 - **トークン管理**: 使用量の追跡
 - **エラーハンドリング**: レート制限、タイムアウト
+- **権限管理**: 実行権限の制御（default, acceptEdits, bypassPermissions, plan）
 
 ### 6. データ永続化
 

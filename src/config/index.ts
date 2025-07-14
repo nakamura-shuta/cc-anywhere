@@ -15,10 +15,6 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().optional(),
   TASK_TIMEOUT_MS: z.string().default("600000").transform(Number), // 10 minutes
   MAX_CONCURRENT_TASKS: z.string().default("10").transform(Number),
-  USE_CLAUDE_CODE_SDK: z
-    .string()
-    .default("true")
-    .transform(() => true), // Always use Claude Code SDK
   QUEUE_CONCURRENCY: z.string().default("2").transform(Number),
   DB_PATH: z.string().default("./data/cc-anywhere.db"),
   WORKER_MODE: z.enum(["inline", "standalone", "managed"]).default("inline"),
@@ -88,7 +84,6 @@ export const config = {
   tasks: {
     defaultTimeout: env.TASK_TIMEOUT_MS,
     maxConcurrent: env.MAX_CONCURRENT_TASKS,
-    useClaudeCodeSDK: env.USE_CLAUDE_CODE_SDK,
   },
   queue: {
     concurrency: env.QUEUE_CONCURRENCY,

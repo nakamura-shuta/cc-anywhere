@@ -38,13 +38,6 @@ vi.mock("../../src/claude/claude-code-client", () => ({
   })),
 }));
 
-// Mock the ClaudeClient
-vi.mock("../../src/claude/client", () => ({
-  ClaudeClient: vi.fn().mockImplementation(() => ({
-    sendMessage: vi.fn().mockResolvedValue("Task completed"),
-  })),
-}));
-
 // Mock the logger
 vi.mock("../../src/utils/logger", () => ({
   logger: {

@@ -8,15 +8,25 @@
 - **ワンタイム実行**: 指定日時に1回だけ実行
 - **実行履歴**: 実行結果の記録と確認
 - **Web UI**: ブラウザから簡単に管理
+- **タイムゾーン対応**: Cronスケジュールでタイムゾーン指定可能
+- **権限モード設定**: タスク実行時の権限モードを指定可能
 
 ## Web UIでの使用
 
-1. ブラウザで `http://localhost:5000/scheduler.html` を開く
+1. ブラウザで `http://localhost:5000/scheduler.html?apiKey=your-api-key` を開く
 2. 「新規スケジュール」フォームで設定を入力
 3. Cron式の例：
    - `* * * * *` - 毎分
+   - `*/5 * * * *` - 5分ごと
+   - `0 * * * *` - 毎時0分
    - `0 2 * * *` - 毎日午前2時
    - `0 9 * * 1-5` - 平日午前9時
+   - `*/15 * * * *` - 15分ごと
+4. 権限モードを選択：
+   - 確認あり (default) - すべての操作前に確認
+   - 編集のみ自動 (acceptEdits) - ファイル編集は自動、その他は確認
+   - すべて自動 (bypassPermissions) - すべての操作を自動実行
+   - 計画のみ (plan) - 実行せず計画のみ作成
 
 ## API使用例
 
@@ -27,17 +37,23 @@ curl -X POST http://localhost:5000/api/schedules \
   -H "Content-Type: application/json" \
   -d '{
     "name": "日次バックアップ",
+    "description": "毎日午前2時にバックアップを作成",
     "taskRequest": {
       "instruction": "バックアップを作成",
+      "context": {
+        "workingDirectory": "/path/to/project"
+      },
       "options": {
         "sdk": {
-          "permissionMode": "bypassPermissions"
+          "permissionMode": "bypassPermissions",
+          "maxTurns": 5
         }
       }
     },
     "schedule": {
       "type": "cron",
-      "expression": "0 2 * * *"
+      "expression": "0 2 * * *",
+      "timezone": "Asia/Tokyo"
     }
   }'
 ```

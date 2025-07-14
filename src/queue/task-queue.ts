@@ -47,7 +47,7 @@ export class TaskQueueImpl implements TaskQueue {
 
     this.queue = new PQueue(queueOptions);
 
-    this.executor = new TaskExecutorImpl(true); // Use Claude Code by default
+    this.executor = new TaskExecutorImpl();
     // Use shared repository instance
     this.repository = getSharedRepository();
     this.eventBus = getTypedEventBus(); // Initialize event bus

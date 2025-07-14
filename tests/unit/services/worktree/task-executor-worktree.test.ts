@@ -9,7 +9,6 @@ import { existsSync } from "fs";
 // Mock modules
 vi.mock("../../../../src/services/worktree/worktree-manager");
 vi.mock("../../../../src/config");
-vi.mock("../../../../src/claude/client");
 vi.mock("../../../../src/claude/claude-code-client");
 vi.mock("fs/promises");
 vi.mock("fs");
@@ -33,7 +32,6 @@ describe("TaskExecutor Worktree Integration", () => {
     vi.mocked(config).tasks = {
       defaultTimeout: 60000,
       maxConcurrent: 10,
-      useClaudeCodeSDK: true,
     };
 
     // Setup WorktreeManager mock
@@ -61,15 +59,8 @@ describe("TaskExecutor Worktree Integration", () => {
     vi.mocked(existsSync).mockReturnValue(true);
 
     // Setup Claude SDK mocks
-    const { ClaudeClient } = await import("../../../../src/claude/client");
     const { ClaudeCodeClient } = await import("../../../../src/claude/claude-code-client");
-    const mockClaudeClient = vi.mocked(ClaudeClient);
     const mockClaudeCodeClient = vi.mocked(ClaudeCodeClient);
-
-    mockClaudeClient.prototype.query = vi.fn().mockResolvedValue({
-      role: "assistant",
-      content: "Test response",
-    });
 
     mockClaudeCodeClient.prototype.executeTask = vi.fn().mockResolvedValue({
       success: true,
@@ -80,7 +71,7 @@ describe("TaskExecutor Worktree Integration", () => {
       .fn()
       .mockReturnValue("Test response");
 
-    executor = new TaskExecutorImpl(true);
+    executor = new TaskExecutorImpl();
   });
 
   afterEach(() => {

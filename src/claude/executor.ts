@@ -1,4 +1,3 @@
-import { ClaudeClient } from "./client";
 import { ClaudeCodeClient } from "./claude-code-client";
 import type {
   TaskRequest,
@@ -31,18 +30,14 @@ import { mapPermissionMode } from "./permission-mode-mapper";
  * - Providing progress updates and log streaming
  */
 export class TaskExecutorImpl implements TaskExecutor {
-  private client: ClaudeClient;
   private codeClient: ClaudeCodeClient;
-  private useClaudeCode: boolean;
   private runningTasks: Map<string, AbortController> = new Map();
   private retryHandler: RetryHandler;
   private instructionProcessor?: InstructionProcessor;
   private worktreeManager?: WorktreeManager;
 
-  constructor(useClaudeCode = true) {
-    this.client = new ClaudeClient();
+  constructor() {
     this.codeClient = new ClaudeCodeClient();
-    this.useClaudeCode = useClaudeCode;
     this.retryHandler = new RetryHandler();
 
     // Initialize instruction processor
@@ -236,177 +231,147 @@ export class TaskExecutorImpl implements TaskExecutor {
 
       let output: unknown;
 
-      if (this.useClaudeCode) {
-        // Use Claude Code SDK
-        try {
-          // Transition to setup phase
-          timeoutManager.transitionToPhase(TimeoutPhase.SETUP);
+      // Use Claude Code SDK
+      try {
+        // Transition to setup phase
+        timeoutManager.transitionToPhase(TimeoutPhase.SETUP);
 
-          // Notify progress: Starting task
-          if (processedTask.options?.onProgress) {
-            await processedTask.options.onProgress({
-              type: "log",
-              message: "タスク実行を開始します...",
-            });
-          }
-
-          // Validate and set working directory if specified
-          // Note: If worktree was created, processedTask.context.workingDirectory is already updated
-          const resolvedWorkingDirectory = processedTask.context?.workingDirectory
-            ? resolve(processedTask.context.workingDirectory)
-            : undefined;
-
-          if (resolvedWorkingDirectory) {
-            // Check if directory exists
-            if (!existsSync(resolvedWorkingDirectory)) {
-              throw new NotFoundError(
-                `Working directory does not exist: ${resolvedWorkingDirectory}`,
-              );
-            }
-
-            logs.push(`Working directory: ${resolvedWorkingDirectory}`);
-            logger.info("Using working directory", { cwd: resolvedWorkingDirectory });
-
-            if (processedTask.options?.onProgress) {
-              await processedTask.options.onProgress({
-                type: "log",
-                message: `作業ディレクトリ: ${resolvedWorkingDirectory}`,
-              });
-            }
-          }
-
-          // Transition to execution phase
-          timeoutManager.transitionToPhase(TimeoutPhase.EXECUTION);
-
-          // Notify progress: Execution phase
-          if (processedTask.options?.onProgress) {
-            await processedTask.options.onProgress({
-              type: "log",
-              message: "Claude Codeを実行中...",
-            });
-          }
-
-          // SDKオプションの取得とマージ
-          const sdkOptions = this.mergeSDKOptions(
-            processedTask.options?.sdk,
-            processedTask.options,
-          );
-
-          // SDKオプションの検証
-          this.validateSDKOptions(sdkOptions);
-
-          // 進捗コールバックを拡張して構造化されたログを処理
-          const enhancedOnProgress = async (progress: {
-            type: string;
-            message: string;
-            data?: any;
-          }) => {
-            // 元のコールバックに通常のログを送信
-            if (processedTask.options?.onProgress) {
-              await processedTask.options.onProgress({
-                type: "log",
-                message: progress.message,
-              });
-            }
-
-            // 構造化されたデータがある場合は別途処理
-            if (progress.data) {
-              switch (progress.type) {
-                case "tool_usage":
-                  // TODO: WebSocket経由でツール使用情報を送信
-                  break;
-                case "progress":
-                  // TODO: WebSocket経由で進捗情報を送信
-                  break;
-              }
-            }
-          };
-
-          // Claude Code SDKの実行
-          const result = await this.codeClient.executeTask(prompt, {
-            maxTurns: sdkOptions.maxTurns,
-            cwd: resolvedWorkingDirectory,
-            abortController,
-            allowedTools: sdkOptions.allowedTools,
-            disallowedTools: sdkOptions.disallowedTools,
-            systemPrompt: sdkOptions.systemPrompt,
-            permissionMode: mapPermissionMode(sdkOptions.permissionMode),
-            executable: sdkOptions.executable,
-            executableArgs: sdkOptions.executableArgs,
-            mcpConfig: sdkOptions.mcpConfig,
-            continueSession: sdkOptions.continueSession,
-            resumeSession: sdkOptions.resumeSession,
-            outputFormat: sdkOptions.outputFormat,
-            verbose: sdkOptions.verbose,
-            onProgress: enhancedOnProgress,
+        // Notify progress: Starting task
+        if (processedTask.options?.onProgress) {
+          await processedTask.options.onProgress({
+            type: "log",
+            message: "タスク実行を開始します...",
           });
-
-          if (!result.success) {
-            throw result.error || new Error("Task execution failed");
-          }
-
-          // Generate task summary if tracker is available
-          if (result.tracker) {
-            const summary = result.tracker.generateSummary(result.success, output);
-
-            // Send summary via progress callback
-            if (processedTask.options?.onProgress) {
-              await processedTask.options.onProgress({
-                type: "summary",
-                message: `タスク完了: ${summary.highlights.join(" / ")}`,
-              });
-            }
-
-            // Add summary to logs
-            logs.push(...summary.highlights);
-          }
-
-          // Process result based on output format
-          const processedResult = this.processClaudeCodeResult(result, sdkOptions.outputFormat);
-
-          output =
-            sdkOptions.outputFormat === "json"
-              ? processedResult.output
-              : this.codeClient.formatMessagesAsString(result.messages);
-
-          logs.push(`Received ${result.messages.length} messages from Claude Code`);
-        } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") {
-            // Check if this was a cancellation or timeout
-            const wasCancelled = taskId && !this.runningTasks.has(taskId);
-            if (wasCancelled) {
-              throw new TaskCancelledError();
-            }
-            // TimeoutManager already logged the timeout details
-            throw error instanceof TimeoutError ? error : new Error("Task execution timed out");
-          }
-          throw error;
         }
-      } else {
-        // Use regular Claude API
-        const systemPrompt = this.getSystemPrompt();
 
-        try {
-          // Transition to execution phase (no setup needed for regular API)
-          timeoutManager.transitionToPhase(TimeoutPhase.EXECUTION);
+        // Validate and set working directory if specified
+        // Note: If worktree was created, processedTask.context.workingDirectory is already updated
+        const resolvedWorkingDirectory = processedTask.context?.workingDirectory
+          ? resolve(processedTask.context.workingDirectory)
+          : undefined;
 
-          // Execute with abort signal
-          output = await this.executeWithAbortSignal(
-            () => this.client.sendMessage(prompt, systemPrompt),
-            abortController.signal,
-          );
-        } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") {
-            // Check if this was a cancellation or timeout
-            const wasCancelled = taskId && !this.runningTasks.has(taskId);
-            if (wasCancelled) {
-              throw new TaskCancelledError();
-            }
-            // TimeoutManager already logged the timeout details
-            throw error instanceof TimeoutError ? error : new Error("Task execution timed out");
+        if (resolvedWorkingDirectory) {
+          // Check if directory exists
+          if (!existsSync(resolvedWorkingDirectory)) {
+            throw new NotFoundError(
+              `Working directory does not exist: ${resolvedWorkingDirectory}`,
+            );
           }
-          throw error;
+
+          logs.push(`Working directory: ${resolvedWorkingDirectory}`);
+          logger.info("Using working directory", { cwd: resolvedWorkingDirectory });
+
+          if (processedTask.options?.onProgress) {
+            await processedTask.options.onProgress({
+              type: "log",
+              message: `作業ディレクトリ: ${resolvedWorkingDirectory}`,
+            });
+          }
         }
+
+        // Transition to execution phase
+        timeoutManager.transitionToPhase(TimeoutPhase.EXECUTION);
+
+        // Notify progress: Execution phase
+        if (processedTask.options?.onProgress) {
+          await processedTask.options.onProgress({
+            type: "log",
+            message: "Claude Codeを実行中...",
+          });
+        }
+
+        // SDKオプションの取得とマージ
+        const sdkOptions = this.mergeSDKOptions(processedTask.options?.sdk, processedTask.options);
+
+        // SDKオプションの検証
+        this.validateSDKOptions(sdkOptions);
+
+        // 進捗コールバックを拡張して構造化されたログを処理
+        const enhancedOnProgress = async (progress: {
+          type: string;
+          message: string;
+          data?: any;
+        }) => {
+          // 元のコールバックに通常のログを送信
+          if (processedTask.options?.onProgress) {
+            await processedTask.options.onProgress({
+              type: "log",
+              message: progress.message,
+            });
+          }
+
+          // 構造化されたデータがある場合は別途処理
+          if (progress.data) {
+            switch (progress.type) {
+              case "tool_usage":
+                // TODO: WebSocket経由でツール使用情報を送信
+                break;
+              case "progress":
+                // TODO: WebSocket経由で進捗情報を送信
+                break;
+            }
+          }
+        };
+
+        // Claude Code SDKの実行
+        const result = await this.codeClient.executeTask(prompt, {
+          maxTurns: sdkOptions.maxTurns,
+          cwd: resolvedWorkingDirectory,
+          abortController,
+          allowedTools: sdkOptions.allowedTools,
+          disallowedTools: sdkOptions.disallowedTools,
+          systemPrompt: sdkOptions.systemPrompt,
+          permissionMode: mapPermissionMode(sdkOptions.permissionMode),
+          executable: sdkOptions.executable,
+          executableArgs: sdkOptions.executableArgs,
+          mcpConfig: sdkOptions.mcpConfig,
+          continueSession: sdkOptions.continueSession,
+          resumeSession: sdkOptions.resumeSession,
+          outputFormat: sdkOptions.outputFormat,
+          verbose: sdkOptions.verbose,
+          onProgress: enhancedOnProgress,
+        });
+
+        if (!result.success) {
+          throw result.error || new Error("Task execution failed");
+        }
+
+        // Generate task summary if tracker is available
+        if (result.tracker) {
+          const summary = result.tracker.generateSummary(result.success, output);
+
+          // Send summary via progress callback
+          if (processedTask.options?.onProgress) {
+            await processedTask.options.onProgress({
+              type: "summary",
+              message: `タスク完了: ${summary.highlights.join(" / ")}`,
+            });
+          }
+
+          // Add summary to logs
+          logs.push(...summary.highlights);
+        }
+
+        // Process result based on output format
+        const processedResult = this.processClaudeCodeResult(result, sdkOptions.outputFormat);
+
+        output =
+          sdkOptions.outputFormat === "json"
+            ? processedResult.output
+            : this.codeClient.formatMessagesAsString(result.messages);
+
+        logs.push(`Received ${result.messages.length} messages from Claude Code`);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          // Check if this was a cancellation or timeout
+          const wasCancelled = taskId && !this.runningTasks.has(taskId);
+          if (wasCancelled) {
+            throw new TaskCancelledError();
+          }
+          // TimeoutManager already logged the timeout details
+          throw error instanceof TimeoutError ? error : new Error("Task execution timed out");
+        }
+        throw error;
       }
 
       // Transition to cleanup phase
@@ -424,7 +389,6 @@ export class TaskExecutorImpl implements TaskExecutor {
       logger.info("Task completed", {
         instruction: task.instruction,
         duration: Date.now() - startTime,
-        usedClaudeCode: this.useClaudeCode,
       });
 
       // Clean up
@@ -504,56 +468,10 @@ export class TaskExecutorImpl implements TaskExecutor {
     }
   }
 
-  private async executeWithAbortSignal<T>(fn: () => Promise<T>, signal: AbortSignal): Promise<T> {
-    // Handle abort signal
-    const abortError = new Error("Task execution aborted");
-    abortError.name = "AbortError";
-
-    const abortHandler = () => {
-      throw abortError;
-    };
-
-    if (signal.aborted) {
-      abortHandler();
-    }
-
-    signal.addEventListener("abort", abortHandler);
-
-    try {
-      const result = await fn();
-      signal.removeEventListener("abort", abortHandler);
-      return result;
-    } catch (error) {
-      signal.removeEventListener("abort", abortHandler);
-      throw error;
-    }
-  }
-
   private buildPrompt(task: TaskRequest): string {
-    let prompt = task.instruction;
-
     // Claude Code SDKはcwdオプションで作業ディレクトリを自動的に設定するため、
-    // 通常のClaude APIの場合のみコンテキストに追加
-    if (!this.useClaudeCode && task.context) {
-      prompt += "\n\nContext:";
-
-      if (task.context.workingDirectory) {
-        prompt += `\nWorking directory: ${task.context.workingDirectory}`;
-      }
-
-      if (task.context.files && task.context.files.length > 0) {
-        prompt += `\nFiles: ${task.context.files.join(", ")}`;
-      }
-    }
-
-    return prompt;
-  }
-
-  private getSystemPrompt(): string {
-    return `You are a helpful AI assistant integrated into a development environment. 
-You help users with various programming and development tasks. 
-Provide clear, concise, and accurate responses. 
-When providing code, ensure it follows best practices and is well-documented.`;
+    // プロンプトにはinstructionのみを使用
+    return task.instruction;
   }
 
   /**

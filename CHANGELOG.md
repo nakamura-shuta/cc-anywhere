@@ -7,66 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- 完全に@anthropic-ai/claude-code SDKに移行し、@anthropic-ai/sdkを削除
+- Claude Code SDK を v1.0.51 に更新
+- 権限モードの実装を改善（ask → default, allow → bypassPermissions, deny → plan）
+- Web UIを SDK の権限モードに合わせて更新
+
 ### Added
-- Slash command support with `/project:` and `/user:` prefixes
-- Support for both Claude Code (`$ARGUMENTS`) and Handlebars (`{{variable}}`) template syntax
-- Comprehensive unit tests for slash command functionality
-- Documentation for slash commands in `/docs/features/slash-commands.md`
-- Real-time task detail updates with WebSocket and interval refresh fallback
-- バッチタスク機能の実装 - 複数のリポジトリに対して同じタスクを並列実行
-  - Web UIで複数リポジトリ選択時に自動的にバッチタスクを作成
-  - 各タスクにリポジトリ名を表示
-  - グループIDによるバッチタスクのステータス確認API
-- タスクキューにメタデータ（groupId, repositoryName）のサポートを追加
-- モバイル対応Web UI
-  - レスポンシブデザインの実装
-  - タッチ操作に最適化されたUI要素
-  - モバイルでのタスクID表示とコピー機能
-- QRコード表示機能（ngrok使用時）
-  - `SHOW_QR_CODE=true`でターミナルにQRコードを表示
-  - スマートフォンからの簡単アクセス
+- Claude Code SDK 1.0.51の新機能をTODO.mdに追加
+  - Webサーチ機能の統合
+  - @メンション機能
+  - Todoリスト機能の活用
+  - /doctor診断機能
+  - 並列Web検索
+  - MCPサーバー実行
+  - プログレスメッセージ改善
+
+### Removed
+- @anthropic-ai/sdk依存関係を削除
+- ClaudeClientクラスと関連コードを削除
+- USE_CLAUDE_CODE_SDK環境変数を削除（常にClaude Code SDKを使用）
+- 不要なテストモックを削除
 
 ### Fixed
-- Task detail view not updating when left open during task execution
-- Unit test failures related to API authentication
-- WebSocket update handling to fetch fresh data from server
-- バッチタスクで重複したタスクが表示される問題を修正
-- Web UIでタスクIDが切れて表示される問題を修正（ホバーで全体表示）
-- タスク一覧でリポジトリ名が「デフォルト」と表示される問題を修正
-  - Fastifyのレスポンススキーマに`workingDirectory`フィールドを追加
-  - GET /api/tasks, POST /api/tasks, GET /api/tasks/:taskIdのスキーマを更新
-- タスク詳細画面を開いたままにすると実行ログが消える問題を修正
-  - 定期更新時にログ表示処理を追加
-  - ログ表示ロジックを共通関数`displayTaskLogs`として抽出
+- ビルドエラーを修正（未使用のメソッドを削除）
+- テストファイルのインポートエラーを修正
+
+## [0.3.0] - 2025-01-14
+
+### Added
+- タスク実行ログ・結果表示の改善
+  - ツール使用情報の詳細表示（Read/Write/Edit/Bash等）をリアルタイムで実装
+  - タスク実行サマリーの生成（使用ツール統計、ファイル操作一覧、実行時間等）
+  - WebSocket経由で構造化されたログ情報（tool_usage, progress, summary）を送信
+  - 各ツールにアイコンを設定（📖読取、✏️作成、📝編集、💻コマンド等）
+  - エラー時の詳細情報表示の改善
+  - Markdown形式の結果を適切にレンダリング
+  - ネストされたJSONレスポンス（task.result.result）に対応
 
 ### Changed
-- Template engine now supports dual syntax for maximum compatibility
-- Improved error handling in slash command processing
-- Default timeout changed from 5 minutes to 10 minutes
+- フロントエンドのリファクタリング
+  - JavaScript共通関数をutils.jsに集約
+  - CSS共通スタイルをcommon.cssに集約
+  - コードの重複を大幅に削減
+  - メンテナンス性の向上
+- スケジューラー画面のUI改善
+  - タスク実行画面とスケジューラー画面のスタイルを完全に統一
+  - ナビゲーションリンクにクエリパラメータを引き継ぐ機能を追加
+  - 接続状態チェックのエンドポイントを修正
+  - 不要なファイルを削除（index-simple.html, app-simple.js）
 
-## [0.2.0] - 2024-12-30
+## [0.2.0] - 2025-01-13
 
 ### Added
-- ngrok integration for external access during development
-- Automatic ngrok tunnel creation when `ENABLE_NGROK=true`
-- Display of external access URLs with API key
+- スケジューラー機能
+  - Cron式による定期実行（5フィールド形式）
+  - ワンタイム実行（指定日時での1回限り実行）
+  - タイムゾーン対応（Cronスケジュール）
+  - 実行履歴の記録と管理
+  - スケジュールの有効化/無効化
+  - REST APIによる完全な管理機能
+  - Web UIからのスケジュール管理
+- 権限モード実装の改善
+  - Claude Code SDKの権限モードを正しく実装
+  - Web UIも SDK に合わせて更新（default, acceptEdits, bypassPermissions, plan）
+  - cc-anywhere経由でもファイル作成が可能に
+- タスク一覧のページネーション
+  - APIレベルでのページング対応
+  - Web UIでのページナビゲーション
+  - 表示件数選択機能（10, 20, 50, 100件）
+  - 大量タスク時のパフォーマンス改善
 
-## [0.1.0] - 2024-12-30
+## [0.1.0] - 2025-01-12
 
 ### Added
-- Initial release of CC-Anywhere
-- HTTP server with Fastify framework
-- Claude Code SDK integration
-- RESTful API endpoints for task management
-- WebSocket support for real-time updates
-- Task queue system with priority support
-- Worker system (inline, standalone, managed modes)
-- SQLite database for task persistence
-- Comprehensive test suite
-- API authentication with API key
-- Web UI for task management
-- Repository configuration support
-- Timeout handling with phase-specific timeouts
-- Automatic retry functionality
-- Docker support
-- Comprehensive documentation
+- 初期リリース
+- Claude Code SDK統合
+- HTTP API エンドポイント
+- Web UI（レスポンシブデザイン）
+- Git Worktree統合
+- スラッシュコマンドサポート
+- WebSocketによるリアルタイムログ
+- タスクキュー管理
+- バッチ実行機能
+- 自動リトライ機能
+- プリセット管理機能
