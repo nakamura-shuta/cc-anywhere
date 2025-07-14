@@ -1,137 +1,72 @@
 # 外部アクセス機能
 
-CC-Anywhereを外部ネットワークからアクセス可能にする方法を説明します。
-
-## 概要
-
-CC-Anywhereは以下の2つの方法で外部アクセスを提供します：
-
-1. **Cloudflare Tunnel**（推奨） - セキュアで安定した接続
-2. **ngrok** - 簡単な一時的アクセス
+CC-Anywhereを外部ネットワークからアクセス可能にする方法です。
 
 ## Cloudflare Tunnel（推奨）
 
-### メリット
-
-- ✅ 無料で無制限使用
-- ✅ 安定した接続
-- ✅ カスタムドメイン対応
-- ✅ エンタープライズ対応
-- ✅ Zero Trust統合可能
-
 ### セットアップ
 
-Cloudflare Tunnelの詳細なセットアップ手順については、[専用ガイド](../cloudflare-tunnel-setup-guide.md)を参照してください。
-
-#### クイックスタート
-
+1. **cloudflaredのインストール**
 ```bash
-# 1. cloudflaredのインストールが必要
-brew install cloudflare/cloudflare/cloudflared  # macOS
+# macOS
+brew install cloudflare/cloudflare/cloudflared
 
-# 2. 環境変数を設定
-echo "TUNNEL_TYPE=cloudflare" >> .env
+# 確認
+cloudflared --version
+```
 
-# 3. サーバーを起動
+2. **環境変数の設定**
+```bash
+# .envファイル
+TUNNEL_TYPE=cloudflare
+API_KEY=your-secure-api-key
+SHOW_QR_CODE=true  # QRコード表示（オプション）
+```
+
+3. **起動**
+```bash
 npm run dev
 ```
 
-これで自動的に一時的なトンネル（`*.trycloudflare.com`）が作成されます。
+起動時に表示されるURLでアクセスできます。
+
+### 特徴
+- ✅ 無料・無制限
+- ✅ 安定した接続
+- ✅ QRコードでモバイルアクセス
+- ✅ エンタープライズ対応
 
 ## ngrok（簡易アクセス）
 
-### セットアップ
-
-`.env`ファイル：
-
-```env
-TUNNEL_TYPE=ngrok
-# または後方互換性のため
-ENABLE_NGROK=true
-```
-
-### 使用方法
-
 ```bash
+# .envファイル
+TUNNEL_TYPE=ngrok
+
+# 起動
 npm run dev
 ```
 
-URLが自動的に表示されます。
+## セキュリティ
 
-## セキュリティ設定
+外部公開時は必ず以下を設定してください：
 
-### API認証（必須）
-
-外部公開時は必ずAPI認証を有効にしてください：
-
-```env
-API_KEY=secure-random-key-here
-```
-
-### Cloudflare Access（推奨）
-
-Cloudflare Zero Trustでアクセス制御：
-
-1. Cloudflareダッシュボード → Zero Trust
-2. Access → Applications → Create
-3. ポリシー設定（メールドメイン制限など）
-
-## モバイルアクセス
-
-### QRコード表示
-
-```env
-SHOW_QR_CODE=true
-```
-
-起動時にQRコードが表示され、スマートフォンで簡単にアクセスできます。
+- **APIキー認証**: `.env`で`API_KEY`を設定
+- **HTTPS**: 自動的に有効化されます
+- **アクセス制限**: 必要に応じてCloudflare Accessを設定
 
 ## トラブルシューティング
 
-### Cloudflare Tunnelが起動しない
-
+### 接続できない場合
 ```bash
-# cloudflaredの確認
-cloudflared --version
-
-# 直接テスト
+# Cloudflare Tunnelの直接テスト
 cloudflared tunnel --url http://localhost:5000
-```
 
-### URLが表示されない
-
-```bash
 # ログ確認
-tail -f server.log | grep -i tunnel
-
-# または専用スクリプト
-./scripts/tunnel-manager.sh show
+pm2 logs cc-anywhere
 ```
 
-### アクセスできない
-
-1. ファイアウォール設定を確認
-2. API_KEYが正しく設定されているか確認
-3. ポートが正しいか確認（デフォルト: 5000）
-
-## ベストプラクティス
-
-1. **本番環境ではCloudflare Tunnelを使用**
-   - ngrokは開発・デモ用途に限定
-
-2. **必ずAPI認証を有効化**
-   - 外部公開時は特に重要
-
-3. **アクセスログの監視**
-   ```bash
-   tail -f server.log | grep "API request"
-   ```
-
-4. **定期的なトークンローテーション**
-   - セキュリティ向上のため
-
-## 関連ドキュメント
-
-- [Cloudflare Tunnel詳細セットアップガイド](../cloudflare-tunnel-setup-guide.md)
-- [Cloudflare Tunnel公式](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
-- [セキュリティガイド](../operations/security.md)
+### ポート競合の場合
+```bash
+# 別のポートで起動
+PORT=3001 npm run dev
+```
