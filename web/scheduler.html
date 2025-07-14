@@ -130,12 +130,15 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="permission-mode">権限モード</label>
+                            <label for="permission-mode">
+                                権限モード
+                                <span class="info-icon" title="ツール実行時の確認動作">ⓘ</span>
+                            </label>
                             <select id="permission-mode" name="permissionMode">
-                                <option value="default">default (確認あり)</option>
-                                <option value="acceptEdits">acceptEdits (編集を自動承認)</option>
-                                <option value="bypassPermissions">bypassPermissions (全て自動承認)</option>
-                                <option value="plan">plan (計画のみ)</option>
+                                <option value="default">確認あり - すべての操作前に確認</option>
+                                <option value="acceptEdits">編集のみ自動 - ファイル編集は自動、その他は確認</option>
+                                <option value="bypassPermissions">すべて自動 - すべての操作を自動実行</option>
+                                <option value="plan">計画のみ - 実行せず計画のみ作成</option>
                             </select>
                         </div>
                     </fieldset>

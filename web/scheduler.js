@@ -78,6 +78,17 @@ async function loadSchedules() {
     }
 }
 
+// 権限モードのラベルを取得
+function getPermissionModeLabel(mode) {
+    const labels = {
+        'default': '確認あり',
+        'acceptEdits': '編集のみ自動',
+        'bypassPermissions': 'すべて自動',
+        'plan': '計画のみ'
+    };
+    return labels[mode] || mode;
+}
+
 // スケジュール一覧を描画
 function renderSchedules() {
     const container = document.getElementById('schedules-container');
@@ -125,6 +136,13 @@ function renderSchedules() {
                     <div class="info-item">
                         <span class="info-label">次回実行</span>
                         <span class="info-value">${formatDateTime(schedule.metadata.nextExecuteTime)}</span>
+                    </div>
+                ` : ''}
+                
+                ${schedule.taskRequest.options?.sdk?.permissionMode ? `
+                    <div class="info-item">
+                        <span class="info-label">権限モード</span>
+                        <span class="info-value">${getPermissionModeLabel(schedule.taskRequest.options.sdk.permissionMode)}</span>
                     </div>
                 ` : ''}
             </div>
