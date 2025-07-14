@@ -55,3 +55,4 @@ CLAUDE.md
 # PM2
 .caffeinate.pid
 .pm2/.worktrees/
+.worktrees/
