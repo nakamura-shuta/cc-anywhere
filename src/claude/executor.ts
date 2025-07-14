@@ -295,6 +295,33 @@ export class TaskExecutorImpl implements TaskExecutor {
           // SDKオプションの検証
           this.validateSDKOptions(sdkOptions);
 
+          // 進捗コールバックを拡張して構造化されたログを処理
+          const enhancedOnProgress = async (progress: {
+            type: string;
+            message: string;
+            data?: any;
+          }) => {
+            // 元のコールバックに通常のログを送信
+            if (processedTask.options?.onProgress) {
+              await processedTask.options.onProgress({
+                type: "log",
+                message: progress.message,
+              });
+            }
+
+            // 構造化されたデータがある場合は別途処理
+            if (progress.data) {
+              switch (progress.type) {
+                case "tool_usage":
+                  // TODO: WebSocket経由でツール使用情報を送信
+                  break;
+                case "progress":
+                  // TODO: WebSocket経由で進捗情報を送信
+                  break;
+              }
+            }
+          };
+
           // Claude Code SDKの実行
           const result = await this.codeClient.executeTask(prompt, {
             maxTurns: sdkOptions.maxTurns,
@@ -311,11 +338,27 @@ export class TaskExecutorImpl implements TaskExecutor {
             resumeSession: sdkOptions.resumeSession,
             outputFormat: sdkOptions.outputFormat,
             verbose: sdkOptions.verbose,
-            onProgress: processedTask.options?.onProgress,
+            onProgress: enhancedOnProgress,
           });
 
           if (!result.success) {
             throw result.error || new Error("Task execution failed");
+          }
+
+          // Generate task summary if tracker is available
+          if (result.tracker) {
+            const summary = result.tracker.generateSummary(result.success, output);
+
+            // Send summary via progress callback
+            if (processedTask.options?.onProgress) {
+              await processedTask.options.onProgress({
+                type: "summary",
+                message: `タスク完了: ${summary.highlights.join(" / ")}`,
+              });
+            }
+
+            // Add summary to logs
+            logs.push(...summary.highlights);
           }
 
           // Process result based on output format

@@ -56,6 +56,68 @@ export interface LogStreamMessage extends WebSocketMessage {
   };
 }
 
+// Enhanced logging messages
+export interface ToolUsageMessage extends WebSocketMessage {
+  type: "task:tool_usage";
+  payload: {
+    taskId: string;
+    tool: {
+      tool: string;
+      status: "start" | "success" | "failure";
+      filePath?: string;
+      command?: string;
+      pattern?: string;
+      url?: string;
+      error?: string;
+      timestamp: string;
+    };
+  };
+}
+
+export interface TaskProgressMessage extends WebSocketMessage {
+  type: "task:progress";
+  payload: {
+    taskId: string;
+    progress: {
+      phase: "setup" | "planning" | "execution" | "cleanup" | "complete";
+      message: string;
+      level: "debug" | "info" | "tool" | "warning" | "error" | "success";
+      timestamp: string;
+    };
+  };
+}
+
+export interface TaskSummaryMessage extends WebSocketMessage {
+  type: "task:summary";
+  payload: {
+    taskId: string;
+    summary: {
+      totalDuration: number;
+      toolsUsed: Array<{
+        tool: string;
+        count: number;
+        successCount: number;
+        failureCount: number;
+        details: string[];
+      }>;
+      filesModified: string[];
+      filesRead: string[];
+      filesCreated: string[];
+      commandsExecuted: Array<{
+        command: string;
+        success: boolean;
+      }>;
+      errors: Array<{
+        message: string;
+        tool?: string;
+        timestamp: string;
+      }>;
+      outcome: "success" | "partial_success" | "failure";
+      highlights: string[];
+    };
+  };
+}
+
 import type { ErrorDetails } from "../utils/errors";
 
 export interface ErrorMessage extends WebSocketMessage {

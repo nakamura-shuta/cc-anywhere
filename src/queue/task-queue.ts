@@ -158,18 +158,55 @@ export class TaskQueueImpl implements TaskQueue {
         options: {
           ...task.request.options,
           onProgress: this.wsServer
-            ? async (progress: { type: string; message: string }) => {
-                if (progress.type === "log") {
-                  logger.debug("Sending progress log via WebSocket", {
-                    taskId: task.id,
-                    message: progress.message,
-                  });
-                  this.wsServer?.broadcastTaskLog({
-                    taskId: task.id,
-                    log: progress.message,
-                    timestamp: new Date().toISOString(),
-                    level: "info",
-                  });
+            ? async (progress: { type: string; message: string; data?: any }) => {
+                const timestamp = new Date().toISOString();
+
+                switch (progress.type) {
+                  case "log":
+                    logger.debug("Sending progress log via WebSocket", {
+                      taskId: task.id,
+                      message: progress.message,
+                    });
+                    this.wsServer?.broadcastTaskLog({
+                      taskId: task.id,
+                      log: progress.message,
+                      timestamp,
+                      level: "info",
+                    });
+                    break;
+
+                  case "tool_usage":
+                    if (progress.data) {
+                      this.wsServer?.broadcastToolUsage({
+                        taskId: task.id,
+                        tool: {
+                          ...progress.data,
+                          timestamp: progress.data.timestamp?.toISOString() || timestamp,
+                        },
+                      });
+                    }
+                    break;
+
+                  case "progress":
+                    if (progress.data) {
+                      this.wsServer?.broadcastTaskProgress({
+                        taskId: task.id,
+                        progress: {
+                          ...progress.data,
+                          timestamp: progress.data.timestamp?.toISOString() || timestamp,
+                        },
+                      });
+                    }
+                    break;
+
+                  case "summary":
+                    if (progress.data) {
+                      this.wsServer?.broadcastTaskSummary({
+                        taskId: task.id,
+                        summary: progress.data,
+                      });
+                    }
+                    break;
                 }
               }
             : undefined,

@@ -1,6 +1,9 @@
 import { query, type SDKMessage } from "@anthropic-ai/claude-code";
 import { logger } from "../utils/logger";
 import { config } from "../config";
+import { TaskTracker } from "../services/task-tracker";
+import type { ToolUsageDetail, TaskProgressInfo } from "../types/enhanced-logging";
+import { LogLevel } from "../types/enhanced-logging";
 
 export interface ClaudeCodeOptions {
   maxTurns?: number;
@@ -17,7 +20,7 @@ export interface ClaudeCodeOptions {
   resumeSession?: string;
   outputFormat?: string;
   verbose?: boolean;
-  onProgress?: (progress: { type: string; message: string }) => void | Promise<void>;
+  onProgress?: (progress: { type: string; message: string; data?: any }) => void | Promise<void>;
 }
 
 export class ClaudeCodeClient {
@@ -31,9 +34,10 @@ export class ClaudeCodeClient {
   async executeTask(
     prompt: string,
     options: ClaudeCodeOptions = {},
-  ): Promise<{ messages: SDKMessage[]; success: boolean; error?: Error }> {
+  ): Promise<{ messages: SDKMessage[]; success: boolean; error?: Error; tracker?: TaskTracker }> {
     const abortController = options.abortController || new AbortController();
     const messages: SDKMessage[] = [];
+    const tracker = new TaskTracker();
 
     try {
       logger.debug("Executing task with Claude Code SDK", {
@@ -42,6 +46,13 @@ export class ClaudeCodeClient {
           maxTurns: options.maxTurns,
           cwd: options.cwd,
         },
+      });
+
+      // Record initial progress
+      tracker.recordProgress({
+        phase: "setup",
+        message: "タスク実行を開始します",
+        level: LogLevel.INFO,
       });
 
       let turnCount = 0;
@@ -75,13 +86,36 @@ export class ClaudeCodeClient {
           turnCount++;
         }
 
+        // Extract and track tool usage
+        const toolDetail = tracker.extractToolDetails(message);
+        if (toolDetail) {
+          tracker.recordToolUsage(toolDetail);
+
+          // Send tool usage update
+          if (options.onProgress) {
+            await options.onProgress({
+              type: "tool_usage",
+              message: this.formatToolUsageMessage(toolDetail),
+              data: toolDetail,
+            });
+          }
+        }
+
         // Emit progress if callback provided
         if (options.onProgress) {
           // Send turn progress
           if (message.type === "assistant" && turnCount === 1) {
+            const progressInfo: TaskProgressInfo = {
+              phase: "execution",
+              message: `ターン ${turnCount}/${options.maxTurns || config.claudeCodeSDK.defaultMaxTurns}`,
+              level: LogLevel.INFO,
+              timestamp: new Date(),
+            };
+            tracker.recordProgress(progressInfo);
             await options.onProgress({
-              type: "log",
-              message: `[開始] ターン ${turnCount}/${options.maxTurns || config.claudeCodeSDK.defaultMaxTurns}`,
+              type: "progress",
+              message: progressInfo.message,
+              data: progressInfo,
             });
           }
 
@@ -96,13 +130,28 @@ export class ClaudeCodeClient {
         messageCount: messages.length,
       });
 
-      return { messages, success: true };
+      tracker.recordProgress({
+        phase: "complete",
+        message: "タスクが正常に完了しました",
+        level: LogLevel.SUCCESS,
+      });
+
+      return { messages, success: true, tracker };
     } catch (error) {
       logger.error("Task execution failed", { error, prompt });
+
+      tracker.recordError(error instanceof Error ? error.message : String(error));
+      tracker.recordProgress({
+        phase: "complete",
+        message: "タスクの実行中にエラーが発生しました",
+        level: LogLevel.ERROR,
+      });
+
       return {
         messages,
         success: false,
         error: error instanceof Error ? error : new Error(String(error)),
+        tracker,
       };
     }
   }
@@ -326,5 +375,30 @@ export class ClaudeCodeClient {
     }
 
     return null;
+  }
+
+  private formatToolUsageMessage(detail: ToolUsageDetail): string {
+    const statusIcon = detail.status === "success" ? "✓" : detail.status === "failure" ? "✗" : "⚡";
+    const statusText =
+      detail.status === "start" ? "開始" : detail.status === "success" ? "成功" : "失敗";
+
+    let message = `[${detail.tool}] ${statusIcon} ${statusText}`;
+
+    // Add specific details based on tool type
+    if (detail.filePath) {
+      message += `: ${detail.filePath}`;
+    } else if (detail.command) {
+      message += `: ${detail.command}`;
+    } else if (detail.pattern) {
+      message += `: ${detail.pattern}`;
+    } else if (detail.url) {
+      message += `: ${detail.url}`;
+    }
+
+    if (detail.error && detail.status === "failure") {
+      message += ` (エラー: ${detail.error})`;
+    }
+
+    return message;
   }
 }

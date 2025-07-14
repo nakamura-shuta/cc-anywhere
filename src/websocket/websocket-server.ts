@@ -16,6 +16,9 @@ import type {
   SuccessMessage,
   WebSocketServerOptions,
   WebSocketHandlers,
+  ToolUsageMessage,
+  TaskProgressMessage,
+  TaskSummaryMessage,
 } from "./types.js";
 
 export class WebSocketServer {
@@ -315,6 +318,33 @@ export class WebSocketServer {
         logger.debug("Sent log to client", { clientId: client.id, taskId: log.taskId });
       }
     }
+  }
+
+  broadcastToolUsage(usage: ToolUsageMessage["payload"]): void {
+    const message: ToolUsageMessage = {
+      type: "task:tool_usage",
+      payload: usage,
+    };
+
+    this.broadcastToTaskSubscribers(usage.taskId, message);
+  }
+
+  broadcastTaskProgress(progress: TaskProgressMessage["payload"]): void {
+    const message: TaskProgressMessage = {
+      type: "task:progress",
+      payload: progress,
+    };
+
+    this.broadcastToTaskSubscribers(progress.taskId, message);
+  }
+
+  broadcastTaskSummary(summary: TaskSummaryMessage["payload"]): void {
+    const message: TaskSummaryMessage = {
+      type: "task:summary",
+      payload: summary,
+    };
+
+    this.broadcastToTaskSubscribers(summary.taskId, message);
   }
 
   private broadcastToTaskSubscribers(taskId: string, message: WebSocketMessage): void {

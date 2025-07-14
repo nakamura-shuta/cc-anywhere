@@ -397,24 +397,8 @@ function renderTaskDetail(task) {
                     // task.resultがオブジェクトで、resultフィールドを持つ場合
                     if (typeof task.result === 'object' && task.result.result) {
                         const resultData = task.result;
-                        let detailsHtml = '';
-                        
-                        // 他のフィールドを表示（taskIdと既に表示されている情報は除外）
-                        // ログ情報がある場合
-                        if (resultData.logs && Array.isArray(resultData.logs) && resultData.logs.length > 0) {
-                            detailsHtml += `<div class="result-detail"><strong>実行ログ概要:</strong></div>`;
-                            detailsHtml += '<ul style="margin: 8px 0 16px 20px; font-size: 13px; color: #6b7280;">';
-                            resultData.logs.forEach(log => {
-                                detailsHtml += `<li>${escapeHtml(log)}</li>`;
-                            });
-                            detailsHtml += '</ul>';
-                        }
-                        
                         // 結果の内容を表示
-                        detailsHtml += `<div class="result-detail"><strong>結果:</strong></div>`;
-                        detailsHtml += formatResult(resultData.result);
-                        
-                        return detailsHtml;
+                        return formatResult(resultData.result);
                     } else {
                         // 通常の結果
                         return formatResult(task.result);
@@ -544,6 +528,18 @@ function handleWebSocketMessage(event) {
             
         case 'task:log':
             handleTaskLog(message.payload);
+            break;
+            
+        case 'task:tool_usage':
+            handleToolUsage(message.payload);
+            break;
+            
+        case 'task:progress':
+            handleTaskProgress(message.payload);
+            break;
+            
+        case 'task:summary':
+            handleTaskSummary(message.payload);
             break;
             
         case 'heartbeat':
@@ -768,6 +764,187 @@ function showStillProcessingMessage() {
     });
 }
 
+// ツール使用情報の処理
+function handleToolUsage(payload) {
+    if (selectedTaskId === payload.taskId) {
+        const logContainer = document.getElementById('task-logs');
+        if (!logContainer) return;
+        
+        const tool = payload.tool;
+        const timestamp = new Date(tool.timestamp).toLocaleTimeString('ja-JP');
+        
+        // ツールに応じたアイコンを設定
+        const toolIcons = {
+            'Read': '📖',
+            'Write': '✏️',
+            'Edit': '📝',
+            'MultiEdit': '📝',
+            'Bash': '💻',
+            'LS': '📁',
+            'Glob': '🔍',
+            'Grep': '🔎',
+            'WebFetch': '🌐',
+            'WebSearch': '🔍',
+            'TodoWrite': '📋',
+        };
+        
+        const icon = toolIcons[tool.tool] || '🔧';
+        const statusClass = tool.status === 'success' ? 'tool-success' : 
+                          tool.status === 'failure' ? 'tool-failure' : 'tool-start';
+        
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry log-type-tool ${statusClass}`;
+        
+        let details = '';
+        if (tool.filePath) details = `: <code>${escapeHtml(tool.filePath)}</code>`;
+        else if (tool.command) details = `: <code>${escapeHtml(tool.command)}</code>`;
+        else if (tool.pattern) details = `: <code>${escapeHtml(tool.pattern)}</code>`;
+        else if (tool.url) details = `: <code>${escapeHtml(tool.url)}</code>`;
+        
+        const statusText = tool.status === 'start' ? '開始' : 
+                          tool.status === 'success' ? '成功' : '失敗';
+        
+        logEntry.innerHTML = `
+            <span class="log-timestamp">${timestamp}</span>
+            <span class="log-icon">${icon}</span>
+            <span class="log-message">
+                <strong>${tool.tool}</strong> ${statusText}${details}
+                ${tool.error ? `<span class="error-detail">${escapeHtml(tool.error)}</span>` : ''}
+            </span>
+        `;
+        
+        logContainer.appendChild(logEntry);
+        requestAnimationFrame(() => {
+            logContainer.scrollTop = logContainer.scrollHeight;
+        });
+    }
+}
+
+// タスク進捗情報の処理
+function handleTaskProgress(payload) {
+    if (selectedTaskId === payload.taskId) {
+        const progress = payload.progress;
+        const timestamp = new Date(progress.timestamp).toLocaleTimeString('ja-JP');
+        
+        // フェーズに応じたアイコン
+        const phaseIcons = {
+            'setup': '🔧',
+            'planning': '📋',
+            'execution': '⚡',
+            'cleanup': '🧹',
+            'complete': '✅'
+        };
+        
+        const icon = phaseIcons[progress.phase] || '📊';
+        const levelClass = `log-level-${progress.level}`;
+        
+        const logContainer = document.getElementById('task-logs');
+        if (!logContainer) return;
+        
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry log-type-progress ${levelClass}`;
+        
+        logEntry.innerHTML = `
+            <span class="log-timestamp">${timestamp}</span>
+            <span class="log-icon">${icon}</span>
+            <span class="log-message">${escapeHtml(progress.message)}</span>
+        `;
+        
+        logContainer.appendChild(logEntry);
+        requestAnimationFrame(() => {
+            logContainer.scrollTop = logContainer.scrollHeight;
+        });
+    }
+}
+
+// タスクサマリーの処理
+function handleTaskSummary(payload) {
+    if (selectedTaskId === payload.taskId) {
+        const summary = payload.summary;
+        
+        // サマリーをタスク詳細に追加
+        const detailContainer = document.getElementById('task-detail');
+        if (detailContainer) {
+            const summaryHtml = `
+                <div class="task-summary">
+                    <h3>実行サマリー</h3>
+                    <div class="summary-highlights">
+                        ${summary.highlights.map(h => `<div class="highlight-item">• ${escapeHtml(h)}</div>`).join('')}
+                    </div>
+                    
+                    ${summary.toolsUsed.length > 0 ? `
+                    <div class="summary-section">
+                        <h4>使用ツール</h4>
+                        <div class="tools-stats">
+                            ${summary.toolsUsed.map(tool => `
+                                <div class="tool-stat">
+                                    <span class="tool-name">${escapeHtml(tool.tool)}</span>
+                                    <span class="tool-count">${tool.successCount}/${tool.count} 成功</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${summary.filesCreated.length > 0 ? `
+                    <div class="summary-section">
+                        <h4>作成されたファイル</h4>
+                        <ul class="file-list">
+                            ${summary.filesCreated.map(f => `<li><code>${escapeHtml(f)}</code></li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                    
+                    ${summary.filesModified.length > 0 ? `
+                    <div class="summary-section">
+                        <h4>編集されたファイル</h4>
+                        <ul class="file-list">
+                            ${summary.filesModified.map(f => `<li><code>${escapeHtml(f)}</code></li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                    
+                    ${summary.commandsExecuted.length > 0 ? `
+                    <div class="summary-section">
+                        <h4>実行されたコマンド</h4>
+                        <ul class="command-list">
+                            ${summary.commandsExecuted.map(cmd => `
+                                <li>
+                                    <code>${escapeHtml(cmd.command)}</code>
+                                    ${cmd.success ? '<span class="success-mark">✓</span>' : '<span class="failure-mark">✗</span>'}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                    
+                    ${summary.errors.length > 0 ? `
+                    <div class="summary-section error-section">
+                        <h4>エラー</h4>
+                        <ul class="error-list">
+                            ${summary.errors.map(err => `
+                                <li>
+                                    ${err.tool ? `<strong>${escapeHtml(err.tool)}:</strong> ` : ''}
+                                    ${escapeHtml(err.message)}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            // 既存のサマリーを削除して新しいものを追加
+            const existingSummary = detailContainer.querySelector('.task-summary');
+            if (existingSummary) {
+                existingSummary.remove();
+            }
+            
+            detailContainer.insertAdjacentHTML('beforeend', summaryHtml);
+        }
+    }
+}
+
 // 接続ステータス更新
 function updateConnectionStatus(connected) {
     const statusElement = document.getElementById('connection-status');
@@ -839,7 +1016,7 @@ function renderMarkdown(text) {
     let html = escapeHtml(text);
     
     // コードブロック
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, _lang, code) => {
         return `<pre class="code-block"><code>${code}</code></pre>`;
     });
     

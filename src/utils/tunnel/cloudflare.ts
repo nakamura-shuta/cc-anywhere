@@ -45,7 +45,9 @@ export class CloudflareTunnelProvider implements TunnelProvider {
             this.tunnelUrl = customUrl;
             logger.info("Cloudflare tunnel with custom URL", { url: this.tunnelUrl });
           } else {
-            logger.info("Cloudflare tunnel registered (using token mode - URL configured in Cloudflare dashboard)");
+            logger.info(
+              "Cloudflare tunnel registered (using token mode - URL configured in Cloudflare dashboard)",
+            );
           }
           resolve(this.tunnelUrl);
         }
@@ -62,7 +64,10 @@ export class CloudflareTunnelProvider implements TunnelProvider {
         logger.debug("Cloudflare tunnel output", { output: error });
 
         // トンネルが登録されたことを確認
-        if (error.includes("Registered tunnel connection") || error.includes("Connection registered")) {
+        if (
+          error.includes("Registered tunnel connection") ||
+          error.includes("Connection registered")
+        ) {
           tunnelRegistered = true;
           checkTunnelRegistered();
         }
@@ -82,7 +87,9 @@ export class CloudflareTunnelProvider implements TunnelProvider {
           if (tunnelRegistered) {
             checkTunnelRegistered();
           } else {
-            logger.warn("Cloudflare tunnel startup timeout - tunnel may be working but URL not detected");
+            logger.warn(
+              "Cloudflare tunnel startup timeout - tunnel may be working but URL not detected",
+            );
             resolved = true;
             resolve(null);
           }

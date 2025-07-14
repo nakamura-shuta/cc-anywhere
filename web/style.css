@@ -1363,3 +1363,167 @@ select.error:focus {
     white-space: pre-wrap;
     word-break: break-word;
 }
+
+/* Enhanced logging styles */
+.log-type-tool {
+    font-family: var(--font-mono);
+    font-size: 13px;
+}
+
+.log-type-tool.tool-start {
+    opacity: 0.8;
+}
+
+.log-type-tool.tool-success .log-icon {
+    color: var(--success-color);
+}
+
+.log-type-tool.tool-failure {
+    background-color: rgba(239, 68, 68, 0.05);
+}
+
+.log-type-tool.tool-failure .log-icon {
+    color: var(--error-color);
+}
+
+.log-type-tool code {
+    background-color: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.error-detail {
+    display: block;
+    margin-top: 4px;
+    color: var(--error-color);
+    font-size: 12px;
+    padding-left: 40px;
+}
+
+.log-type-progress {
+    font-weight: 500;
+}
+
+.log-level-debug {
+    opacity: 0.6;
+}
+
+.log-level-info {
+    color: var(--text-primary);
+}
+
+.log-level-warning {
+    color: #f59e0b;
+}
+
+.log-level-error {
+    color: var(--error-color);
+    font-weight: 600;
+}
+
+.log-level-success {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+/* Task summary styles */
+.task-summary {
+    margin-top: 20px;
+    padding: 16px;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.task-summary h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.summary-highlights {
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: var(--bg-primary);
+    border-radius: 6px;
+}
+
+.highlight-item {
+    margin: 4px 0;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.summary-section {
+    margin-top: 16px;
+}
+
+.summary-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.tools-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.tool-stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background-color: var(--bg-primary);
+    border-radius: 20px;
+    font-size: 13px;
+}
+
+.tool-name {
+    font-weight: 600;
+}
+
+.tool-count {
+    color: var(--text-secondary);
+}
+
+.file-list, .command-list, .error-list {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.file-list li, .command-list li, .error-list li {
+    margin: 4px 0;
+    font-size: 13px;
+}
+
+.command-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.success-mark {
+    color: var(--success-color);
+    font-weight: bold;
+}
+
+.failure-mark {
+    color: var(--error-color);
+    font-weight: bold;
+}
+
+.error-section {
+    background-color: rgba(239, 68, 68, 0.05);
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.error-list {
+    color: var(--error-color);
+}
