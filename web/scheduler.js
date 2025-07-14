@@ -456,7 +456,7 @@ async function checkConnectionStatus() {
     const statusText = statusElement.querySelector('.status-text');
     
     try {
-        await apiClient.request('GET', '/api/health');
+        await apiClient.request('GET', '/health');
         statusElement.classList.remove('disconnected');
         statusElement.classList.add('connected');
         statusText.textContent = '接続中';
