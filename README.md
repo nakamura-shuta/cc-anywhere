@@ -18,6 +18,7 @@ CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、�
 - 🔐 APIキー認証
 - 📊 リアルタイムログ（WebSocket）
 - 🔁 自動リトライ機能
+- ⏰ スケジュール実行（Cron式対応）
 
 ## セットアップ
 
@@ -30,7 +31,7 @@ CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、�
 
 ```bash
 # リポジトリのクローン
-git clone https://github.com/nakamura-shuta/cc-anywhere
+git clone https://github.com/your-username/cc-anywhere
 cd cc-anywhere
 
 # 依存関係のインストール
@@ -113,22 +114,21 @@ npm run dev
 
 ### Web UI について
 
-cc-anywhere には2つのWeb UIバージョンがあります：
+cc-anywhere のWeb UIは以下の機能を提供します：
 
-- **標準版** (`/index.html`) - フル機能版（デフォルト）
+- **タスク実行画面** (`/index.html`) - メイン画面
   - Claude Code SDKの全オプション設定
   - プリセット保存・管理機能
-  - 詳細な実行設定
-- **シンプル版** (`/index-simple.html`) - 基本機能のみ
+  - タスク一覧とリアルタイム更新
+  - ページネーション機能
+- **スケジューラー画面** (`/scheduler.html`) - スケジュール管理
+  - Cron式による定期実行設定
+  - ワンタイム実行の設定
+  - スケジュール一覧と管理
 
 Web UIにアクセス：
 ```
 http://localhost:5000/?apiKey=your-secret-api-key
-```
-
-シンプル版を使用する場合：
-```
-http://localhost:5000/index-simple.html?apiKey=your-secret-api-key
 ```
 
 別のポートで起動する場合：
@@ -306,6 +306,70 @@ curl -X POST http://localhost:5000/api/tasks \
 - タスク完了後、自動的にクリーンアップ（設定により保持も可能）
 
 詳細は[Git Worktreeドキュメント](docs/features/git-worktree.md)を参照してください。
+
+## スケジューラー機能
+
+定期的または特定の時刻にタスクを自動実行できます。
+
+### 基本的な使い方
+
+#### Cron式での定期実行
+
+```bash
+# 毎日午前2時にバックアップを実行
+curl -X POST http://localhost:5000/api/schedules \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "日次バックアップ",
+    "description": "毎日午前2時にバックアップを実行",
+    "taskRequest": {
+      "instruction": "プロジェクトのバックアップを作成してください",
+      "context": {
+        "workingDirectory": "/path/to/project"
+      }
+    },
+    "schedule": {
+      "type": "cron",
+      "expression": "0 2 * * *",
+      "timezone": "Asia/Tokyo"
+    }
+  }'
+```
+
+#### ワンタイム実行
+
+```bash
+# 特定の時刻に1回だけ実行
+curl -X POST http://localhost:5000/api/schedules \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "デプロイ準備",
+    "taskRequest": {
+      "instruction": "本番環境へのデプロイ準備を実行"
+    },
+    "schedule": {
+      "type": "once",
+      "executeAt": "2024-01-15T10:00:00Z"
+    }
+  }'
+```
+
+### Web UIでの使用
+
+1. `http://localhost:5000/scheduler.html?apiKey=your-api-key` にアクセス
+2. スケジュール作成フォームで必要な情報を入力
+3. Cron式の例示ボタンで簡単に設定可能
+
+### Cron式の例
+
+- `0 * * * *` - 毎時0分に実行
+- `0 2 * * *` - 毎日午前2時に実行
+- `0 9 * * 1-5` - 平日の午前9時に実行
+- `*/15 * * * *` - 15分ごとに実行
+
+詳細は[スケジューラードキュメント](docs/features/scheduler.md)を参照してください。
 
 ## API認証
 

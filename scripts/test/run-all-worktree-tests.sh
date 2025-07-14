@@ -5,7 +5,7 @@
 
 API_KEY="hoge"
 BASE_URL="http://localhost:5000"
-REPO_PATH="/Users/nakamura.shuta/dev/cc-anywhere"
+REPO_PATH="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # カラー定義
 GREEN='\033[0;32m'

@@ -82,6 +82,8 @@ export enum TaskStatus {
   COMPLETED = "completed",
   FAILED = "failed",
   CANCELLED = "cancelled",
+  SCHEDULED = "scheduled", // スケジュール待機中
+  DELAYED = "delayed", // 遅延実行待機中
 }
 
 // Retry attempt metadata

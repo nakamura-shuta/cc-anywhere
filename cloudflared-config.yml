@@ -1,5 +1,5 @@
-tunnel: 986e6745-7dff-4d9b-a89f-1933b0c2274f
-credentials-file: /Users/nakamura.shuta/.cloudflared/986e6745-7dff-4d9b-a89f-1933b0c2274f.json
+tunnel: YOUR-TUNNEL-ID
+credentials-file: ~/.cloudflared/YOUR-TUNNEL-ID.json
 
 ingress:
   - hostname: cc-anywhere.yourdomain.com  # ここを実際のドメインに変更してください

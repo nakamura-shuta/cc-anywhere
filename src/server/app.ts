@@ -14,6 +14,7 @@ import { workerRoutes } from "./routes/workers";
 import { repositoryRoutes } from "./routes/repositories";
 import { batchTaskRoutes } from "./routes/batch-tasks";
 import { presetRoutes } from "./routes/presets";
+import { scheduleRoutes } from "./routes/schedules";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { TaskQueueImpl } from "../queue";
@@ -21,6 +22,7 @@ import { WorkerManager } from "../worker/worker-manager";
 import { WebSocketServer } from "../websocket/websocket-server";
 import { getSharedDbProvider, getSharedRepository } from "../db/shared-instance";
 import { getTypedEventBus } from "../events";
+import { SchedulerService } from "../services/scheduler-service";
 
 export interface AppOptions extends FastifyServerOptions {
   workerMode?: "inline" | "standalone" | "managed";
@@ -131,6 +133,17 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   app.decorate("dbProvider", dbProvider);
   app.decorate("repository", repository);
 
+  // Initialize scheduler service
+  const schedulerService = new SchedulerService();
+  app.decorate("schedulerService", schedulerService);
+
+  // Set up scheduler execution handler
+  schedulerService.setOnExecuteHandler(async (taskRequest, scheduleId) => {
+    logger.info("Executing scheduled task", { scheduleId });
+    const taskId = taskQueue.add(taskRequest, 0);
+    return { taskId };
+  });
+
   // Initialize WebSocket server
   if (config.websocket?.enabled !== false) {
     wsServer = new WebSocketServer({
@@ -231,6 +244,7 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   await app.register(repositoryRoutes, { prefix: "/api" });
   await app.register(batchTaskRoutes, { prefix: "/api" });
   await app.register(presetRoutes, { prefix: "/api" });
+  await app.register(scheduleRoutes);
 
   // Register worker routes only in managed mode
   if (workerMode === "managed") {
@@ -270,6 +284,10 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
         }
       }
 
+      // Stop scheduler service
+      logger.info("Stopping scheduler service...");
+      schedulerService.stop();
+
       // Close WebSocket server
       if (wsServer) {
         logger.info("Closing WebSocket server...");
@@ -290,6 +308,10 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
     process.on("SIGTERM", () => void gracefulShutdown());
     process.on("SIGINT", () => void gracefulShutdown());
   }
+
+  // Start the scheduler service
+  schedulerService.start();
+  logger.info("Scheduler service started");
 
   return app;
 }

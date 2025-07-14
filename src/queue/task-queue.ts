@@ -487,6 +487,8 @@ export class TaskQueueImpl implements TaskQueue {
         [TaskStatus.COMPLETED]: 2,
         [TaskStatus.FAILED]: 3,
         [TaskStatus.CANCELLED]: 4,
+        [TaskStatus.SCHEDULED]: 5,
+        [TaskStatus.DELAYED]: 6,
       };
 
       const statusDiff = statusOrder[a.status] - statusOrder[b.status];

@@ -2,6 +2,7 @@ import type { TaskQueue } from "../queue/types.js";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
 import type { WorkerManager } from "../worker/worker-manager.js";
 import type { ErrorDetails } from "../utils/errors.js";
+import type { SchedulerService } from "../services/scheduler-service.js";
 
 // API Error Response types
 export interface ErrorResponse {
@@ -36,5 +37,6 @@ declare module "fastify" {
     queue: TaskQueue;
     wsServer?: WebSocketServer;
     workerManager?: WorkerManager;
+    schedulerService: SchedulerService;
   }
 }

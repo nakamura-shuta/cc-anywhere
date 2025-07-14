@@ -4,7 +4,7 @@
 
 API_KEY="hoge"
 BASE_URL="http://localhost:5000"
-REPO_PATH="/Users/nakamura.shuta/dev/cc-anywhere"
+REPO_PATH="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # カラー定義
 GREEN='\033[0;32m'
@@ -17,8 +17,8 @@ echo "=== Claude Code SDK 並列実行テスト ==="
 
 # 現在の設定を確認
 echo -e "\n${YELLOW}現在の設定:${NC}"
-echo "QUEUE_CONCURRENCY: $(grep QUEUE_CONCURRENCY /Users/nakamura.shuta/dev/cc-anywhere/.env | cut -d= -f2)"
-echo "WORKER_MODE: $(grep WORKER_MODE /Users/nakamura.shuta/dev/cc-anywhere/.env | cut -d= -f2 || echo 'inline (default)')"
+echo "QUEUE_CONCURRENCY: $(grep QUEUE_CONCURRENCY "$REPO_PATH/.env" | cut -d= -f2)"
+echo "WORKER_MODE: $(grep WORKER_MODE "$REPO_PATH/.env" | cut -d= -f2 || echo 'inline (default)')"
 
 # キューの状態を確認
 echo -e "\n${YELLOW}初期のキュー状態:${NC}"
@@ -26,7 +26,7 @@ curl -s "$BASE_URL/api/queue/stats" -H "X-API-Key: $API_KEY" | jq .
 
 # クリーンアップ
 echo -e "\n${YELLOW}クリーンアップ中...${NC}"
-/Users/nakamura.shuta/dev/cc-anywhere/scripts/test/cleanup-worktrees.sh > /dev/null 2>&1
+"$REPO_PATH/scripts/test/cleanup-worktrees.sh" > /dev/null 2>&1
 
 # 時間のかかるタスクを3つ同時に作成
 echo -e "\n${YELLOW}3つの長時間タスクを作成（各15秒）${NC}"

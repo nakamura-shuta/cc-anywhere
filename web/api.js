@@ -28,9 +28,7 @@ class APIClient {
     }
 
     async request(method, path, body = null) {
-        const headers = {
-            'Content-Type': 'application/json',
-        };
+        const headers = {};
 
         if (this.apiKey) {
             headers['X-API-Key'] = this.apiKey;
@@ -42,6 +40,7 @@ class APIClient {
         };
 
         if (body) {
+            headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(body);
         }
 
@@ -52,7 +51,18 @@ class APIClient {
             throw new Error(error.message || `HTTP error! status: ${response.status}`);
         }
 
-        return response.json();
+        // 204 No Content の場合は null を返す
+        if (response.status === 204) {
+            return null;
+        }
+
+        // Content-Type が application/json の場合のみ JSON をパースする
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        }
+
+        return null;
     }
 
     // タスク関連API
@@ -109,6 +119,29 @@ class APIClient {
 
     async getTaskLogs(taskId) {
         return this.request('GET', `/api/tasks/${taskId}/logs`);
+    }
+
+    // スケジューラー関連のメソッド
+    async createSchedule(scheduleData) {
+        return this.request('POST', '/api/schedules', scheduleData);
+    }
+
+    async getSchedules(filter) {
+        const params = filter && filter !== 'all' ? `?status=${filter}` : '';
+        return this.request('GET', `/api/schedules${params}`);
+    }
+
+    async toggleSchedule(scheduleId, enable) {
+        const endpoint = enable ? 'enable' : 'disable';
+        return this.request('POST', `/api/schedules/${scheduleId}/${endpoint}`);
+    }
+
+    async deleteSchedule(scheduleId) {
+        return this.request('DELETE', `/api/schedules/${scheduleId}`);
+    }
+
+    async getScheduleHistory(scheduleId) {
+        return this.request('GET', `/api/schedules/${scheduleId}/history`);
     }
 
     // WebSocket接続

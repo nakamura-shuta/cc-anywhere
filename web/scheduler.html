@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CC-Anywhere - スケジューラー</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="scheduler.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CC-Anywhere</h1>
+            <div class="header-controls">
+                <nav class="header-nav">
+                    <a href="/">タスク実行</a>
+                    <a href="/scheduler.html" class="active">スケジューラー</a>
+                </nav>
+                <div id="connection-status" class="status disconnected">
+                    <span class="status-dot"></span>
+                    <span class="status-text">未接続</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- 左側: スケジュール作成フォーム -->
+            <section class="task-form-section">
+                    <h2>新規スケジュール</h2>
+                    <form id="schedule-form">
+                    <div class="form-group">
+                        <label for="schedule-name">スケジュール名</label>
+                        <input 
+                            type="text" 
+                            id="schedule-name" 
+                            name="name" 
+                            placeholder="例: 日次バックアップ"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="schedule-description">説明</label>
+                        <textarea 
+                            id="schedule-description" 
+                            name="description" 
+                            rows="2" 
+                            placeholder="このスケジュールの説明（任意）"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="schedule-type">実行タイプ</label>
+                        <select id="schedule-type" name="type" required>
+                            <option value="cron">定期実行（Cron）</option>
+                            <option value="once">1回実行</option>
+                        </select>
+                    </div>
+
+                    <!-- Cron設定 -->
+                    <div id="cron-settings" class="schedule-settings">
+                        <div class="form-group">
+                            <label for="cron-expression">
+                                Cron式
+                                <a href="#" class="cron-help" title="Cron式のヘルプ">?</a>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="cron-expression" 
+                                name="expression" 
+                                placeholder="例: 0 2 * * * (毎日午前2時)"
+                            >
+                            <div class="cron-examples">
+                                <span class="example-label">例:</span>
+                                <button type="button" class="cron-example btn btn-secondary btn-sm" data-cron="0 * * * *">毎時</button>
+                                <button type="button" class="cron-example btn btn-secondary btn-sm" data-cron="0 2 * * *">毎日2時</button>
+                                <button type="button" class="cron-example btn btn-secondary btn-sm" data-cron="0 9 * * 1-5">平日9時</button>
+                                <button type="button" class="cron-example btn btn-secondary btn-sm" data-cron="*/15 * * * *">15分毎</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cron-timezone">タイムゾーン</label>
+                            <select id="cron-timezone" name="timezone">
+                                <option value="">サーバーのタイムゾーン</option>
+                                <option value="Asia/Tokyo">Asia/Tokyo</option>
+                                <option value="America/New_York">America/New_York</option>
+                                <option value="Europe/London">Europe/London</option>
+                                <option value="UTC">UTC</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- ワンタイム設定 -->
+                    <div id="once-settings" class="schedule-settings" style="display: none;">
+                        <div class="form-group">
+                            <label for="once-datetime">実行日時</label>
+                            <input 
+                                type="datetime-local" 
+                                id="once-datetime" 
+                                name="executeAt"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- タスク設定 -->
+                    <fieldset class="task-settings">
+                        <legend>実行するタスク</legend>
+                        
+                        <div class="form-group">
+                            <label for="task-instruction">実行内容</label>
+                            <textarea 
+                                id="task-instruction" 
+                                name="instruction" 
+                                rows="4" 
+                                placeholder="例: プロジェクトのバックアップを作成してください"
+                                required
+                            ></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="task-repository">
+                                作業リポジトリ
+                                <span class="required">*</span>
+                            </label>
+                            <select id="task-repository" name="repository" required>
+                                <!-- オプションは動的に追加 -->
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="permission-mode">権限モード</label>
+                            <select id="permission-mode" name="permissionMode">
+                                <option value="default">default (確認あり)</option>
+                                <option value="acceptEdits">acceptEdits (編集を自動承認)</option>
+                                <option value="bypassPermissions">bypassPermissions (全て自動承認)</option>
+                                <option value="plan">plan (計画のみ)</option>
+                            </select>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">スケジュール作成</button>
+                        <button type="reset" class="btn btn-secondary">クリア</button>
+                    </div>
+                </form>
+                </section>
+
+                <!-- 右側: スケジュール一覧 -->
+                <section class="task-list-section">
+                <h2>スケジュール一覧</h2>
+                
+                <div class="task-filters">
+                    <select id="status-filter" class="select-input">
+                        <option value="all">すべて</option>
+                        <option value="active">有効</option>
+                        <option value="inactive">無効</option>
+                        <option value="completed">完了</option>
+                    </select>
+                    <button id="refresh-schedules" class="btn btn-secondary">更新</button>
+                </div>
+
+                <div id="schedules-container" class="task-list">
+                    <div class="loading">読み込み中...</div>
+                </div>
+                </section>
+        </main>
+
+        <!-- Cronヘルプモーダル -->
+        <div id="cron-help-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3>Cron式の書き方</h3>
+                <p>Cron式は5つのフィールドで構成されます：</p>
+                <pre>分 時 日 月 曜日</pre>
+                <table class="cron-help-table">
+                    <tr>
+                        <th>フィールド</th>
+                        <th>値の範囲</th>
+                        <th>特殊文字</th>
+                    </tr>
+                    <tr>
+                        <td>分</td>
+                        <td>0-59</td>
+                        <td rowspan="5">
+                            * (任意)<br>
+                            , (リスト)<br>
+                            - (範囲)<br>
+                            / (間隔)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>時</td>
+                        <td>0-23</td>
+                    </tr>
+                    <tr>
+                        <td>日</td>
+                        <td>1-31</td>
+                    </tr>
+                    <tr>
+                        <td>月</td>
+                        <td>1-12</td>
+                    </tr>
+                    <tr>
+                        <td>曜日</td>
+                        <td>0-7 (0,7=日曜)</td>
+                    </tr>
+                </table>
+                <h4>例：</h4>
+                <ul>
+                    <li><code>0 * * * *</code> - 毎時0分</li>
+                    <li><code>*/15 * * * *</code> - 15分ごと</li>
+                    <li><code>0 2 * * *</code> - 毎日午前2時</li>
+                    <li><code>0 9 * * 1-5</code> - 平日午前9時</li>
+                    <li><code>0 0 1 * *</code> - 毎月1日午前0時</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script src="scheduler.js"></script>
+</body>
+</html>

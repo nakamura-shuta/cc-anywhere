@@ -116,6 +116,32 @@
       },
       "createdAt": "2025-07-11T16:46:26.748Z",
       "updatedAt": "2025-07-11T16:46:26.748Z"
+    },
+    {
+      "name": "hoge",
+      "description": "",
+      "settings": {
+        "sdk": {
+          "maxTurns": 17,
+          "permissionMode": "bypassPermissions",
+          "allowedTools": [
+            "Read",
+            "Write",
+            "Edit",
+            "MultiEdit",
+            "Bash",
+            "LS",
+            "Glob",
+            "Grep"
+          ]
+        },
+        "timeout": 600000,
+        "useWorktree": false
+      },
+      "id": "42e4f530-6952-4622-9a62-c97f67179cce",
+      "isSystem": false,
+      "createdAt": "2025-07-14T01:01:00.994Z",
+      "updatedAt": "2025-07-14T01:01:00.994Z"
     }
   ]
 }

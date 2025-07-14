@@ -1,0 +1,15 @@
+{
+  "worktrees": [
+    {
+      "id": "cc-anywhere-f11dff31-f5c0-4a6f-b16c-2f7de161b6dd",
+      "taskId": "f11dff31-f5c0-4a6f-b16c-2f7de161b6dd",
+      "path": "/Users/nakamura.shuta/dev/cc-anywhere/.worktrees/cc-anywhere-f11dff31-f5c0-4a6f-b16c-2f7de161b6dd",
+      "branch": "keep/test-1752469329",
+      "repository": "/Users/nakamura.shuta/dev/cc-anywhere",
+      "createdAt": "2025-07-14T05:02:09.538Z",
+      "status": "active"
+    }
+  ],
+  "lastUpdated": "2025-07-14T05:02:17.424Z",
+  "version": "1.0.0"
+}

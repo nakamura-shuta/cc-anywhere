@@ -60,7 +60,7 @@
 #!/bin/bash
 # 司令塔型並列実行テストスクリプト（コミット機能付き）
 
-PROJECT_PATH="/Users/nakamura.shuta/dev/node/todo-app-parallel-test"
+PROJECT_PATH="/path/to/todo-app-parallel-test"
 API_URL="http://localhost:5000/api/tasks"
 API_KEY="hoge"
 

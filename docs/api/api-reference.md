@@ -1014,6 +1014,99 @@ wait
 
 ポーリング間隔は2-5秒を推奨します。
 
+## スケジュール API
+
+### スケジュールの作成
+
+```
+POST /api/schedules
+```
+
+定期実行またはワンタイム実行のスケジュールを作成します。
+
+**ヘッダー:**
+- `X-API-Key` (必須): APIキー
+- `Content-Type`: `application/json`
+
+**リクエストボディ:**
+```json
+{
+  "name": "スケジュール名（必須）",
+  "description": "スケジュールの説明（オプション）",
+  "taskRequest": {
+    "instruction": "実行する指示（必須）",
+    "context": {
+      "workingDirectory": "/path/to/directory"
+    },
+    "options": {
+      "timeout": 300000,
+      "sdk": {
+        "permissionMode": "allow"
+      }
+    }
+  },
+  "schedule": {
+    "type": "cron",  // "cron" または "once"
+    "expression": "0 2 * * *",  // Cron式（cronタイプの場合必須）
+    "executeAt": "2024-01-15T10:00:00Z",  // 実行日時（onceタイプの場合必須）
+    "timezone": "Asia/Tokyo"  // タイムゾーン（オプション）
+  },
+  "status": "active"  // "active" または "inactive"（デフォルト: active）
+}
+```
+
+### スケジュール一覧の取得
+
+```
+GET /api/schedules
+```
+
+**クエリパラメータ:**
+- `limit`: 取得件数（デフォルト: 10、最大: 100）
+- `offset`: オフセット（デフォルト: 0）
+- `status`: フィルタするステータス（active/inactive）
+
+### スケジュールの取得
+
+```
+GET /api/schedules/{scheduleId}
+```
+
+### スケジュールの更新
+
+```
+PUT /api/schedules/{scheduleId}
+```
+
+**リクエストボディ:**
+スケジュール作成と同じフィールドを指定（すべてオプション）
+
+### スケジュールの削除
+
+```
+DELETE /api/schedules/{scheduleId}
+```
+
+### スケジュールの有効化
+
+```
+POST /api/schedules/{scheduleId}/enable
+```
+
+### スケジュールの無効化
+
+```
+POST /api/schedules/{scheduleId}/disable
+```
+
+### 実行履歴の取得
+
+```
+GET /api/schedules/{scheduleId}/history
+```
+
+スケジュールの実行履歴を取得します。
+
 ## データベース
 
 タスクはローカルSQLiteデータベースに保存され、サーバー再起動後も履歴が保持されます。データベースの場所は`DB_PATH`環境変数で設定できます。
