@@ -27,5 +27,4 @@ ingress:
   - hostname: cc-anywhere.yourdomain.com  # ここを実際のドメインに変更してください
     service: http://localhost:5000
   
-  # キャッチオール（上記に一致しない場合は404を返す）
   - service: http_status:404

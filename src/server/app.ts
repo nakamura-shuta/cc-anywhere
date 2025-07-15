@@ -15,6 +15,7 @@ import { repositoryRoutes } from "./routes/repositories";
 import { batchTaskRoutes } from "./routes/batch-tasks";
 import { presetRoutes } from "./routes/presets";
 import { scheduleRoutes } from "./routes/schedules";
+import { sessionRoutes } from "./routes/sessions";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { TaskQueueImpl } from "../queue";
@@ -245,6 +246,7 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   await app.register(batchTaskRoutes, { prefix: "/api" });
   await app.register(presetRoutes, { prefix: "/api" });
   await app.register(scheduleRoutes);
+  await app.register(sessionRoutes);
 
   // Register worker routes only in managed mode
   if (workerMode === "managed") {

@@ -138,6 +138,10 @@ export interface ClaudeExecutionResult {
   logs: string[];
   /** Total execution duration in milliseconds */
   duration: number;
+  /** Tools used during execution */
+  toolsUsed?: string[];
+  /** Files modified during execution */
+  filesModified?: string[];
 }
 
 /**

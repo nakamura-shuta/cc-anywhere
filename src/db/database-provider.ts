@@ -138,6 +138,50 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_worktrees_status ON worktrees(status);
       `);
 
+      // Create sessions table
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          status TEXT DEFAULT 'active' CHECK(status IN ('active', 'paused', 'completed', 'expired')),
+          context TEXT,
+          metadata TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          expires_at DATETIME
+        )
+      `);
+
+      // Create conversation_turns table
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS conversation_turns (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id TEXT NOT NULL,
+          turn_number INTEGER NOT NULL,
+          instruction TEXT NOT NULL,
+          response TEXT,
+          metadata TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Add session_id to tasks table if not exists
+      try {
+        this.db.exec(`ALTER TABLE tasks ADD COLUMN session_id TEXT REFERENCES sessions(id)`);
+      } catch (error) {
+        // Column may already exist
+      }
+
+      // Create indexes for sessions
+      this.db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
+        CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_id ON conversation_turns(session_id);
+        CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
+      `);
+
       logger.debug("Database migrations completed");
     } catch (error) {
       logger.error("Database migration failed", { error });
