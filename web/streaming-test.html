@@ -243,6 +243,14 @@
         }
 
         function getApiKey() {
+            // URLパラメータから取得
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlApiKey = urlParams.get('apiKey');
+            if (urlApiKey) {
+                document.getElementById('apiKey').value = urlApiKey;
+                return urlApiKey;
+            }
+            // 入力フィールドから取得
             return document.getElementById('apiKey').value;
         }
 
