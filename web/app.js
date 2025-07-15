@@ -361,6 +361,11 @@ function applyPresetOptions(settings) {
         document.getElementById('verbose').checked = sdkOptions.verbose;
     }
     
+    // enableWebSearch
+    if (sdkOptions.enableWebSearch !== undefined) {
+        document.getElementById('enable-web-search').checked = sdkOptions.enableWebSearch;
+    }
+    
     // タイムアウト（SDK外の設定）
     if (settings.timeout !== undefined) {
         document.getElementById('timeout').value = settings.timeout / 1000; // ミリ秒を秒に変換
@@ -808,6 +813,9 @@ function collectSDKOptions() {
         
         // verbose
         options.sdk.verbose = document.getElementById('verbose').checked;
+        
+        // enableWebSearch
+        options.sdk.enableWebSearch = document.getElementById('enable-web-search').checked;
     }
     
     return options;

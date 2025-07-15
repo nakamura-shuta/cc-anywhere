@@ -26,6 +26,15 @@ export interface TaskContext {
   [key: string]: unknown;
 }
 
+/**
+ * Configuration for web search functionality
+ */
+export interface WebSearchConfig {
+  maxResults?: number;
+  searchEngine?: string;
+  timeout?: number;
+}
+
 // Task request type
 // MCP Server configuration
 export interface MCPServerConfig {
@@ -56,6 +65,10 @@ export interface ClaudeCodeSDKOptions {
   verbose?: boolean;
   permissionPromptTool?: string;
   pathToClaudeCodeExecutable?: string;
+
+  // Web search options
+  enableWebSearch?: boolean;
+  webSearchConfig?: WebSearchConfig;
 }
 
 export interface TaskRequest {

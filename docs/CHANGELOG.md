@@ -3,6 +3,16 @@
 ## [未リリース]
 
 ### 追加
+- Web検索機能をClaude Code SDKオプションに追加
+  - `enableWebSearch`オプションでWeb検索機能の有効化/無効化が可能
+  - Web UIに「Web検索を有効化」チェックボックスを追加
+  - 最新情報や時事的な質問に対してWeb検索を使用した回答が可能に
+  - 注意：Web検索は有料機能（$10 per 1,000 searches + トークンコスト）
+- セッション管理機能を追加（複数ターンの会話をサポート）
+  - セッションの作成・管理・削除APIを実装
+  - 会話履歴の保存と取得機能
+  - 注意：Claude Code SDKのresumeSessionオプションにバグがあるため、現時点では完全に動作しません
+  - 関連issue: https://github.com/anthropics/claude-code/issues/1967
 - インタラクティブな確認処理（WebSocket双方向通信）機能をTODO.mdに追加
   - Claude Code SDKの確認プロンプトに対する応答機能の実装計画
   - リアルタイムでの承認/拒否の送信機能

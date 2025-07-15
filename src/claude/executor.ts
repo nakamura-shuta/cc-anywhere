@@ -330,6 +330,8 @@ export class TaskExecutorImpl implements TaskExecutor {
           outputFormat: sdkOptions.outputFormat,
           verbose: sdkOptions.verbose,
           onProgress: enhancedOnProgress,
+          enableWebSearch: sdkOptions.enableWebSearch,
+          webSearchConfig: sdkOptions.webSearchConfig,
         });
 
         if (!result.success) {
@@ -699,6 +701,8 @@ export class TaskExecutorImpl implements TaskExecutor {
       verbose: sdkOptions?.verbose ?? false,
       permissionPromptTool: sdkOptions?.permissionPromptTool ?? "",
       pathToClaudeCodeExecutable: sdkOptions?.pathToClaudeCodeExecutable ?? "",
+      enableWebSearch: sdkOptions?.enableWebSearch ?? false,
+      webSearchConfig: sdkOptions?.webSearchConfig ?? {},
     };
   }
 

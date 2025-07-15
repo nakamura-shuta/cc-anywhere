@@ -26,6 +26,8 @@ POST /api/tasks
 | options.async | boolean | - | 非同期実行フラグ |
 | options.sdk.permissionMode | string | - | 権限モード（default/acceptEdits/bypassPermissions/plan） |
 | options.sdk.allowedTools | string[] | - | 使用可能なツールを制限 |
+| options.sdk.enableWebSearch | boolean | - | Web検索機能の有効化 |
+| options.sdk.webSearchConfig | object | - | Web検索の詳細設定 |
 | options.worktree.enabled | boolean | - | Git worktree機能の有効化 |
 
 **例:**

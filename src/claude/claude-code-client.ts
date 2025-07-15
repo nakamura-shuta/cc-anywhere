@@ -4,6 +4,7 @@ import { config } from "../config";
 import { TaskTracker } from "../services/task-tracker";
 import type { ToolUsageDetail, TaskProgressInfo } from "../types/enhanced-logging";
 import { LogLevel } from "../types/enhanced-logging";
+import type { WebSearchConfig } from "./types";
 
 export interface ClaudeCodeOptions {
   maxTurns?: number;
@@ -21,6 +22,8 @@ export interface ClaudeCodeOptions {
   outputFormat?: string;
   verbose?: boolean;
   onProgress?: (progress: { type: string; message: string; data?: any }) => void | Promise<void>;
+  enableWebSearch?: boolean;
+  webSearchConfig?: WebSearchConfig;
 }
 
 export class ClaudeCodeClient {
@@ -57,13 +60,19 @@ export class ClaudeCodeClient {
 
       let turnCount = 0;
 
+      // If web search is enabled, add WebSearch to allowed tools
+      const allowedTools = options.allowedTools || [];
+      if (options.enableWebSearch && !allowedTools.includes("WebSearch")) {
+        allowedTools.push("WebSearch");
+      }
+
       for await (const message of query({
         prompt,
         abortController,
         options: {
           maxTurns: options.maxTurns || config.claudeCodeSDK.defaultMaxTurns,
           cwd: options.cwd,
-          allowedTools: options.allowedTools,
+          allowedTools: allowedTools.length > 0 ? allowedTools : undefined,
           disallowedTools: options.disallowedTools,
           customSystemPrompt: options.systemPrompt,
           permissionMode: options.permissionMode,

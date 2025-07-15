@@ -122,6 +122,58 @@ describe("ClaudeCodeClient", () => {
       expect(result.messages).toHaveLength(1);
       expect(result.error?.message).toBe("Mid-execution error");
     });
+
+    it("should enable WebSearch when enableWebSearch is true", async () => {
+      const mockMessages = [
+        {
+          type: "assistant",
+          message: "Searching the web...",
+          parent_tool_use_id: null,
+          session_id: "test-session",
+        },
+      ] as any as SDKMessage[];
+
+      mockQuery.mockImplementation(async function* () {
+        for (const msg of mockMessages) {
+          yield msg;
+        }
+      } as any);
+
+      const result = await client.executeTask("Search for latest news", {
+        enableWebSearch: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            allowedTools: ["WebSearch"],
+          }),
+        }),
+      );
+    });
+
+    it("should not duplicate WebSearch in allowedTools", async () => {
+      const mockMessages = [] as any as SDKMessage[];
+
+      mockQuery.mockImplementation(async function* () {
+        yield* mockMessages;
+      } as any);
+
+      const result = await client.executeTask("Search task", {
+        enableWebSearch: true,
+        allowedTools: ["WebSearch", "Read", "Write"],
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            allowedTools: ["WebSearch", "Read", "Write"],
+          }),
+        }),
+      );
+    });
   });
 
   describe("formatMessagesAsString", () => {

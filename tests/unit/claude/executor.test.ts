@@ -120,6 +120,38 @@ describe("TaskExecutor", () => {
       expect(result.success).toBe(false);
       expect(result.error?.message).toContain("timed out");
     });
+
+    it("should pass web search options to Claude Code client", async () => {
+      const task: TaskRequest = {
+        instruction: "Search for latest news",
+        options: {
+          sdk: {
+            enableWebSearch: true,
+            webSearchConfig: {
+              maxResults: 5,
+            },
+          },
+        },
+      };
+
+      mockCodeClient.executeTask.mockResolvedValueOnce({
+        messages: [{ type: "assistant", content: "Search results..." }] as any,
+        success: true,
+      });
+      mockCodeClient.formatMessagesAsString.mockReturnValueOnce("Search results...");
+
+      await executor.execute(task);
+
+      expect(mockCodeClient.executeTask).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          enableWebSearch: true,
+          webSearchConfig: {
+            maxResults: 5,
+          },
+        }),
+      );
+    });
   });
 
   describe("cancel", () => {
