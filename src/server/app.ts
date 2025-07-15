@@ -2,6 +2,7 @@ import fastify, { type FastifyServerOptions, type FastifyInstance } from "fastif
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
+import websocket from "@fastify/websocket";
 import { errorHandlerPlugin } from "./plugins/error-handler";
 // import { authPlugin } from "./plugins/auth";
 import { registerStaticPlugin } from "./plugins/static";
@@ -229,6 +230,9 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   });
 
   await app.register(sensible);
+  
+  // Register WebSocket plugin for streaming routes
+  await app.register(websocket);
 
   // Register static file serving for Web UI (before auth to bypass authentication)
   await app.register(registerStaticPlugin);
