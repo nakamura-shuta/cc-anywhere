@@ -329,6 +329,11 @@
                 return;
             }
 
+            if (!isAuthenticated) {
+                addMessage('認証が完了していません。APIキーを確認してください', 'error');
+                return;
+            }
+
             clearMessages();
             addMessage(instruction, 'user');
 
@@ -336,6 +341,9 @@
                 type: 'start_task',
                 taskRequest: {
                     instruction: instruction,
+                    context: {
+                        workingDirectory: '/Users/nakamura.shuta/dev/node/test'
+                    },
                     options: {
                         sdk: {
                             maxTurns: 10
