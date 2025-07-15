@@ -1,7 +1,34 @@
+# Cloudflare Tunnel 設定ファイル
+#
+# Cloudflare Tunnelは、ローカルで実行されているサービスを
+# インターネットに安全に公開するためのサービスです。
+# 
+# この設定ファイルの使用方法：
+# 1. Cloudflareアカウントでトンネルを作成
+#    $ cloudflared tunnel create cc-anywhere
+# 
+# 2. 作成されたトンネルIDをこのファイルに設定
+# 
+# 3. DNSレコードを設定
+#    $ cloudflared tunnel route dns cc-anywhere cc-anywhere.yourdomain.com
+# 
+# 4. トンネルを実行
+#    $ cloudflared tunnel --config cloudflared-config.yml run
+# 
+# 注意事項：
+# - YOUR-TUNNEL-ID: 実際のトンネルIDに置き換えてください
+# - yourdomain.com: 実際のドメイン名に置き換えてください
+# - credentials-file: トンネル認証情報ファイルのパスを確認してください
+#
+# 詳細: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/
+
 tunnel: YOUR-TUNNEL-ID
 credentials-file: ~/.cloudflared/YOUR-TUNNEL-ID.json
 
 ingress:
+  # cc-anywhereアプリケーションへのルーティング
   - hostname: cc-anywhere.yourdomain.com  # ここを実際のドメインに変更してください
     service: http://localhost:5000
+  
+  # キャッチオール（上記に一致しない場合は404を返す）
   - service: http_status:404

@@ -1,11 +1,31 @@
+/**
+ * PM2 設定ファイル
+ * 
+ * PM2はNode.jsアプリケーションのプロダクション向けプロセスマネージャーです。
+ * この設定により以下の機能が有効になります：
+ * - アプリケーションのクラスター化（負荷分散）
+ * - 自動再起動（クラッシュ時やメモリ上限到達時）
+ * - ログ管理（エラー、出力、統合ログ）
+ * - グレースフルシャットダウン
+ * - ゼロダウンタイムデプロイ
+ * 
+ * 使用方法：
+ * - 開始: pm2 start ecosystem.config.js
+ * - 再起動: pm2 restart cc-anywhere
+ * - 停止: pm2 stop cc-anywhere
+ * - ログ確認: pm2 logs cc-anywhere
+ * - モニタリング: pm2 monit
+ * 
+ * 詳細: https://pm2.keymetrics.io/docs/usage/application-declaration/
+ */
 module.exports = {
   apps: [
     {
       name: 'cc-anywhere',
       script: './dist/index.js',
-      instances: 1,
-      exec_mode: 'cluster',
-      max_memory_restart: '1G',
+      instances: 1,              // インスタンス数（'max'でCPUコア数分起動）
+      exec_mode: 'cluster',      // クラスターモードで実行
+      max_memory_restart: '1G',  // メモリ使用量が1GBを超えたら再起動
       
       // 環境変数
       env: {
