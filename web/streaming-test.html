@@ -150,6 +150,11 @@
         </div>
 
         <div class="controls">
+            <input type="password" class="task-input" id="apiKey" 
+                   placeholder="APIキーを入力" style="max-width: 300px;">
+        </div>
+
+        <div class="controls">
             <input type="text" class="task-input" id="initialPrompt" 
                    placeholder="初期タスクの指示を入力（例: プロジェクトの構造を分析してください）">
             <button class="btn btn-primary" id="startTask">タスク開始</button>
@@ -194,7 +199,6 @@
         </div>
     </div>
 
-    <script src="./utils.js"></script>
     <script>
         let ws = null;
         let currentTaskId = null;
@@ -213,8 +217,7 @@
         };
 
         function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/streaming`;
+            const wsUrl = 'ws://localhost:5000/ws/streaming';
             
             ws = new WebSocket(wsUrl);
 
@@ -237,6 +240,10 @@
                 console.error('WebSocket error:', error);
                 addMessage('接続エラーが発生しました', 'error');
             };
+        }
+
+        function getApiKey() {
+            return document.getElementById('apiKey').value;
         }
 
         function authenticateWebSocket() {
