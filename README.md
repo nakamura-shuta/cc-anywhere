@@ -22,6 +22,28 @@ CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、�
 - 🎯 権限モード制御（default, acceptEdits, bypassPermissions, plan）
 - 💾 設定プリセット管理
 - 📄 タスク履歴とページネーション
+- 🔍 Web検索機能（有料オプション）
+
+## クイックスタート
+
+### 即座にタスクを実行
+
+```bash
+# API認証が無効の場合（API_KEY未設定）
+curl -X POST http://localhost:5000/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruction": "Write a hello world function"
+  }'
+
+# API認証が有効の場合（API_KEY設定済み）
+curl -X POST http://localhost:5000/api/tasks \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruction": "Write a hello world function"
+  }'
+```
 
 ## セットアップ
 
@@ -72,10 +94,6 @@ QUEUE_CONCURRENCY=2
 
 # データベース（SQLite）
 DB_PATH=./data/cc-anywhere.db
-
-# ワーカー設定
-WORKER_MODE=inline  # inline, standalone, managed
-WORKER_COUNT=1      # managed モードでのワーカー数
 
 # Git Worktree設定
 ENABLE_WORKTREE=true
@@ -151,12 +169,11 @@ PORT=5001 npm run dev
 ### ワーカーシステム
 
 CC-Anywhereは3つのワーカーモードをサポートします：
+- **inline** (デフォルト) - APIサーバーと同じプロセスで実行
+- **standalone** - 別プロセスで実行
+- **managed** - 自動的にワーカープロセスを管理
 
-- **Inline Mode (デフォルト)** - APIサーバーと同じプロセスでタスクを処理
-- **Standalone Mode** - APIサーバーとワーカーを別プロセスで実行
-- **Managed Mode** - APIサーバーが自動的にワーカープロセスを管理
-
-詳細は[ワーカーシステムドキュメント](docs/architecture/worker-system.md)を参照してください。
+環境変数で`WORKER_MODE`と`WORKER_COUNT`を設定します。詳細は`.env.example`を参照してください。
 
 ### テストの実行
 
@@ -194,300 +211,37 @@ npm run clean && npm run build
 
 ## バッチタスク
 
-複数のリポジトリに対して同じタスクを並列実行する機能です。
-
-### APIでの使用
-
-```bash
-# 複数リポジトリでテストを実行
-curl -X POST http://localhost:5000/api/batch/tasks \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "instruction": "npm test",
-    "repositories": [
-      {"name": "app1", "path": "/path/to/app1"},
-      {"name": "app2", "path": "/path/to/app2"},
-      {"name": "app3", "path": "/path/to/app3"}
-    ],
-    "options": {
-      "timeout": 300000,
-      "allowedTools": ["Bash", "Read", "Write"]
-    }
-  }'
-```
-
-### Web UIでの使用
-
-1. 複数のリポジトリを選択（Ctrl/Cmdキーを押しながらクリック）
-2. プロンプトを入力
-3. 「タスクを実行」をクリック
-
-選択された各リポジトリに対して独立したタスクが作成され、並列で実行されます。
-
-### バッチタスクのステータス確認
-
-```bash
-# グループIDを使用してバッチタスクのステータスを確認
-curl -X GET http://localhost:5000/api/batch/tasks/{groupId}/status \
-  -H "X-API-Key: your-api-key"
-```
-
-レスポンス例：
-```json
-{
-  "groupId": "group_123",
-  "summary": {
-    "total": 3,
-    "pending": 1,
-    "running": 1,
-    "completed": 1,
-    "failed": 0
-  },
-  "tasks": [
-    {
-      "taskId": "task1",
-      "repository": "app1",
-      "status": "completed",
-      "duration": 5000
-    },
-    // ...
-  ]
-}
-```
+複数のリポジトリに対して同じタスクを並列実行する機能です。Web UIで複数リポジトリを選択するか、APIで直接実行します。詳細は[バッチタスクドキュメント](docs/features/batch-tasks.md)を参照してください。
 
 ## スラッシュコマンド
 
-CC-Anywhereは、`/project:` および `/user:` プレフィックスを使用したカスタムスラッシュコマンドをサポートしています。
-
-### 使用方法
-
-- `/project:<command>` - プロジェクトのリポジトリ内の `.claude/commands/` ディレクトリからコマンドを実行
-- `/user:<command>` - ユーザーのホームディレクトリの `~/.claude/commands/` からコマンドを実行
-
-### 例
-
-```bash
-# プロジェクト固有のコマンドを実行
-curl -X POST http://localhost:5000/api/tasks \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "instruction": "/project:analyze src",
-    "context": {
-      "workingDirectory": "/path/to/project"
-    }
-  }'
-
-# ユーザー固有のコマンドを実行
-curl -X POST http://localhost:5000/api/tasks \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "instruction": "/user:daily-report"
-  }'
-```
-
-詳細は[スラッシュコマンドドキュメント](docs/features/slash-commands.md)を参照してください。
+`/project:` および `/user:` プレフィックスを使用したカスタムスラッシュコマンドをサポートしています。詳細は[スラッシュコマンドドキュメント](docs/features/slash-commands.md)を参照してください。
 
 ## Git Worktree統合
 
-独立した作業環境でタスクを実行できます。メインのリポジトリに影響を与えずに安全にタスクを実行可能です。
-
-### 基本的な使い方
-
-```bash
-# APIでWorktreeを使用
-curl -X POST http://localhost:5000/api/tasks \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "instruction": "npm test を実行",
-    "context": {
-      "workingDirectory": "/path/to/repo"
-    },
-    "options": {
-      "useWorktree": true
-    }
-  }'
-```
-
-### Web UIでの使用
-
-タスク作成フォームで「Git Worktreeを使用」にチェックを入れるだけです。
-
-### 動作の仕組み
-
-- **現在のブランチ**から新しいWorktreeブランチを作成
-- 独立した作業ディレクトリでタスクを実行
-- タスク完了後、自動的にクリーンアップ（設定により保持も可能）
-
-詳細は[Git Worktreeドキュメント](docs/features/git-worktree.md)を参照してください。
+独立した作業環境でタスクを実行できます。Web UIで「Git Worktreeを使用」にチェックを入れるか、APIで`useWorktree: true`を指定します。詳細は[Git Worktreeドキュメント](docs/features/git-worktree.md)を参照してください。
 
 ## スケジューラー機能
 
-定期的または特定の時刻にタスクを自動実行できます。
-
-### 基本的な使い方
-
-#### Cron式での定期実行
-
-```bash
-# 毎日午前2時にバックアップを実行
-curl -X POST http://localhost:5000/api/schedules \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "日次バックアップ",
-    "description": "毎日午前2時にバックアップを実行",
-    "taskRequest": {
-      "instruction": "プロジェクトのバックアップを作成してください",
-      "context": {
-        "workingDirectory": "/path/to/project"
-      }
-    },
-    "schedule": {
-      "type": "cron",
-      "expression": "0 2 * * *",
-      "timezone": "Asia/Tokyo"
-    }
-  }'
-```
-
-#### ワンタイム実行
-
-```bash
-# 特定の時刻に1回だけ実行
-curl -X POST http://localhost:5000/api/schedules \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "デプロイ準備",
-    "taskRequest": {
-      "instruction": "本番環境へのデプロイ準備を実行"
-    },
-    "schedule": {
-      "type": "once",
-      "executeAt": "2024-01-15T10:00:00Z"
-    }
-  }'
-```
-
-### Web UIでの使用
-
-1. `http://localhost:5000/scheduler.html?apiKey=your-api-key` にアクセス
-2. スケジュール作成フォームで必要な情報を入力
-3. Cron式の例示ボタンで簡単に設定可能
-
-### Cron式の例
-
-- `0 * * * *` - 毎時0分に実行
-- `0 2 * * *` - 毎日午前2時に実行
-- `0 9 * * 1-5` - 平日の午前9時に実行
-- `*/15 * * * *` - 15分ごとに実行
-
-詳細は[スケジューラードキュメント](docs/features/scheduler.md)を参照してください。
+定期的または特定の時刻にタスクを自動実行できます。Web UIの`/scheduler.html`から設定するか、APIで直接作成します。Cron式（例: `0 2 * * *`で毎日午前2時）やワンタイム実行をサポート。詳細は[スケジューラードキュメント](docs/features/scheduler.md)を参照してください。
 
 ## API認証
 
-`.env`ファイルに`API_KEY`を設定すると、すべてのAPIエンドポイントで認証が必要になります。
-
-### 認証方法
-
-1. **HTTPヘッダー**（推奨 - API呼び出し用）
-   ```bash
-   curl -H "X-API-Key: your-secret-api-key" http://localhost:5000/api/tasks
-   ```
-
-2. **クエリパラメータ**（Web UIやブラウザアクセス用）
-   ```bash
-   curl "http://localhost:5000/api/tasks?apiKey=your-secret-api-key"
-   ```
+`.env`ファイルに`API_KEY`を設定すると認証が有効になります。HTTPヘッダー（`X-API-Key`）またはクエリパラメータ（`?apiKey=`）で認証します。詳細は[APIリファレンス](docs/api/api-reference.md)を参照してください。
 
 ## 外部アクセス（Cloudflare Tunnel）
 
-開発中にローカルサーバーを外部からアクセス可能にするため、Cloudflare Tunnel統合を提供しています。
+開発中にローカルサーバーを外部からアクセス可能にできます。`npm run tunnel:setup`で自動セットアップ。詳細は[外部アクセスドキュメント](docs/features/external-access.md)を参照してください。
 
-### 自動セットアップ
+## 詳細ドキュメント
 
-```bash
-# Cloudflare Tunnelの自動セットアップ
-npm run tunnel:setup
-
-# セットアップ完了後、サーバー起動時に自動的にトンネルが開始されます
-npm run dev
-```
-
-### 手動設定
-
-`.env`ファイルで以下を設定：
-
-```bash
-ENABLE_CLOUDFLARE_TUNNEL=true
-CLOUDFLARE_TUNNEL_NAME=cc-anywhere-dev
-SHOW_QR_CODE=true  # QRコード表示（オプション）
-```
-
-サーバー起動時に自動的にトンネルが開始され、外部アクセス用のURLとQRコードが表示されます。
-
-## クイックスタート
-
-### 即座にタスクを実行
-
-```bash
-# タスクの作成（同期実行）
-# API認証が無効の場合（API_KEY未設定）
-curl -X POST http://localhost:5000/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "instruction": "Write a hello world function"
-  }'
-
-# API認証が有効の場合（API_KEY設定済み）
-curl -X POST http://localhost:5000/api/tasks \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "instruction": "Write a hello world function"
-  }'
-
-# 作業ディレクトリとツール制限を指定
-curl -X POST http://localhost:5000/api/tasks \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "instruction": "List TypeScript files",
-    "context": {
-      "workingDirectory": "/path/to/project"
-    },
-    "options": {
-      "allowedTools": ["Read", "Glob"]
-    }
-  }'
-```
-
-### タスクキューを使用
-
-```bash
-# キューにタスクを追加（優先度付き）
-curl -X POST http://localhost:5000/api/queue/tasks \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "instruction": "Refactor authentication module",
-    "priority": 10
-  }'
-
-# キューの状態を確認
-curl -X GET http://localhost:5000/api/queue/stats \
-
-# タスク履歴を取得
-curl -X GET http://localhost:5000/api/history/tasks \
-
-# フィルタリングとページネーション
-curl -X GET "http://localhost:5000/api/history/tasks?status=completed&limit=10&offset=0" \
-```
-
+- [APIリファレンス](docs/api/api-reference.md) - すべてのAPIエンドポイントの詳細
+- [バッチタスク](docs/features/batch-tasks.md) - 複数リポジトリへの一括実行
+- [スラッシュコマンド](docs/features/slash-commands.md) - カスタムコマンドの作成と使用
+- [Git Worktree](docs/features/git-worktree.md) - 独立した作業環境での実行
+- [スケジューラー](docs/features/scheduler.md) - 定期実行とCron式の使用
+- [外部アクセス](docs/features/external-access.md) - Cloudflare Tunnelの設定
+- [変更履歴](docs/CHANGELOG.md) - 最新の機能と更新
 
 ## ライセンス
 
