@@ -216,9 +216,6 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
     });
 
     logger.info("WebSocket server initialized");
-
-    // Register streaming routes after WebSocket initialization
-    await app.register(streamingRoutes);
   }
 
   // Register core plugins
@@ -251,6 +248,7 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   await app.register(presetRoutes, { prefix: "/api" });
   await app.register(scheduleRoutes);
   await app.register(sessionRoutes);
+  await app.register(streamingRoutes);
 
   // Register worker routes only in managed mode
   if (workerMode === "managed") {

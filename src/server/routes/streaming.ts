@@ -1,17 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
-import { StreamingWebSocketHandler } from "../websocket/streaming-handler";
 
 const streamingRoutes: FastifyPluginAsync = async (fastify) => {
-  const handler = new StreamingWebSocketHandler();
-
-  // Register streaming websocket route in a nested plugin
-  await fastify.register(async (f) => {
-    // WebSocketエンドポイント
-    f.get("/ws/streaming", { websocket: true }, (connection, req) => {
-      void handler.handleConnection(connection, req);
-    });
-  });
-
   // ストリーミングタスクの情報を取得するREST API
   fastify.get(
     "/api/streaming/info",

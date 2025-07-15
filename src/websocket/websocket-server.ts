@@ -57,6 +57,14 @@ export class WebSocketServer {
 
         this.handleConnection(ws as AuthenticatedWebSocket);
       });
+      
+      // Register streaming WebSocket route
+      const StreamingWebSocketHandler = (await import("../server/websocket/streaming-handler")).StreamingWebSocketHandler;
+      const streamingHandler = new StreamingWebSocketHandler();
+      
+      fastify.get("/ws/streaming", { websocket: true }, (connection) => {
+        void streamingHandler.handleConnection(connection as any, null);
+      });
     });
 
     // Start heartbeat checker
