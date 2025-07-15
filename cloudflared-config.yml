@@ -1,9 +1,6 @@
 # Cloudflare Tunnel 設定ファイル
-#
-# Cloudflare Tunnelは、ローカルで実行されているサービスを
-# インターネットに安全に公開するためのサービスです。
 # 
-# この設定ファイルの使用方法：
+# 使用方法：
 # 1. Cloudflareアカウントでトンネルを作成
 #    $ cloudflared tunnel create cc-anywhere
 # 
