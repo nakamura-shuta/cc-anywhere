@@ -216,7 +216,7 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
     });
 
     logger.info("WebSocket server initialized");
-    
+
     // Register streaming routes after WebSocket initialization
     await app.register(streamingRoutes);
   }

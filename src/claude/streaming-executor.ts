@@ -28,17 +28,40 @@ export class StreamingClaudeExecutor {
       // 初期プロンプトを設定
       streamingExecutor.setInitialPrompt(task.instruction);
 
-      // アボートコントローラーを設定
-      if (task.options?.abortController) {
-        streamingExecutor.setAbortController(task.options.abortController);
+      // SDKオプションから ClaudeCodeOptions への変換
+      const sdkOptions = task.options?.sdk || {};
+      const claudeOptions: any = {
+        maxTurns: sdkOptions.maxTurns,
+        cwd: task.context?.workingDirectory,
+        allowedTools: sdkOptions.allowedTools,
+        disallowedTools: sdkOptions.disallowedTools,
+        systemPrompt: sdkOptions.systemPrompt,
+        executable: sdkOptions.executable,
+        executableArgs: sdkOptions.executableArgs,
+        mcpConfig: sdkOptions.mcpConfig,
+        continueSession: sdkOptions.continueSession,
+        resumeSession: sdkOptions.resumeSession,
+        verbose: sdkOptions.verbose,
+        permissionPromptTool: sdkOptions.permissionPromptTool,
+        pathToClaudeCodeExecutable: sdkOptions.pathToClaudeCodeExecutable,
+        enableWebSearch: sdkOptions.enableWebSearch,
+        webSearchConfig: sdkOptions.webSearchConfig,
+      };
+
+      // permissionModeの変換
+      if (sdkOptions.permissionMode) {
+        const permissionModeMap: Record<string, string> = {
+          ask: "default",
+          allow: "default",
+          deny: "default",
+          acceptEdits: "acceptEdits",
+          bypassPermissions: "bypassPermissions",
+          plan: "plan",
+        };
+        claudeOptions.permissionMode = permissionModeMap[sdkOptions.permissionMode] || "default";
       }
 
-      // ストリーミング入力を使用してタスクを実行
-      const result = await this.claudeClient.executeTask(streamingExecutor.generateUserMessages(), {
-        ...task.options?.sdk,
-        cwd: task.context?.workingDirectory,
-        abortController: task.options?.abortController,
-      });
+      const result = await this.claudeClient.executeTask(task.instruction, claudeOptions);
 
       // 実行完了
       streamingExecutor.markCompleted();

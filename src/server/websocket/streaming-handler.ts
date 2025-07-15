@@ -1,4 +1,4 @@
-import type { SocketStream } from "@fastify/websocket";
+import type { WebSocket } from "ws";
 import { StreamingClaudeExecutor } from "../../claude/streaming-executor";
 import type { StreamingTaskExecutor } from "../../services/streaming-task-executor";
 import { ClaudeCodeClient } from "../../claude/claude-code-client";
@@ -19,14 +19,14 @@ export class StreamingWebSocketHandler {
   private claudeClient = new ClaudeCodeClient();
   private streamingExecutor = new StreamingClaudeExecutor(this.claudeClient);
 
-  async handleConnection(connection: SocketStream, _request: any) {
-    const socket = connection.socket;
+  async handleConnection(connection: WebSocket, _request: any) {
+    const socket = connection;
     let authenticated = false;
     let currentTaskId: string | undefined;
 
     logger.info("New streaming WebSocket connection");
 
-    socket.on("message", async (data) => {
+    socket.on("message", async (data: Buffer) => {
       try {
         const message: StreamingMessage = JSON.parse(data.toString());
 
