@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ストリーミング入力テスト - CC-Anywhere</title>
+    <link rel="stylesheet" href="./common.css">
+    <style>
+        .streaming-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--card-bg);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f9fafb;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 70%;
+        }
+
+        .message.user {
+            background: var(--primary-color);
+            color: white;
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            background: white;
+            border: 1px solid var(--border-color);
+        }
+
+        .message.system {
+            background: #f3f4f6;
+            font-size: 0.9em;
+            text-align: center;
+            max-width: 100%;
+        }
+
+        .message.error {
+            background: #fee;
+            color: #c00;
+            border: 1px solid #fcc;
+        }
+
+        .chat-input-container {
+            display: flex;
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background: white;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        .send-button {
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .send-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .task-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .status-bar {
+            padding: 10px 20px;
+            background: #f3f4f6;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-indicator.connected {
+            background: #10b981;
+        }
+
+        .status-indicator.disconnected {
+            background: #ef4444;
+        }
+
+        .progress-message {
+            padding: 5px 10px;
+            background: #e0f2fe;
+            border-left: 3px solid #0284c7;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+    <div class="streaming-container">
+        <h1>🔄 ストリーミング入力テスト</h1>
+        
+        <div class="description">
+            <p>リアルタイムで対話的にタスクを実行できます。初期指示を入力してタスクを開始し、結果を見ながら追加の指示を送信できます。</p>
+        </div>
+
+        <div class="controls">
+            <input type="text" class="task-input" id="initialPrompt" 
+                   placeholder="初期タスクの指示を入力（例: プロジェクトの構造を分析してください）">
+            <button class="btn btn-primary" id="startTask">タスク開始</button>
+            <button class="btn btn-secondary" id="stopTask" disabled>停止</button>
+        </div>
+
+        <div class="chat-container">
+            <div class="status-bar">
+                <div>
+                    <span class="status-indicator disconnected" id="statusIndicator"></span>
+                    <span id="connectionStatus">未接続</span>
+                </div>
+                <div id="taskInfo"></div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message system">タスクを開始すると、ここに会話が表示されます</div>
+            </div>
+            
+            <div class="chat-input-container">
+                <input type="text" class="chat-input" id="instructionInput" 
+                       placeholder="追加の指示を入力..." disabled>
+                <button class="send-button" id="sendInstruction" disabled>送信</button>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>📋 使い方</h3>
+            <ol>
+                <li>初期タスクの指示を入力して「タスク開始」をクリック</li>
+                <li>Claudeの応答を確認</li>
+                <li>必要に応じて追加の指示を送信</li>
+                <li>タスクが完了したら自動的に終了（または「停止」ボタンで手動終了）</li>
+            </ol>
+            
+            <h3>🚀 テスト例</h3>
+            <ul>
+                <li><strong>段階的な分析:</strong> 「src/ディレクトリの構造を確認して」→「TypeScriptファイルをリストアップして」→「型定義に問題がないか確認して」</li>
+                <li><strong>対話的なデバッグ:</strong> 「package.jsonを確認して」→「不足している依存関係を追加して」→「テストを実行して」</li>
+                <li><strong>探索的な作業:</strong> 「このプロジェクトの概要を説明して」→「セキュリティ上の問題点を探して」→「改善案を提案して」</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="./utils.js"></script>
+    <script>
+        let ws = null;
+        let currentTaskId = null;
+        let isAuthenticated = false;
+
+        const elements = {
+            startTask: document.getElementById('startTask'),
+            stopTask: document.getElementById('stopTask'),
+            initialPrompt: document.getElementById('initialPrompt'),
+            instructionInput: document.getElementById('instructionInput'),
+            sendInstruction: document.getElementById('sendInstruction'),
+            chatMessages: document.getElementById('chatMessages'),
+            statusIndicator: document.getElementById('statusIndicator'),
+            connectionStatus: document.getElementById('connectionStatus'),
+            taskInfo: document.getElementById('taskInfo')
+        };
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/streaming`;
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                updateConnectionStatus(true);
+                authenticateWebSocket();
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            ws.onclose = () => {
+                updateConnectionStatus(false);
+                resetUI();
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                addMessage('接続エラーが発生しました', 'error');
+            };
+        }
+
+        function authenticateWebSocket() {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                addMessage('APIキーが設定されていません', 'error');
+                return;
+            }
+
+            ws.send(JSON.stringify({
+                type: 'auth',
+                apiKey: apiKey
+            }));
+        }
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'auth_success':
+                    isAuthenticated = true;
+                    addMessage('認証成功', 'system');
+                    break;
+
+                case 'auth_failed':
+                    addMessage('認証失敗', 'error');
+                    break;
+
+                case 'task_started':
+                    currentTaskId = data.taskId;
+                    elements.taskInfo.textContent = `Task ID: ${data.taskId}`;
+                    enableChatUI(true);
+                    addMessage('タスクを開始しました', 'system');
+                    break;
+
+                case 'progress':
+                    handleProgressMessage(data.progress);
+                    break;
+
+                case 'task_completed':
+                    addMessage(`タスク完了 (実行時間: ${data.result.duration}ms)`, 'system');
+                    if (data.result.output) {
+                        addMessage(data.result.output, 'assistant');
+                    }
+                    resetTask();
+                    break;
+
+                case 'task_error':
+                    addMessage(`エラー: ${data.error}`, 'error');
+                    resetTask();
+                    break;
+
+                case 'error':
+                    addMessage(`エラー: ${data.message}`, 'error');
+                    break;
+            }
+        }
+
+        function handleProgressMessage(progress) {
+            if (progress.type === 'log') {
+                addProgressMessage(progress.message);
+            } else if (progress.type === 'tool_usage') {
+                addProgressMessage(`🔧 ${progress.message}`);
+            }
+        }
+
+        function startTask() {
+            const instruction = elements.initialPrompt.value.trim();
+            if (!instruction) {
+                showNotification('初期指示を入力してください', 'warning');
+                return;
+            }
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+                setTimeout(() => startTask(), 1000);
+                return;
+            }
+
+            clearMessages();
+            addMessage(instruction, 'user');
+
+            ws.send(JSON.stringify({
+                type: 'start_task',
+                taskRequest: {
+                    instruction: instruction,
+                    options: {
+                        sdk: {
+                            maxTurns: 10
+                        }
+                    }
+                }
+            }));
+
+            elements.initialPrompt.value = '';
+        }
+
+        function sendInstruction() {
+            const instruction = elements.instructionInput.value.trim();
+            if (!instruction || !currentTaskId) return;
+
+            addMessage(instruction, 'user');
+            
+            ws.send(JSON.stringify({
+                type: 'user_instruction',
+                instruction: instruction
+            }));
+
+            elements.instructionInput.value = '';
+        }
+
+        function stopTask() {
+            if (!currentTaskId) return;
+
+            ws.send(JSON.stringify({
+                type: 'stop_task',
+                taskId: currentTaskId
+            }));
+
+            addMessage('タスクを停止しました', 'system');
+            resetTask();
+        }
+
+        function addMessage(content, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = content;
+            elements.chatMessages.appendChild(messageDiv);
+            elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+        }
+
+        function addProgressMessage(content) {
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'progress-message';
+            progressDiv.textContent = content;
+            elements.chatMessages.appendChild(progressDiv);
+            elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+        }
+
+        function clearMessages() {
+            elements.chatMessages.innerHTML = '';
+        }
+
+        function updateConnectionStatus(connected) {
+            elements.statusIndicator.className = `status-indicator ${connected ? 'connected' : 'disconnected'}`;
+            elements.connectionStatus.textContent = connected ? '接続中' : '未接続';
+        }
+
+        function enableChatUI(enabled) {
+            elements.startTask.disabled = enabled;
+            elements.stopTask.disabled = !enabled;
+            elements.instructionInput.disabled = !enabled;
+            elements.sendInstruction.disabled = !enabled;
+            
+            if (enabled) {
+                elements.instructionInput.focus();
+            }
+        }
+
+        function resetTask() {
+            currentTaskId = null;
+            enableChatUI(false);
+            elements.taskInfo.textContent = '';
+        }
+
+        function resetUI() {
+            isAuthenticated = false;
+            resetTask();
+        }
+
+        // イベントリスナー
+        elements.startTask.addEventListener('click', startTask);
+        elements.stopTask.addEventListener('click', stopTask);
+        elements.sendInstruction.addEventListener('click', sendInstruction);
+        
+        elements.initialPrompt.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startTask();
+        });
+        
+        elements.instructionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendInstruction();
+        });
+
+        // 初期接続
+        connectWebSocket();
+    </script>
+</body>
+</html>
