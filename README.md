@@ -4,7 +4,7 @@ Claude Code SDKを使用してHTTP経由で指示できるアプリです。
 
 ## 概要
 
-CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、様々なタスクを実行できるAPIサーバーです。@anthropic-ai/claude-code SDKのみを使用し、通常のClaude APIは使用しません。
+CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、様々なタスクを実行できるAPIサーバーです。
 
 ### 主な機能
 
@@ -16,13 +16,9 @@ CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、�
 - 💬 スラッシュコマンドサポート
 - 🌐 Cloudflare Tunnel統合
 - 🔐 APIキー認証
-- 📊 リアルタイムログ（WebSocket）
-- 🔁 自動リトライ機能
 - ⏰ スケジュール実行（Cron式対応）
 - 🎯 権限モード制御（default, acceptEdits, bypassPermissions, plan）
 - 💾 設定プリセット管理
-- 📄 タスク履歴とページネーション
-- 🔍 Web検索機能（有料オプション）
 
 ## クイックスタート
 
