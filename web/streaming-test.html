@@ -223,7 +223,10 @@
 
             ws.onopen = () => {
                 updateConnectionStatus(true);
-                authenticateWebSocket();
+                // 接続が確立されたことを確認してから認証
+                if (ws.readyState === WebSocket.OPEN) {
+                    authenticateWebSocket();
+                }
             };
 
             ws.onmessage = (event) => {
@@ -255,6 +258,11 @@
         }
 
         function authenticateWebSocket() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.error('WebSocket is not connected');
+                return;
+            }
+            
             const apiKey = getApiKey();
             if (!apiKey) {
                 addMessage('APIキーが設定されていません', 'error');
@@ -442,7 +450,9 @@
         });
 
         // 初期接続
-        connectWebSocket();
+        setTimeout(() => {
+            connectWebSocket();
+        }, 100);
     </script>
 </body>
 </html>
