@@ -19,6 +19,9 @@ CC-Anywhereは、HTTPリクエストを通じてClaude Code SDKと対話し、�
 - ⏰ スケジュール実行（Cron式対応）
 - 🎯 権限モード制御（default, acceptEdits, bypassPermissions, plan）
 - 💾 設定プリセット管理
+- 📊 リアルタイムタスク統計とTODO追跡
+- 🔍 Web検索機能（Claude Code SDK統合）
+- 📝 構造化されたログとエラーハンドリング
 
 ## クイックスタート
 

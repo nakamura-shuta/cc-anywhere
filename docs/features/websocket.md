@@ -103,6 +103,100 @@ WebSocket接続を確立した後、最初に認証メッセージを送信す�
 }
 ```
 
+### ツール実行イベント
+
+ツール実行開始：
+
+```json
+{
+  "type": "task:tool:start",
+  "payload": {
+    "taskId": "task-123",
+    "toolId": "tool-456",
+    "tool": "Write",
+    "input": { "file_path": "test.txt", "content": "Hello" },
+    "timestamp": "2024-01-20T10:00:00Z"
+  }
+}
+```
+
+ツール実行終了：
+
+```json
+{
+  "type": "task:tool:end",
+  "payload": {
+    "taskId": "task-123",
+    "toolId": "tool-456",
+    "tool": "Write",
+    "output": "File written successfully",
+    "error": null,
+    "duration": 125,
+    "success": true,
+    "timestamp": "2024-01-20T10:00:00.125Z"
+  }
+}
+```
+
+### Claude応答イベント
+
+```json
+{
+  "type": "task:claude:response",
+  "payload": {
+    "taskId": "task-123",
+    "text": "I'll create a hello world file for you...",
+    "turnNumber": 1,
+    "timestamp": "2024-01-20T10:00:00Z"
+  }
+}
+```
+
+### TODO更新イベント
+
+```json
+{
+  "type": "todo:update",
+  "payload": {
+    "taskId": "task-123",
+    "todos": [
+      {
+        "id": "todo-1",
+        "content": "Create hello world file",
+        "status": "completed",
+        "priority": "high"
+      }
+    ]
+  }
+}
+```
+
+### 統計情報イベント
+
+```json
+{
+  "type": "task:statistics",
+  "payload": {
+    "taskId": "task-123",
+    "statistics": {
+      "totalTurns": 3,
+      "totalToolCalls": 5,
+      "toolStats": {
+        "Write": {
+          "count": 2,
+          "successes": 2,
+          "failures": 0,
+          "totalDuration": 250,
+          "avgDuration": 125
+        }
+      },
+      "currentPhase": "complete",
+      "elapsedTime": 5000
+    }
+  }
+}
+```
+
 ### エラーメッセージ
 
 エラーが発生した場合：

@@ -94,7 +94,7 @@ export class ClaudeCodeClient {
         // Track turns and tool usage
         if (message.type === "assistant") {
           turnCount++;
-          
+
           // Claudeの応答テキストを抽出して送信
           const textContent = this.extractTextContent(message);
           if (textContent && options.onProgress) {
@@ -139,12 +139,12 @@ export class ClaudeCodeClient {
               });
             }
           }
-          
+
           // Track tool usage (record each tool detail for proper statistics)
           for (const detail of toolDetails) {
             tracker.recordToolUsage(detail);
           }
-          
+
           // Legacy tool_usage event (for backward compatibility)
           if (toolDetail.tool !== "TodoWrite" && toolDetail.action === "end") {
             if (options.onProgress) {
@@ -215,7 +215,7 @@ export class ClaudeCodeClient {
       if (options.onProgress) {
         const stats = tracker.getStatistics();
         const elapsedTime = Date.now() - startTime;
-        
+
         await options.onProgress({
           type: "statistics",
           message: "タスク統計情報",
@@ -232,14 +232,14 @@ export class ClaudeCodeClient {
                   totalDuration: 0, // TODO: 実際の所要時間を計算
                   avgDuration: 0,
                 },
-              ])
+              ]),
             ),
             currentPhase: "complete",
             elapsedTime,
           },
         });
       }
-      
+
       tracker.recordProgress({
         phase: "complete",
         message: "タスクが正常に完了しました",
@@ -325,7 +325,7 @@ export class ClaudeCodeClient {
     }
     return null;
   }
-  
+
   private extractTextContent(message: any): string | null {
     if (message.type === "assistant" && message.message?.content) {
       const textParts: string[] = [];
@@ -338,14 +338,14 @@ export class ClaudeCodeClient {
     }
     return null;
   }
-  
+
   // Tool tracking for duration calculation
   private toolStartTimes: Map<string, number> = new Map();
   private toolNameMap: Map<string, string> = new Map();
-  
+
   private extractToolUsageFromMessage(message: SDKMessage): ToolUsageDetail[] {
     const toolDetails: ToolUsageDetail[] = [];
-    
+
     if (message.type === "assistant") {
       const assistantMsg = message as any;
       if (assistantMsg.message?.content && Array.isArray(assistantMsg.message.content)) {
@@ -353,11 +353,11 @@ export class ClaudeCodeClient {
           if (content.type === "tool_use") {
             const toolId = content.id;
             const startTime = Date.now();
-            
+
             // Store start time and tool name for later use
             this.toolStartTimes.set(toolId, startTime);
             this.toolNameMap.set(toolId, content.name);
-            
+
             // Tool start
             toolDetails.push({
               tool: content.name,
@@ -380,11 +380,11 @@ export class ClaudeCodeClient {
             const startTime = this.toolStartTimes.get(toolId) || endTime;
             const toolName = this.toolNameMap.get(toolId) || "unknown";
             const duration = endTime - startTime;
-            
+
             // Clean up tracking maps
             this.toolStartTimes.delete(toolId);
             this.toolNameMap.delete(toolId);
-            
+
             // Tool end
             toolDetails.push({
               tool: toolName,
@@ -401,7 +401,7 @@ export class ClaudeCodeClient {
         }
       }
     }
-    
+
     return toolDetails;
   }
 

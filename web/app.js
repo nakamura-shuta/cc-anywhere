@@ -44,6 +44,65 @@ async function loadRepositories() {
     }
 }
 
+// WebSocketイベントハンドラー設定
+function setupWebSocketHandlers() {
+    if (!apiClient.wsManager) {
+        console.error('WebSocketManager not available');
+        return;
+    }
+
+    const wsManager = apiClient.wsManager;
+
+    // 接続状態の変更
+    wsManager.on('connected', () => {
+        updateConnectionStatus(true);
+    });
+
+    wsManager.on('disconnected', () => {
+        updateConnectionStatus(false);
+    });
+
+    wsManager.on('reconnecting', ({ attempt, delay }) => {
+        updateConnectionStatus(false, `再接続中... (${attempt}回目)`);
+    });
+
+    wsManager.on('authenticated', () => {
+        console.log('WebSocket authenticated');
+    });
+
+    wsManager.on('authError', (error) => {
+        console.error('WebSocket auth error:', error);
+        showError('WebSocket認証に失敗しました');
+    });
+
+    // タスク関連のイベント
+    wsManager.on('taskUpdate', (payload) => {
+        handleTaskUpdate(payload);
+    });
+
+    wsManager.on('taskLog', (payload) => {
+        handleTaskLog(payload);
+    });
+
+    wsManager.on('taskCompleted', (payload) => {
+        handleTaskCompleted(payload);
+    });
+
+    // エラーハンドリング
+    wsManager.on('serverError', (error) => {
+        console.error('Server error:', error);
+        showError(`サーバーエラー: ${error.message || 'Unknown error'}`);
+    });
+
+    // 旧形式のメッセージハンドラーも互換性のために保持
+    wsManager.on('unknownMessage', (message) => {
+        // 旧形式のメッセージを処理
+        if (message.type === 'todo:update') {
+            handleTodoUpdate(message.payload);
+        }
+    });
+}
+
 // 基本的なイベントリスナー設定
 function setupEventListeners() {
     // タスク作成フォーム
@@ -1055,9 +1114,12 @@ async function init() {
     // ナビゲーションリンクにクエリパラメータを引き継ぐ
     updateNavigationLinks();
 
-    // WebSocket接続
-    const ws = apiClient.connectWebSocket();
-    ws.onmessage = handleWebSocketMessage;
+    // WebSocket接続とイベントハンドラー設定
+    setupWebSocketHandlers();
+    apiClient.connectWebSocket().catch(error => {
+        console.error('Failed to connect WebSocket:', error);
+        updateConnectionStatus(false);
+    });
 
     // 基本的なイベントリスナー設定
     setupEventListeners();

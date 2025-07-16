@@ -176,13 +176,16 @@ export interface TaskStatisticsMessage extends WebSocketMessage {
     statistics: {
       totalTurns: number;
       totalToolCalls: number;
-      toolStats: Record<string, {
-        count: number;
-        successes: number;
-        failures: number;
-        totalDuration: number;
-        avgDuration: number;
-      }>;
+      toolStats: Record<
+        string,
+        {
+          count: number;
+          successes: number;
+          failures: number;
+          totalDuration: number;
+          avgDuration: number;
+        }
+      >;
       currentPhase: string;
       elapsedTime: number;
     };

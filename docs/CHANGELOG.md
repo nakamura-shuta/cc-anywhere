@@ -3,6 +3,22 @@
 ## [未リリース]
 
 ### 追加
+- フロントエンドアーキテクチャの全面的な改善
+  - モジュラーなJavaScriptアーキテクチャを実装
+    - `logger.js` - 構造化されたフロントエンドロギングシステム
+    - `websocket-manager.js` - 中央集権的なWebSocket接続管理（自動再接続、イベント駆動）
+    - `state-manager.js` - グローバル状態管理システム
+    - `error-handler.js` - 統一されたエラーハンドリング機構
+  - CSSのモジュール化と整理
+    - 重複定義を削除し、5つのモジュールに分割（base、components、layouts、page固有）
+    - レスポンシブデザインの改善
+  - WebSocketイベントの拡充
+    - `task:tool:start` / `task:tool:end` - ツール実行の詳細追跡
+    - `task:claude:response` - Claude応答のリアルタイム表示
+    - `task:statistics` - タスク統計情報の更新
+    - `todo:update` - TODO進捗の追跡
+
+### 追加
 - Web検索機能をClaude Code SDKオプションに追加
   - `enableWebSearch`オプションでWeb検索機能の有効化/無効化が可能
   - Web UIに「Web検索を有効化」チェックボックスを追加
@@ -43,11 +59,21 @@
 - ドキュメントおよびコード内の個人環境パスを汎用的なパスに変更
 
 ### 修正
+- タスク詳細モーダルのキャッシュ問題を修正
+  - 前回開いたタスクの情報が残る問題を解決
+  - タスクID検証とクリーンアップ処理を強化
+  - WebSocketサブスクリプション管理を改善
+- タスク統計の0%成功率表示を修正
+  - ツールを使用しなかった場合は"N/A"を表示するように変更
 - スケジューラーWeb UIの無効化/有効化ボタンのエラーを修正（Content-Typeヘッダーの送信条件を修正）
 - ページ変更時のレイアウト崩れを修正
 - TypeScriptの型警告を修正
 - スケジューラーとタスク実行画面のスタイル統一性を改善
   - ヘッダー構造の統一
+
+### 削除
+- 不要な`task-detail-streaming.html`ファイルを削除（メインUIに統合済み）
+- 重複したCSSファイルを削除（`common.css`、`style.css`、`style-advanced.css`）
   - 接続状態表示の追加
   - CSS変数による色の一貫性確保
 - スケジューラーの作業リポジトリ選択が機能しない問題を修正

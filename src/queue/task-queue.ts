@@ -228,7 +228,7 @@ export class TaskQueueImpl implements TaskQueue {
                       });
                     }
                     break;
-                    
+
                   case "tool:start":
                     if (progress.data) {
                       this.wsServer?.broadcastToolStart({
@@ -275,7 +275,7 @@ export class TaskQueueImpl implements TaskQueue {
                       });
                     }
                     break;
-                    
+
                   default:
                     // Log any other type as a regular log message
                     if (progress.message) {

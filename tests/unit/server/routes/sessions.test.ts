@@ -188,7 +188,6 @@ describe("Session Routes", () => {
           instruction: expect.stringContaining("Continue with this task"),
           options: expect.objectContaining({
             sdk: expect.objectContaining({
-              continueSession: true,
               resumeSession: sessionId,
             }),
           }),

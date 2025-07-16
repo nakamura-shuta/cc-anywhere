@@ -53,7 +53,7 @@ const envSchema = z.object({
   WORKTREE_PREFIX: z.string().default("cc-anywhere"),
   WORKTREE_DEFAULT_BASE_BRANCH: z.string().optional(), // デフォルトは現在のブランチを使用
   // Claude Code SDK設定
-  DEFAULT_MAX_TURNS: z.string().default("50").transform(Number), // 最大値の50に設定
+  DEFAULT_MAX_TURNS: z.string().default("3").transform(Number), // デフォルト値
 });
 
 // Parse and validate environment variables

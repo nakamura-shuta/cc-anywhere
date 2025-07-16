@@ -69,6 +69,23 @@
 
 ## 🚀 最近の実装成果
 
+### フロントエンドアーキテクチャの全面改善 ✅ (2025-01-16)
+- モジュラーなJavaScriptアーキテクチャを実装
+  - `logger.js` - 構造化されたフロントエンドロギングシステム
+  - `websocket-manager.js` - 中央集権的なWebSocket接続管理（自動再接続、イベント駆動）
+  - `state-manager.js` - グローバル状態管理システム
+  - `error-handler.js` - 統一されたエラーハンドリング機構
+- CSSのモジュール化と整理
+  - 重複定義を削除し、5つのモジュールに分割（base、components、layouts、page固有）
+  - レスポンシブデザインの改善
+- WebSocketイベントの拡充
+  - `task:tool:start` / `task:tool:end` - ツール実行の詳細追跡
+  - `task:claude:response` - Claude応答のリアルタイム表示
+  - `task:statistics` - タスク統計情報の更新
+  - `todo:update` - TODO進捗の追跡
+- タスク詳細モーダルのキャッシュ問題を修正
+- タスク統計の0%成功率表示を修正（ツール未使用時は"N/A"を表示）
+
 ### フロントエンドのリファクタリング ✅ 
 - JavaScript共通関数をutils.jsに集約
   - クエリパラメータ処理、HTML エスケープ、日時フォーマット

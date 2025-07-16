@@ -261,6 +261,53 @@ interface Storage {
 }
 ```
 
+## フロントエンドアーキテクチャ
+
+### モジュール構成
+
+Web UIは以下のモジュールで構成されています：
+
+```
+web/
+├── css/                      # モジュラーCSS
+│   ├── base.css             # CSS変数とリセット
+│   ├── components.css       # 再利用可能なUI部品
+│   ├── layouts.css          # レイアウトとレスポンシブ
+│   ├── index.css            # タスクページ固有
+│   └── scheduler.css        # スケジューラーページ固有
+├── logger.js                 # フロントエンドロギング
+├── error-handler.js          # グローバルエラーハンドリング
+├── websocket-manager.js      # WebSocket管理
+├── state-manager.js          # グローバル状態管理
+├── api.js                    # APIクライアント
+├── utils.js                  # ユーティリティ関数
+├── app-common.js             # 共通UI機能
+├── app.js                    # メインタスクページ
+└── scheduler.js              # スケジューラーページ
+```
+
+### 主要コンポーネント
+
+1. **WebSocketManager**: 中央集権的なWebSocket接続管理
+   - 自動再接続
+   - イベントベースの通信
+   - 認証とサブスクリプション管理
+
+2. **StateManager**: アプリケーション全体の状態管理
+   - タスク情報の一元管理
+   - イベント駆動型の状態更新
+   - ストリーミングログの管理
+
+3. **ErrorHandler**: 統一されたエラーハンドリング
+   - グローバルエラーキャッチ
+   - API/WebSocketエラーの処理
+   - ユーザーへの通知
+
+4. **Logger**: 構造化されたフロントエンドログ
+   - デバッグ情報の記録
+   - レベル別ログ出力
+   - パフォーマンス計測
+
 ## 将来の拡張
 
 - **Kubernetes対応**: コンテナ化とオーケストレーション

@@ -704,10 +704,7 @@ export class TaskExecutorImpl implements TaskExecutor {
     return {
       // Priority: High
       maxTurns: sdkOptions?.maxTurns ?? defaultConfig.defaultMaxTurns ?? 3,
-      allowedTools: [
-        ...(sdkOptions?.allowedTools ?? legacyOptions?.allowedTools ?? []),
-        "TodoWrite", // Always include TodoWrite for task tracking
-      ],
+      allowedTools: sdkOptions?.allowedTools ?? legacyOptions?.allowedTools ?? [],
       disallowedTools: sdkOptions?.disallowedTools ?? [],
       systemPrompt: sdkOptions?.systemPrompt ?? "",
       permissionMode: sdkOptions?.permissionMode ?? "ask",

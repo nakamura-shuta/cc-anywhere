@@ -11,8 +11,13 @@ const mockDb = {
   transaction: vi.fn((fn: any) => fn()),
 };
 
+// モックDbProvider
+const mockDbProvider = {
+  getDb: vi.fn(() => mockDb),
+};
+
 vi.mock("../../../src/db/shared-instance", () => ({
-  getDatabaseInstance: vi.fn(() => mockDb),
+  getSharedDbProvider: vi.fn(() => mockDbProvider),
 }));
 
 // SessionManagerをモック後にimport
