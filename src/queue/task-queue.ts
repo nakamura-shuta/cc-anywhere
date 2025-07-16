@@ -207,6 +207,90 @@ export class TaskQueueImpl implements TaskQueue {
                       });
                     }
                     break;
+                  case "todo_update":
+                    if (progress.data && progress.data.todos) {
+                      // 実行中のタスクのTODOを一時的に保存
+                      task.todos = progress.data.todos;
+
+                      // Broadcast todo update via WebSocket
+                      if (this.wsServer) {
+                        this.wsServer.broadcastTodoUpdate({
+                          taskId: task.id,
+                          todos: progress.data.todos,
+                        });
+                      } else {
+                        logger.warn("WebSocket server not available for todo update");
+                      }
+                    } else {
+                      logger.warn("todo_update progress missing todos data", {
+                        taskId: task.id,
+                        data: progress.data,
+                      });
+                    }
+                    break;
+                    
+                  case "tool:start":
+                    if (progress.data) {
+                      this.wsServer?.broadcastToolStart({
+                        taskId: task.id,
+                        toolId: progress.data.toolId || `${progress.data.tool}-${Date.now()}`,
+                        tool: progress.data.tool,
+                        input: progress.data.input,
+                        timestamp,
+                      });
+                    }
+                    break;
+
+                  case "tool:end":
+                    if (progress.data) {
+                      this.wsServer?.broadcastToolEnd({
+                        taskId: task.id,
+                        toolId: progress.data.toolId,
+                        tool: progress.data.tool,
+                        output: progress.data.output,
+                        error: progress.data.error,
+                        duration: progress.data.duration,
+                        success: progress.data.success,
+                        timestamp,
+                      });
+                    }
+                    break;
+
+                  case "claude:response":
+                    if (progress.data) {
+                      this.wsServer?.broadcastClaudeResponse({
+                        taskId: task.id,
+                        text: progress.message,
+                        turnNumber: progress.data.turnNumber || 1,
+                        timestamp,
+                      });
+                    }
+                    break;
+
+                  case "statistics":
+                    if (progress.data) {
+                      this.wsServer?.broadcastTaskStatistics({
+                        taskId: task.id,
+                        statistics: progress.data,
+                      });
+                    }
+                    break;
+                    
+                  default:
+                    // Log any other type as a regular log message
+                    if (progress.message) {
+                      logger.info("Task progress", {
+                        taskId: task.id,
+                        type: progress.type,
+                        message: progress.message,
+                      });
+                      // Also broadcast as a log message
+                      this.wsServer?.broadcastTaskLog({
+                        taskId: task.id,
+                        log: progress.message,
+                        timestamp,
+                      });
+                    }
                 }
               }
             : undefined,
@@ -230,6 +314,7 @@ export class TaskQueueImpl implements TaskQueue {
           completedAt: task.completedAt,
           result: result.output,
           logs: result.logs,
+          todos: result.todos || task.todos, // Use saved todos if result doesn't have them
         };
 
         this.completedCount++;

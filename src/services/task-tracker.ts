@@ -1,4 +1,5 @@
 import type { ToolUsageDetail, TaskProgressInfo, TaskSummary } from "../types/enhanced-logging.js";
+import type { TodoItem } from "../types/todo.js";
 
 /**
  * TaskTracker collects and analyzes task execution information
@@ -9,6 +10,7 @@ export class TaskTracker {
   private toolUsages: ToolUsageDetail[] = [];
   private progressLogs: TaskProgressInfo[] = [];
   private errors: Array<{ message: string; tool?: string; timestamp: Date }> = [];
+  private todos: TodoItem[] = [];
 
   constructor() {
     this.startTime = new Date();
@@ -43,6 +45,23 @@ export class TaskTracker {
       tool,
       timestamp: new Date(),
     });
+  }
+
+  /**
+   * Update todos
+   */
+  updateTodos(todos: TodoItem[]): void {
+    this.todos = todos.map((todo) => ({
+      ...todo,
+      updatedAt: new Date(),
+    }));
+  }
+
+  /**
+   * Get current todos
+   */
+  getTodos(): TodoItem[] {
+    return this.todos;
   }
 
   /**
@@ -120,6 +139,11 @@ export class TaskTracker {
                 break;
               case "Bash":
                 detail.command = input.command;
+                break;
+              case "TodoWrite":
+                if (input.todos) {
+                  detail.todoCount = input.todos.length;
+                }
                 break;
             }
           }
@@ -304,5 +328,48 @@ export class TaskTracker {
     highlights.push(`実行時間: ${duration}秒`);
 
     return highlights;
+  }
+
+  /**
+   * Get task statistics
+   */
+  getStatistics(): {
+    totalToolUsage: number;
+    toolUsageByType: Map<string, { count: number; successCount: number; failureCount: number }>;
+  } {
+    const toolUsageByType = new Map<
+      string,
+      { count: number; successCount: number; failureCount: number }
+    >();
+
+    let totalToolUsage = 0;
+
+    for (const usage of this.toolUsages) {
+      if (usage.status !== "start") {
+        totalToolUsage++;
+
+        if (!toolUsageByType.has(usage.tool)) {
+          toolUsageByType.set(usage.tool, {
+            count: 0,
+            successCount: 0,
+            failureCount: 0,
+          });
+        }
+
+        const stats = toolUsageByType.get(usage.tool)!;
+        stats.count++;
+
+        if (usage.status === "success") {
+          stats.successCount++;
+        } else if (usage.status === "failure") {
+          stats.failureCount++;
+        }
+      }
+    }
+
+    return {
+      totalToolUsage,
+      toolUsageByType,
+    };
   }
 }

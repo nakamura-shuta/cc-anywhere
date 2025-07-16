@@ -1,5 +1,6 @@
 import type { TimeoutOptions } from "../types/timeout.js";
 import type { WorktreeOptions } from "../services/worktree/types.js";
+import type { TodoItem } from "../types/todo.js";
 
 // Retry policy types
 export enum RetryPolicy {
@@ -135,6 +136,7 @@ export interface TaskResponse {
   workingDirectory?: string;
   repositoryName?: string;
   groupId?: string;
+  todos?: TodoItem[];
 }
 
 /**
@@ -155,6 +157,8 @@ export interface ClaudeExecutionResult {
   toolsUsed?: string[];
   /** Files modified during execution */
   filesModified?: string[];
+  /** Todo items from TodoWrite tool */
+  todos?: TodoItem[];
 }
 
 /**

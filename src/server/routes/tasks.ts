@@ -116,6 +116,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           retryMetadata: queuedTask.retryMetadata,
           allowedTools: queuedTask.request.options?.allowedTools,
           workingDirectory: queuedTask.request.context?.workingDirectory,
+          todos: queuedTask.result?.todos,
         };
 
         return taskResponse;
@@ -451,6 +452,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         workingDirectory: queuedTask.request.context?.workingDirectory,
         repositoryName: record.repositoryName || undefined,
         groupId: record.groupId || undefined,
+        todos: queuedTask.result?.todos,
       };
 
       void reply.send(task);

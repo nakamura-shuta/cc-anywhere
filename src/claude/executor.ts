@@ -232,6 +232,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       let output: unknown;
 
       // Use Claude Code SDK
+      let sdkResult: Awaited<ReturnType<typeof this.codeClient.executeTask>> | undefined;
       try {
         // Transition to setup phase
         timeoutManager.transitionToPhase(TimeoutPhase.SETUP);
@@ -292,12 +293,27 @@ export class TaskExecutorImpl implements TaskExecutor {
           message: string;
           data?: any;
         }) => {
-          // 元のコールバックに通常のログを送信
+          // 元のコールバックにプログレスを転送（タイプを維持）
           if (processedTask.options?.onProgress) {
-            await processedTask.options.onProgress({
-              type: "log",
-              message: progress.message,
-            });
+            // 構造化されたイベントタイプはそのまま転送
+            if (
+              progress.type === "todo_update" ||
+              progress.type === "tool_usage" ||
+              progress.type === "progress" ||
+              progress.type === "summary" ||
+              progress.type === "tool:start" ||
+              progress.type === "tool:end" ||
+              progress.type === "claude:response" ||
+              progress.type === "statistics"
+            ) {
+              await processedTask.options.onProgress(progress);
+            } else {
+              // その他は通常のログメッセージとして処理
+              await processedTask.options.onProgress({
+                type: "log",
+                message: progress.message,
+              });
+            }
           }
 
           // 構造化されたデータがある場合は別途処理
@@ -314,7 +330,7 @@ export class TaskExecutorImpl implements TaskExecutor {
         };
 
         // Claude Code SDKの実行
-        const result = await this.codeClient.executeTask(prompt, {
+        sdkResult = await this.codeClient.executeTask(prompt, {
           maxTurns: sdkOptions.maxTurns,
           cwd: resolvedWorkingDirectory,
           abortController,
@@ -334,13 +350,13 @@ export class TaskExecutorImpl implements TaskExecutor {
           webSearchConfig: sdkOptions.webSearchConfig,
         });
 
-        if (!result.success) {
-          throw result.error || new Error("Task execution failed");
+        if (!sdkResult.success) {
+          throw sdkResult.error || new Error("Task execution failed");
         }
 
         // Generate task summary if tracker is available
-        if (result.tracker) {
-          const summary = result.tracker.generateSummary(result.success, output);
+        if (sdkResult.tracker) {
+          const summary = sdkResult.tracker.generateSummary(sdkResult.success, output);
 
           // Send summary via progress callback
           if (processedTask.options?.onProgress) {
@@ -355,14 +371,14 @@ export class TaskExecutorImpl implements TaskExecutor {
         }
 
         // Process result based on output format
-        const processedResult = this.processClaudeCodeResult(result, sdkOptions.outputFormat);
+        const processedResult = this.processClaudeCodeResult(sdkResult, sdkOptions.outputFormat);
 
         output =
           sdkOptions.outputFormat === "json"
             ? processedResult.output
-            : this.codeClient.formatMessagesAsString(result.messages);
+            : this.codeClient.formatMessagesAsString(sdkResult.messages);
 
-        logs.push(`Received ${result.messages.length} messages from Claude Code`);
+        logs.push(`Received ${sdkResult.messages.length} messages from Claude Code`);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           // Check if this was a cancellation or timeout
@@ -413,11 +429,15 @@ export class TaskExecutorImpl implements TaskExecutor {
         }
       }
 
+      // Get todos from tracker if available
+      const todos = sdkResult?.tracker ? sdkResult.tracker.getTodos() : undefined;
+
       return {
         success: true,
         output,
         logs,
         duration: Date.now() - startTime,
+        todos,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -684,7 +704,10 @@ export class TaskExecutorImpl implements TaskExecutor {
     return {
       // Priority: High
       maxTurns: sdkOptions?.maxTurns ?? defaultConfig.defaultMaxTurns ?? 3,
-      allowedTools: sdkOptions?.allowedTools ?? legacyOptions?.allowedTools ?? [],
+      allowedTools: [
+        ...(sdkOptions?.allowedTools ?? legacyOptions?.allowedTools ?? []),
+        "TodoWrite", // Always include TodoWrite for task tracking
+      ],
       disallowedTools: sdkOptions?.disallowedTools ?? [],
       systemPrompt: sdkOptions?.systemPrompt ?? "",
       permissionMode: sdkOptions?.permissionMode ?? "ask",

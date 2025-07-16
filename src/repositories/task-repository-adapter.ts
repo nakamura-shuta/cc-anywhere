@@ -363,8 +363,10 @@ export class TaskRepositoryAdapter {
             createdAt: record.createdAt,
             startedAt: record.startedAt,
             completedAt: record.completedAt,
-            result: record.result,
+            result: record.result.result,
             error: record.error,
+            logs: record.result.logs,
+            todos: record.result.todos,
           }
         : undefined,
       error: record.error ? new Error(record.error.message || record.error) : undefined,

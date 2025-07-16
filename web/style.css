@@ -746,6 +746,141 @@ select {
     }
 }
 
+/* ストリーミングログ表示 */
+.streaming-log {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    overflow-y: auto;
+    height: 400px; /* 固定高さ */
+    min-height: 400px;
+    max-height: 400px;
+}
+
+/* スクロールバーのスタイル（WebKit系ブラウザ） */
+.streaming-log::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.streaming-log::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 5px;
+}
+
+.streaming-log::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 5px;
+}
+
+.streaming-log::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}
+
+.streaming-log .log-entry {
+    margin: 4px 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+.streaming-log .log-timestamp {
+    color: #7f7f7f;
+    margin-right: 12px;
+    flex-shrink: 0;
+    font-size: 11px;
+}
+
+.streaming-log .log-content {
+    flex: 1;
+}
+
+/* ツール実行スタイル */
+.tool-start {
+    color: #4fc3f7;
+    font-weight: bold;
+}
+
+.tool-end {
+    color: #81c784;
+}
+
+.tool-error {
+    color: #e57373;
+}
+
+.tool-name {
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+.tool-duration {
+    color: #999;
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+.tool-icon {
+    display: inline-block;
+    width: 20px;
+    text-align: center;
+    margin-right: 8px;
+}
+
+.tool-params {
+    color: #999;
+    font-size: 12px;
+    margin-left: 28px;
+}
+
+/* Claude応答 */
+.claude-response {
+    color: #87ceeb; /* より明るいスカイブルー */
+    margin: 8px 0;
+    padding: 8px 0;
+    border-left: 3px solid #2196f3;
+    padding-left: 12px;
+    font-weight: 500;
+}
+
+/* ターン番号の強調 */
+.claude-response .turn-number {
+    color: #ffd700; /* ゴールド色 */
+    font-weight: bold;
+}
+
+/* 統計情報 */
+.task-statistics {
+    background: #f5f5f5;
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: #1976d2;
+    display: block;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+
 /* エラーメッセージ */
 .error-message {
     padding: 10px;
@@ -1145,6 +1280,13 @@ select.error:focus {
         padding: 6px 10px;
         min-width: 35px;
     }
+}
+
+/* Task logs section */
+.task-logs {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 2px solid var(--border-color);
 }
 
 /* ログヘッダー */
@@ -1606,4 +1748,100 @@ select.error:focus {
     text-align: center;
     padding: 2rem;
     color: #666;
+}
+
+/* Todo List */
+.task-todos {
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+    padding: 0;
+    border-radius: 8px;
+    background-color: var(--bg-primary);
+}
+
+.task-todos.hidden {
+    display: none;
+}
+
+.todo-section {
+    margin: 0;
+    padding: 1rem;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.todo-section h3 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.todo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: var(--bg-primary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+
+.todo-item.completed {
+    opacity: 0.7;
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.todo-item.in_progress {
+    background-color: rgba(33, 150, 243, 0.1);
+    border-color: rgba(33, 150, 243, 0.3);
+}
+
+.todo-status-icon {
+    font-size: 1.2rem;
+    width: 1.5rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.todo-item.completed .todo-status-icon {
+    color: var(--success-color);
+}
+
+.todo-item.in_progress .todo-status-icon {
+    color: var(--primary-color);
+}
+
+.todo-content {
+    flex: 1;
+    color: var(--text-primary);
+}
+
+.todo-priority {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.priority-high {
+    background-color: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+}
+
+.priority-medium {
+    background-color: rgba(255, 152, 0, 0.1);
+    color: #ff9800;
+}
+
+.priority-low {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
 }

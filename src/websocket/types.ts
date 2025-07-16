@@ -74,6 +74,43 @@ export interface ToolUsageMessage extends WebSocketMessage {
   };
 }
 
+// Streaming tool events
+export interface ToolStartMessage extends WebSocketMessage {
+  type: "task:tool:start";
+  payload: {
+    taskId: string;
+    toolId: string;
+    tool: string;
+    input?: any;
+    timestamp: string;
+  };
+}
+
+export interface ToolEndMessage extends WebSocketMessage {
+  type: "task:tool:end";
+  payload: {
+    taskId: string;
+    toolId: string;
+    tool: string;
+    output?: any;
+    error?: any;
+    duration: number;
+    success: boolean;
+    timestamp: string;
+  };
+}
+
+export interface ToolProgressMessage extends WebSocketMessage {
+  type: "task:tool:progress";
+  payload: {
+    taskId: string;
+    toolId: string;
+    tool: string;
+    progress: string;
+    timestamp: string;
+  };
+}
+
 export interface TaskProgressMessage extends WebSocketMessage {
   type: "task:progress";
   payload: {
@@ -84,6 +121,19 @@ export interface TaskProgressMessage extends WebSocketMessage {
       level: "debug" | "info" | "tool" | "warning" | "error" | "success";
       timestamp: string;
     };
+  };
+}
+
+export interface TodoUpdateMessage extends WebSocketMessage {
+  type: "task:todo_update";
+  payload: {
+    taskId: string;
+    todos: Array<{
+      id: string;
+      content: string;
+      status: "pending" | "in_progress" | "completed";
+      priority: "high" | "medium" | "low";
+    }>;
   };
 }
 
@@ -115,6 +165,38 @@ export interface TaskSummaryMessage extends WebSocketMessage {
       outcome: "success" | "partial_success" | "failure";
       highlights: string[];
     };
+  };
+}
+
+// Real-time statistics
+export interface TaskStatisticsMessage extends WebSocketMessage {
+  type: "task:statistics";
+  payload: {
+    taskId: string;
+    statistics: {
+      totalTurns: number;
+      totalToolCalls: number;
+      toolStats: Record<string, {
+        count: number;
+        successes: number;
+        failures: number;
+        totalDuration: number;
+        avgDuration: number;
+      }>;
+      currentPhase: string;
+      elapsedTime: number;
+    };
+  };
+}
+
+// Claude response message
+export interface ClaudeResponseMessage extends WebSocketMessage {
+  type: "task:claude:response";
+  payload: {
+    taskId: string;
+    text: string;
+    turnNumber: number;
+    timestamp: string;
   };
 }
 

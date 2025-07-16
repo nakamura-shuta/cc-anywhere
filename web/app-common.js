@@ -9,6 +9,31 @@ const pagination = {
     totalPages: 0
 };
 
+// ストリーミング表示用の状態管理
+let toolTimings = new Map(); // ツール実行時間の追跡
+let taskStatistics = new Map(); // タスクの統計情報
+let taskStreamingLogs = new Map(); // タスクごとのストリーミングログを保存
+
+// ツールアイコンマッピング
+const toolIcons = {
+    'Read': '📖',
+    'Write': '✏️',
+    'Edit': '📝',
+    'Bash': '💻',
+    'Search': '🔍',
+    'List': '📁',
+    'TodoWrite': '✅',
+    'WebSearch': '🌐',
+    'WebFetch': '🌐',
+    'NotebookRead': '📓',
+    'NotebookEdit': '📓',
+    'Grep': '🔎',
+    'Glob': '🔎',
+    'LS': '📁',
+    'MultiEdit': '📝',
+    'Task': '🎯'
+};
+
 // タスク一覧読み込み（ページネーション対応）
 async function loadTasks(page = null) {
     try {
@@ -265,43 +290,52 @@ function createTaskElement(task) {
 async function showTaskDetail(taskId) {
     selectedTaskId = taskId;
     
-    // 既存の定期更新を停止
-    if (detailRefreshInterval) {
-        clearInterval(detailRefreshInterval);
-        detailRefreshInterval = null;
+    // 前のタスクの情報をクリア
+    // 統計情報をクリア・非表示
+    const statsContainer = document.getElementById('task-statistics');
+    if (statsContainer) {
+        statsContainer.innerHTML = '';
+        statsContainer.classList.add('hidden');
     }
     
+    // TODOリストコンテナをクリア
+    const todosContainer = document.getElementById('task-todos');
+    if (todosContainer) {
+        todosContainer.innerHTML = '';
+        todosContainer.classList.add('hidden');
+    }
+    
+    // ログコンテナをクリア（新しいタスクのログを表示するため）
+    const logContainer = document.getElementById('task-logs');
+    if (logContainer) {
+        logContainer.innerHTML = '';
+    }
+    
+    // WebSocketサブスクリプションのみで更新（ポーリングは不要）
+    
     try {
+        // 現在のTODOデータを保存
+        const currentTask = currentTasks.get(taskId);
+        const currentTodos = currentTask?.todos;
+        
         const task = await apiClient.getTask(taskId);
+        
+        // APIから取得したデータにTODOが含まれていない場合、現在のTODOを保持
+        if (!task.todos && currentTodos) {
+            task.todos = currentTodos;
+        }
+        
+        // 最新データでcurrentTasksを更新
+        currentTasks.set(taskId, task);
         
         renderTaskDetail(task);
         displayTaskLogs(task);
         
         document.getElementById('task-modal').classList.remove('hidden');
         
-        // 実行中の場合はサブスクライブと定期更新を開始
+        // 実行中の場合はサブスクライブのみ（WebSocketで更新を受信）
         if (task.status === 'running' || task.status === 'pending') {
             apiClient.subscribeToTask(taskId);
-            
-            // 3秒ごとに詳細を更新
-            detailRefreshInterval = setInterval(async () => {
-                if (selectedTaskId === taskId) {
-                    try {
-                        const updatedTask = await apiClient.getTask(taskId);
-                        currentTasks.set(taskId, updatedTask);
-                        renderTaskDetail(updatedTask);
-                        displayTaskLogs(updatedTask);
-                        
-                        // タスクが完了したら定期更新を停止
-                        if (updatedTask.status !== 'running' && updatedTask.status !== 'pending') {
-                            clearInterval(detailRefreshInterval);
-                            detailRefreshInterval = null;
-                        }
-                    } catch (error) {
-                        console.error('Failed to refresh task detail:', error);
-                    }
-                }
-            }, 3000);
         }
     } catch (error) {
         showError(`タスク詳細の取得に失敗しました: ${error.message}`);
@@ -332,7 +366,36 @@ function renderTaskDetail(task) {
         `;
     }
     
+    // TODOリストのHTMLを生成（タスク詳細の最上部に表示）
+    let todosHtml = '';
+    if (task.todos && task.todos.length > 0) {
+        todosHtml = `
+            <div class="todo-section" style="background: #f0f9ff; border: 1px solid #0284c7; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 12px 0; color: #0369a1;">📋 実行計画 (${task.todos.length}件)</h3>
+                <div class="todo-list">
+                    ${task.todos.map(todo => `
+                        <div class="todo-item ${todo.status}" style="display: flex; align-items: center; padding: 8px; margin: 4px 0; background: white; border-radius: 4px; gap: 8px;">
+                            <span class="todo-status-icon" style="font-size: 18px;">
+                                ${todo.status === 'completed' ? '✅' : 
+                                  todo.status === 'in_progress' ? '⏳' : '⭕'}
+                            </span>
+                            <span class="todo-content" style="flex: 1; ${todo.status === 'completed' ? 'text-decoration: line-through; color: #888;' : ''}">${escapeHtml(todo.content)}</span>
+                            <span class="todo-priority priority-${todo.priority}" style="padding: 2px 8px; border-radius: 12px; font-size: 12px; background: ${todo.priority === 'high' ? '#fee2e2' : todo.priority === 'medium' ? '#fef3c7' : '#e5e7eb'}; color: ${todo.priority === 'high' ? '#dc2626' : todo.priority === 'medium' ? '#d97706' : '#6b7280'};">${todo.priority}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // task-todosコンテナは使用しない（TODOは上部に統合表示）
+    const todosContainer = document.getElementById('task-todos');
+    if (todosContainer) {
+        todosContainer.style.display = 'none';
+    }
+    
     detailContainer.innerHTML = `
+        ${todosHtml}
         <div class="detail-row">
             <span class="detail-label">ID:</span>
             <span class="detail-value">${taskId}</span>
@@ -416,8 +479,30 @@ function renderTaskDetail(task) {
     `;
 }
 
+// TODO更新処理
+function handleTodoUpdate(payload) {
+    const taskId = payload.taskId;
+    const todos = payload.todos;
+    
+    
+    // タスクデータを更新
+    const task = currentTasks.get(taskId);
+    if (task) {
+        task.todos = todos;
+        currentTasks.set(taskId, task);
+        
+        // 選択中のタスクの詳細を更新
+        if (selectedTaskId === taskId) {
+            renderTaskDetail(task);
+        }
+    } else {
+    }
+}
+
 // タスクのログを表示
 function displayTaskLogs(task) {
+    const taskId = task.taskId || task.id;
+    
     // 実行中のタスクの場合、進捗インジケーターを開始
     if (task.status === 'running') {
         lastLogUpdateTime = Date.now();
@@ -426,6 +511,85 @@ function displayTaskLogs(task) {
         // 完了済みのタスクの場合は進捗インジケーターを停止
         stopProgressIndicator();
     }
+    
+    // ストリーミングログコンテナを取得
+    const logContainer = document.getElementById('task-logs');
+    
+    // 実行中のタスクで既にログが表示されている場合はクリアしない
+    if (task.status === 'running' && logContainer.children.length > 0) {
+        return; // 既存のストリーミングログを保持
+    }
+    
+    // 保存されているストリーミングログがある場合は復元
+    if (taskStreamingLogs.has(taskId) && taskStreamingLogs.get(taskId).length > 0) {
+        logContainer.innerHTML = '';
+        const savedLogs = taskStreamingLogs.get(taskId);
+        
+        // 保存されたログを再表示（保存を避けるため一時的にselectedTaskIdをクリア）
+        const tempSelectedTaskId = selectedTaskId;
+        selectedTaskId = null;
+        
+        savedLogs.forEach(log => {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'log-timestamp';
+            timestampSpan.textContent = log.timestamp;
+            
+            const contentSpan = document.createElement('span');
+            contentSpan.className = 'log-content';
+            
+            // ログタイプに応じて再構築
+            switch (log.type) {
+                case 'system':
+                    contentSpan.style.color = '#9ca3af';
+                    contentSpan.textContent = log.content;
+                    break;
+                case 'claude':
+                    contentSpan.className = 'claude-response';
+                    contentSpan.innerHTML = `💬 Claude: ${escapeHtml(log.content)}`;
+                    break;
+                case 'claude-raw':
+                    contentSpan.className = 'claude-response';
+                    if (log.htmlContent) {
+                        contentSpan.innerHTML = log.htmlContent;
+                    } else if (log.data && typeof log.data === 'object') {
+                        contentSpan.innerHTML = log.data.innerHTML || log.content;
+                    }
+                    break;
+                case 'tool-start':
+                case 'tool-end':
+                    contentSpan.className = log.type === 'tool-start' ? 'tool-start' : 
+                                          (log.data && log.data.success ? 'tool-end' : 'tool-error');
+                    if (log.htmlContent) {
+                        contentSpan.innerHTML = log.htmlContent;
+                    } else if (log.data && log.data.element) {
+                        contentSpan.innerHTML = log.data.element.innerHTML || log.content;
+                    } else if (log.data && typeof log.data === 'object') {
+                        contentSpan.innerHTML = log.data.innerHTML || log.content;
+                    }
+                    break;
+                default:
+                    contentSpan.textContent = log.content;
+            }
+            
+            entry.appendChild(timestampSpan);
+            entry.appendChild(contentSpan);
+            logContainer.appendChild(entry);
+        });
+        
+        selectedTaskId = tempSelectedTaskId;
+        logContainer.scrollTop = logContainer.scrollHeight;
+        return;
+    }
+    
+    // それ以外の場合はクリア
+    logContainer.innerHTML = '';
+    
+    // タスクIDの統計情報をリセット
+    taskStatistics.delete(taskId);
+    toolTimings.clear();
     
     let logsToRender = [];
     
@@ -438,19 +602,17 @@ function displayTaskLogs(task) {
         logsToRender = task.logs;
     }
     
-    // ログがある場合は表示
-    if (logsToRender.length > 0) {
-        renderTaskLogs(logsToRender);
+    // ストリーミングログが保存されていない完了済みタスクの場合、最終ログを表示
+    if (logsToRender.length > 0 && !taskStreamingLogs.has(taskId)) {
+        renderStreamingLogs(logsToRender);
     } 
     // 実行中でログがまだない場合
     else if (task.status === 'running') {
-        const logContainer = document.getElementById('task-logs');
-        logContainer.innerHTML = '<div class="log-entry" style="color: #9ca3af;">実行ログを待機中...</div>';
+        appendStreamingLog('実行ログを待機中...', 'system');
     } 
     // それ以外
-    else {
-        const logContainer = document.getElementById('task-logs');
-        logContainer.innerHTML = '<div class="log-entry">ログがありません</div>';
+    else if (!taskStreamingLogs.has(taskId)) {
+        appendStreamingLog('ログがありません', 'system');
     }
 }
 
@@ -486,6 +648,239 @@ function renderTaskLogs(logs) {
     logContainer.scrollTop = logContainer.scrollHeight;
 }
 
+// ストリーミングログレンダリング
+function renderStreamingLogs(logs) {
+    if (!logs || logs.length === 0) return;
+    
+    logs.forEach((log) => {
+        const message = typeof log === 'string' ? log : (log.message || log.log || JSON.stringify(log));
+        appendStreamingLog(message, 'log');
+    });
+}
+
+// ストリーミングログエントリを追加
+function appendStreamingLog(content, type = 'log', data = null) {
+    const logContainer = document.getElementById('task-logs');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    
+    const timestamp = new Date().toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    
+    const timestampSpan = document.createElement('span');
+    timestampSpan.className = 'log-timestamp';
+    timestampSpan.textContent = timestamp;
+    
+    const contentSpan = document.createElement('span');
+    contentSpan.className = 'log-content';
+    
+    // 現在選択中のタスクIDのログを保存
+    if (selectedTaskId) {
+        if (!taskStreamingLogs.has(selectedTaskId)) {
+            taskStreamingLogs.set(selectedTaskId, []);
+        }
+        
+        // データに要素が含まれる場合はHTMLを文字列として保存
+        const logData = {
+            timestamp,
+            content,
+            type,
+            data: data
+        };
+        
+        // data が DOM要素の場合、outerHTML を保存
+        if (data && data instanceof HTMLElement) {
+            logData.htmlContent = data.outerHTML;
+            logData.data = null; // DOM要素は保存しない
+        } else if (data && data.element && data.element instanceof HTMLElement) {
+            logData.htmlContent = data.element.outerHTML;
+            logData.data = { ...data, element: null }; // DOM要素以外は保持
+        } else if (data && typeof data === 'object' && data.innerHTML) {
+            logData.htmlContent = data.innerHTML;
+        }
+        
+        taskStreamingLogs.get(selectedTaskId).push(logData);
+    }
+    
+    switch (type) {
+        case 'system':
+            contentSpan.style.color = '#9ca3af';
+            contentSpan.textContent = content;
+            break;
+        case 'claude':
+            contentSpan.className = 'claude-response';
+            contentSpan.innerHTML = `💬 Claude: ${escapeHtml(content)}`;
+            break;
+        case 'claude-raw':
+            contentSpan.className = 'claude-response';
+            contentSpan.appendChild(data);
+            break;
+        case 'tool-start':
+            contentSpan.className = 'tool-start';
+            contentSpan.appendChild(data);
+            break;
+        case 'tool-end':
+            contentSpan.className = data.success ? 'tool-end' : 'tool-error';
+            contentSpan.appendChild(data.element);
+            break;
+        default:
+            contentSpan.textContent = content;
+    }
+    
+    entry.appendChild(timestampSpan);
+    entry.appendChild(contentSpan);
+    logContainer.appendChild(entry);
+    logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+// ツール実行開始ハンドラー
+function handleToolStart(payload) {
+    if (selectedTaskId !== payload.taskId) return;
+    
+    const icon = toolIcons[payload.tool] || '🔧';
+    const content = document.createElement('div');
+    
+    content.innerHTML = `
+        <span class="tool-icon">${icon}</span>
+        <span class="tool-name">${payload.tool}</span>
+        ${payload.input ? formatToolInput(payload.tool, payload.input) : ''}
+    `;
+    
+    appendStreamingLog('', 'tool-start', content);
+    toolTimings.set(payload.toolId, Date.now());
+}
+
+// ツール実行終了ハンドラー
+function handleToolEnd(payload) {
+    if (selectedTaskId !== payload.taskId) return;
+    
+    const icon = toolIcons[payload.tool] || '🔧';
+    const duration = payload.duration || 0;
+    const durationStr = duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(1)}s`;
+    
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <span class="tool-icon">${icon}</span>
+        <span class="tool-name">${payload.tool}</span>
+        ${payload.success ? '✅' : '❌'}
+        <span class="tool-duration">⏱️ ${durationStr}</span>
+        ${payload.error ? `<div style="color: #e57373; margin-left: 32px;">Error: ${escapeHtml(payload.error)}</div>` : ''}
+    `;
+    
+    appendStreamingLog('', 'tool-end', { element: content, success: payload.success });
+}
+
+// Claude応答ハンドラー
+function handleClaudeResponse(payload) {
+    if (selectedTaskId !== payload.taskId) return;
+    
+    const content = document.createElement('div');
+    content.innerHTML = `💬 Claude: ${escapeHtml(payload.text)} <span class="turn-number">(ターン ${payload.turnNumber})</span>`;
+    appendStreamingLog('', 'claude-raw', content);
+}
+
+// 統計情報ハンドラー
+function handleTaskStatistics(payload) {
+    if (selectedTaskId !== payload.taskId) return;
+    
+    const statsContainer = document.getElementById('task-statistics');
+    const stats = payload.statistics;
+    
+    // 統計情報を表示
+    statsContainer.innerHTML = `
+        <div class="stat-item">
+            <span class="stat-value">${stats.totalTurns}</span>
+            <span class="stat-label">ターン数</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">${stats.totalToolCalls}</span>
+            <span class="stat-label">ツール呼び出し</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">${(stats.elapsedTime / 1000).toFixed(1)}s</span>
+            <span class="stat-label">実行時間</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">${calculateSuccessRate(stats.toolStats)}</span>
+            <span class="stat-label">成功率</span>
+        </div>
+    `;
+    
+    statsContainer.classList.remove('hidden');
+    
+    // 統計情報をログにも追加
+    appendStreamingLog('─────────────────────────────────────────', 'separator');
+    appendStreamingLog(`📊 タスク完了統計`, 'system');
+    appendStreamingLog(`  • ターン数: ${stats.totalTurns}`, 'system');
+    appendStreamingLog(`  • ツール呼び出し: ${stats.totalToolCalls}`, 'system');
+    appendStreamingLog(`  • 実行時間: ${(stats.elapsedTime / 1000).toFixed(1)}秒`, 'system');
+    appendStreamingLog(`  • 成功率: ${calculateSuccessRate(stats.toolStats)}`, 'system');
+    
+    // ツールごとの統計
+    if (stats.toolStats && Object.keys(stats.toolStats).length > 0) {
+        appendStreamingLog(`  • ツール別統計:`, 'system');
+        for (const [tool, toolStat] of Object.entries(stats.toolStats)) {
+            const successRate = toolStat.count > 0 ? Math.round((toolStat.success / toolStat.count) * 100) : 0;
+            appendStreamingLog(`    - ${tool}: ${toolStat.count}回 (成功: ${toolStat.success}, 失敗: ${toolStat.failed})`, 'system');
+        }
+    }
+    appendStreamingLog('─────────────────────────────────────────', 'separator');
+}
+
+// ツール入力フォーマット
+function formatToolInput(tool, input) {
+    const params = document.createElement('div');
+    params.className = 'tool-params';
+    
+    switch (tool) {
+        case 'Read':
+        case 'Write':
+        case 'Edit':
+        case 'MultiEdit':
+            params.textContent = `📄 ${input.file_path || input.path || ''}`;
+            break;
+        case 'Bash':
+            params.textContent = `$ ${input.command || ''}`;
+            break;
+        case 'Search':
+        case 'Grep':
+            params.textContent = `🔍 "${input.query || input.pattern || ''}"`;
+            break;
+        case 'List':
+        case 'LS':
+        case 'Glob':
+            params.textContent = `📁 ${input.path || input.pattern || ''}`;
+            break;
+        default:
+            return '';
+    }
+    
+    return params.outerHTML;
+}
+
+// 成功率計算
+function calculateSuccessRate(toolStats) {
+    if (!toolStats) return 'N/A';
+    
+    let totalSuccess = 0;
+    let totalCalls = 0;
+    
+    Object.values(toolStats).forEach(stat => {
+        totalSuccess += stat.successes || 0;
+        totalCalls += stat.count || 0;
+    });
+    
+    // ツール呼び出しがない場合はN/Aを返す
+    if (totalCalls === 0) {
+        return 'N/A';
+    }
+    
+    return Math.round((totalSuccess / totalCalls) * 100) + '%';
+}
+
 // タスクキャンセル
 async function cancelTask(taskId) {
     if (!confirm('タスクをキャンセルしますか？')) {
@@ -504,7 +899,22 @@ async function cancelTask(taskId) {
 
 // WebSocketメッセージ処理
 function handleWebSocketMessage(event) {
-    const message = JSON.parse(event.data);
+    let message;
+    try {
+        message = JSON.parse(event.data);
+    } catch (error) {
+        console.error('Failed to parse WebSocket message:', error);
+        console.error('Message length:', event.data.length);
+        console.error('Error position:', error.message);
+        // エラー位置周辺のデータを表示
+        if (event.data.length > 8000) {
+            console.error('Data around position 8000:', event.data.substring(7990, 8010));
+        }
+        // メッセージの最初の部分を表示してタイプを特定
+        console.error('Message start:', event.data.substring(0, 100));
+        return;
+    }
+    
     
     switch (message.type) {
         case 'auth:success':
@@ -537,6 +947,26 @@ function handleWebSocketMessage(event) {
             handleTaskSummary(message.payload);
             break;
             
+        case 'task:todo_update':
+            handleTodoUpdate(message.payload);
+            break;
+            
+        case 'task:tool:start':
+            handleToolStart(message.payload);
+            break;
+            
+        case 'task:tool:end':
+            handleToolEnd(message.payload);
+            break;
+            
+        case 'task:claude:response':
+            handleClaudeResponse(message.payload);
+            break;
+            
+        case 'task:statistics':
+            handleTaskStatistics(message.payload);
+            break;
+            
         case 'heartbeat':
             if (apiClient.ws && apiClient.ws.readyState === WebSocket.OPEN) {
                 apiClient.ws.send(JSON.stringify({ type: 'heartbeat' }));
@@ -548,37 +978,69 @@ function handleWebSocketMessage(event) {
 // タスク更新処理
 async function handleTaskUpdate(payload) {
     const taskId = payload.taskId;
+    const task = currentTasks.get(taskId);
     
-    if (selectedTaskId === taskId) {
-        try {
-            const updatedTask = await apiClient.getTask(taskId);
-            currentTasks.set(taskId, updatedTask);
-            
-            renderTaskDetail(updatedTask);
-            displayTaskLogs(updatedTask);
-            
-            if (payload.status === 'completed' || payload.status === 'failed') {
-                showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
-            }
-        } catch (error) {
-            console.error('Failed to fetch updated task:', error);
-            updateLocalTaskData(taskId, payload);
-        }
-    } else {
+    if (task) {
+        // ローカルデータを更新
         updateLocalTaskData(taskId, payload);
         
+        // 選択中のタスクの場合は画面を更新
+        if (selectedTaskId === taskId) {
+            const updatedTask = currentTasks.get(taskId);
+            if (updatedTask) {
+                renderTaskDetail(updatedTask);
+            }
+        }
+        
+        // 完了/失敗時の通知
         if (payload.status === 'completed' || payload.status === 'failed') {
+            showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
+            
+            // 完了時のみ最新データを取得（結果やログを含む完全なデータ）
             try {
-                const oldTask = currentTasks.get(taskId);
-                const oldWorkingDirectory = oldTask?.workingDirectory;
-                const updatedTask = await apiClient.getTask(taskId);
-                if (!updatedTask.workingDirectory && oldWorkingDirectory) {
-                    updatedTask.workingDirectory = oldWorkingDirectory;
+                const currentTask = currentTasks.get(taskId);
+                const currentTodos = currentTask?.todos; // 現在のTODOデータを保存
+                
+                const finalTask = await apiClient.getTask(taskId);
+                
+                // APIから取得したデータにTODOが含まれていない場合、現在のTODOを保持
+                if (!finalTask.todos && currentTodos) {
+                    finalTask.todos = currentTodos;
                 }
-                currentTasks.set(taskId, updatedTask);
-                showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
+                
+                currentTasks.set(taskId, finalTask);
+                
+                if (selectedTaskId === taskId) {
+                    renderTaskDetail(finalTask);
+                    // ストリーミングログは保持し、最終ログのみ追加
+                    if (finalTask.result && finalTask.result.logs && Array.isArray(finalTask.result.logs)) {
+                        // 最終的な実行時間とタスク完了メッセージのみ追加
+                        finalTask.result.logs.forEach(log => {
+                            if (log.includes('実行時間:') || log.includes('Task completed')) {
+                                appendStreamingLog(log, 'system');
+                            }
+                        });
+                    }
+                    
+                    // タスク完了メッセージを追加
+                    if (payload.status === 'completed') {
+                        appendStreamingLog('─────────────────────────────────────────', 'separator');
+                        appendStreamingLog('✅ タスクが正常に完了しました', 'system');
+                        if (finalTask.result && finalTask.result.duration) {
+                            appendStreamingLog(`⏱️ 総実行時間: ${(finalTask.result.duration / 1000).toFixed(1)}秒`, 'system');
+                        }
+                        appendStreamingLog('─────────────────────────────────────────', 'separator');
+                    } else if (payload.status === 'failed') {
+                        appendStreamingLog('─────────────────────────────────────────', 'separator');
+                        appendStreamingLog('❌ タスクが失敗しました', 'error');
+                        if (finalTask.error) {
+                            appendStreamingLog(`エラー: ${finalTask.error}`, 'error');
+                        }
+                        appendStreamingLog('─────────────────────────────────────────', 'separator');
+                    }
+                }
             } catch (error) {
-                console.error('Failed to fetch updated task:', error);
+                console.error('Failed to fetch final task data:', error);
             }
         }
     }
@@ -648,70 +1110,8 @@ function handleTaskLog(payload) {
         lastLogUpdateTime = Date.now();
         updateProgressIndicator();
         
-        const logEntry = document.createElement('div');
-        logEntry.className = 'log-entry';
-        
-        const timestamp = new Date(payload.timestamp).toLocaleTimeString('ja-JP');
-        const logMessage = payload.log || '';
-        
-        // ログタイプを判定
-        let logType = 'default';
-        let messageCount = null;
-        
-        for (const [type, pattern] of Object.entries(LOG_PATTERNS)) {
-            if (pattern.test(logMessage)) {
-                logType = type;
-                if (type === 'messageCount') {
-                    const match = logMessage.match(pattern);
-                    messageCount = match ? parseInt(match[1]) : null;
-                }
-                break;
-            }
-        }
-        
-        const icon = LOG_ICONS[logType];
-        const isAnimated = logType === 'executing';
-        
-        let styledMessage = escapeHtml(logMessage);
-        if (logMessage.startsWith('[') && logMessage.includes(']')) {
-            styledMessage = logMessage.replace(/^\[([^\]]+)\](.*)$/, (_, tag, rest) => {
-                const tagClass = tag.includes('✓') ? 'log-tag-success' : 
-                                tag.includes('✗') ? 'log-tag-error' : 
-                                'log-tag';
-                return `<span class="${tagClass}">[${escapeHtml(tag)}]</span>${escapeHtml(rest)}`;
-            });
-        }
-        
-        // メッセージカウントの特別表示
-        if (messageCount !== null) {
-            styledMessage = `Claude Codeから<span class="message-count">${messageCount}</span>件のメッセージ`;
-        }
-        
-        logEntry.innerHTML = `
-            <span class="log-timestamp">${timestamp}</span>
-            <span class="log-icon ${isAnimated ? 'animated-pulse' : ''}">${icon}</span>
-            <span class="log-message">${styledMessage}</span>
-        `;
-        
-        logEntry.classList.add(`log-type-${logType}`);
-        
-        // 最新のエントリーをハイライト
-        const previousLatest = logContainer.querySelector('.log-entry-latest');
-        if (previousLatest) {
-            previousLatest.classList.remove('log-entry-latest');
-        }
-        logEntry.classList.add('log-entry-latest');
-        
-        logContainer.appendChild(logEntry);
-        
-        requestAnimationFrame(() => {
-            logContainer.scrollTop = logContainer.scrollHeight;
-        });
-        
-        // タスク完了時は進捗インジケーターを停止
-        if (logType === 'complete' || logType === 'error') {
-            stopProgressIndicator();
-        }
+        // ストリーミング形式でログを追加
+        appendStreamingLog(payload.log || '', 'log');
     }
 }
 
@@ -956,15 +1356,38 @@ function updateConnectionStatus(connected) {
 function closeModal() {
     document.getElementById('task-modal').classList.add('hidden');
     
-    if (detailRefreshInterval) {
-        clearInterval(detailRefreshInterval);
-        detailRefreshInterval = null;
+    // TODOリストコンテナをクリア
+    const todosContainer = document.getElementById('task-todos');
+    if (todosContainer) {
+        todosContainer.innerHTML = '';
+        todosContainer.classList.add('hidden');
+    }
+    
+    // 統計情報をクリア・非表示
+    const statsContainer = document.getElementById('task-statistics');
+    if (statsContainer) {
+        statsContainer.innerHTML = '';
+        statsContainer.classList.add('hidden');
+    }
+    
+    // 古いログを削除（メモリ管理のため、完了したタスクのログのみ保持）
+    if (selectedTaskId && taskStreamingLogs.has(selectedTaskId)) {
+        const task = currentTasks.get(selectedTaskId);
+        if (task && (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled')) {
+            // 完了したタスクは最大50件まで保持
+            if (taskStreamingLogs.size > 50) {
+                const oldestTaskId = taskStreamingLogs.keys().next().value;
+                taskStreamingLogs.delete(oldestTaskId);
+            }
+        }
     }
     
     if (selectedTaskId) {
         apiClient.unsubscribeFromTask(selectedTaskId);
         selectedTaskId = null;
     }
+    
+    stopProgressIndicator();
 }
 
 // ステータステキスト取得はutils.jsから使用

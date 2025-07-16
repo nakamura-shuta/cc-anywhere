@@ -19,6 +19,12 @@ import type {
   ToolUsageMessage,
   TaskProgressMessage,
   TaskSummaryMessage,
+  TodoUpdateMessage,
+  ToolStartMessage,
+  ToolEndMessage,
+  ToolProgressMessage,
+  TaskStatisticsMessage,
+  ClaudeResponseMessage,
 } from "./types.js";
 
 export class WebSocketServer {
@@ -347,6 +353,61 @@ export class WebSocketServer {
     this.broadcastToTaskSubscribers(summary.taskId, message);
   }
 
+  broadcastTodoUpdate(update: TodoUpdateMessage["payload"]): void {
+    const message: TodoUpdateMessage = {
+      type: "task:todo_update",
+      payload: update,
+    };
+
+    this.broadcastToTaskSubscribers(update.taskId, message);
+  }
+
+  // New streaming event methods
+  broadcastToolStart(payload: ToolStartMessage["payload"]): void {
+    const message: ToolStartMessage = {
+      type: "task:tool:start",
+      payload,
+    };
+
+    this.broadcastToTaskSubscribers(payload.taskId, message);
+  }
+
+  broadcastToolEnd(payload: ToolEndMessage["payload"]): void {
+    const message: ToolEndMessage = {
+      type: "task:tool:end",
+      payload,
+    };
+
+    this.broadcastToTaskSubscribers(payload.taskId, message);
+  }
+
+  broadcastToolProgress(payload: ToolProgressMessage["payload"]): void {
+    const message: ToolProgressMessage = {
+      type: "task:tool:progress",
+      payload,
+    };
+
+    this.broadcastToTaskSubscribers(payload.taskId, message);
+  }
+
+  broadcastTaskStatistics(payload: TaskStatisticsMessage["payload"]): void {
+    const message: TaskStatisticsMessage = {
+      type: "task:statistics",
+      payload,
+    };
+
+    this.broadcastToTaskSubscribers(payload.taskId, message);
+  }
+
+  broadcastClaudeResponse(payload: ClaudeResponseMessage["payload"]): void {
+    const message: ClaudeResponseMessage = {
+      type: "task:claude:response",
+      payload,
+    };
+
+    this.broadcastToTaskSubscribers(payload.taskId, message);
+  }
+
   private broadcastToTaskSubscribers(taskId: string, message: WebSocketMessage): void {
     for (const client of this.clients.values()) {
       if (client.authenticated && client.subscriptions.has(taskId)) {
@@ -366,7 +427,90 @@ export class WebSocketServer {
   private sendMessage(ws: AuthenticatedWebSocket, message: WebSocketMessage): void {
     try {
       if (ws.readyState === ws.OPEN) {
-        const messageStr = JSON.stringify(message);
+        // メッセージサイズのチェックと必要に応じて切り詰め
+        let messageToSend = message;
+        
+        // 大きな文字列データを含む可能性のあるフィールドを切り詰める
+        const truncatePayloadField = (payload: any, fieldName: string, maxLength: number = 5000): any => {
+          if (payload && payload[fieldName] && typeof payload[fieldName] === 'string' && payload[fieldName].length > maxLength) {
+            return {
+              ...payload,
+              [fieldName]: payload[fieldName].substring(0, maxLength) + `\n... (truncated ${payload[fieldName].length - maxLength} characters)`,
+            };
+          }
+          return payload;
+        };
+        
+        // 各メッセージタイプごとに大きなフィールドを切り詰める
+        if (message.payload) {
+          let truncatedPayload = message.payload as any;
+          
+          switch (message.type) {
+            case 'task:tool:end':
+              truncatedPayload = truncatePayloadField(truncatedPayload, 'output', 5000);
+              truncatedPayload = truncatePayloadField(truncatedPayload, 'error', 2000);
+              break;
+              
+            case 'task:tool:start':
+              // inputフィールドも大きくなる可能性がある（ファイル内容など）
+              if (truncatedPayload.input && typeof truncatedPayload.input === 'object') {
+                const input = truncatedPayload.input;
+                if (input.content && typeof input.content === 'string' && input.content.length > 2000) {
+                  truncatedPayload = {
+                    ...truncatedPayload,
+                    input: {
+                      ...input,
+                      content: input.content.substring(0, 2000) + '... (truncated)',
+                    },
+                  };
+                }
+              }
+              break;
+              
+            case 'task:log':
+              truncatedPayload = truncatePayloadField(truncatedPayload, 'log', 2000);
+              break;
+              
+            case 'task:claude:response':
+              truncatedPayload = truncatePayloadField(truncatedPayload, 'text', 5000);
+              break;
+          }
+          
+          if (truncatedPayload !== message.payload) {
+            messageToSend = {
+              ...message,
+              payload: truncatedPayload,
+            };
+            logger.warn(`Truncated large payload for message type: ${message.type}`, {
+              clientId: ws.id,
+            });
+          }
+        }
+        
+        const messageStr = JSON.stringify(messageToSend);
+        
+        // メッセージサイズが大きすぎる場合の警告
+        if (messageStr.length > 50000) {
+          logger.warn(`Large WebSocket message: ${messageStr.length} bytes`, {
+            clientId: ws.id,
+            messageType: message.type,
+          });
+          
+          // 50KB以上のメッセージは警告メッセージに置き換える
+          if (messageStr.length > 100000) {
+            const warningMessage = {
+              type: 'task:log',
+              payload: {
+                taskId: (message.payload as any)?.taskId || 'unknown',
+                log: `[システム] 大きなメッセージ（${Math.round(messageStr.length / 1024)}KB）は省略されました`,
+                timestamp: new Date().toISOString(),
+              },
+            };
+            ws.send(JSON.stringify(warningMessage));
+            return;
+          }
+        }
+        
         try {
           ws.send(messageStr);
         } catch (sendError) {
@@ -375,6 +519,7 @@ export class WebSocketServer {
       }
     } catch (error) {
       logger.error(`Failed to send message to client ${ws.id}:`, error);
+      logger.error(`Message type that caused error: ${message.type}`);
     }
   }
 

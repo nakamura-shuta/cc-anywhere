@@ -745,9 +745,9 @@ async function applyPreset(presetId) {
 
 // 通知表示はutils.jsの関数を使用
 // スタイルの互換性のためnotification-${type}クラスを追加
-const _showNotification = showNotification;
-function showNotification(message, type = 'info') {
-    _showNotification(message, type);
+const originalShowNotification = window.showNotification;
+window.showNotification = function(message, type = 'info') {
+    originalShowNotification(message, type);
     const notification = document.querySelector('.notification');
     if (notification) {
         notification.classList.add(`notification-${type}`);

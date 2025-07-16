@@ -1,4 +1,5 @@
 import type { TaskRequest, TaskResponse, TaskStatus, RetryAttempt } from "../claude/types";
+import type { TodoItem } from "../types/todo";
 
 // Queue task with metadata
 export interface QueuedTask {
@@ -17,6 +18,7 @@ export interface QueuedTask {
     retryHistory: RetryAttempt[];
     nextRetryAt?: Date;
   };
+  todos?: TodoItem[]; // TODOリスト（実行中に一時的に保存）
 }
 
 // Queue options

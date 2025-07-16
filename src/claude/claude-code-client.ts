@@ -41,6 +41,7 @@ export class ClaudeCodeClient {
     const abortController = options.abortController || new AbortController();
     const messages: SDKMessage[] = [];
     const tracker = new TaskTracker();
+    const startTime = Date.now();
 
     try {
       logger.debug("Executing task with Claude Code SDK", {
@@ -93,20 +94,91 @@ export class ClaudeCodeClient {
         // Track turns and tool usage
         if (message.type === "assistant") {
           turnCount++;
+          
+          // Claudeの応答テキストを抽出して送信
+          const textContent = this.extractTextContent(message);
+          if (textContent && options.onProgress) {
+            await options.onProgress({
+              type: "claude:response",
+              message: textContent,
+              data: { turnNumber: turnCount },
+            });
+          }
         }
 
         // Extract and track tool usage
-        const toolDetail = tracker.extractToolDetails(message);
-        if (toolDetail) {
-          tracker.recordToolUsage(toolDetail);
+        const toolDetails = this.extractToolUsageFromMessage(message);
+        for (const toolDetail of toolDetails) {
+          if (toolDetail.action === "start") {
+            // Tool start event
+            if (options.onProgress) {
+              await options.onProgress({
+                type: "tool:start",
+                message: `${toolDetail.tool} 実行開始`,
+                data: {
+                  toolId: toolDetail.toolId,
+                  tool: toolDetail.tool,
+                  input: toolDetail.input,
+                },
+              });
+            }
+          } else if (toolDetail.action === "end") {
+            // Tool end event
+            if (options.onProgress) {
+              await options.onProgress({
+                type: "tool:end",
+                message: `${toolDetail.tool} 実行完了`,
+                data: {
+                  toolId: toolDetail.toolId,
+                  tool: toolDetail.tool,
+                  output: toolDetail.output,
+                  error: toolDetail.error,
+                  duration: toolDetail.duration,
+                  success: toolDetail.success,
+                },
+              });
+            }
+          }
+          
+          // Track tool usage (record each tool detail for proper statistics)
+          for (const detail of toolDetails) {
+            tracker.recordToolUsage(detail);
+          }
+          
+          // Legacy tool_usage event (for backward compatibility)
+          if (toolDetail.tool !== "TodoWrite" && toolDetail.action === "end") {
+            if (options.onProgress) {
+              await options.onProgress({
+                type: "tool_usage",
+                message: this.formatToolUsageMessage(toolDetail),
+                data: toolDetail,
+              });
+            }
+          }
+        }
 
-          // Send tool usage update
-          if (options.onProgress) {
-            await options.onProgress({
-              type: "tool_usage",
-              message: this.formatToolUsageMessage(toolDetail),
-              data: toolDetail,
-            });
+        // Handle TodoWrite results
+        if (message.type === "assistant") {
+          const assistantMsg = message as any;
+          if (assistantMsg.message?.content && Array.isArray(assistantMsg.message.content)) {
+            for (const content of assistantMsg.message.content) {
+              if (
+                content.type === "tool_use" &&
+                content.name === "TodoWrite" &&
+                content.input?.todos
+              ) {
+                tracker.updateTodos(content.input.todos);
+
+                // Send todo update notification
+                if (options.onProgress) {
+                  await options.onProgress({
+                    type: "todo_update",
+                    message: `Todoリスト更新: ${content.input.todos.length}件`,
+                    data: { todos: content.input.todos },
+                  });
+                }
+              }
+            }
           }
         }
 
@@ -139,6 +211,35 @@ export class ClaudeCodeClient {
         messageCount: messages.length,
       });
 
+      // Send final statistics
+      if (options.onProgress) {
+        const stats = tracker.getStatistics();
+        const elapsedTime = Date.now() - startTime;
+        
+        await options.onProgress({
+          type: "statistics",
+          message: "タスク統計情報",
+          data: {
+            totalTurns: turnCount,
+            totalToolCalls: stats.totalToolUsage,
+            toolStats: Object.fromEntries(
+              Array.from(stats.toolUsageByType.entries()).map(([tool, details]) => [
+                tool,
+                {
+                  count: details.count,
+                  successes: details.successCount,
+                  failures: details.failureCount,
+                  totalDuration: 0, // TODO: 実際の所要時間を計算
+                  avgDuration: 0,
+                },
+              ])
+            ),
+            currentPhase: "complete",
+            elapsedTime,
+          },
+        });
+      }
+      
       tracker.recordProgress({
         phase: "complete",
         message: "タスクが正常に完了しました",
@@ -224,6 +325,85 @@ export class ClaudeCodeClient {
     }
     return null;
   }
+  
+  private extractTextContent(message: any): string | null {
+    if (message.type === "assistant" && message.message?.content) {
+      const textParts: string[] = [];
+      for (const content of message.message.content) {
+        if (content.type === "text" && content.text) {
+          textParts.push(content.text);
+        }
+      }
+      return textParts.length > 0 ? textParts.join("\n") : null;
+    }
+    return null;
+  }
+  
+  // Tool tracking for duration calculation
+  private toolStartTimes: Map<string, number> = new Map();
+  private toolNameMap: Map<string, string> = new Map();
+  
+  private extractToolUsageFromMessage(message: SDKMessage): ToolUsageDetail[] {
+    const toolDetails: ToolUsageDetail[] = [];
+    
+    if (message.type === "assistant") {
+      const assistantMsg = message as any;
+      if (assistantMsg.message?.content && Array.isArray(assistantMsg.message.content)) {
+        for (const content of assistantMsg.message.content) {
+          if (content.type === "tool_use") {
+            const toolId = content.id;
+            const startTime = Date.now();
+            
+            // Store start time and tool name for later use
+            this.toolStartTimes.set(toolId, startTime);
+            this.toolNameMap.set(toolId, content.name);
+            
+            // Tool start
+            toolDetails.push({
+              tool: content.name,
+              status: "start",
+              action: "start",
+              input: content.input,
+              timestamp: new Date(),
+              toolId,
+            });
+          }
+        }
+      }
+    } else if (message.type === "result") {
+      const resultMsg = message as any;
+      if (resultMsg.result && Array.isArray(resultMsg.result)) {
+        for (const result of resultMsg.result) {
+          if (result.type === "tool_result") {
+            const toolId = result.tool_use_id;
+            const endTime = Date.now();
+            const startTime = this.toolStartTimes.get(toolId) || endTime;
+            const toolName = this.toolNameMap.get(toolId) || "unknown";
+            const duration = endTime - startTime;
+            
+            // Clean up tracking maps
+            this.toolStartTimes.delete(toolId);
+            this.toolNameMap.delete(toolId);
+            
+            // Tool end
+            toolDetails.push({
+              tool: toolName,
+              status: result.is_error ? "failure" : "success",
+              action: "end",
+              output: result.content,
+              error: result.is_error ? result.content : undefined,
+              success: !result.is_error,
+              timestamp: new Date(),
+              duration,
+              toolId,
+            });
+          }
+        }
+      }
+    }
+    
+    return toolDetails;
+  }
 
   private extractResultMessage(message: SDKMessage): string | null {
     const resultMsg = message as unknown as {
@@ -264,6 +444,19 @@ export class ClaudeCodeClient {
           "output" in resultMsg.result
         ) {
           output += String((resultMsg.result as { output: unknown }).output);
+        }
+        break;
+      }
+
+      case "TodoWrite": {
+        if (resultMsg.result && typeof resultMsg.result === "object") {
+          const todoResult = resultMsg.result as { todos?: any[] };
+          if (todoResult.todos) {
+            // TodoWriteの結果はログに出力しない（UIで別途表示するため）
+            output = "";
+          } else {
+            output = "";
+          }
         }
         break;
       }

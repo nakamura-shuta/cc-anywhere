@@ -92,14 +92,14 @@
                                 <label for="max-turns">
                                     最大ターン数
                                     <span class="info-icon" title="Claudeが実行できる最大ステップ数">ⓘ</span>
-                                    <span class="current-value" id="max-turns-value">3</span>
+                                    <span class="current-value" id="max-turns-value">50</span>
                                 </label>
                                 <div class="slider-container">
                                     <input type="range" id="max-turns-slider" 
-                                           min="1" max="50" value="3" 
+                                           min="1" max="50" value="50" 
                                            class="slider">
                                     <input type="number" id="max-turns" 
-                                           min="1" max="50" value="3" 
+                                           min="1" max="50" value="50" 
                                            class="number-input">
                                 </div>
                             </div>
@@ -414,12 +414,18 @@
                 <div id="task-detail">
                     <!-- タスク詳細がここに表示される -->
                 </div>
+                <div id="task-todos" class="task-todos hidden">
+                    <!-- TODOリストがここに表示される -->
+                </div>
+                <div id="task-statistics" class="task-statistics hidden">
+                    <!-- 統計情報がここに表示される -->
+                </div>
                 <div class="task-logs">
                     <div class="log-header">
                         <h3>実行ログ</h3>
                     </div>
-                    <div id="task-logs" class="log-container">
-                        <!-- ログがここに表示される -->
+                    <div id="task-logs" class="streaming-log">
+                        <!-- ストリーミングログがここに表示される -->
                     </div>
                 </div>
             </div>

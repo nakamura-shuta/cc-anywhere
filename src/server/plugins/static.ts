@@ -11,4 +11,11 @@ export async function registerStaticPlugin(fastify: FastifyInstance): Promise<vo
     // デフォルトでindex.html（高機能版）を使用
     index: ["index.html"],
   });
+  
+  // Serve example files from src/examples directory
+  await fastify.register(fastifyStatic, {
+    root: path.join(process.cwd(), "src/examples"),
+    prefix: "/examples/",
+    decorateReply: false,
+  });
 }

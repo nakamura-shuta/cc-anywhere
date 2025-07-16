@@ -18,6 +18,14 @@ export interface ToolUsageDetail {
   url?: string;
   error?: string;
   timestamp: Date;
+  todoCount?: number;
+  // Extended properties for streaming
+  action?: "start" | "end";
+  toolId?: string;
+  input?: any;
+  output?: any;
+  duration?: number;
+  success?: boolean;
 }
 
 export interface TaskProgressInfo {
