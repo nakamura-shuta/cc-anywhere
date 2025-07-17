@@ -184,8 +184,8 @@ export class ClaudeCodeClient {
 
         // Emit progress if callback provided
         if (options.onProgress) {
-          // Send turn progress
-          if (message.type === "assistant" && turnCount === 1) {
+          // Send turn progress for each turn
+          if (message.type === "assistant") {
             const progressInfo: TaskProgressInfo = {
               phase: "execution",
               message: `ターン ${turnCount}/${options.maxTurns || config.claudeCodeSDK.defaultMaxTurns}`,

@@ -1845,3 +1845,195 @@ select.error:focus {
     background-color: rgba(76, 175, 80, 0.1);
     color: #4caf50;
 }
+
+/* ==============================
+   メッセージタイプ別スタイル
+   ============================== */
+
+/* Claudeの応答 */
+.log-claude {
+    color: #3b82f6;
+    font-weight: 500;
+}
+
+.log-claude .message-icon {
+    color: #2563eb;
+    margin-right: 6px;
+    font-size: 1.1em;
+}
+
+/* ツール開始 */
+.log-tool-start {
+    color: #8b5cf6;
+    font-weight: 500;
+}
+
+.log-tool-start .message-icon {
+    margin-right: 6px;
+}
+
+/* ツール結果 */
+.log-tool-result {
+    color: #6b7280;
+    padding-left: 20px;
+    font-size: 13px;
+}
+
+.log-tool-success {
+    color: #10b981;
+}
+
+.log-tool-success .status-icon {
+    color: #059669;
+}
+
+.log-tool-error {
+    color: #ef4444;
+}
+
+.log-tool-error .status-icon {
+    color: #dc2626;
+}
+
+/* Todo更新 */
+.log-todo {
+    background-color: rgba(139, 92, 246, 0.05);
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 4px 0;
+    border-left: 3px solid #8b5cf6;
+}
+
+.log-todo .todo-header {
+    color: #8b5cf6;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.log-todo-item {
+    padding-left: 20px;
+    color: #4b5563;
+    line-height: 1.8;
+}
+
+.log-todo-item.completed {
+    color: #9ca3af;
+    text-decoration: line-through;
+}
+
+/* Bashコマンド */
+.log-bash {
+    font-family: 'Courier New', Consolas, monospace;
+    background-color: #1e293b;
+    color: #e2e8f0;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 4px 0;
+    position: relative;
+}
+
+.log-bash::before {
+    content: '$';
+    color: #22d3ee;
+    margin-right: 8px;
+    font-weight: bold;
+}
+
+.log-bash-output {
+    font-family: 'Courier New', Consolas, monospace;
+    background-color: #0f172a;
+    color: #94a3b8;
+    padding: 8px 12px;
+    border-left: 3px solid #475569;
+    margin: 4px 0 4px 20px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+/* 進捗メッセージ */
+.log-progress {
+    color: #6b7280;
+    font-style: italic;
+}
+
+.log-progress .turn-info {
+    background-color: rgba(59, 130, 246, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #3b82f6;
+    font-style: normal;
+}
+
+/* 統計情報 */
+.log-statistics {
+    background-color: rgba(239, 246, 255, 0.5);
+    border: 1px solid #dbeafe;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+}
+
+/* ツール別の色分け */
+.tool-read { color: #3b82f6; }
+.tool-read .icon { content: '📖'; }
+
+.tool-write { color: #10b981; }
+.tool-write .icon { content: '✏️'; }
+
+.tool-edit { color: #f59e0b; }
+.tool-edit .icon { content: '📝'; }
+
+.tool-multiedit { color: #f59e0b; }
+.tool-multiedit .icon { content: '📝'; }
+
+.tool-ls { color: #8b5cf6; }
+.tool-ls .icon { content: '📁'; }
+
+.tool-grep { color: #ec4899; }
+.tool-grep .icon { content: '🔍'; }
+
+.tool-glob { color: #ec4899; }
+.tool-glob .icon { content: '🔎'; }
+
+.tool-bash { color: #6366f1; }
+.tool-bash .icon { content: '💻'; }
+
+.tool-task { color: #14b8a6; }
+.tool-task .icon { content: '🚀'; }
+
+.tool-todowrite { color: #8b5cf6; }
+.tool-todowrite .icon { content: '✅'; }
+
+.tool-websearch { color: #06b6d4; }
+.tool-websearch .icon { content: '🌐'; }
+
+.tool-webfetch { color: #0891b2; }
+.tool-webfetch .icon { content: '🌍'; }
+
+/* アイコン共通スタイル */
+.message-icon {
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+/* ログコンテンツの複数行対応 */
+.log-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.log-content p {
+    margin: 4px 0;
+}
+
+/* セクションヘッダー */
+.log-section-header {
+    font-weight: 600;
+    color: #1f2937;
+    margin: 12px 0 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e5e7eb;
+}

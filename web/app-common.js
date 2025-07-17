@@ -1,6 +1,13 @@
 // 共通ユーティリティ関数と基本的なタスク管理機能
 // app.js と app-simple.js で共有される関数
 
+// HTMLエスケープ関数
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // ページネーション状態管理
 const pagination = {
     currentPage: 1,
@@ -533,6 +540,11 @@ function displayTaskLogs(task) {
             const entry = document.createElement('div');
             entry.className = 'log-entry';
             
+            // 保存されたクラス名を適用
+            if (log.className) {
+                entry.className += ' ' + log.className;
+            }
+            
             const timestampSpan = document.createElement('span');
             timestampSpan.className = 'log-timestamp';
             timestampSpan.textContent = log.timestamp;
@@ -540,38 +552,63 @@ function displayTaskLogs(task) {
             const contentSpan = document.createElement('span');
             contentSpan.className = 'log-content';
             
-            // ログタイプに応じて再構築
-            switch (log.type) {
-                case 'system':
-                    contentSpan.style.color = '#9ca3af';
-                    contentSpan.textContent = log.content;
-                    break;
-                case 'claude':
-                    contentSpan.className = 'claude-response';
-                    contentSpan.innerHTML = `💬 Claude: ${escapeHtml(log.content)}`;
-                    break;
-                case 'claude-raw':
-                    contentSpan.className = 'claude-response';
-                    if (log.htmlContent) {
-                        contentSpan.innerHTML = log.htmlContent;
-                    } else if (log.data && typeof log.data === 'object') {
-                        contentSpan.innerHTML = log.data.innerHTML || log.content;
+            // アイコンの追加
+            if (log.icon) {
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'message-icon';
+                iconSpan.textContent = log.icon;
+                contentSpan.appendChild(iconSpan);
+            }
+            
+            // 新しい形式のログ
+            if (log.className || log.isHtml || log.icon) {
+                if (log.isHtml && log.content) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = log.content;
+                    while (tempDiv.firstChild) {
+                        contentSpan.appendChild(tempDiv.firstChild);
                     }
-                    break;
-                case 'tool-start':
-                case 'tool-end':
-                    contentSpan.className = log.type === 'tool-start' ? 'tool-start' : 
-                                          (log.data && log.data.success ? 'tool-end' : 'tool-error');
-                    if (log.htmlContent) {
-                        contentSpan.innerHTML = log.htmlContent;
-                    } else if (log.data && log.data.element) {
-                        contentSpan.innerHTML = log.data.element.innerHTML || log.content;
-                    } else if (log.data && typeof log.data === 'object') {
-                        contentSpan.innerHTML = log.data.innerHTML || log.content;
+                } else if (log.content) {
+                    if (log.content.includes('\n')) {
+                        contentSpan.innerHTML = escapeHtml(log.content).replace(/\n/g, '<br>');
+                    } else {
+                        contentSpan.textContent = log.content;
                     }
-                    break;
-                default:
-                    contentSpan.textContent = log.content;
+                }
+            } else {
+                // 旧形式のログ（後方互換性）
+                switch (log.type) {
+                    case 'system':
+                        contentSpan.style.color = '#9ca3af';
+                        contentSpan.textContent = log.content;
+                        break;
+                    case 'claude':
+                        contentSpan.className = 'claude-response';
+                        contentSpan.innerHTML = `💬 Claude: ${escapeHtml(log.content)}`;
+                        break;
+                    case 'claude-raw':
+                        contentSpan.className = 'claude-response';
+                        if (log.htmlContent) {
+                            contentSpan.innerHTML = log.htmlContent;
+                        } else if (log.data && typeof log.data === 'object') {
+                            contentSpan.innerHTML = log.data.innerHTML || log.content;
+                        }
+                        break;
+                    case 'tool-start':
+                    case 'tool-end':
+                        contentSpan.className = log.type === 'tool-start' ? 'tool-start' : 
+                                              (log.data && log.data.success ? 'tool-end' : 'tool-error');
+                        if (log.htmlContent) {
+                            contentSpan.innerHTML = log.htmlContent;
+                        } else if (log.data && log.data.element) {
+                            contentSpan.innerHTML = log.data.element.innerHTML || log.content;
+                        } else if (log.data && typeof log.data === 'object') {
+                            contentSpan.innerHTML = log.data.innerHTML || log.content;
+                        }
+                        break;
+                    default:
+                        contentSpan.textContent = log.content;
+                }
             }
             
             entry.appendChild(timestampSpan);
@@ -658,6 +695,80 @@ function renderStreamingLogs(logs) {
     });
 }
 
+// スタイル付きでログを追加
+function appendStreamingLogWithStyle(payload) {
+    const logContainer = document.getElementById('task-logs');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    
+    // クラス名を追加
+    if (payload.className) {
+        entry.className += ' ' + payload.className;
+    }
+    
+    const timestamp = new Date(payload.timestamp || Date.now()).toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    
+    const timestampSpan = document.createElement('span');
+    timestampSpan.className = 'log-timestamp';
+    timestampSpan.textContent = timestamp;
+    
+    const contentSpan = document.createElement('span');
+    contentSpan.className = 'log-content';
+    
+    // アイコンの追加
+    if (payload.icon) {
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'message-icon';
+        iconSpan.textContent = payload.icon;
+        contentSpan.appendChild(iconSpan);
+    }
+    
+    // コンテンツの追加
+    if (payload.isHtml) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = payload.log || '';
+        while (tempDiv.firstChild) {
+            contentSpan.appendChild(tempDiv.firstChild);
+        }
+    } else {
+        const textSpan = document.createElement('span');
+        if (payload.log && payload.log.includes('\n')) {
+            textSpan.innerHTML = escapeHtml(payload.log).replace(/\n/g, '<br>');
+        } else {
+            textSpan.textContent = payload.log || '';
+        }
+        contentSpan.appendChild(textSpan);
+    }
+    
+    // ログを保存
+    if (selectedTaskId) {
+        if (!taskStreamingLogs.has(selectedTaskId)) {
+            taskStreamingLogs.set(selectedTaskId, []);
+        }
+        
+        const logData = {
+            timestamp,
+            content: payload.log,
+            type: 'log',
+            data: payload,
+            className: payload.className,
+            icon: payload.icon,
+            isHtml: payload.isHtml
+        };
+        
+        taskStreamingLogs.get(selectedTaskId).push(logData);
+    }
+    
+    entry.appendChild(timestampSpan);
+    entry.appendChild(contentSpan);
+    logContainer.appendChild(entry);
+    logContainer.scrollTop = logContainer.scrollHeight;
+}
+
 // ストリーミングログエントリを追加
 function appendStreamingLog(content, type = 'log', data = null) {
     const logContainer = document.getElementById('task-logs');
@@ -712,7 +823,7 @@ function appendStreamingLog(content, type = 'log', data = null) {
             break;
         case 'claude':
             contentSpan.className = 'claude-response';
-            contentSpan.innerHTML = `💬 Claude: ${escapeHtml(content)}`;
+            contentSpan.innerHTML = `💬 Claude: ${escapeHtml(content).replace(/\n/g, '<br>')}`;
             break;
         case 'claude-raw':
             contentSpan.className = 'claude-response';
@@ -727,7 +838,12 @@ function appendStreamingLog(content, type = 'log', data = null) {
             contentSpan.appendChild(data.element);
             break;
         default:
-            contentSpan.textContent = content;
+            // 改行を<br>に変換してHTMLとして設定
+            if (content.includes('\n')) {
+                contentSpan.innerHTML = escapeHtml(content).replace(/\n/g, '<br>');
+            } else {
+                contentSpan.textContent = content;
+            }
     }
     
     entry.appendChild(timestampSpan);
@@ -1111,7 +1227,7 @@ function handleTaskLog(payload) {
         updateProgressIndicator();
         
         // ストリーミング形式でログを追加
-        appendStreamingLog(payload.log || '', 'log');
+        appendStreamingLogWithStyle(payload);
     }
 }
 

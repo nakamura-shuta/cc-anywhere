@@ -213,7 +213,7 @@ WebSocket接続を確立した後、最初に認証メッセージを送信す�
 
 ## ハートビート
 
-接続の維持のため、定期的にpingメッセージを送信できます：
+接続の維持のため、クライアントは定期的にpingメッセージを送信する必要があります。これは接続タイムアウトを防ぐための必須機能です：
 
 ```json
 {
@@ -235,6 +235,8 @@ WebSocket接続を確立した後、最初に認証メッセージを送信す�
 }
 ```
 
+**重要**: クライアントは30秒ごとにpingメッセージを送信する必要があります。60秒以上pingメッセージが送信されない場合、サーバーは接続をタイムアウトとして切断します。
+
 ## サンプルクライアント
 
 ### JavaScript/Node.js
@@ -243,6 +245,7 @@ WebSocket接続を確立した後、最初に認証メッセージを送信す�
 const WebSocket = require('ws');
 
 const ws = new WebSocket('ws://localhost:3000/ws');
+let heartbeatInterval;
 
 ws.on('open', () => {
   // 認証
@@ -250,6 +253,16 @@ ws.on('open', () => {
     type: 'auth',
     payload: { apiKey: 'your-api-key' }
   }));
+  
+  // ハートビート開始（必須）
+  heartbeatInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'ping',
+        payload: { timestamp: Date.now() }
+      }));
+    }
+  }, 30000); // 30秒ごと
 });
 
 ws.on('message', (data) => {
@@ -271,6 +284,17 @@ ws.on('message', (data) => {
     case 'task:log':
       console.log('Log:', message.payload.log);
       break;
+      
+    case 'pong':
+      // サーバーからのpong応答（ログ不要）
+      break;
+  }
+});
+
+ws.on('close', () => {
+  // ハートビート停止
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
   }
 });
 ```
@@ -280,6 +304,18 @@ ws.on('message', (data) => {
 ```python
 import websocket
 import json
+import threading
+import time
+
+def send_heartbeat(ws):
+    """30秒ごとにハートビートを送信"""
+    while ws.keep_running:
+        time.sleep(30)
+        if ws.sock and ws.sock.connected:
+            ws.send(json.dumps({
+                'type': 'ping',
+                'payload': {'timestamp': int(time.time() * 1000)}
+            }))
 
 def on_message(ws, message):
     data = json.loads(message)
@@ -294,6 +330,9 @@ def on_message(ws, message):
         print(f"Task status: {data['payload']['status']}")
     elif data['type'] == 'task:log':
         print(f"Log: {data['payload']['log']}")
+    elif data['type'] == 'pong':
+        # サーバーからのpong応答（ログ不要）
+        pass
 
 def on_open(ws):
     # 認証
@@ -301,6 +340,11 @@ def on_open(ws):
         'type': 'auth',
         'payload': {'apiKey': 'your-api-key'}
     }))
+    
+    # ハートビートスレッド開始（必須）
+    heartbeat_thread = threading.Thread(target=send_heartbeat, args=(ws,))
+    heartbeat_thread.daemon = True
+    heartbeat_thread.start()
 
 ws = websocket.WebSocketApp("ws://localhost:3000/ws",
                             on_open=on_open,

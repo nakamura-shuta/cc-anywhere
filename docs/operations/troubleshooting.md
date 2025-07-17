@@ -130,6 +130,40 @@ TASK_TIMEOUT_MS=1800000  # 30分
 
 3. ブラウザのコンソールでエラーを確認
 
+### WebSocketハートビートエラー
+
+**症状**: 
+- 「WebSocket connection timeout」エラー
+- 接続が30-60秒後に切断される
+- 「heartbeat timeout」ログ
+
+**解決方法**:
+
+1. クライアント側でハートビートを実装しているか確認:
+   ```javascript
+   // 30秒ごとにpingを送信する必要があります
+   setInterval(() => {
+     ws.send(JSON.stringify({
+       type: 'ping',
+       payload: { timestamp: Date.now() }
+     }));
+   }, 30000);
+   ```
+
+2. ネットワークの遅延を確認:
+   ```bash
+   # サーバーへのping確認
+   ping -c 10 your-server.com
+   ```
+
+3. WebSocketの設定を確認:
+   ```env
+   WEBSOCKET_HEARTBEAT_INTERVAL=30000  # 30秒
+   WEBSOCKET_HEARTBEAT_TIMEOUT=60000   # 60秒
+   ```
+
+**注意**: クライアントは必ず30秒ごとにpingメッセージを送信する必要があります。これは接続維持のための必須機能です。
+
 ### Cloudflare Tunnelが起動しない
 
 **症状**: URLが表示されない

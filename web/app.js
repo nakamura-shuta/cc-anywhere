@@ -81,11 +81,256 @@ function setupWebSocketHandlers() {
     });
 
     wsManager.on('taskLog', (payload) => {
-        handleTaskLog(payload);
+        // Bashコマンドの実行結果を整形
+        if (payload.log && payload.log.includes('[Bash] 実行:')) {
+            // Bashコマンドと結果を分けて表示
+            const lines = payload.log.split('\n');
+            const commandLine = lines[0]; // [Bash] 実行: command
+            const output = lines.slice(1).join('\n');
+            
+            if (output && output.trim()) {
+                // 出力結果を表示（コマンドは既にtool:startで表示済み）
+                handleTaskLog({
+                    ...payload,
+                    log: output,
+                    timestamp: new Date().toISOString(),
+                    className: 'log-bash-output'
+                });
+            }
+        } else if (payload.log && (
+            payload.log.includes('[Write]') || 
+            payload.log.includes('[Edit]') || 
+            payload.log.includes('[Read]') ||
+            payload.log.includes('[LS]') ||
+            payload.log.includes('[Grep]') ||
+            payload.log.includes('[Glob]')
+        )) {
+            // これらのツール結果詳細はtool:endで既に表示しているため、スキップ
+            console.log('[task:log] Skipping tool detail:', payload.log);
+        } else {
+            handleTaskLog(payload);
+        }
+        console.log('[task:log] payload:', payload);
     });
 
     wsManager.on('taskCompleted', (payload) => {
         handleTaskCompleted(payload);
+    });
+
+    // 新しい進捗状況イベント
+    wsManager.on('toolStart', (payload) => {
+        const toolName = payload.tool.toLowerCase();
+        
+        // TodoWriteの場合、特別な表示
+        if (payload.tool === 'TodoWrite' && payload.input?.todos) {
+            const todos = payload.input.todos;
+            const todoItems = todos.map(todo => {
+                const status = todo.status === 'completed' ? '☒' : '☐';
+                const itemClass = todo.status === 'completed' ? 'log-todo-item completed' : 'log-todo-item';
+                return `<div class="${itemClass}">  ⎿  ${status} ${escapeHtml(todo.content)}</div>`;
+            }).join('');
+            
+            const todoContent = `<div class="log-todo">
+                <div class="todo-header">✅ Update Todos</div>
+                ${todoItems}
+            </div>`;
+            
+            handleTaskLog({
+                taskId: payload.taskId,
+                log: todoContent,
+                timestamp: payload.timestamp || new Date().toISOString(),
+                level: 'info',
+                isHtml: true
+            });
+        } else {
+            // その他のツール
+            let toolDisplay = '';
+            let icon = '';
+            let className = `log-tool-start tool-${toolName}`;
+            
+            switch (payload.tool) {
+                case 'LS':
+                    icon = '📁';
+                    toolDisplay = `List(${payload.input?.path || '.'})`;
+                    break;
+                case 'Read':
+                    icon = '📖';
+                    toolDisplay = `Read(${payload.input?.file_path || ''})`;
+                    break;
+                case 'Write':
+                    icon = '✏️';
+                    toolDisplay = `Write(${payload.input?.file_path || ''})`;
+                    break;
+                case 'Edit':
+                case 'MultiEdit':
+                    icon = '📝';
+                    toolDisplay = `${payload.tool}(${payload.input?.file_path || ''})`;
+                    break;
+                case 'Bash':
+                    icon = '💻';
+                    toolDisplay = payload.input?.command || 'Bash';
+                    className = 'log-bash';
+                    break;
+                case 'Grep':
+                    icon = '🔍';
+                    toolDisplay = `Search: "${payload.input?.pattern || ''}"`;
+                    break;
+                case 'Glob':
+                    icon = '🔎';
+                    toolDisplay = `Find: ${payload.input?.pattern || ''}`;
+                    break;
+                case 'Task':
+                    icon = '🚀';
+                    toolDisplay = payload.tool;
+                    break;
+                case 'WebSearch':
+                    icon = '🌐';
+                    toolDisplay = `Search: ${payload.input?.query || ''}`;
+                    break;
+                case 'WebFetch':
+                    icon = '🌍';
+                    toolDisplay = `Fetch: ${payload.input?.url || ''}`;
+                    break;
+                default:
+                    icon = '🔧';
+                    toolDisplay = payload.tool;
+            }
+            
+            handleTaskLog({
+                taskId: payload.taskId,
+                log: `<span class="message-icon">${icon}</span> ${toolDisplay}`,
+                timestamp: payload.timestamp || new Date().toISOString(),
+                level: 'info',
+                className: className,
+                isHtml: true
+            });
+        }
+        
+        // 実際の payload を console.log で出力
+        console.log('[tool:start] payload:', payload);
+    });
+
+    wsManager.on('toolEnd', (payload) => {
+        let resultDetail = '';
+        let statusIcon = payload.success ? '✅' : '❌';
+        let className = payload.success ? 'log-tool-result log-tool-success' : 'log-tool-result log-tool-error';
+        
+        // ツールごとの結果詳細を整形
+        if (payload.output) {
+            switch (payload.tool) {
+                case 'LS':
+                    // outputからファイル数を取得
+                    const lines = payload.output.split('\n').filter(l => l.trim());
+                    const fileCount = lines.length;
+                    resultDetail = `Listed ${fileCount} paths (ctrl+r to expand)`;
+                    break;
+                case 'Read':
+                    // outputから行数を取得
+                    const lineCount = payload.output.split('\n').length;
+                    resultDetail = `Read ${lineCount} lines (ctrl+r to expand)`;
+                    break;
+                case 'TodoWrite':
+                    // TodoWriteの場合は何も表示しない
+                    return;
+                default:
+                    if (payload.error) {
+                        resultDetail = `Error: ${payload.error}`;
+                    }
+                    break;
+            }
+        } else if (payload.error) {
+            resultDetail = `Error: ${payload.error}`;
+        }
+        
+        // ログメッセージの組み立て
+        if (resultDetail) {
+            handleTaskLog({
+                taskId: payload.taskId,
+                log: `<span class="status-icon">${statusIcon}</span> ${resultDetail}`,
+                timestamp: payload.timestamp || new Date().toISOString(),
+                level: payload.success ? 'info' : 'error',
+                className: className,
+                isHtml: true
+            });
+        }
+        
+        // 実際の payload を console.log で出力
+        console.log('[tool:end] payload:', payload);
+    });
+
+    wsManager.on('toolProgress', (payload) => {
+        handleTaskLog({
+            taskId: payload.taskId,
+            log: `[tool:progress] ${payload.tool}: ${payload.message || '進行中...'}`,
+            timestamp: payload.timestamp || new Date().toISOString(),
+            level: 'info'
+        });
+        console.log('[tool:progress] payload:', payload);
+    });
+
+    wsManager.on('claudeResponse', (payload) => {
+        // Claudeの応答を整形して表示
+        const text = payload.text || '';
+        
+        handleTaskLog({
+            taskId: payload.taskId,
+            log: text,
+            timestamp: payload.timestamp || new Date().toISOString(),
+            level: 'info',
+            className: 'log-claude',
+            icon: '💭'
+        });
+        
+        console.log('[claude:response] payload:', payload);
+    });
+
+    wsManager.on('taskProgress', (payload) => {
+        const message = payload.progress?.message || payload.message || 'N/A';
+        
+        // ターン情報の場合、特別なスタイル
+        if (message.includes('ターン')) {
+            const turnInfo = message.match(/ターン (\d+)\/(\d+)/);
+            if (turnInfo) {
+                handleTaskLog({
+                    taskId: payload.taskId,
+                    log: `<span class="turn-info">ターン ${turnInfo[1]}/${turnInfo[2]}</span>`,
+                    timestamp: payload.progress?.timestamp || payload.timestamp || new Date().toISOString(),
+                    level: 'info',
+                    className: 'log-progress',
+                    isHtml: true
+                });
+            }
+        } else {
+            handleTaskLog({
+                taskId: payload.taskId,
+                log: message,
+                timestamp: payload.progress?.timestamp || payload.timestamp || new Date().toISOString(),
+                level: payload.progress?.level || payload.level || 'info',
+                className: 'log-progress'
+            });
+        }
+        
+        console.log('[task:progress] payload:', payload);
+    });
+
+    wsManager.on('todoUpdate', (payload) => {
+        handleTodoUpdate(payload);
+    });
+
+    wsManager.on('taskStatistics', (payload) => {
+        console.log('Task statistics:', payload);
+        // 統計情報をUIに表示する場合はここに処理を追加
+    });
+
+    wsManager.on('toolUsage', (payload) => {
+        // 旧形式のtool_usageイベント（互換性のため）
+        const logEntry = {
+            taskId: payload.taskId,
+            log: payload.message || `🔧 ${payload.tool} 実行`,
+            timestamp: payload.timestamp || new Date().toISOString(),
+            level: 'info'
+        };
+        handleTaskLog(logEntry);
     });
 
     // エラーハンドリング
@@ -978,8 +1223,14 @@ async function handleTaskSubmitWithSDK(e) {
             
             // バッチで作成されたタスクをリストに追加
             if (response.tasks) {
-                response.tasks.forEach(task => {
-                    apiClient.subscribeToTask(task.taskId);
+                response.tasks.forEach((task, index) => {
+                    const taskId = task.taskId || task.id;
+                    currentTasks.set(taskId, task);
+                    apiClient.subscribeToTask(taskId);
+                    // 最初のタスクの詳細を自動的に表示
+                    if (index === 0) {
+                        showTaskDetail(taskId);
+                    }
                 });
             }
         } else if (selectedRepos.length === 1) {
@@ -995,6 +1246,9 @@ async function handleTaskSubmitWithSDK(e) {
             }
             currentTasks.set(taskId, response);
             apiClient.subscribeToTask(taskId);
+            
+            // タスク詳細を自動的に表示
+            showTaskDetail(taskId);
         } else {
             showError('リポジトリを選択してください');
             return;

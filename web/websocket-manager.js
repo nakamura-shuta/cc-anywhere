@@ -177,7 +177,7 @@ class WebSocketManager {
             return;
         }
 
-        this.logger.debug('Received message:', message.type);
+        this.logger.debug('Received message:', message.type, message);
 
         switch (message.type) {
             case 'auth:success':
@@ -204,12 +204,56 @@ class WebSocketManager {
                 this.unsubscribe(message.payload.taskId);
                 break;
 
+            case 'task:tool:start':
+                this.emit('toolStart', message.payload);
+                break;
+
+            case 'task:tool:end':
+                this.emit('toolEnd', message.payload);
+                break;
+
+            case 'task:tool:progress':
+                this.emit('toolProgress', message.payload);
+                break;
+
+            case 'task:progress':
+                this.emit('taskProgress', message.payload);
+                break;
+
+            case 'task:claude:response':
+                this.emit('claudeResponse', message.payload);
+                break;
+
+            case 'task:statistics':
+                this.emit('taskStatistics', message.payload);
+                break;
+
+            case 'task:todo_update':
+                this.emit('todoUpdate', message.payload);
+                break;
+
+            case 'task:tool_usage':
+                this.emit('toolUsage', message.payload);
+                break;
+
             case 'error':
                 this.emit('serverError', message.payload);
                 break;
 
             case 'heartbeat':
                 this.send({ type: 'heartbeat' });
+                break;
+                
+            case 'pong':
+                // Server responded to our ping
+                this.logger.debug('Received pong from server');
+                break;
+
+            case 'subscribe:success':
+            case 'unsubscribe:success':
+            case 'connection':
+                // These are informational messages, just log them
+                this.logger.debug(`${message.type} received:`, message.payload);
                 break;
 
             default:
@@ -226,7 +270,7 @@ class WebSocketManager {
             return false;
         }
 
-        if (message.type !== 'auth' && message.type !== 'heartbeat' && !this.authenticated) {
+        if (message.type !== 'auth' && message.type !== 'heartbeat' && message.type !== 'ping' && !this.authenticated) {
             this.logger.warn('Not authenticated, queuing message');
             this.messageQueue.push(message);
             return false;
@@ -301,9 +345,9 @@ class WebSocketManager {
         this.stopHeartbeat();
         this.heartbeatInterval = setInterval(() => {
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.send({ type: 'heartbeat' });
+                this.send({ type: 'ping', payload: { timestamp: Date.now() } });
             }
-        }, 30000); // Send heartbeat every 30 seconds
+        }, 30000); // Send ping every 30 seconds
     }
 
     stopHeartbeat() {
