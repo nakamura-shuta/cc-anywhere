@@ -124,6 +124,8 @@ export interface TaskEntity {
   nextRetryAt?: Date;
   groupId?: string;
   repositoryName?: string;
+  conversationHistory?: unknown;
+  continuedFrom?: string;
 }
 
 export interface BatchTaskEntity {

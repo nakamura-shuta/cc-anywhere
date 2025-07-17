@@ -86,6 +86,8 @@ export interface TaskRequest {
     worktree?: WorktreeOptions; // Detailed worktree configuration
     // Claude Code SDK options
     sdk?: ClaudeCodeSDKOptions;
+    // Cross-repository continuation
+    allowCrossRepository?: boolean; // Allow continuation in different repository
   };
 }
 
@@ -137,6 +139,7 @@ export interface TaskResponse {
   repositoryName?: string;
   groupId?: string;
   todos?: TodoItem[];
+  continuedFrom?: string;
 }
 
 /**
@@ -159,6 +162,8 @@ export interface ClaudeExecutionResult {
   filesModified?: string[];
   /** Todo items from TodoWrite tool */
   todos?: TodoItem[];
+  /** Conversation history (SDK messages) */
+  conversationHistory?: any[];
 }
 
 /**

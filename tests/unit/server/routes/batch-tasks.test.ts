@@ -4,6 +4,7 @@ import { createApp } from "../../../../src/server/app";
 
 describe("POST /api/batch/tasks", () => {
   let app: FastifyInstance;
+  const testApiKey = process.env.API_KEY || "hoge";
 
   beforeEach(async () => {
     app = await createApp({ logger: false });
@@ -19,7 +20,7 @@ describe("POST /api/batch/tasks", () => {
       method: "POST",
       url: "/api/batch/tasks",
       headers: {
-        "X-API-Key": "test-api-key",
+        "X-API-Key": testApiKey,
         "Content-Type": "application/json",
       },
       payload: {
@@ -61,7 +62,7 @@ describe("POST /api/batch/tasks", () => {
       method: "POST",
       url: "/api/batch/tasks",
       headers: {
-        "X-API-Key": "test-api-key",
+        "X-API-Key": testApiKey,
         "Content-Type": "application/json",
       },
       payload: {
@@ -83,7 +84,7 @@ describe("POST /api/batch/tasks", () => {
       method: "POST",
       url: "/api/batch/tasks",
       headers: {
-        "X-API-Key": "test-api-key",
+        "X-API-Key": testApiKey,
         "Content-Type": "application/json",
       },
       payload: {
@@ -105,7 +106,7 @@ describe("POST /api/batch/tasks", () => {
       method: "POST",
       url: "/api/batch/tasks",
       headers: {
-        "X-API-Key": "test-api-key",
+        "X-API-Key": testApiKey,
         "Content-Type": "application/json",
       },
       payload: {

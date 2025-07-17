@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Claude Code SDK を v1.0.51 に更新
 - 権限モードの実装を改善（ask → default, allow → bypassPermissions, deny → plan）
 - Web UIを SDK の権限モードに合わせて更新
+- テストのパフォーマンス最適化（beforeAll/afterAllの使用により実行時間を60秒から11秒に短縮）
 
 ### Added
 - Claude Code SDK 1.0.51の新機能をTODO.mdに追加
@@ -22,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 並列Web検索
   - MCPサーバー実行
   - プログレスメッセージ改善
+- **タスク継続API**: `POST /api/tasks/:taskId/continue` エンドポイントを追加
+  - 完了したタスクから会話を継続する新しいタスクを作成
+  - 親タスクの会話履歴と実行結果を引き継ぎ
+- **会話履歴保存機能**: タスク完了時にClaude Code SDKの会話履歴を自動保存
+  - データベースに`conversation_history`カラムを追加
+  - 成功・失敗両方のタスクで会話履歴を保存
+- **会話フォーマッター**: SDKメッセージを人間が読める形式に変換するユーティリティ
+  - システムプロンプト用のフォーマット機能
+  - ツール使用情報の抽出
 
 ### Removed
 - @anthropic-ai/sdk依存関係を削除
@@ -32,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - ビルドエラーを修正（未使用のメソッドを削除）
 - テストファイルのインポートエラーを修正
+- 単体テストのAPIキー認証エラーを修正（環境変数を使用）
 
 ## [0.3.0] - 2025-01-14
 

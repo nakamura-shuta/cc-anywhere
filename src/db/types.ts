@@ -21,6 +21,10 @@ export interface TaskRecord {
   // Batch task support
   groupId?: string;
   repositoryName?: string;
+  // Conversation history
+  conversationHistory?: any; // Parsed JSON containing SDK messages
+  // Task continuation
+  continuedFrom?: string; // Parent task ID for continuation
 }
 
 export interface TaskFilter {

@@ -323,6 +323,16 @@ export class TaskQueueImpl implements TaskQueue {
         try {
           this.repository.updateResult(task.id, task.result);
           this.repository.updateStatus(task.id, TaskStatus.COMPLETED);
+
+          // Save conversation history if available
+          if (result.conversationHistory) {
+            this.repository.updateConversationHistory(task.id, result.conversationHistory);
+            logger.info("Conversation history saved", {
+              taskId: task.id,
+              messageCount: result.conversationHistory.length,
+            });
+          }
+
           logger.info("Task result updated in database", { taskId: task.id, status: task.status });
         } catch (error) {
           logger.error("Failed to update task result in database", { taskId: task.id, error });
@@ -451,6 +461,15 @@ export class TaskQueueImpl implements TaskQueue {
         // Update status in database
         try {
           this.repository.updateStatus(task.id, TaskStatus.FAILED, error);
+
+          // Save conversation history even for failed tasks
+          if (result.conversationHistory) {
+            this.repository.updateConversationHistory(task.id, result.conversationHistory);
+            logger.info("Conversation history saved for failed task", {
+              taskId: task.id,
+              messageCount: result.conversationHistory.length,
+            });
+          }
         } catch (dbError) {
           logger.error("Failed to update task status in database", {
             taskId: task.id,

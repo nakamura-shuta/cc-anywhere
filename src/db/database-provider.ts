@@ -173,6 +173,20 @@ export class DatabaseProvider {
         // Column may already exist
       }
 
+      // Add conversation_history column to tasks table if not exists
+      try {
+        this.db.exec(`ALTER TABLE tasks ADD COLUMN conversation_history TEXT`);
+      } catch (error) {
+        // Column may already exist
+      }
+
+      // Add continued_from column to tasks table if not exists
+      try {
+        this.db.exec(`ALTER TABLE tasks ADD COLUMN continued_from TEXT`);
+      } catch (error) {
+        // Column may already exist
+      }
+
       // Create indexes for sessions
       this.db.exec(`
         CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
@@ -180,6 +194,7 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
         CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_id ON conversation_turns(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
+        CREATE INDEX IF NOT EXISTS idx_tasks_has_conversation ON tasks(id) WHERE conversation_history IS NOT NULL;
       `);
 
       logger.debug("Database migrations completed");

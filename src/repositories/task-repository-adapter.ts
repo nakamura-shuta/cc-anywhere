@@ -31,6 +31,7 @@ export class TaskRepositoryAdapter {
     retryMetadata?: TaskResponse["retryMetadata"];
     groupId?: string;
     repositoryName?: string;
+    conversationHistory?: any;
   }): TaskRecord {
     const entity: TaskEntity = {
       id: task.id,
@@ -44,6 +45,9 @@ export class TaskRepositoryAdapter {
       retryMetadata: task.retryMetadata || undefined,
       groupId: task.groupId || undefined,
       repositoryName: task.repositoryName || undefined,
+      conversationHistory: task.conversationHistory || undefined,
+      continuedFrom:
+        (task.context as any)?.continuedFrom || (task.context as any)?.parentTaskId || undefined,
       createdAt: new Date(),
       updatedAt: new Date(),
       completedAt: undefined,
@@ -56,9 +60,9 @@ export class TaskRepositoryAdapter {
         id, instruction, context, options, priority, status, 
         result, error, created_at, updated_at, completed_at, 
         started_at, cancelled_at, retry_count, max_retries,
-        retry_metadata, group_id, repository_name
+        retry_metadata, group_id, repository_name, conversation_history, continued_from
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `);
 
@@ -81,6 +85,8 @@ export class TaskRepositoryAdapter {
       entity.retryMetadata ? JSON.stringify(entity.retryMetadata) : null,
       entity.groupId || null,
       entity.repositoryName || null,
+      entity.conversationHistory ? JSON.stringify(entity.conversationHistory) : null,
+      entity.continuedFrom || task.context?.continuedFrom || task.context?.parentTaskId || null,
     );
 
     return this.entityToRecord(entity);
@@ -325,6 +331,14 @@ export class TaskRepositoryAdapter {
     );
   }
 
+  // New method: updateConversationHistory
+  updateConversationHistory(id: string, conversationHistory: any): void {
+    const stmt = this.db.prepare(`
+      UPDATE tasks SET conversation_history = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run(JSON.stringify(conversationHistory), new Date().toISOString(), id);
+  }
+
   // Legacy method: resetTaskForRetry
   resetTaskForRetry(id: string): void {
     const stmt = this.db.prepare(`
@@ -405,6 +419,8 @@ export class TaskRepositoryAdapter {
       retryMetadata: entity.retryMetadata,
       groupId: entity.groupId,
       repositoryName: entity.repositoryName,
+      conversationHistory: entity.conversationHistory,
+      continuedFrom: entity.continuedFrom,
     };
   }
 
@@ -429,6 +445,10 @@ export class TaskRepositoryAdapter {
       retryMetadata: row.retry_metadata ? JSON.parse(row.retry_metadata) : undefined,
       groupId: row.group_id || undefined,
       repositoryName: row.repository_name || undefined,
+      conversationHistory: row.conversation_history
+        ? JSON.parse(row.conversation_history)
+        : undefined,
+      continuedFrom: row.continued_from || undefined,
     };
   }
 }

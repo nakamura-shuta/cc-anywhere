@@ -466,6 +466,19 @@ select {
     flex: 1;
 }
 
+.continuation-badge {
+    background-color: #dbeafe;
+    color: #1e40af;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid #93c5fd;
+}
+
 .task-id {
     font-family: monospace;
     font-size: 12px;
@@ -569,6 +582,11 @@ select {
     .task-repository {
         font-size: 10px;
         max-width: 120px;
+    }
+    
+    .continuation-badge {
+        font-size: 10px;
+        padding: 1px 6px;
     }
     
     .task-instruction {

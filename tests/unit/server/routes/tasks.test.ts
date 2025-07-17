@@ -44,6 +44,7 @@ vi.mock("../../../../src/events", () => ({
 describe("Task Routes", () => {
   let app: FastifyInstance;
   let mockRepository: any;
+  const testApiKey = process.env.API_KEY || "hoge";
 
   beforeEach(async () => {
     // Mock repository
@@ -121,7 +122,7 @@ describe("Task Routes", () => {
         method: "GET",
         url: "/api/tasks",
         headers: {
-          "X-API-Key": "test-api-key",
+          "X-API-Key": testApiKey,
         },
       });
 
@@ -183,7 +184,7 @@ describe("Task Routes", () => {
         method: "GET",
         url: "/api/tasks",
         headers: {
-          "X-API-Key": "test-api-key",
+          "X-API-Key": testApiKey,
         },
       });
 
@@ -244,7 +245,7 @@ describe("Task Routes", () => {
         method: "GET",
         url: `/api/tasks/${taskId}`,
         headers: {
-          "X-API-Key": "test-api-key",
+          "X-API-Key": testApiKey,
         },
       });
 
@@ -290,7 +291,7 @@ describe("Task Routes", () => {
         method: "POST",
         url: "/api/tasks",
         headers: {
-          "X-API-Key": "test-api-key",
+          "X-API-Key": testApiKey,
           "Content-Type": "application/json",
         },
         payload: {

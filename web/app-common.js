@@ -278,10 +278,15 @@ function createTaskElement(task) {
         ? task.instruction.substring(0, 40) + '...' 
         : task.instruction;
 
+    // 継続タスクの場合のバッジ
+    const continuationBadge = task.continuedFrom ? 
+        `<span class="continuation-badge" title="親タスク: ${task.continuedFrom}">🔗 継続</span>` : '';
+
     div.innerHTML = `
         <div class="task-header">
             <div class="task-id-section">
                 <span class="task-id" title="${taskId}">ID: ${taskId.substring(0, 8)}</span>
+                ${continuationBadge}
                 <span class="task-repository">📁 ${escapeHtml(repoName)}</span>
             </div>
             <span class="task-status ${statusClass}">${getStatusText(task.status)}</span>
@@ -356,6 +361,21 @@ function renderTaskDetail(task) {
     const createdAt = new Date(task.createdAt).toLocaleString('ja-JP');
     const completedAt = task.completedAt ? new Date(task.completedAt).toLocaleString('ja-JP') : '-';
     
+    // 継続タスク情報の表示を追加
+    let continuationHtml = '';
+    if (task.continuedFrom) {
+        continuationHtml = `
+        <div class="detail-row">
+            <span class="detail-label">親タスク:</span>
+            <span class="detail-value">
+                <a href="#" onclick="showTaskDetail('${task.continuedFrom}'); return false;" class="text-blue-600 hover:underline">
+                    ${task.continuedFrom}
+                </a>
+            </span>
+        </div>
+        `;
+    }
+    
     // SDKオプションの表示を追加
     let sdkOptionsHtml = '';
     if (task.options && task.options.sdk) {
@@ -413,6 +433,7 @@ function renderTaskDetail(task) {
                 <span class="task-status ${task.status.toLowerCase()}">${getStatusText(task.status)}</span>
             </span>
         </div>
+        ${continuationHtml}
         <div class="detail-row">
             <span class="detail-label">実行内容:</span>
             <span class="detail-value">${escapeHtml(task.instruction)}</span>

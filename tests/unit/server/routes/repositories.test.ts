@@ -6,6 +6,7 @@ import { join } from "path";
 
 describe("Repository Routes", () => {
   let app: FastifyInstance;
+  const testApiKey = process.env.API_KEY || "hoge";
   const testConfigPath = join(process.cwd(), "config", "repositories.test.json");
 
   const testConfig = {
@@ -47,7 +48,7 @@ describe("Repository Routes", () => {
         method: "GET",
         url: "/api/repositories",
         headers: {
-          "X-API-Key": "test-api-key",
+          "X-API-Key": testApiKey,
         },
       });
 
@@ -65,7 +66,7 @@ describe("Repository Routes", () => {
         method: "GET",
         url: "/api/repositories",
         headers: {
-          "X-API-Key": "test-api-key",
+          "X-API-Key": testApiKey,
         },
       });
 

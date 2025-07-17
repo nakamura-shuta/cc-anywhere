@@ -5,6 +5,7 @@ import type { ErrorResponse, TaskLogResponse, TaskCancelResponse } from "../../t
 import { RetryService } from "../../services/retry-service";
 import { checkApiKey } from "../middleware/auth";
 import { SystemError } from "../../utils/errors";
+import { ConversationFormatter } from "../../utils/conversation-formatter";
 
 // eslint-disable-next-line @typescript-eslint/require-await
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
@@ -69,6 +70,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                     logs: { type: "array", nullable: true, items: { type: "string" } },
                     retryMetadata: { nullable: true, additionalProperties: true },
                     allowedTools: { type: "array", nullable: true, items: { type: "string" } },
+                    continuedFrom: { type: "string", nullable: true },
                   },
                 },
               },
@@ -96,6 +98,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           recordContext: record.context,
           queuedTaskContext: queuedTask.request.context,
           workingDirectory: queuedTask.request.context?.workingDirectory,
+          continuedFrom: record.continuedFrom,
         });
 
         const taskResponse = {
@@ -117,6 +120,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           allowedTools: queuedTask.request.options?.allowedTools,
           workingDirectory: queuedTask.request.context?.workingDirectory,
           todos: queuedTask.result?.todos,
+          continuedFrom: record.continuedFrom || undefined,
         };
 
         return taskResponse;
@@ -453,6 +457,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         repositoryName: record.repositoryName || undefined,
         groupId: record.groupId || undefined,
         todos: queuedTask.result?.todos,
+        continuedFrom: record.continuedFrom || undefined,
       };
 
       void reply.send(task);
@@ -671,6 +676,247 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         };
         return reply.status(500).send(errorResponse);
       }
+    },
+  );
+
+  // Continue task from completed task
+  fastify.post<{
+    Params: { taskId: string };
+    Body: TaskRequest;
+    Reply: (TaskResponse & { continuedFrom?: string }) | ErrorResponse;
+  }>(
+    "/tasks/:taskId/continue",
+    {
+      preHandler: checkApiKey,
+      schema: {
+        params: {
+          type: "object",
+          properties: {
+            taskId: { type: "string" },
+          },
+          required: ["taskId"],
+        },
+        body: {
+          type: "object",
+          properties: {
+            instruction: { type: "string", minLength: 1 },
+            context: {
+              type: "object",
+              properties: {
+                workingDirectory: { type: "string" },
+                files: { type: "array", items: { type: "string" } },
+              },
+            },
+            options: {
+              type: "object",
+              properties: {
+                timeout: {
+                  oneOf: [
+                    { type: "number", minimum: 1000, maximum: 600000 },
+                    {
+                      type: "object",
+                      properties: {
+                        total: { type: "number", minimum: 1000, maximum: 600000 },
+                        setup: { type: "number", minimum: 100, maximum: 300000 },
+                        execution: { type: "number", minimum: 1000, maximum: 600000 },
+                        cleanup: { type: "number", minimum: 100, maximum: 60000 },
+                        warningThreshold: { type: "number", minimum: 0.1, maximum: 1 },
+                        behavior: { type: "string", enum: ["hard", "soft"] },
+                      },
+                    },
+                  ],
+                  default: 300000,
+                },
+                async: { type: "boolean", default: false },
+                sdk: {
+                  type: "object",
+                  additionalProperties: true,
+                },
+              },
+            },
+          },
+          required: ["instruction"],
+        },
+        response: {
+          201: {
+            type: "object",
+            properties: {
+              taskId: { type: "string" },
+              status: { type: "string" },
+              instruction: { type: "string" },
+              createdAt: { type: "string" },
+              continuedFrom: { type: "string" },
+              parentTaskId: { type: "string", nullable: true },
+              conversationHistory: { type: "array", nullable: true, items: { type: "object" } },
+            },
+          },
+          400: {
+            type: "object",
+            properties: {
+              error: {
+                type: "object",
+                properties: {
+                  message: { type: "string" },
+                  statusCode: { type: "number" },
+                  code: { type: "string" },
+                },
+              },
+            },
+          },
+          404: {
+            type: "object",
+            properties: {
+              error: {
+                type: "object",
+                properties: {
+                  message: { type: "string" },
+                  statusCode: { type: "number" },
+                  code: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const parentTaskId = request.params.taskId;
+      const parentRecord = repository.getById(parentTaskId);
+
+      if (!parentRecord) {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Parent task not found",
+            statusCode: 404,
+            code: "PARENT_TASK_NOT_FOUND",
+          },
+        };
+        return reply.status(404).send(errorResponse);
+      }
+
+      // Check if parent task is completed
+      if (parentRecord.status !== "completed") {
+        const errorResponse: ErrorResponse = {
+          error: {
+            message: "Can only continue from completed tasks",
+            statusCode: 400,
+            code: "INVALID_STATE",
+          },
+        };
+        return reply.status(400).send(errorResponse);
+      }
+
+      // Build continuation task request
+      const parentTask = repository.toQueuedTask(parentRecord);
+
+      // Check if working directory matches
+      const parentWorkingDir = parentTask.request.context?.workingDirectory;
+      const requestWorkingDir = request.body.context?.workingDirectory;
+
+      // Check if cross-repository continuation is allowed
+      const allowCrossRepository = request.body.options?.allowCrossRepository === true;
+
+      // If both are specified and they don't match, check if cross-repository is allowed
+      if (parentWorkingDir && requestWorkingDir && parentWorkingDir !== requestWorkingDir) {
+        if (!allowCrossRepository) {
+          const errorResponse: ErrorResponse = {
+            error: {
+              message:
+                "Continuation tasks must use the same working directory as the parent task. Set options.allowCrossRepository to true to enable cross-repository continuation.",
+              statusCode: 400,
+              code: "WORKING_DIRECTORY_MISMATCH",
+            },
+          };
+          return reply.status(400).send(errorResponse);
+        }
+
+        // Log cross-repository continuation
+        logger.info("Cross-repository continuation enabled", {
+          parentTaskId,
+          parentWorkingDir,
+          requestWorkingDir,
+        });
+      }
+
+      // Use saved conversation history if available
+      let systemPrompt: string;
+      let conversationHistory: any;
+
+      // Add cross-repository context if needed
+      const crossRepoContext =
+        allowCrossRepository && parentWorkingDir !== requestWorkingDir
+          ? `\n\nNote: This is a cross-repository continuation. Previous task was in ${parentWorkingDir}, now working in ${requestWorkingDir || "current directory"}.`
+          : "";
+
+      if (parentRecord.conversationHistory) {
+        // Format SDK messages for system prompt
+        systemPrompt =
+          ConversationFormatter.formatForSystemPrompt(parentRecord.conversationHistory) +
+          crossRepoContext;
+        conversationHistory = parentRecord.conversationHistory;
+      } else {
+        // Fallback to simple format
+        systemPrompt = `Previous conversation:
+User: ${parentTask.request.instruction}
+Assistant: ${String(parentTask.result?.result || "Task completed")}
+
+Please continue from the above conversation, maintaining context and remembering what was discussed.${crossRepoContext}`;
+        conversationHistory = [
+          {
+            instruction: parentTask.request.instruction,
+            response: parentTask.result?.result || "Task completed",
+            logs: parentTask.result?.logs,
+          },
+        ];
+      }
+
+      // Create new task with parent context
+      const continuationRequest: TaskRequest = {
+        instruction: request.body.instruction,
+        context: {
+          ...request.body.context,
+          parentTaskId,
+          continuedFrom: parentTaskId,
+          conversationHistory,
+          // Use requested working directory for cross-repository, otherwise use parent's
+          workingDirectory:
+            allowCrossRepository && requestWorkingDir
+              ? requestWorkingDir
+              : parentWorkingDir || request.body.context?.workingDirectory,
+        },
+        options: {
+          ...request.body.options,
+          sdk: {
+            ...request.body.options?.sdk,
+            // Use formatted system prompt
+            systemPrompt: request.body.options?.sdk?.systemPrompt || systemPrompt,
+          },
+        },
+      };
+
+      // Add task to queue
+      const taskId = taskQueue.add(continuationRequest, 0);
+      const queuedTask = taskQueue.get(taskId);
+
+      if (!queuedTask) {
+        throw new SystemError("Failed to create continuation task", { parentTaskId, taskId });
+      }
+
+      const response: TaskResponse & { continuedFrom?: string } = {
+        taskId,
+        status: TaskStatus.PENDING,
+        instruction: request.body.instruction,
+        createdAt: queuedTask.addedAt,
+        continuedFrom: parentTaskId,
+        workingDirectory: continuationRequest.context?.workingDirectory,
+      };
+
+      // Handle async option
+      if (request.body.options?.async) {
+        return reply.status(202).send(response);
+      }
+
+      return reply.status(201).send(response);
     },
   );
 };

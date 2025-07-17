@@ -109,6 +109,7 @@ export class TaskExecutorImpl implements TaskExecutor {
   ): Promise<ClaudeExecutionResult> {
     const startTime = Date.now();
     const logs: string[] = [];
+    let sdkMessages: any[] = []; // Store SDK messages for conversation history
 
     logs.push(`Task started: ${task.instruction}`);
 
@@ -370,6 +371,9 @@ export class TaskExecutorImpl implements TaskExecutor {
           logs.push(...summary.highlights);
         }
 
+        // Store SDK messages for conversation history
+        sdkMessages = sdkResult.messages;
+
         // Process result based on output format
         const processedResult = this.processClaudeCodeResult(sdkResult, sdkOptions.outputFormat);
 
@@ -438,6 +442,7 @@ export class TaskExecutorImpl implements TaskExecutor {
         logs,
         duration: Date.now() - startTime,
         todos,
+        conversationHistory: sdkMessages.length > 0 ? sdkMessages : undefined,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -469,6 +474,7 @@ export class TaskExecutorImpl implements TaskExecutor {
         error: error instanceof Error ? error : new Error(errorMessage),
         logs,
         duration: Date.now() - startTime,
+        conversationHistory: sdkMessages.length > 0 ? sdkMessages : undefined,
       };
     }
   }
