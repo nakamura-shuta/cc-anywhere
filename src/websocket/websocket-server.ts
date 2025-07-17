@@ -37,7 +37,7 @@ export class WebSocketServer {
     this.options = {
       heartbeatInterval: options.heartbeatInterval ?? 30000,
       heartbeatTimeout: options.heartbeatTimeout ?? 60000,
-      maxLogBufferSize: options.maxLogBufferSize ?? 1000,
+      maxLogBufferSize: options.maxLogBufferSize ?? 10000,
       authTimeout: options.authTimeout ?? 10000,
     };
   }
@@ -434,7 +434,7 @@ export class WebSocketServer {
         const truncatePayloadField = (
           payload: any,
           fieldName: string,
-          maxLength: number = 5000,
+          maxLength: number = 50000,
         ): any => {
           if (
             payload &&
@@ -458,8 +458,8 @@ export class WebSocketServer {
 
           switch (message.type) {
             case "task:tool:end":
-              truncatedPayload = truncatePayloadField(truncatedPayload, "output", 5000);
-              truncatedPayload = truncatePayloadField(truncatedPayload, "error", 2000);
+              truncatedPayload = truncatePayloadField(truncatedPayload, "output", 50000);
+              truncatedPayload = truncatePayloadField(truncatedPayload, "error", 20000);
               break;
 
             case "task:tool:start":
@@ -469,13 +469,13 @@ export class WebSocketServer {
                 if (
                   input.content &&
                   typeof input.content === "string" &&
-                  input.content.length > 2000
+                  input.content.length > 20000
                 ) {
                   truncatedPayload = {
                     ...truncatedPayload,
                     input: {
                       ...input,
-                      content: input.content.substring(0, 2000) + "... (truncated)",
+                      content: input.content.substring(0, 20000) + "... (truncated)",
                     },
                   };
                 }
@@ -483,11 +483,11 @@ export class WebSocketServer {
               break;
 
             case "task:log":
-              truncatedPayload = truncatePayloadField(truncatedPayload, "log", 2000);
+              truncatedPayload = truncatePayloadField(truncatedPayload, "log", 20000);
               break;
 
             case "task:claude:response":
-              truncatedPayload = truncatePayloadField(truncatedPayload, "text", 5000);
+              truncatedPayload = truncatePayloadField(truncatedPayload, "text", 50000);
               break;
           }
 
@@ -505,14 +505,14 @@ export class WebSocketServer {
         const messageStr = JSON.stringify(messageToSend);
 
         // メッセージサイズが大きすぎる場合の警告
-        if (messageStr.length > 50000) {
+        if (messageStr.length > 500000) {
           logger.warn(`Large WebSocket message: ${messageStr.length} bytes`, {
             clientId: ws.id,
             messageType: message.type,
           });
 
-          // 50KB以上のメッセージは警告メッセージに置き換える
-          if (messageStr.length > 100000) {
+          // 1MB以上のメッセージは警告メッセージに置き換える
+          if (messageStr.length > 1000000) {
             const warningMessage = {
               type: "task:log",
               payload: {
@@ -555,7 +555,7 @@ export class WebSocketServer {
   }
 
   // Log buffer management
-  private trimLogBuffer(ws: AuthenticatedWebSocket, maxSize: number = 100): void {
+  private trimLogBuffer(ws: AuthenticatedWebSocket, maxSize: number = 1000): void {
     if (ws.logBuffer.length > maxSize) {
       // Keep only the most recent logs
       ws.logBuffer = ws.logBuffer.slice(-maxSize);

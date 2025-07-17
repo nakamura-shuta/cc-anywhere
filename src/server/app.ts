@@ -151,6 +151,7 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
       heartbeatInterval: config.websocket?.heartbeatInterval,
       heartbeatTimeout: config.websocket?.heartbeatTimeout,
       authTimeout: config.websocket?.authTimeout,
+      maxLogBufferSize: config.websocket?.maxLogBufferSize,
     });
 
     await wsServer.register(app);

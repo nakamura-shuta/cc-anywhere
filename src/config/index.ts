@@ -13,7 +13,7 @@ const envSchema = z.object({
   CLAUDE_API_KEY: z.string(),
   API_KEY: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
-  TASK_TIMEOUT_MS: z.string().default("600000").transform(Number), // 10 minutes
+  TASK_TIMEOUT_MS: z.string().default("1800000").transform(Number), // 30 minutes
   MAX_CONCURRENT_TASKS: z.string().default("10").transform(Number),
   QUEUE_CONCURRENCY: z.string().default("2").transform(Number),
   DB_PATH: z.string().default("./data/cc-anywhere.db"),
@@ -23,9 +23,10 @@ const envSchema = z.object({
     .string()
     .default("true")
     .transform((v) => v === "true"),
-  WEBSOCKET_HEARTBEAT_INTERVAL: z.string().default("30000").transform(Number),
-  WEBSOCKET_HEARTBEAT_TIMEOUT: z.string().default("60000").transform(Number),
-  WEBSOCKET_AUTH_TIMEOUT: z.string().default("10000").transform(Number),
+  WEBSOCKET_HEARTBEAT_INTERVAL: z.string().default("60000").transform(Number),
+  WEBSOCKET_HEARTBEAT_TIMEOUT: z.string().default("120000").transform(Number),
+  WEBSOCKET_AUTH_TIMEOUT: z.string().default("30000").transform(Number),
+  WEBSOCKET_MAX_LOG_BUFFER_SIZE: z.string().default("10000").transform(Number),
   // Tunnel configuration
   TUNNEL_TYPE: z.enum(["none", "ngrok", "cloudflare"]).default("none"),
   ENABLE_NGROK: z
@@ -100,6 +101,7 @@ export const config = {
     heartbeatInterval: env.WEBSOCKET_HEARTBEAT_INTERVAL,
     heartbeatTimeout: env.WEBSOCKET_HEARTBEAT_TIMEOUT,
     authTimeout: env.WEBSOCKET_AUTH_TIMEOUT,
+    maxLogBufferSize: env.WEBSOCKET_MAX_LOG_BUFFER_SIZE,
   },
   tunnel: {
     type: env.TUNNEL_TYPE,
