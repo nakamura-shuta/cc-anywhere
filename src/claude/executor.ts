@@ -709,7 +709,7 @@ export class TaskExecutorImpl implements TaskExecutor {
 
     return {
       // Priority: High
-      maxTurns: sdkOptions?.maxTurns ?? defaultConfig.defaultMaxTurns ?? 3,
+      maxTurns: sdkOptions?.maxTurns ?? defaultConfig.defaultMaxTurns ?? 50,
       allowedTools: sdkOptions?.allowedTools ?? legacyOptions?.allowedTools ?? [],
       disallowedTools: sdkOptions?.disallowedTools ?? [],
       systemPrompt: sdkOptions?.systemPrompt ?? "",
