@@ -377,6 +377,17 @@ export class TaskQueueImpl implements TaskQueue {
 
       if (result.success) {
         task.status = TaskStatus.COMPLETED;
+        
+        logger.info("Task completed successfully", {
+          taskId: task.id,
+          instruction: task.request.instruction.substring(0, 100),
+          duration: result.duration,
+          todosCount: result.todos?.length || 0,
+          outputLength: typeof result.output === 'string' ? result.output.length : 0,
+          logsCount: result.logs?.length || 0,
+          hasTodos: !!result.todos && result.todos.length > 0,
+        });
+        
         task.result = {
           taskId: task.id,
           status: TaskStatus.COMPLETED,

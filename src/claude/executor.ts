@@ -435,8 +435,22 @@ export class TaskExecutorImpl implements TaskExecutor {
 
       // Get todos from tracker if available
       const todos = sdkResult?.tracker ? sdkResult.tracker.getTodos() : undefined;
+      
+      if (todos && todos.length > 0) {
+        logger.info("TODOs found in result", {
+          taskId,
+          todosCount: todos.length,
+          todos: todos,
+        });
+      } else {
+        logger.info("No TODOs found in result", { 
+          taskId, 
+          hasTracker: !!sdkResult?.tracker,
+          trackerTodos: sdkResult?.tracker ? "empty" : "no tracker"
+        });
+      }
 
-      return {
+      const result = {
         success: true,
         output,
         logs,
@@ -444,6 +458,16 @@ export class TaskExecutorImpl implements TaskExecutor {
         todos,
         conversationHistory: sdkMessages.length > 0 ? sdkMessages : undefined,
       };
+      
+      logger.info("Task execution completed successfully", {
+        taskId,
+        duration: result.duration,
+        todosCount: result.todos?.length || 0,
+        logsCount: result.logs?.length || 0,
+        hasConversationHistory: !!result.conversationHistory,
+      });
+      
+      return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       logs.push(`Task failed: ${errorMessage}`);

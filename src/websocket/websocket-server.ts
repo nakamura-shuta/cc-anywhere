@@ -359,6 +359,20 @@ export class WebSocketServer {
       payload: update,
     };
 
+    // Count subscribers for this task
+    let subscribersCount = 0;
+    for (const client of this.clients.values()) {
+      if (client.authenticated && client.subscriptions.has(update.taskId)) {
+        subscribersCount++;
+      }
+    }
+    
+    logger.info("Broadcasting TODO update", {
+      taskId: update.taskId,
+      todosCount: update.todos.length,
+      subscribersCount: subscribersCount,
+    });
+
     this.broadcastToTaskSubscribers(update.taskId, message);
   }
 

@@ -68,14 +68,26 @@ export class ClaudeCodeClient {
         allowedTools.push("WebSearch");
       }
 
+      // Ensure TodoWrite is always allowed unless explicitly disallowed
+      const finalAllowedTools = allowedTools.length > 0 ? allowedTools : undefined;
+      const finalDisallowedTools = options.disallowedTools || [];
+      
+      // Log the tools configuration
+      logger.info("Claude Code SDK tools configuration", {
+        allowedTools: finalAllowedTools,
+        disallowedTools: finalDisallowedTools,
+        hasTodoWriteInAllowed: finalAllowedTools?.includes("TodoWrite"),
+        hasTodoWriteInDisallowed: finalDisallowedTools.includes("TodoWrite"),
+      });
+
       for await (const message of query({
         prompt,
         abortController,
         options: {
-          maxTurns: options.maxTurns || config.claudeCodeSDK.defaultMaxTurns,
+          maxTurns: maxTurns,
           cwd: options.cwd,
-          allowedTools: allowedTools.length > 0 ? allowedTools : undefined,
-          disallowedTools: options.disallowedTools,
+          allowedTools: finalAllowedTools,
+          disallowedTools: finalDisallowedTools,
           customSystemPrompt: options.systemPrompt,
           permissionMode: options.permissionMode,
           executable: options.executable,
@@ -169,6 +181,11 @@ export class ClaudeCodeClient {
                 content.input?.todos
               ) {
                 tracker.updateTodos(content.input.todos);
+                
+                logger.info("TodoWrite tool used", {
+                  todosCount: content.input.todos.length,
+                  todos: content.input.todos,
+                });
 
                 // Send todo update notification
                 if (options.onProgress) {
