@@ -60,6 +60,7 @@ export class ClaudeCodeClient {
       });
 
       let turnCount = 0;
+      const maxTurns = options.maxTurns || config.claudeCodeSDK.defaultMaxTurns;
 
       // If web search is enabled, add WebSearch to allowed tools
       const allowedTools = options.allowedTools || [];
@@ -101,7 +102,7 @@ export class ClaudeCodeClient {
             await options.onProgress({
               type: "claude:response",
               message: textContent,
-              data: { turnNumber: turnCount },
+              data: { turnNumber: turnCount, maxTurns },
             });
           }
         }

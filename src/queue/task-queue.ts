@@ -152,6 +152,21 @@ export class TaskQueueImpl implements TaskQueue {
         startedAt: task.startedAt,
       });
 
+      // Initialize progress data for this task
+      let progressData = {
+        currentTurn: 0,
+        maxTurns: undefined as number | undefined,
+        toolUsageCount: {} as Record<string, number>,
+        statistics: {
+          totalToolCalls: 0,
+          processedFiles: 0,
+          createdFiles: 0,
+          modifiedFiles: 0,
+          totalExecutions: 0,
+        },
+        todos: [] as any[],
+      };
+
       // Set up progress handler for WebSocket log streaming
       const requestWithProgress = {
         ...task.request,
@@ -211,6 +226,14 @@ export class TaskQueueImpl implements TaskQueue {
                     if (progress.data && progress.data.todos) {
                       // 実行中のタスクのTODOを一時的に保存
                       task.todos = progress.data.todos;
+                      progressData.todos = progress.data.todos;
+
+                      // Save progress data to database
+                      try {
+                        this.repository.updateProgressData(task.id, progressData);
+                      } catch (error) {
+                        logger.error("Failed to update progress data", { taskId: task.id, error });
+                      }
 
                       // Broadcast todo update via WebSocket
                       if (this.wsServer) {
@@ -231,6 +254,19 @@ export class TaskQueueImpl implements TaskQueue {
 
                   case "tool:start":
                     if (progress.data) {
+                      // Update tool usage count
+                      const toolName = progress.data.tool;
+                      if (toolName) {
+                        progressData.toolUsageCount[toolName] = (progressData.toolUsageCount[toolName] || 0) + 1;
+                        
+                        // Save progress data to database
+                        try {
+                          this.repository.updateProgressData(task.id, progressData);
+                        } catch (error) {
+                          logger.error("Failed to update progress data", { taskId: task.id, error });
+                        }
+                      }
+
                       this.wsServer?.broadcastToolStart({
                         taskId: task.id,
                         toolId: progress.data.toolId || `${progress.data.tool}-${Date.now()}`,
@@ -258,10 +294,22 @@ export class TaskQueueImpl implements TaskQueue {
 
                   case "claude:response":
                     if (progress.data) {
+                      // Update progress data
+                      progressData.currentTurn = progress.data.turnNumber || 1;
+                      progressData.maxTurns = progress.data.maxTurns || progressData.maxTurns;
+
+                      // Save progress data to database
+                      try {
+                        this.repository.updateProgressData(task.id, progressData);
+                      } catch (error) {
+                        logger.error("Failed to update progress data", { taskId: task.id, error });
+                      }
+
                       this.wsServer?.broadcastClaudeResponse({
                         taskId: task.id,
                         text: progress.message,
                         turnNumber: progress.data.turnNumber || 1,
+                        maxTurns: progress.data.maxTurns,
                         timestamp,
                       });
                     }
@@ -269,6 +317,30 @@ export class TaskQueueImpl implements TaskQueue {
 
                   case "statistics":
                     if (progress.data) {
+                      // Update progress data statistics
+                      if (progress.data.totalToolCalls !== undefined) {
+                        progressData.statistics.totalToolCalls = progress.data.totalToolCalls;
+                      }
+                      if (progress.data.processedFiles !== undefined) {
+                        progressData.statistics.processedFiles = progress.data.processedFiles;
+                      }
+                      if (progress.data.createdFiles !== undefined) {
+                        progressData.statistics.createdFiles = progress.data.createdFiles;
+                      }
+                      if (progress.data.modifiedFiles !== undefined) {
+                        progressData.statistics.modifiedFiles = progress.data.modifiedFiles;
+                      }
+                      if (progress.data.totalExecutions !== undefined) {
+                        progressData.statistics.totalExecutions = progress.data.totalExecutions;
+                      }
+
+                      // Save progress data to database
+                      try {
+                        this.repository.updateProgressData(task.id, progressData);
+                      } catch (error) {
+                        logger.error("Failed to update progress data", { taskId: task.id, error });
+                      }
+
                       this.wsServer?.broadcastTaskStatistics({
                         taskId: task.id,
                         statistics: progress.data,

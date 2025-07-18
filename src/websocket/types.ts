@@ -199,6 +199,7 @@ export interface ClaudeResponseMessage extends WebSocketMessage {
     taskId: string;
     text: string;
     turnNumber: number;
+    maxTurns?: number;
     timestamp: string;
   };
 }

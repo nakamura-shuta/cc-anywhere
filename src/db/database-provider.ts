@@ -187,6 +187,13 @@ export class DatabaseProvider {
         // Column may already exist
       }
 
+      // Add progress_data column to tasks table if not exists
+      try {
+        this.db.exec(`ALTER TABLE tasks ADD COLUMN progress_data TEXT`);
+      } catch (error) {
+        // Column may already exist
+      }
+
       // Create indexes for sessions
       this.db.exec(`
         CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);

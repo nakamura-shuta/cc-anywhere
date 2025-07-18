@@ -140,6 +140,19 @@ export interface TaskResponse {
   groupId?: string;
   todos?: TodoItem[];
   continuedFrom?: string;
+  progressData?: {
+    currentTurn?: number;
+    maxTurns?: number;
+    toolUsageCount?: Record<string, number>;
+    statistics?: {
+      totalToolCalls?: number;
+      processedFiles?: number;
+      createdFiles?: number;
+      modifiedFiles?: number;
+      totalExecutions?: number;
+    };
+    todos?: TodoItem[];
+  };
 }
 
 /**

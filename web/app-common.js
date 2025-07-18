@@ -645,9 +645,40 @@ function displayTaskLogs(task) {
     // それ以外の場合はクリア
     logContainer.innerHTML = '';
     
-    // タスクIDの統計情報をリセット
+    // タスクIDの統計情報をリセット（進捗情報がある場合は復元）
     taskStatistics.delete(taskId);
     toolTimings.clear();
+    
+    // 進捗情報が保存されている場合は復元
+    if (task.progressData) {
+        if (task.progressData.statistics) {
+            taskStatistics.set(taskId, task.progressData.statistics);
+        }
+        
+        // TODO リストを復元
+        if (task.progressData.todos && task.progressData.todos.length > 0) {
+            handleTodoUpdate({ taskId, todos: task.progressData.todos });
+        }
+        
+        // ターン数情報を復元
+        if (task.progressData.currentTurn && task.progressData.maxTurns) {
+            const turnInfo = document.createElement('div');
+            turnInfo.className = 'system-log';
+            turnInfo.innerHTML = `<div>現在のターン: ${task.progressData.currentTurn}/${task.progressData.maxTurns}</div>`;
+            logContainer.appendChild(turnInfo);
+        }
+        
+        // ツール使用回数を表示
+        if (task.progressData.toolUsageCount && Object.keys(task.progressData.toolUsageCount).length > 0) {
+            const toolUsageInfo = document.createElement('div');
+            toolUsageInfo.className = 'system-log';
+            const toolUsageSummary = Object.entries(task.progressData.toolUsageCount)
+                .map(([tool, count]) => `${tool}: ${count}回`)
+                .join(', ');
+            toolUsageInfo.innerHTML = `<div>ツール使用: ${toolUsageSummary}</div>`;
+            logContainer.appendChild(toolUsageInfo);
+        }
+    }
     
     let logsToRender = [];
     
@@ -915,7 +946,10 @@ function handleClaudeResponse(payload) {
     if (selectedTaskId !== payload.taskId) return;
     
     const content = document.createElement('div');
-    content.innerHTML = `💬 Claude: ${escapeHtml(payload.text)} <span class="turn-number">(ターン ${payload.turnNumber})</span>`;
+    const turnDisplay = payload.maxTurns ? 
+        `(ターン ${payload.turnNumber}/${payload.maxTurns})` : 
+        `(ターン ${payload.turnNumber})`;
+    content.innerHTML = `💬 Claude: ${escapeHtml(payload.text)} <span class="turn-number">${turnDisplay}</span>`;
     appendStreamingLog('', 'claude-raw', content);
 }
 

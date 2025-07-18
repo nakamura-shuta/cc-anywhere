@@ -25,6 +25,25 @@ export interface TaskRecord {
   conversationHistory?: any; // Parsed JSON containing SDK messages
   // Task continuation
   continuedFrom?: string; // Parent task ID for continuation
+  // Progress data
+  progressData?: {
+    currentTurn?: number;
+    maxTurns?: number;
+    toolUsageCount?: Record<string, number>;
+    statistics?: {
+      totalToolCalls?: number;
+      processedFiles?: number;
+      createdFiles?: number;
+      modifiedFiles?: number;
+      totalExecutions?: number;
+    };
+    todos?: Array<{
+      content: string;
+      status: "pending" | "in_progress" | "completed";
+      priority: "high" | "medium" | "low";
+      id: string;
+    }>;
+  };
 }
 
 export interface TaskFilter {

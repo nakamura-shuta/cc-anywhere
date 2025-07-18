@@ -456,8 +456,9 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         workingDirectory: queuedTask.request.context?.workingDirectory,
         repositoryName: record.repositoryName || undefined,
         groupId: record.groupId || undefined,
-        todos: queuedTask.result?.todos,
+        todos: queuedTask.result?.todos || record.progressData?.todos,
         continuedFrom: record.continuedFrom || undefined,
+        progressData: record.progressData || undefined,
       };
 
       void reply.send(task);

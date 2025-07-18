@@ -60,9 +60,10 @@ export class TaskRepositoryAdapter {
         id, instruction, context, options, priority, status, 
         result, error, created_at, updated_at, completed_at, 
         started_at, cancelled_at, retry_count, max_retries,
-        retry_metadata, group_id, repository_name, conversation_history, continued_from
+        retry_metadata, group_id, repository_name, conversation_history, continued_from,
+        progress_data
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `);
 
@@ -87,6 +88,7 @@ export class TaskRepositoryAdapter {
       entity.repositoryName || null,
       entity.conversationHistory ? JSON.stringify(entity.conversationHistory) : null,
       entity.continuedFrom || task.context?.continuedFrom || task.context?.parentTaskId || null,
+      null, // progress_data - initially null
     );
 
     return this.entityToRecord(entity);
@@ -339,6 +341,14 @@ export class TaskRepositoryAdapter {
     stmt.run(JSON.stringify(conversationHistory), new Date().toISOString(), id);
   }
 
+  // New method: updateProgressData
+  updateProgressData(id: string, progressData: TaskRecord["progressData"]): void {
+    const stmt = this.db.prepare(`
+      UPDATE tasks SET progress_data = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run(JSON.stringify(progressData), new Date().toISOString(), id);
+  }
+
   // Legacy method: resetTaskForRetry
   resetTaskForRetry(id: string): void {
     const stmt = this.db.prepare(`
@@ -449,6 +459,7 @@ export class TaskRepositoryAdapter {
         ? JSON.parse(row.conversation_history)
         : undefined,
       continuedFrom: row.continued_from || undefined,
+      progressData: row.progress_data ? JSON.parse(row.progress_data) : undefined,
     };
   }
 }

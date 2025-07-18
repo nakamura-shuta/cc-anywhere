@@ -126,6 +126,7 @@ export interface TaskEntity {
   repositoryName?: string;
   conversationHistory?: unknown;
   continuedFrom?: string;
+  progressData?: unknown;
 }
 
 export interface BatchTaskEntity {
