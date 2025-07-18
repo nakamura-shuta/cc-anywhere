@@ -366,7 +366,7 @@ export class WebSocketServer {
         subscribersCount++;
       }
     }
-    
+
     logger.info("Broadcasting TODO update", {
       taskId: update.taskId,
       todosCount: update.todos.length,

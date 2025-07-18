@@ -59,8 +59,17 @@ describe("ClaudeCodeClient", () => {
         prompt: "Test task",
         abortController: expect.any(AbortController),
         options: {
-          maxTurns: 3,
+          maxTurns: 50,
           cwd: undefined,
+          allowedTools: undefined,
+          continue: undefined,
+          customSystemPrompt: undefined,
+          disallowedTools: [],
+          executable: undefined,
+          executableArgs: undefined,
+          mcpServers: undefined,
+          permissionMode: undefined,
+          resume: undefined,
         },
       });
     });
@@ -88,6 +97,15 @@ describe("ClaudeCodeClient", () => {
         options: {
           maxTurns: 5,
           cwd: "/project",
+          allowedTools: undefined,
+          continue: undefined,
+          customSystemPrompt: undefined,
+          disallowedTools: [],
+          executable: undefined,
+          executableArgs: undefined,
+          mcpServers: undefined,
+          permissionMode: undefined,
+          resume: undefined,
         },
       });
     });

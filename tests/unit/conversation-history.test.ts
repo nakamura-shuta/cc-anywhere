@@ -5,7 +5,6 @@ import { TaskStatus, type TaskRequest } from "../../src/claude/types";
 import { getSharedDbProvider, closeSharedServices } from "../../src/db/shared-instance";
 
 describe("Conversation History", () => {
-  let executor: TaskExecutorImpl;
   let queue: TaskQueueImpl;
 
   beforeEach(async () => {

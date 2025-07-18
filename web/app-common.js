@@ -332,9 +332,13 @@ async function showTaskDetail(taskId) {
         
         const task = await apiClient.getTask(taskId);
         
-        // APIから取得したデータにTODOが含まれていない場合、現在のTODOを保持
-        if (!task.todos && currentTodos) {
-            task.todos = currentTodos;
+        // APIから取得したデータにTODOが含まれていない場合、progressDataまたは現在のTODOを使用
+        if (!task.todos) {
+            if (task.progressData && task.progressData.todos) {
+                task.todos = task.progressData.todos;
+            } else if (currentTodos) {
+                task.todos = currentTodos;
+            }
         }
         
         // 最新データでcurrentTasksを更新
@@ -1165,6 +1169,9 @@ async function handleTaskUpdate(payload) {
         
         // 完了/失敗時の通知
         if (payload.status === 'completed' || payload.status === 'failed') {
+            // 進捗インジケーターを停止
+            stopProgressIndicator();
+            
             showSuccess(`タスクが${payload.status === 'completed' ? '完了' : '失敗'}しました`);
             
             // 完了時のみ最新データを取得（結果やログを含む完全なデータ）

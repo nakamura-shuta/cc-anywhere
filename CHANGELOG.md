@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- タスク完了後に「まだ処理中です...」が表示される問題を修正
+- TODOリストのステータスが正しく表示されない問題を修正
+- ターン数表示が「5/3」のように最大値を超える問題を修正
+- タスク詳細を開き直した際に進捗情報が失われる問題を修正
+
 ### Changed
 - 完全に@anthropic-ai/claude-code SDKに移行し、@anthropic-ai/sdkを削除
 - Claude Code SDK を v1.0.51 に更新
 - 権限モードの実装を改善（ask → default, allow → bypassPermissions, deny → plan）
 - Web UIを SDK の権限モードに合わせて更新
 - テストのパフォーマンス最適化（beforeAll/afterAllの使用により実行時間を60秒から11秒に短縮）
+- デフォルトのmaxTurnsを3から50に変更
+- 進捗データ（progressData）をデータベースに永続化
 
 ### Added
 - Claude Code SDK 1.0.51の新機能をTODO.mdに追加
@@ -32,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **会話フォーマッター**: SDKメッセージを人間が読める形式に変換するユーティリティ
   - システムプロンプト用のフォーマット機能
   - ツール使用情報の抽出
+- **進捗データ永続化**: タスク実行中の進捗情報をデータベースに保存
+  - TODOリスト、ターン数、ツール使用統計を保存
+  - タスク詳細再表示時に進捗情報を復元
 
 ### Removed
 - @anthropic-ai/sdk依存関係を削除
@@ -43,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ビルドエラーを修正（未使用のメソッドを削除）
 - テストファイルのインポートエラーを修正
 - 単体テストのAPIキー認証エラーを修正（環境変数を使用）
+- WebSocketメッセージにmaxTurns情報が含まれない問題を修正
 
 ## [0.3.0] - 2025-01-14
 

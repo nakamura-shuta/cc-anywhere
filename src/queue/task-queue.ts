@@ -153,7 +153,7 @@ export class TaskQueueImpl implements TaskQueue {
       });
 
       // Initialize progress data for this task
-      let progressData = {
+      const progressData = {
         currentTurn: 0,
         maxTurns: undefined as number | undefined,
         toolUsageCount: {} as Record<string, number>,
@@ -257,13 +257,17 @@ export class TaskQueueImpl implements TaskQueue {
                       // Update tool usage count
                       const toolName = progress.data.tool;
                       if (toolName) {
-                        progressData.toolUsageCount[toolName] = (progressData.toolUsageCount[toolName] || 0) + 1;
-                        
+                        progressData.toolUsageCount[toolName] =
+                          (progressData.toolUsageCount[toolName] || 0) + 1;
+
                         // Save progress data to database
                         try {
                           this.repository.updateProgressData(task.id, progressData);
                         } catch (error) {
-                          logger.error("Failed to update progress data", { taskId: task.id, error });
+                          logger.error("Failed to update progress data", {
+                            taskId: task.id,
+                            error,
+                          });
                         }
                       }
 
@@ -377,17 +381,17 @@ export class TaskQueueImpl implements TaskQueue {
 
       if (result.success) {
         task.status = TaskStatus.COMPLETED;
-        
+
         logger.info("Task completed successfully", {
           taskId: task.id,
           instruction: task.request.instruction.substring(0, 100),
           duration: result.duration,
           todosCount: result.todos?.length || 0,
-          outputLength: typeof result.output === 'string' ? result.output.length : 0,
+          outputLength: typeof result.output === "string" ? result.output.length : 0,
           logsCount: result.logs?.length || 0,
           hasTodos: !!result.todos && result.todos.length > 0,
         });
-        
+
         task.result = {
           taskId: task.id,
           status: TaskStatus.COMPLETED,
