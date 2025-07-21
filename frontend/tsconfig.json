@@ -1,0 +1,15 @@
+{
+  "extends": "./.svelte-kit/tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true
+  }
+  // SvelteKitが自動的に.svelte-kit/tsconfig.jsonを生成し、
+  // それをextendsすることで適切な設定が継承される
+}
