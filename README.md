@@ -44,6 +44,16 @@ curl -X POST http://localhost:5000/api/tasks \
   }'
 ```
 
+## プロジェクト構造
+
+```
+cc-anywhere/
+├── backend/      # バックエンドAPI（Node.js/TypeScript）
+├── frontend/     # フロントエンド（SvelteKit）
+├── shared/       # 共有型定義
+└── docs/         # ドキュメント
+```
+
 ## セットアップ
 
 ### 前提条件
@@ -59,12 +69,18 @@ curl -X POST http://localhost:5000/api/tasks \
 git clone https://github.com/your-username/cc-anywhere
 cd cc-anywhere
 
-# 依存関係のインストール
+# 依存関係のインストール（ワークスペース対応）
 npm install
 
 # 環境変数の設定
 cp .env.example .env
 # .envファイルを編集してCLAUDE_API_KEYを設定
+
+# バックエンドのビルド
+npm run build:backend
+
+# フロントエンドのビルド
+npm run build:frontend
 ```
 
 ### 環境変数
@@ -92,7 +108,7 @@ MAX_CONCURRENT_TASKS=10
 QUEUE_CONCURRENCY=2
 
 # データベース（SQLite）
-DB_PATH=./data/cc-anywhere.db
+DB_PATH=./backend/data/cc-anywhere.db
 
 # Git Worktree設定
 ENABLE_WORKTREE=true
@@ -109,12 +125,12 @@ Web UIで使用する(Claude Codeの実行対象）ローカルリポジトリ�
 
 ```bash
 # サンプルから設定ファイルを作成
-cp config/repositories.json.example config/repositories.json
+cp backend/config/repositories.json.example backend/config/repositories.json
 
 # リポジトリ情報を編集
 ```
 
-`config/repositories.json`の例：
+`backend/config/repositories.json`の例：
 ```json
 {
   "repositories": [
@@ -133,10 +149,16 @@ cp config/repositories.json.example config/repositories.json
 ### 開発サーバーの起動
 
 ```bash
+# バックエンドとフロントエンドを同時起動
 npm run dev
+
+# 個別に起動する場合
+npm run dev:backend   # バックエンドのみ
+npm run dev:frontend  # フロントエンドのみ
 ```
 
-サーバーはデフォルトで `http://localhost:5000` で起動します。
+- バックエンドAPI: `http://localhost:5000`（デフォルト）
+- フロントエンドUI: `http://localhost:5173`（Viteデフォルト）
 
 ### Web UI について
 
@@ -162,7 +184,11 @@ http://localhost:5000/?apiKey=your-secret-api-key
 
 別のポートで起動する場合：
 ```bash
-PORT=5001 npm run dev
+# バックエンドのポート変更
+PORT=5001 npm run dev:backend
+
+# フロントエンドのポート変更
+npm run dev:frontend -- --port 3000
 ```
 
 ### ワーカーシステム
