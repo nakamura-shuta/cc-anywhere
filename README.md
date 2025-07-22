@@ -266,6 +266,7 @@ npm run clean && npm run build
 - [Git Worktree](docs/features/git-worktree.md) - 独立した作業環境での実行
 - [スケジューラー](docs/features/scheduler.md) - 定期実行とCron式の使用
 - [外部アクセス](docs/features/external-access.md) - Cloudflare Tunnelの設定
+- [フロントエンド開発ガイド](docs/frontend/README.md) - Svelte 5 & shadcn-svelteの包括的な学習ガイド
 - [変更履歴](docs/CHANGELOG.md) - 最新の機能と更新
 
 ## ライセンス
