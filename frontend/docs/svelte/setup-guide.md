@@ -175,7 +175,7 @@ npx shadcn-svelte@latest add button
 ### 9. 開発サーバーの起動
 
 ```bash
-# デフォルトポート（5173）で起動
+# デフォルトポート（4444）で起動
 npm run dev
 
 # カスタムポート（4444）で起動

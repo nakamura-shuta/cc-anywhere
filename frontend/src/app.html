@@ -15,10 +15,8 @@
 	</head>
 	<body data-sveltekit-preload-data="hover">
 		<!-- 
-			display: contents を使用することで、このdiv要素自体は
-			レイアウトに影響を与えずに、子要素のみをレンダリング
-			%sveltekit.body%にはSvelteKitアプリケーションの本体が挿入される
+			SvelteKitアプリケーションの本体が挿入される
 		-->
-		<div style="display: contents">%sveltekit.body%</div>
+		%sveltekit.body%
 	</body>
 </html>

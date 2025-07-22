@@ -1,7 +1,5 @@
 @import "tailwindcss";
 
-@import "tw-animate-css";
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -115,7 +113,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    @apply h-full overflow-x-hidden;
+  }
   body {
     @apply bg-background text-foreground;
+  }
+  #app, [data-sveltekit-hydrate] {
+    @apply h-full;
   }
 }

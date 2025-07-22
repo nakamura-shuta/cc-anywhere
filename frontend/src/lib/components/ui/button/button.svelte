@@ -36,6 +36,7 @@
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
+			children?: import('svelte').Snippet;
 		};
 </script>
 
@@ -49,6 +50,7 @@
 		type = "button",
 		disabled,
 		children,
+		onclick,
 		...restProps
 	}: ButtonProps = $props();
 </script>
@@ -73,6 +75,7 @@
 		class={cn(buttonVariants({ variant, size }), className)}
 		{type}
 		{disabled}
+		onclick={disabled ? undefined : onclick}
 		{...restProps}
 	>
 		{@render children?.()}
