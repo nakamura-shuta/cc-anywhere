@@ -1,15 +1,12 @@
 // スケジュールサービス
 
 import { apiClient } from '$lib/api/client';
-import type { ScheduledTask, PaginationParams, PaginatedResponse } from '$lib/types/api';
+import type { ScheduledTask, ScheduledTaskHistory, ScheduleListResponse } from '$lib/types/api';
 
 export const scheduleService = {
 	// スケジュール一覧の取得
-	async list(params?: PaginationParams): Promise<PaginatedResponse<ScheduledTask>> {
-		const filteredParams = params ? Object.fromEntries(
-			Object.entries(params).filter(([_, v]) => v !== undefined)
-		) as Record<string, string | number | boolean> : undefined;
-		return apiClient.get<PaginatedResponse<ScheduledTask>>('/api/schedules', { params: filteredParams });
+	async list(params?: { limit?: number; offset?: number; status?: string }): Promise<ScheduleListResponse> {
+		return apiClient.get<ScheduleListResponse>('/api/schedules', { params });
 	},
 
 	// 単一スケジュールの取得
@@ -18,8 +15,14 @@ export const scheduleService = {
 	},
 
 	// スケジュールの作成
-	async create(schedule: Omit<ScheduledTask, 'id' | 'createdAt' | 'updatedAt' | 'lastRun' | 'nextRun'>): Promise<ScheduledTask> {
-		return apiClient.post<ScheduledTask>('/api/schedules', schedule);
+	async create(data: {
+		name: string;
+		description?: string;
+		taskRequest: ScheduledTask['taskRequest'];
+		schedule: ScheduledTask['schedule'];
+		status?: ScheduledTask['status'];
+	}): Promise<ScheduledTask> {
+		return apiClient.post<ScheduledTask>('/api/schedules', data);
 	},
 
 	// スケジュールの更新
@@ -50,7 +53,7 @@ export const scheduleService = {
 	},
 
 	// スケジュール履歴の取得
-	async getHistory(id: string): Promise<any[]> {
-		return apiClient.get<any[]>(`/api/schedules/${id}/history`);
+	async getHistory(id: string): Promise<ScheduledTaskHistory[]> {
+		return apiClient.get<ScheduledTaskHistory[]>(`/api/schedules/${id}/history`);
 	}
 };

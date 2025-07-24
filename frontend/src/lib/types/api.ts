@@ -99,12 +99,26 @@ export interface TaskLogResponse {
 	completed: boolean;
 }
 
+// リポジトリ設定
+export interface RepositoryConfig {
+	name: string;
+	path: string;
+	timeout?: number;
+	retryOptions?: RetryOptions;
+}
+
 // バッチタスクリクエスト
 export interface BatchTaskRequest {
-	tasks: TaskRequest[];
-	parallel?: boolean;
-	continueOnError?: boolean;
-	groupName?: string;
+	instruction: string;
+	repositories: RepositoryConfig[];
+	options?: {
+		timeout?: number;
+		async?: boolean;
+		sdk?: ClaudeCodeSDKOptions;
+		parallel?: boolean;
+		continueOnError?: boolean;
+		groupName?: string;
+	};
 }
 
 // バッチタスクレスポンス
@@ -126,15 +140,51 @@ export interface BatchTaskStatus {
 }
 
 // プリセット
-export interface Preset {
+export interface TaskPreset {
 	id: string;
 	name: string;
 	description?: string;
-	instruction: string;
-	context?: TaskContext;
-	options?: TaskRequest['options'];
+	isSystem: boolean;
+	settings: {
+		sdk?: Record<string, any>;
+		timeout?: number;
+		useWorktree?: boolean;
+		worktree?: Record<string, any>;
+		allowedTools?: string[]; // Legacy support
+	};
+	createdAt?: string;
+	updatedAt?: string;
+}
+
+// プリセット設定レスポンス
+export interface PresetsConfig {
+	presets: TaskPreset[];
+	userPresets: TaskPreset[];
+}
+
+// スケジュール設定
+export interface ScheduleConfig {
+	type: "cron" | "once";
+	expression?: string; // cron式（type='cron'の場合）
+	executeAt?: string; // 実行時刻（type='once'の場合）ISO 8601形式
+	timezone?: string; // タイムゾーン
+}
+
+// スケジュールメタデータ
+export interface ScheduleMetadata {
 	createdAt: string;
 	updatedAt: string;
+	lastExecutedAt?: string;
+	nextExecuteAt?: string;
+	executionCount: number;
+}
+
+// スケジュール履歴
+export interface ScheduledTaskHistory {
+	executedAt: string;
+	taskId: string; // 実行されたタスクのID
+	status: "success" | "failure";
+	error?: string;
 }
 
 // スケジュールタスク
@@ -142,25 +192,64 @@ export interface ScheduledTask {
 	id: string;
 	name: string;
 	description?: string;
-	schedule: string; // cron expression
 	taskRequest: TaskRequest;
-	enabled: boolean;
-	lastRun?: string;
-	nextRun?: string;
-	createdAt: string;
-	updatedAt: string;
+	schedule: ScheduleConfig;
+	status: "active" | "inactive" | "completed" | "failed";
+	metadata: ScheduleMetadata;
+	history?: ScheduledTaskHistory[];
+}
+
+// セッションコンテキスト
+export interface SessionContext {
+	workingDirectory?: string;
+	environment?: Record<string, string>;
+	systemPrompt?: string;
+	defaultOptions?: {
+		permissionMode?: string;
+		maxTurns?: number;
+		allowedTools?: string[];
+	};
+}
+
+// セッションメタデータ
+export interface SessionMetadata {
+	title?: string;
+	description?: string;
+	tags?: string[];
+	totalTurns?: number;
+	lastActivityAt?: string;
 }
 
 // セッション
 export interface Session {
 	id: string;
-	name?: string;
-	description?: string;
-	status: 'active' | 'completed' | 'failed';
-	context?: TaskContext;
+	userId?: string;
+	status: 'active' | 'paused' | 'completed' | 'expired';
+	context?: SessionContext;
+	metadata?: SessionMetadata;
 	createdAt: string;
 	updatedAt: string;
-	lastActivity?: string;
+	expiresAt?: string;
+}
+
+// 会話ターンメタデータ
+export interface TurnMetadata {
+	taskId?: string;
+	duration?: number;
+	toolsUsed?: string[];
+	filesModified?: string[];
+	error?: any;
+}
+
+// 会話ターン
+export interface ConversationTurn {
+	id?: number;
+	sessionId: string;
+	turnNumber: number;
+	instruction: string;
+	response?: string;
+	metadata?: TurnMetadata;
+	createdAt: string;
 }
 
 // ワーカー情報
@@ -206,4 +295,58 @@ export interface PaginatedResponse<T> {
 		total: number;
 		totalPages: number;
 	};
+}
+
+// スケジュール一覧レスポンス
+export interface ScheduleListResponse {
+	schedules: ScheduledTask[];
+	total: number;
+}
+
+// セッション作成リクエスト
+export interface CreateSessionRequest {
+	userId?: string;
+	context?: SessionContext;
+	metadata?: SessionMetadata;
+	expiresIn?: number; // 有効期限（秒）
+}
+
+// セッション作成レスポンス
+export interface CreateSessionResponse {
+	session: Session;
+}
+
+// セッション継続リクエスト
+export interface ContinueSessionRequest {
+	sessionId: string;
+	instruction: string;
+	options?: {
+		timeout?: number;
+		permissionMode?: string;
+		allowedTools?: string[];
+		[key: string]: any;
+	};
+}
+
+// セッション継続レスポンス
+export interface ContinueSessionResponse {
+	turnNumber: number;
+	taskId: string;
+	result?: any;
+	error?: any;
+}
+
+// セッション履歴レスポンス
+export interface GetSessionHistoryResponse {
+	sessionId: string;
+	turns: ConversationTurn[];
+	totalTurns: number;
+	hasMore: boolean;
+}
+
+// セッション一覧レスポンス
+export interface ListSessionsResponse {
+	sessions: Session[];
+	total: number;
+	hasMore: boolean;
 }
