@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Plus, Calendar, Clock } from 'lucide-svelte';
+	import * as Select from '$lib/components/ui/select';
 	import type { PageData } from './$types';
 	import { scheduleService } from '$lib/services/schedule.service';
 	import { toast } from 'svelte-sonner';
@@ -15,6 +16,21 @@
 	let schedules = $state(data.schedules);
 	let isCreateDialogOpen = $state(false);
 	let selectedStatus = $state(data.status || 'all');
+	
+	// ステータスの選択肢
+	const statusOptions = [
+		{ value: 'all', label: 'すべて' },
+		{ value: 'active', label: '有効' },
+		{ value: 'inactive', label: '無効' },
+		{ value: 'completed', label: '完了' },
+		{ value: 'failed', label: '失敗' }
+	];
+	
+	// 選択されたステータスのラベルを取得
+	let selectedStatusLabel = $derived(() => {
+		const status = statusOptions.find(s => s.value === selectedStatus);
+		return status ? status.label : 'すべて';
+	});
 	
 	// ステータスに応じたバッジの色を取得
 	function getStatusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
@@ -147,17 +163,16 @@
 		
 		<!-- フィルター -->
 		<div class="flex gap-4">
-			<select
-				value={selectedStatus}
-				onchange={(e) => handleStatusChange(e.currentTarget.value)}
-				class="flex h-9 w-[180px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring"
-			>
-				<option value="all">すべて</option>
-				<option value="active">有効</option>
-				<option value="inactive">無効</option>
-				<option value="completed">完了</option>
-				<option value="failed">失敗</option>
-			</select>
+			<Select.Root type="single" bind:value={selectedStatus} onValueChange={handleStatusChange}>
+				<Select.Trigger class="w-[180px]">
+					{selectedStatusLabel()}
+				</Select.Trigger>
+				<Select.Content>
+					{#each statusOptions as option}
+						<Select.Item value={option.value} label={option.label} />
+					{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
 	</div>
 	

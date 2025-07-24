@@ -10,6 +10,7 @@
 	import { toast } from 'svelte-sonner';
 	import { toDateTimeLocal, fromDateTimeLocal } from '$lib/utils/date';
 	import { onMount } from 'svelte';
+	import * as Select from '$lib/components/ui/select';
 	
 	let { open = $bindable(false) }: { open: boolean } = $props();
 	
@@ -31,6 +32,27 @@
 	let isSubmitting = $state(false);
 	let repositories = $state<Repository[]>([]);
 	let loadingRepositories = $state(true);
+	
+	// タイムゾーンの選択肢
+	const timezones = [
+		{ value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST)' },
+		{ value: 'UTC', label: 'UTC' },
+		{ value: 'America/New_York', label: 'America/New_York (EST/EDT)' },
+		{ value: 'Europe/London', label: 'Europe/London (GMT/BST)' }
+	];
+	
+	// 選択されたリポジトリのラベルを取得
+	let selectedRepositoryLabel = $derived(() => {
+		if (!formData.workingDirectory) return '選択してください';
+		const repo = repositories.find(r => r.path === formData.workingDirectory);
+		return repo ? `${repo.name} (${repo.path})` : formData.workingDirectory;
+	});
+	
+	// 選択されたタイムゾーンのラベルを取得
+	let selectedTimezoneLabel = $derived(() => {
+		const tz = timezones.find(t => t.value === formData.timezone);
+		return tz ? tz.label : formData.timezone;
+	});
 	
 	// プリセットCron式
 	const cronPresets = [
@@ -209,16 +231,16 @@
 					{:else if repositories.length === 0}
 						<div class="text-sm text-muted-foreground">利用可能なリポジトリがありません</div>
 					{:else}
-						<select
-							id="workingDirectory"
-							bind:value={formData.workingDirectory}
-							class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-						>
-							<option value="">選択してください</option>
-							{#each repositories as repo}
-								<option value={repo.path}>{repo.name} ({repo.path})</option>
-							{/each}
-						</select>
+						<Select.Root type="single" bind:value={formData.workingDirectory}>
+							<Select.Trigger id="workingDirectory">
+								{selectedRepositoryLabel()}
+							</Select.Trigger>
+							<Select.Content>
+								{#each repositories as repo}
+									<Select.Item value={repo.path} label={`${repo.name} (${repo.path})`} />
+								{/each}
+							</Select.Content>
+						</Select.Root>
 					{/if}
 					<p class="text-xs text-muted-foreground">
 						タスクを実行するリポジトリを選択してください
@@ -301,15 +323,16 @@
 				
 				<div class="space-y-2">
 					<Label>タイムゾーン</Label>
-					<select
-						bind:value={formData.timezone}
-						class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-					>
-						<option value="Asia/Tokyo">Asia/Tokyo</option>
-						<option value="UTC">UTC</option>
-						<option value="America/New_York">America/New_York</option>
-						<option value="Europe/London">Europe/London</option>
-					</select>
+					<Select.Root type="single" bind:value={formData.timezone}>
+						<Select.Trigger>
+							{selectedTimezoneLabel()}
+						</Select.Trigger>
+						<Select.Content>
+							{#each timezones as tz}
+								<Select.Item value={tz.value} label={tz.label} />
+							{/each}
+						</Select.Content>
+					</Select.Root>
 				</div>
 			</div>
 			
