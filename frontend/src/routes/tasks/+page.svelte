@@ -4,13 +4,228 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import * as Table from '$lib/components/ui/table';
-	import { goto } from '$app/navigation';
 	import { format } from 'date-fns';
 	import { ja } from 'date-fns/locale';
-	import { Plus, RefreshCw, Eye, XCircle, GitBranch } from 'lucide-svelte';
+	import { Plus, GitBranch, RefreshCw } from 'lucide-svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { getWebSocketContext } from '$lib/websocket/websocket.svelte';
+	import { TaskStatus, type TaskResponse } from '$lib/types/api';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
+	
+	// WebSocket接続
+	const ws = getWebSocketContext();
+	
+	// タスクリストの状態
+	let tasks = $state<TaskResponse[]>(data.tasks || []);
+	
+	// WebSocketメッセージの処理
+	$effect(() => {
+		// 初期データを設定
+		tasks = data.tasks || [];
+	});
+	
+	// WebSocketメッセージのリスナー
+	function handleWebSocketMessage(event: Event) {
+		const customEvent = event as CustomEvent;
+		const message = customEvent.detail;
+		
+		console.log('[タスク一覧] WebSocketメッセージ受信:', {
+			type: message.type,
+			taskId: message.taskId,
+			data: message.data,
+			currentTaskCount: tasks.length
+		});
+		
+		// タスクの状態変更に応じて一覧を更新
+		switch (message.type) {
+			case 'task:update':
+				// タスクの状態更新（新規作成、実行中、完了、失敗など）
+				console.log('[タスク一覧] タスク更新:', message);
+				handleTaskUpdate(message);
+				break;
+			case 'task:status':
+			case 'task:running':
+				// 旧形式のサポート（互換性のため）
+				console.log('[タスク一覧] タスク状態を更新（旧形式）:', message);
+				handleTaskStatusUpdate(message);
+				break;
+			case 'task:completed':
+			case 'task:failed':
+			case 'task:cancelled':
+				// 旧形式のサポート（互換性のため）
+				console.log('[タスク一覧] タスク完了/失敗/キャンセル（旧形式）:', message);
+				handleTaskStatusUpdate(message);
+				break;
+			default:
+				console.log('[タスク一覧] 未処理のメッセージタイプ:', message.type);
+		}
+	}
+	
+	// task:updateメッセージの処理
+	function handleTaskUpdate(message: any) {
+		// WebSocketメッセージの構造: { type, taskId, data: { taskId, status, ... } }
+		const taskId = message.taskId || message.data?.taskId || message.payload?.taskId;
+		const payload = message.data || message.payload || {};
+		const status = payload.status;
+		
+		console.log('[タスク一覧] handleTaskUpdate:', {
+			messageTaskId: message.taskId,
+			dataTaskId: message.data?.taskId,
+			payloadTaskId: message.payload?.taskId,
+			finalTaskId: taskId,
+			status: status
+		});
+		
+		if (!taskId) {
+			console.warn('[タスク一覧] タスクIDが見つかりません:', message);
+			return;
+		}
+		
+		// 既存のタスクを探す
+		const existingTaskIndex = tasks.findIndex(t => t.taskId === taskId);
+		
+		if (existingTaskIndex >= 0) {
+			// 既存タスクの更新
+			const updatedTask = { ...tasks[existingTaskIndex] };
+			
+			// ステータスの更新
+			if (status) {
+				updatedTask.status = status;
+			}
+			
+			// メタデータから他のフィールドを更新
+			const metadata = payload.metadata || message.data?.metadata || {};
+			if (metadata.completedAt) {
+				updatedTask.completedAt = metadata.completedAt;
+			}
+			if (metadata.duration) {
+				updatedTask.duration = metadata.duration;
+			}
+			if (metadata.error) {
+				updatedTask.error = metadata.error;
+			}
+			if (metadata.workingDirectory) {
+				updatedTask.workingDirectory = metadata.workingDirectory;
+			}
+			
+			// 更新日時
+			updatedTask.updatedAt = message.timestamp || payload.timestamp || new Date().toISOString();
+			
+			// 新しい配列を作成して更新
+			tasks = [...tasks.slice(0, existingTaskIndex), updatedTask, ...tasks.slice(existingTaskIndex + 1)];
+			console.log('[タスク一覧] タスクを更新:', updatedTask);
+		} else if (status === 'pending' || status === 'running') {
+			// 新しいタスクの場合（pendingまたはrunningステータス）
+			// APIから詳細情報を取得
+			console.log('[タスク一覧] 新しいタスクを検出、APIから詳細を取得:', taskId);
+			fetchTaskDetails(taskId);
+		}
+	}
+	
+	// タスクの詳細情報を取得
+	async function fetchTaskDetails(taskId: string) {
+		try {
+			const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			
+			if (response.ok) {
+				const task = await response.json();
+				// 既に存在しないか再確認
+				const exists = tasks.some(t => t.taskId === taskId);
+				if (!exists) {
+					// idフィールドを追加
+					const newTask: TaskResponse = {
+						...task,
+						id: task.id || task.taskId
+					};
+					tasks = [newTask, ...tasks];
+					console.log('[タスク一覧] 新しいタスクを追加:', newTask);
+				}
+			}
+		} catch (error) {
+			console.error('[タスク一覧] タスク詳細の取得に失敗:', error);
+		}
+	}
+	
+	
+	// タスクの状態更新
+	function handleTaskStatusUpdate(message: any) {
+		const taskId = message.taskId || message.data?.taskId || message.payload?.taskId;
+		const updateData = message.data || message.payload || message;
+		
+		if (!taskId) return;
+		
+		// タスクを見つけて更新
+		const index = tasks.findIndex(t => t.taskId === taskId);
+		if (index !== -1) {
+			const updatedTask = { ...tasks[index] };
+			
+			// 状態を更新
+			if (updateData.status) {
+				updatedTask.status = updateData.status;
+			}
+			
+			// その他のフィールドも更新
+			if (updateData.updatedAt) {
+				updatedTask.updatedAt = updateData.updatedAt;
+			}
+			if (updateData.completedAt) {
+				updatedTask.completedAt = updateData.completedAt;
+			}
+			if (updateData.duration) {
+				updatedTask.duration = updateData.duration;
+			}
+			if (updateData.error) {
+				updatedTask.error = updateData.error;
+			}
+			
+			// 新しい配列を作成して更新
+			tasks = [...tasks.slice(0, index), updatedTask, ...tasks.slice(index + 1)];
+			console.log('[タスク一覧] タスクを更新:', updatedTask);
+		}
+	}
+	
+	// すべてのタスクをサブスクライブ
+	function subscribeToAllTasks() {
+		console.log('[タスク一覧] すべてのタスクをサブスクライブ');
+		ws.subscribe('*');
+	}
+	
+	onMount(() => {
+		// WebSocketイベントリスナーの登録
+		window.addEventListener('websocket:message', handleWebSocketMessage);
+		
+		// WebSocketに接続
+		if (!ws.connected) {
+			ws.connect();
+		}
+		
+		// 接続が確立したら、すべてのタスクをサブスクライブ
+		if (ws.connected && ws.authenticated) {
+			subscribeToAllTasks();
+		} else {
+			// 接続が確立するまで待つ
+			const checkConnection = setInterval(() => {
+				if (ws.connected && ws.authenticated) {
+					subscribeToAllTasks();
+					clearInterval(checkConnection);
+				}
+			}, 100);
+			
+			// タイムアウト設定
+			setTimeout(() => clearInterval(checkConnection), 5000);
+		}
+	});
+	
+	onDestroy(() => {
+		// イベントリスナーの削除
+		window.removeEventListener('websocket:message', handleWebSocketMessage);
+	});
 	
 	// タスクのステータスに応じたバッジのバリアント
 	function getStatusVariant(status: string) {
@@ -43,31 +258,6 @@
 		window.location.href = `/tasks/${taskId}`;
 	}
 	
-	// タスクのキャンセル
-	async function cancelTask(taskId: string) {
-		if (!confirm('このタスクをキャンセルしますか？')) return;
-		
-		try {
-			const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
-				method: 'DELETE',
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
-			
-			if (response.ok) {
-				// ページをリロード
-				window.location.reload();
-			}
-		} catch (error) {
-			console.error('Failed to cancel task:', error);
-		}
-	}
-	
-	// リフレッシュ
-	function refresh() {
-		window.location.reload();
-	}
 	
 	// 新しいタスク画面へ
 	function goToNewTask() {
@@ -89,10 +279,6 @@
 				<GitBranch class="mr-2 h-4 w-4" />
 				ツリー表示
 			</Button>
-			<Button variant="outline" onclick={refresh}>
-				<RefreshCw class="mr-2 h-4 w-4" />
-				更新
-			</Button>
 			<Button onclick={goToNewTask}>
 				<Plus class="mr-2 h-4 w-4" />
 				新しいタスク
@@ -105,7 +291,7 @@
 		<Card.Header>
 			<Card.Title>実行中のタスク</Card.Title>
 			<Card.Description>
-				{data.pagination?.total || 0} 件のタスク（{data.pagination?.page || 1}/{data.pagination?.totalPages || 1} ページ）
+				{tasks.length} 件のタスク
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
@@ -119,8 +305,8 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#if data.tasks && data.tasks.length > 0}
-						{#each data.tasks as task}
+					{#if tasks && tasks.length > 0}
+						{#each tasks as task (task.taskId)}
 							<Table.Row 
 								class="cursor-pointer hover:bg-muted/50 transition-colors"
 								onclick={() => viewTask(task.taskId)}

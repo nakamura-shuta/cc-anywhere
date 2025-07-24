@@ -199,6 +199,7 @@ export class WebSocketServer {
       return;
     }
 
+    // 特別なサブスクリプション: "*" はすべてのタスクを購読
     ws.subscriptions.add(taskId);
 
     const successMessage: SuccessMessage = {
@@ -424,8 +425,11 @@ export class WebSocketServer {
 
   private broadcastToTaskSubscribers(taskId: string, message: WebSocketMessage): void {
     for (const client of this.clients.values()) {
-      if (client.authenticated && client.subscriptions.has(taskId)) {
-        this.sendMessage(client, message);
+      if (client.authenticated) {
+        // 特定のタスクを購読しているか、"*"（すべてのタスク）を購読している場合
+        if (client.subscriptions.has(taskId) || client.subscriptions.has("*")) {
+          this.sendMessage(client, message);
+        }
       }
     }
   }

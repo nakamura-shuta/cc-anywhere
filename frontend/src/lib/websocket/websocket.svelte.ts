@@ -253,6 +253,11 @@ export class WebSocketConnection {
 			// デバッグ: すべてのメッセージタイプをログ
 			console.log('[WebSocket] メッセージ受信:', message.type, message);
 			
+			// カスタムイベントをディスパッチ（タスク一覧などで使用）
+			if (typeof window !== 'undefined') {
+				window.dispatchEvent(new CustomEvent('websocket:message', { detail: message }));
+			}
+			
 			// 認証成功
 			if (message.type === 'auth:success') {
 				this.authenticated = true;
