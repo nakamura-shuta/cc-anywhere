@@ -9,6 +9,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { toDateTimeLocal, fromDateTimeLocal } from '$lib/utils/date';
+	import { formatRepositoryLabel } from '$lib/utils/path';
 	import { onMount } from 'svelte';
 	import * as Select from '$lib/components/ui/select';
 	
@@ -45,7 +46,7 @@
 	let selectedRepositoryLabel = $derived(() => {
 		if (!formData.workingDirectory) return '選択してください';
 		const repo = repositories.find(r => r.path === formData.workingDirectory);
-		return repo ? `${repo.name} (${repo.path})` : formData.workingDirectory;
+		return repo ? formatRepositoryLabel(repo.name, repo.path) : formData.workingDirectory;
 	});
 	
 	// 選択されたタイムゾーンのラベルを取得
@@ -237,7 +238,7 @@
 							</Select.Trigger>
 							<Select.Content>
 								{#each repositories as repo}
-									<Select.Item value={repo.path} label={`${repo.name} (${repo.path})`} />
+									<Select.Item value={repo.path} label={formatRepositoryLabel(repo.name, repo.path)} />
 								{/each}
 							</Select.Content>
 						</Select.Root>
