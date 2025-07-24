@@ -1,8 +1,8 @@
 // SPA（シングルページアプリケーション）として動作させる設定
 // これにより、すべてのルーティングがクライアントサイドで処理される
 
-// プリレンダリングを有効化（静的サイト生成）
-export const prerender = true;
+// プリレンダリングを無効化（SPAなので不要）
+export const prerender = false;
 
 // サーバーサイドレンダリングを無効化（SPAモード）
 export const ssr = false;

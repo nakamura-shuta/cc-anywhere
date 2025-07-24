@@ -1,10 +1,32 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "../../../../src/server/app";
 
+// Mock config to enable auth
+vi.mock("../../../../src/config", () => ({
+  config: {
+    auth: {
+      enabled: true,
+      apiKey: "test-api-key",
+    },
+    server: { port: 3000 },
+    cors: { origin: "*" },
+    websocket: { enabled: false },
+    worktree: { enabled: false },
+    isDevelopment: false,
+    logging: { level: "info" },
+    claude: { apiKey: "test-claude-key" },
+    tasks: { defaultTimeout: 300000 },
+    claudeCodeSDK: { defaultMaxTurns: 3 },
+    database: { path: ":memory:" },
+    queue: { concurrency: 1, retryLimit: 3 },
+    worker: { mode: "inline" },
+  },
+}));
+
 describe("POST /api/batch/tasks", () => {
   let app: FastifyInstance;
-  const testApiKey = process.env.API_KEY || "hoge";
+  const testApiKey = "test-api-key";
 
   beforeEach(async () => {
     app = await createApp({ logger: false });

@@ -4,66 +4,75 @@
 import { browser } from '$app/environment';
 import { dev } from '$app/environment';
 
-// APIのベースURL
-export const API_BASE_URL = (() => {
-	// ブラウザ環境の場合
-	if (browser) {
+// APIのベースURL取得関数（動的評価）
+export const getApiBaseUrl = (): string => {
+	// クライアントサイドでの実行時
+	if (typeof window !== 'undefined') {
 		// 開発環境では別ポートのバックエンドを使用
 		if (dev) {
 			return 'http://localhost:5000';
 		}
-		// プロダクション環境では同一オリジン（相対パス）
-		return '';
+		// プロダクション環境では現在のオリジンを使用
+		return window.location.origin;
 	}
-	// SSR時はlocalhost経由
-	return dev ? 'http://localhost:5000' : '';
-})();
+	// ビルド時やSSR時のデフォルト値
+	return '';
+};
 
-// APIエンドポイント
+// 後方互換性のため、API_BASE_URLを維持（ただし関数として使用）
+export const API_BASE_URL = getApiBaseUrl();
+
+// APIエンドポイント（動的生成）
 export const API_ENDPOINTS = {
 	// タスク関連
-	tasks: `${API_BASE_URL}/api/tasks`,
-	task: (id: string) => `${API_BASE_URL}/api/tasks/${id}`,
-	taskCancel: (id: string) => `${API_BASE_URL}/api/tasks/${id}/cancel`,
-	taskLogs: (id: string) => `${API_BASE_URL}/api/tasks/${id}/logs`,
+	get tasks() { return `${getApiBaseUrl()}/api/tasks`; },
+	task: (id: string) => `${getApiBaseUrl()}/api/tasks/${id}`,
+	taskCancel: (id: string) => `${getApiBaseUrl()}/api/tasks/${id}/cancel`,
+	taskLogs: (id: string) => `${getApiBaseUrl()}/api/tasks/${id}/logs`,
 	
 	// バッチタスク
-	batchTasks: `${API_BASE_URL}/api/batch/tasks`,
-	batchTaskStatus: (groupId: string) => `${API_BASE_URL}/api/batch/tasks/${groupId}/status`,
+	get batchTasks() { return `${getApiBaseUrl()}/api/batch/tasks`; },
+	batchTaskStatus: (groupId: string) => `${getApiBaseUrl()}/api/batch/tasks/${groupId}/status`,
 	
 	// プリセット
-	presets: `${API_BASE_URL}/api/presets`,
-	preset: (id: string) => `${API_BASE_URL}/api/presets/${id}`,
+	get presets() { return `${getApiBaseUrl()}/api/presets`; },
+	preset: (id: string) => `${getApiBaseUrl()}/api/presets/${id}`,
 	
 	// スケジュール
-	schedules: `${API_BASE_URL}/api/schedules`,
-	schedule: (id: string) => `${API_BASE_URL}/api/schedules/${id}`,
+	get schedules() { return `${getApiBaseUrl()}/api/schedules`; },
+	schedule: (id: string) => `${getApiBaseUrl()}/api/schedules/${id}`,
 	
 	// セッション
-	sessions: `${API_BASE_URL}/api/sessions`,
-	session: (id: string) => `${API_BASE_URL}/api/sessions/${id}`,
+	get sessions() { return `${getApiBaseUrl()}/api/sessions`; },
+	session: (id: string) => `${getApiBaseUrl()}/api/sessions/${id}`,
 	
 	// ヘルスチェック
-	health: `${API_BASE_URL}/api/health`,
+	get health() { return `${getApiBaseUrl()}/api/health`; },
 	
 	// WebSocket
-	websocket: (() => {
-		if (browser) {
+	get websocket() {
+		if (typeof window !== 'undefined') {
 			const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 			if (dev) {
-				return 'ws://localhost:5000';
+				return 'ws://localhost:5000/ws';
 			}
-			return `${protocol}//${window.location.host}`;
+			return `${protocol}//${window.location.host}/ws`;
 		}
-		return dev ? 'ws://localhost:5000' : '';
-	})()
+		return dev ? 'ws://localhost:5000/ws' : '';
+	}
 };
 
 // APIキーの取得
 export const getApiKey = (): string | null => {
 	if (browser) {
-		// ローカルストレージから取得（設定画面で保存された場合のみ）
-		return localStorage.getItem('cc-anywhere-api-key');
+		// ローカルストレージから取得（設定画面で保存された場合）
+		const storedKey = localStorage.getItem('cc-anywhere-api-key');
+		if (storedKey) return storedKey;
+		
+		// 開発環境のデフォルトAPIキー
+		if (dev) {
+			return 'hoge';
+		}
 	}
 	return null;
 };

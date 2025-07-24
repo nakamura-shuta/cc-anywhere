@@ -122,7 +122,9 @@ describe('WebSocketConnection', () => {
 			expect(sendSpy).toHaveBeenCalledWith(
 				JSON.stringify({
 					type: 'auth',
-					apiKey: 'test-api-key'
+					payload: {
+						apiKey: 'test-api-key'
+					}
 				})
 			);
 		});
@@ -156,7 +158,9 @@ describe('WebSocketConnection', () => {
 			expect(sendSpy).toHaveBeenCalledWith(
 				JSON.stringify({
 					type: 'subscribe',
-					taskId: 'task-1'
+					payload: {
+						taskId: 'task-1'
+					}
 				})
 			);
 		});
@@ -177,7 +181,9 @@ describe('WebSocketConnection', () => {
 			expect(sendSpy).toHaveBeenLastCalledWith(
 				JSON.stringify({
 					type: 'unsubscribe',
-					taskId: 'task-1'
+					payload: {
+						taskId: 'task-1'
+					}
 				})
 			);
 		});

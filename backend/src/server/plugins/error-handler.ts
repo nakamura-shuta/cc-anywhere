@@ -69,16 +69,7 @@ export const errorHandlerPlugin: FastifyPluginAsync = async (fastify) => {
     return reply.status(statusCode).send(response);
   });
 
-  // Handle not found
-  fastify.setNotFoundHandler((request, reply) => {
-    void reply.status(404).send({
-      error: {
-        message: `Route ${request.method}:${request.url} not found`,
-        statusCode: 404,
-        code: "NOT_FOUND",
-      },
-    });
-  });
+  // Note: setNotFoundHandler is handled in static.ts for SPA routing support
 };
 
 export default fp(errorHandlerPlugin, {

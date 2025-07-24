@@ -12,7 +12,7 @@
 module.exports = {
   apps: [
     {
-      name: 'cc-anywhere',
+      name: 'cc-anywhere-backend',
       script: './dist/index.js',
       instances: 1,              // インスタンス数（'max'でCPUコア数分起動）
       exec_mode: 'cluster',      // クラスターモードで実行

@@ -69,18 +69,14 @@ cc-anywhere/
 git clone https://github.com/your-username/cc-anywhere
 cd cc-anywhere
 
-# 依存関係のインストール（ワークスペース対応）
-npm install
-
 # 環境変数の設定
+cd backend
 cp .env.example .env
 # .envファイルを編集してCLAUDE_API_KEYを設定
+cd ..
 
-# バックエンドのビルド
-npm run build:backend
-
-# フロントエンドのビルド
-npm run build:frontend
+# 統合ビルド（フロントエンド＋バックエンド）
+./scripts/build-all.sh
 ```
 
 ### 環境変数
@@ -146,19 +142,37 @@ cp backend/config/repositories.json.example backend/config/repositories.json
 }
 ```
 
-### 開発サーバーの起動
+### サーバーの起動
+
+#### 本番環境（推奨）
 
 ```bash
-# バックエンドとフロントエンドを同時起動
-npm run dev
-
-# 個別に起動する場合
-npm run dev:backend   # バックエンドのみ
-npm run dev:frontend  # フロントエンドのみ
+# PM2を使用した本番環境起動
+./scripts/start-production.sh
 ```
 
-- バックエンドAPI: `http://localhost:5000`（デフォルト）
-- フロントエンドUI: `http://localhost:5173`（Viteデフォルト）
+- アクセスURL: `http://localhost:5000`
+- フロントエンドとAPIが統合されて配信されます
+
+#### 開発環境
+
+```bash
+# フロントエンドとバックエンドを別々に起動（ホットリロード有効）
+./scripts/start-dev.sh
+```
+
+- バックエンドAPI: `http://localhost:5000`
+- フロントエンド開発サーバー: `http://localhost:4444`
+
+#### クラムシェルモード（MacBook）
+
+MacBookを閉じてもサーバーが動作し続けるモード：
+
+```bash
+./backend/scripts/start-clamshell.sh
+```
+
+外部アクセス方法（ngrok/Cloudflare Tunnel）を選択でき、QRコードでスマートフォンからアクセスできます。
 
 ### Web UI について
 
@@ -179,16 +193,19 @@ cc-anywhere のWeb UIは以下の機能を提供します：
 
 Web UIにアクセス：
 ```
+http://localhost:5000
+```
+
+認証が有効な場合は、URLパラメータでAPIキーを指定：
+```
 http://localhost:5000/?apiKey=your-secret-api-key
 ```
 
-別のポートで起動する場合：
-```bash
-# バックエンドのポート変更
-PORT=5001 npm run dev:backend
+### サーバーの停止
 
-# フロントエンドのポート変更
-npm run dev:frontend -- --port 3000
+```bash
+# すべてのプロセスを停止
+./scripts/stop-all.sh
 ```
 
 ### ワーカーシステム
@@ -217,7 +234,11 @@ npm run test:watch
 
 ### その他のコマンド
 
+## バックエンド
+
 ```bash
+cd backend
+
 # Lintチェック
 npm run lint
 
@@ -230,8 +251,25 @@ npm run type-check
 # ビルド
 npm run build
 
-# クリーンビルド
-npm run clean && npm run build
+# PM2管理
+./scripts/pm2-manager.sh status    # ステータス確認
+./scripts/pm2-manager.sh logs      # ログ確認
+./scripts/pm2-manager.sh restart   # 再起動
+```
+
+## フロントエンド
+
+```bash
+cd frontend
+
+# Lintチェック
+npm run lint
+
+# 型チェック（Svelte）
+npm run check
+
+# ビルド
+npm run build
 ```
 
 ## バッチタスク

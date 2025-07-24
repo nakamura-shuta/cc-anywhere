@@ -8,8 +8,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select';
-	import { Switch } from '$lib/components/ui/switch';
+	import * as Select from '$lib/components/ui/select';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
@@ -26,8 +25,12 @@
 		Copy,
 		CheckCircle2,
 		AlertCircle,
-		RefreshCw
+		RefreshCw,
+		GitBranch
 	} from 'lucide-svelte';
+	import RepositorySelector from '$lib/components/repository-selector.svelte';
+	import { taskService } from '$lib/services/task.service';
+	import { goto } from '$app/navigation';
 	
 	// リクエストの型定義
 	interface TaskRequest {
@@ -35,13 +38,14 @@
 		options: {
 			timeout?: number;
 			async?: boolean;
-			permissionMode?: 'default' | 'bypassPermissions' | 'plan' | 'acceptEdits';
+			permissionMode?: 'ask' | 'allow' | 'deny' | 'bypassPermissions' | 'acceptEdits' | 'plan';
 			maxTurns?: number;
 		};
 		context?: {
 			workingDirectory?: string;
 			files?: string[];
 			environment?: Record<string, string>;
+			repositories?: string[]; // 複数リポジトリのパス
 		};
 	}
 	
@@ -55,24 +59,25 @@
 	}
 	
 	// リクエストの初期値
-	let request: TaskRequest = {
+	let request = $state<TaskRequest>({
 		instruction: '',
 		options: {
 			timeout: 300000,
 			async: true,
-			permissionMode: 'default',
+			permissionMode: 'allow',
 			maxTurns: 10
 		},
 		context: {
-			workingDirectory: ''
+			workingDirectory: '',
+			repositories: []
 		}
-	};
+	});
 	
 	// UIの状態
-	let isSubmitting = false;
-	let response: TaskResponse | null = null;
-	let responseError: string | null = null;
-	let requestHistory: Array<{id: string, request: TaskRequest, timestamp: string}> = [];
+	let isSubmitting = $state(false);
+	let response = $state<TaskResponse | null>(null);
+	let responseError = $state<string | null>(null);
+	let requestHistory = $state<Array<{id: string, request: TaskRequest, timestamp: string}>>([]);
 	
 	// プリセット
 	const presets = [
@@ -80,7 +85,7 @@
 			name: 'シンプルなタスク',
 			request: {
 				instruction: 'Hello Worldを出力する関数を作成してください',
-				options: { timeout: 60000, async: false },
+				options: { timeout: 60000, async: true, permissionMode: 'allow' as const },
 				context: {}
 			}
 		},
@@ -88,7 +93,7 @@
 			name: 'プロジェクトセットアップ',
 			request: {
 				instruction: 'TypeScriptプロジェクトを初期化して、基本的な設定を行ってください',
-				options: { timeout: 300000, async: true },
+				options: { timeout: 300000, async: true, permissionMode: 'allow' as const },
 				context: { workingDirectory: './new-project' }
 			}
 		},
@@ -96,11 +101,24 @@
 			name: 'テスト作成',
 			request: {
 				instruction: 'utils.tsファイルのユニットテストを作成してください',
-				options: { timeout: 180000, async: true },
+				options: { timeout: 180000, async: true, permissionMode: 'allow' as const },
 				context: { files: ['./src/utils.ts'] }
 			}
 		}
 	];
+	
+	// 権限モードのラベル取得
+	function getPermissionModeLabel(mode?: string) {
+		switch (mode) {
+			case 'ask': return '確認する (ask)';
+			case 'allow': return 'すべて許可 (allow)';
+			case 'deny': return 'すべて拒否 (deny)';
+			case 'bypassPermissions': return '権限バイパス (bypassPermissions)';
+			case 'acceptEdits': return '編集を受け入れる (acceptEdits)';
+			case 'plan': return '計画モード (plan)';
+			default: return '権限モードを選択';
+		}
+	}
 	
 	// タスクの送信
 	async function submitTask() {
@@ -109,19 +127,41 @@
 			return;
 		}
 		
+		if (request.context?.repositories && request.context.repositories.length === 0) {
+			responseError = 'リポジトリを選択してください';
+			return;
+		}
+		
 		isSubmitting = true;
 		response = null;
 		responseError = null;
 		
 		try {
-			// 実際のAPI呼び出し（仮実装）
-			await new Promise(resolve => setTimeout(resolve, 1000));
+			// APIリクエスト形式に変換
+			const apiRequest = {
+				instruction: request.instruction,
+				options: {
+					timeout: request.options.timeout,
+					async: request.options.async,
+					sdk: {
+						permissionMode: request.options.permissionMode,
+						maxTurns: request.options.maxTurns
+					}
+				},
+				context: {
+					workingDirectory: request.context?.workingDirectory || undefined,
+					repositories: request.context?.repositories || undefined
+				}
+			};
 			
-			// 仮のレスポンス
+			// タスクを作成
+			const createdTask = await taskService.create(apiRequest);
+			
+			// レスポンスを設定
 			response = {
-				taskId: `task-${Date.now()}`,
-				status: 'created',
-				createdAt: new Date().toISOString(),
+				taskId: createdTask.taskId,
+				status: createdTask.status,
+				createdAt: createdTask.createdAt,
 				message: 'タスクが正常に作成されました'
 			};
 			
@@ -132,6 +172,11 @@
 				timestamp: new Date().toISOString()
 			}, ...requestHistory].slice(0, 10);
 			
+			// タスク一覧ページへ遷移
+			setTimeout(() => {
+				window.location.href = '/tasks';
+			}, 1000);
+			
 		} catch (error) {
 			responseError = error instanceof Error ? error.message : 'エラーが発生しました';
 		} finally {
@@ -140,7 +185,7 @@
 	}
 	
 	// プリセットの適用
-	function applyPreset(preset: { name: string; request: TaskRequest }) {
+	function applyPreset(preset: { name: string; request: any }) {
 		request = JSON.parse(JSON.stringify(preset.request));
 	}
 	
@@ -155,6 +200,13 @@
   -H "Content-Type: application/json" \\
   -H "X-API-Key: your-api-key" \\
   -d '${JSON.stringify(request, null, 2)}'`;
+	}
+	
+	// 権限モード変更ハンドラ
+	function handlePermissionModeChange(value: string | undefined) {
+		if (value) {
+			request.options.permissionMode = value as TaskRequest['options']['permissionMode'];
+		}
 	}
 </script>
 
@@ -225,31 +277,22 @@
 						</div>
 					</div>
 					
-					<!-- 非同期実行 -->
-					<div class="flex items-center justify-between">
-						<div class="space-y-0.5">
-							<Label>非同期実行</Label>
-							<p class="text-sm text-muted-foreground">
-								バックグラウンドでタスクを実行
-							</p>
-						</div>
-						<Switch bind:checked={request.options.async} />
-					</div>
-					
 					<!-- 権限モード -->
 					<div class="space-y-2">
-						<Label>権限モード</Label>
-						<Select type="multiple" value={[request.options.permissionMode || 'default']} onValueChange={(v: string[]) => request.options.permissionMode = v[0] as 'default' | 'bypassPermissions' | 'plan' | 'acceptEdits'}>
-							<SelectTrigger>
-								{request.options.permissionMode || 'デフォルト'}
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="default">デフォルト</SelectItem>
-								<SelectItem value="bypassPermissions">権限バイパス</SelectItem>
-								<SelectItem value="plan">計画モード</SelectItem>
-								<SelectItem value="acceptEdits">編集受け入れ</SelectItem>
-							</SelectContent>
-						</Select>
+						<Label for="permission-mode">権限モード</Label>
+						<select
+							id="permission-mode"
+							value={request.options.permissionMode || 'allow'}
+							onchange={(e) => handlePermissionModeChange(e.currentTarget.value)}
+							class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+						>
+							<option value="ask">確認する (ask)</option>
+							<option value="allow">すべて許可 (allow)</option>
+							<option value="deny">すべて拒否 (deny)</option>
+							<option value="bypassPermissions">権限バイパス (bypassPermissions)</option>
+							<option value="acceptEdits">編集を受け入れる (acceptEdits)</option>
+							<option value="plan">計画モード (plan)</option>
+						</select>
 					</div>
 					
 					<!-- 最大ターン数 -->
@@ -285,6 +328,14 @@
 					</div>
 				</CardContent>
 			</Card>
+			
+			<!-- リポジトリ選択 -->
+			<RepositorySelector 
+				bind:selectedRepositories={request.context!.repositories}
+				onSelectionChange={(selected) => {
+					request.context!.repositories = selected;
+				}}
+			/>
 		</div>
 		
 		<!-- レスポンスとツール -->

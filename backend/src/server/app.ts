@@ -224,8 +224,12 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   });
 
   await app.register(cors, {
-    origin: config.cors.origin,
+    origin: config.isDevelopment
+      ? ["http://localhost:4444", "http://localhost:5000", "http://localhost:5173"]
+      : config.cors.origin,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
   });
 
   await app.register(sensible);

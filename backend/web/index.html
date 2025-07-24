@@ -4,48 +4,49 @@
 		<!-- 文字エンコーディングをUTF-8に設定 -->
 		<meta charset="utf-8" />
 		
-		<!-- ファビコンの設定: .はstaticディレクトリを指す -->
-		<link rel="icon" href="./favicon.svg" />
+		<!-- ファビコンの設定: はstaticディレクトリを指す -->
+		<link rel="icon" href="/favicon.png" />
 		
 		<!-- レスポンシブデザイン対応: モバイルデバイスでの表示を最適化 -->
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		
 		<!-- SvelteKitが動的に生成するhead要素（meta tags、title等）を挿入する場所 -->
 		
-		<link rel="modulepreload" href="./_app/immutable/entry/start.C0iFNH5I.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/CII8bcTp.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/CzDUyVtD.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/OJV6PnUL.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/Bdkina3R.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/B1TCuiIb.js">
-		<link rel="modulepreload" href="./_app/immutable/entry/app.LR3T9CTF.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/CWj6FrbW.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/PIzckyUp.js">
-		<link rel="modulepreload" href="./_app/immutable/chunks/CariPTUg.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/start.B6YTMCBB.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/BYf8mAc-.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/2BTfzV6r.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DsgVtOPg.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/CDdHQTXV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/BiFF_jB9.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/CYgJF_JY.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/eVFC9t49.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/app.DwASUVHw.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/NZTpNUN0.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/8Ee0J66D.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C7eHOOXC.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DYtQPdT-.js">
 	</head>
 	<body data-sveltekit-preload-data="hover">
 		<!-- 
-			display: contents を使用することで、このdiv要素自体は
-			レイアウトに影響を与えずに、子要素のみをレンダリング
-			
+			SvelteKitアプリケーションの本体が挿入される
+		-->
+		
 			<script>
 				{
-					__sveltekit_1r4jxp6 = {
-						base: new URL(".", location).pathname.slice(0, -1)
+					__sveltekit_rrs0qn = {
+						base: ""
 					};
 
 					const element = document.currentScript.parentElement;
 
 					Promise.all([
-						import("./_app/immutable/entry/start.C0iFNH5I.js"),
-						import("./_app/immutable/entry/app.LR3T9CTF.js")
+						import("/_app/immutable/entry/start.B6YTMCBB.js"),
+						import("/_app/immutable/entry/app.DwASUVHw.js")
 					]).then(([kit, app]) => {
 						kit.start(app, element);
 					});
 				}
 			</script>
-		にはSvelteKitアプリケーションの本体が挿入される
-		-->
-		<div style="display: contents">%sveltekit.body%</div>
+		
 	</body>
 </html>

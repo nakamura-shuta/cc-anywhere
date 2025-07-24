@@ -31,6 +31,7 @@ export interface RetryOptions {
 export interface TaskContext {
 	workingDirectory?: string;
 	files?: string[];
+	repositories?: string[]; // 複数リポジトリのパス
 	metadata?: Record<string, unknown>;
 	[key: string]: unknown;
 }
@@ -41,7 +42,7 @@ export interface ClaudeCodeSDKOptions {
 	allowedTools?: string[];
 	disallowedTools?: string[];
 	systemPrompt?: string;
-	permissionMode?: "ask" | "allow" | "deny" | "acceptEdits" | "bypassPermissions" | "plan";
+	permissionMode?: "default" | "ask" | "allow" | "deny" | "acceptEdits" | "bypassPermissions" | "plan";
 	executable?: "node" | "bun" | "deno";
 	executableArgs?: string[];
 	continueSession?: boolean;
@@ -80,6 +81,15 @@ export interface TaskResponse {
 		code: string;
 	};
 	logs?: string[];
+	// 継続タスク関連
+	continuedFrom?: string;
+	parentTaskId?: string;
+	duration?: number;
+	options?: {
+		permissionMode?: string;
+		timeout?: number;
+		[key: string]: any;
+	};
 }
 
 // タスクログレスポンス

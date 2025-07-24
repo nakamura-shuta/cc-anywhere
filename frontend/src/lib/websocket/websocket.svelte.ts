@@ -51,13 +51,34 @@ export class WebSocketConnection {
 	
 	// 接続
 	connect() {
-		if (this.connected || this.connecting) return;
+		// ブラウザ環境でのみ実行
+		if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
+			console.warn('[WebSocket] ブラウザ環境ではありません。接続をスキップします。');
+			return;
+		}
+		
+		if (this.connected || this.connecting || this.ws) {
+			console.log('[WebSocket] 既に接続中または接続済み', {
+				connected: this.connected,
+				connecting: this.connecting,
+				hasWs: !!this.ws
+			});
+			return;
+		}
 		
 		this.connecting = true;
 		this.error = null;
 		
 		try {
-			this.ws = new WebSocket(this.url);
+			console.log('[WebSocket] 接続を開始します:', this.url);
+			// グローバルのWebSocketを明示的に使用
+			this.ws = new window.WebSocket(this.url);
+			
+			// WebSocketの状態を確認
+			console.log('[WebSocket] WebSocket作成完了', {
+				readyState: this.ws.readyState,
+				url: this.ws.url
+			});
 			
 			// イベントハンドラー
 			this.ws.onopen = () => this.handleOpen();
@@ -65,6 +86,7 @@ export class WebSocketConnection {
 			this.ws.onerror = (error) => this.handleError(error);
 			this.ws.onclose = (event) => this.handleClose(event);
 		} catch (err) {
+			console.error('[WebSocket] 接続エラー:', err);
 			this.connecting = false;
 			this.error = err instanceof Error ? err : new Error('接続エラー');
 		}
@@ -102,16 +124,41 @@ export class WebSocketConnection {
 	
 	// 認証
 	authenticate() {
-		const apiKey = getApiKey();
-		if (!apiKey) {
-			console.warn('APIキーが設定されていません');
+		// ブラウザ環境でのみ実行
+		if (typeof window === 'undefined') {
+			console.warn('[WebSocket] ブラウザ環境ではありません。認証をスキップします。');
 			return;
 		}
 		
-		this.send({
+		const apiKey = getApiKey();
+		console.log('[WebSocket] 認証を開始', { hasApiKey: !!apiKey });
+		
+		if (!apiKey) {
+			console.warn('[WebSocket] APIキーが設定されていません');
+			// 開発環境の場合はデフォルトAPIキーを使用
+			const defaultApiKey = 'hoge';
+			console.log('[WebSocket] デフォルトAPIキーを使用します');
+			
+			const authMessage = {
+				type: 'auth',
+				payload: {
+					apiKey: defaultApiKey
+				}
+			};
+			
+			this.send(authMessage);
+			return;
+		}
+		
+		const authMessage = {
 			type: 'auth',
-			apiKey
-		});
+			payload: {
+				apiKey
+			}
+		};
+		
+		console.log('[WebSocket] 認証メッセージを送信', { type: authMessage.type });
+		this.send(authMessage);
 	}
 	
 	// タスクのサブスクライブ
@@ -123,7 +170,9 @@ export class WebSocketConnection {
 		if (this.connected) {
 			this.send({
 				type: 'subscribe',
-				taskId
+				payload: {
+					taskId
+				}
 			});
 		}
 	}
@@ -137,24 +186,32 @@ export class WebSocketConnection {
 		if (this.connected) {
 			this.send({
 				type: 'unsubscribe',
-				taskId
+				payload: {
+					taskId
+				}
 			});
 		}
 	}
 	
 	// タスクのメッセージを取得（リアクティブ）
 	getTaskMessages(taskId: string): WebSocketMessage[] {
-		return this.taskMessages.get(taskId) || [];
+		// taskMessagesの変更を検知するため、Map全体を参照
+		// これによりSvelte 5のリアクティビティが維持される
+		const allMessages = this.taskMessages;
+		return allMessages.get(taskId) || [];
 	}
 	
 	// タスクのメッセージをクリア
 	clearTaskMessages(taskId: string) {
-		this.taskMessages.delete(taskId);
+		// Svelte 5のリアクティビティを維持するため、新しいMapを作成
+		const newMap = new Map(this.taskMessages);
+		newMap.delete(taskId);
+		this.taskMessages = newMap;
 	}
 	
 	// ハンドラー
 	private handleOpen() {
-		console.log('WebSocket接続成功');
+		console.log('[WebSocket] 接続成功');
 		this.connected = true;
 		this.connecting = false;
 		this.reconnectAttempts = 0;
@@ -167,13 +224,21 @@ export class WebSocketConnection {
 		
 		// 再接続時にサブスクリプションを復元
 		this.subscriptions.forEach(taskId => {
-			this.send({ type: 'subscribe', taskId });
+			this.send({ 
+				type: 'subscribe', 
+				payload: {
+					taskId
+				}
+			});
 		});
 	}
 	
 	private handleMessage(event: MessageEvent) {
 		try {
-			const message: WebSocketMessage = JSON.parse(event.data);
+			const rawMessage = JSON.parse(event.data);
+			
+			// バックエンドからのメッセージ形式を統一形式に変換
+			const message: WebSocketMessage = this.normalizeMessage(rawMessage);
 			
 			// メッセージを記録
 			this.messages = [...this.messages, message];
@@ -181,19 +246,23 @@ export class WebSocketConnection {
 			// タスク別にメッセージを記録
 			if (message.taskId) {
 				const taskMessages = this.taskMessages.get(message.taskId) || [];
-				this.taskMessages.set(message.taskId, [...taskMessages, message]);
+				// Svelte 5のリアクティビティを維持するため、新しいMapを作成
+				this.taskMessages = new Map(this.taskMessages).set(message.taskId, [...taskMessages, message]);
 			}
+			
+			// デバッグ: すべてのメッセージタイプをログ
+			console.log('[WebSocket] メッセージ受信:', message.type, message);
 			
 			// 認証成功
 			if (message.type === 'auth:success') {
 				this.authenticated = true;
-				console.log('WebSocket認証成功');
+				console.log('[WebSocket] 認証成功');
 			}
 			
 			// 認証エラー
 			if (message.type === 'auth:error') {
 				this.authenticated = false;
-				console.error('WebSocket認証失敗:', message.error);
+				console.error('[WebSocket] 認証失敗:', message.error);
 			}
 			
 			// pong（ハートビート応答）
@@ -215,6 +284,7 @@ export class WebSocketConnection {
 		this.connected = false;
 		this.connecting = false;
 		this.authenticated = false;
+		this.ws = null;
 		
 		this.stopHeartbeat();
 		
@@ -226,6 +296,11 @@ export class WebSocketConnection {
 	
 	// 再接続
 	private scheduleReconnect() {
+		// 既に再接続タイマーが設定されている場合はスキップ
+		if (this.reconnectTimer) {
+			return;
+		}
+		
 		if (this.reconnectAttempts >= 10) {
 			this.error = new Error('再接続の最大試行回数に達しました');
 			return;
@@ -237,6 +312,9 @@ export class WebSocketConnection {
 		console.log(`${delay}ms後に再接続を試みます（${this.reconnectAttempts}/10）`);
 		
 		this.reconnectTimer = window.setTimeout(() => {
+			this.reconnectTimer = undefined;
+			// 接続前にwsをクリア
+			this.ws = null;
 			this.connect();
 		}, delay);
 	}
@@ -245,7 +323,10 @@ export class WebSocketConnection {
 	private startHeartbeat() {
 		this.heartbeatTimer = window.setInterval(() => {
 			if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
-				this.send({ type: 'ping' });
+				this.send({ 
+					type: 'ping',
+					payload: {}
+				});
 			}
 		}, 30000);
 	}
@@ -254,6 +335,31 @@ export class WebSocketConnection {
 		if (this.heartbeatTimer) {
 			clearInterval(this.heartbeatTimer);
 			this.heartbeatTimer = undefined;
+		}
+	}
+	
+	// バックエンドのメッセージ形式を統一形式に変換
+	private normalizeMessage(rawMessage: any): WebSocketMessage {
+		// バックエンド形式: { type: "task:log", payload: { taskId, log, ... } }
+		// 統一形式: { type: "task:log", taskId, data: { log, ... }, timestamp }
+		
+		if (rawMessage.payload) {
+			// payloadがある場合は、バックエンド形式
+			const { type, payload } = rawMessage;
+			const { taskId, timestamp, ...data } = payload || {};
+			
+			return {
+				type,
+				taskId,
+				data,
+				timestamp: timestamp || new Date().toISOString()
+			};
+		} else {
+			// すでに統一形式の場合はそのまま返す
+			return {
+				...rawMessage,
+				timestamp: rawMessage.timestamp || new Date().toISOString()
+			};
 		}
 	}
 }

@@ -22,8 +22,8 @@ describe('taskService', () => {
 		it('タスク一覧を取得', async () => {
 			const mockApiResponse = {
 				tasks: [
-					{ id: '1', instruction: 'Task 1', status: 'completed' },
-					{ id: '2', instruction: 'Task 2', status: 'running' }
+					{ taskId: '1', instruction: 'Task 1', status: 'completed' },
+					{ taskId: '2', instruction: 'Task 2', status: 'running' }
 				],
 				total: 2,
 				limit: 20,
@@ -31,14 +31,15 @@ describe('taskService', () => {
 			};
 			
 			const expectedResponse = {
-				data: mockApiResponse.tasks,
+				data: [
+					{ taskId: '1', id: '1', instruction: 'Task 1', status: 'completed' },
+					{ taskId: '2', id: '2', instruction: 'Task 2', status: 'running' }
+				],
 				pagination: {
 					page: 1,
 					limit: 20,
 					total: 2,
-					totalPages: 1,
-					hasNext: false,
-					hasPrev: false
+					totalPages: 1
 				}
 			};
 			
@@ -47,14 +48,17 @@ describe('taskService', () => {
 			const result = await taskService.list({ page: 1, limit: 20 });
 			
 			expect(result).toEqual(expectedResponse);
-			expect(apiClient.get).toHaveBeenCalledWith('/api/tasks', {
-				params: { offset: 0, limit: 20 }
-			});
+			expect(apiClient.get).toHaveBeenCalledWith(
+				expect.stringContaining('/api/tasks'),
+				{
+					params: { offset: 0, limit: 20 }
+				}
+			);
 		});
 		
 		it('ステータスでフィルタリング', async () => {
 			const mockApiResponse = {
-				tasks: [{ id: '1', instruction: 'Task 1', status: 'running' }],
+				tasks: [{ taskId: '1', instruction: 'Task 1', status: 'running' }],
 				total: 1,
 				limit: 20,
 				offset: 0
@@ -64,9 +68,12 @@ describe('taskService', () => {
 			
 			await taskService.list({ status: 'running' });
 			
-			expect(apiClient.get).toHaveBeenCalledWith('/api/tasks', {
-				params: { status: 'running' }
-			});
+			expect(apiClient.get).toHaveBeenCalledWith(
+				expect.stringContaining('/api/tasks'),
+				{
+					params: { status: 'running' }
+				}
+			);
 		});
 	});
 	
@@ -78,19 +85,27 @@ describe('taskService', () => {
 			};
 			
 			const mockResponse = {
-				id: '123',
+				taskId: '123',
 				...taskRequest,
 				status: 'pending',
 				createdAt: '2024-01-01T00:00:00Z',
 				updatedAt: '2024-01-01T00:00:00Z'
 			};
 			
+			const expectedResponse = {
+				...mockResponse,
+				id: '123'
+			};
+			
 			vi.mocked(apiClient.post).mockResolvedValueOnce(mockResponse);
 			
 			const result = await taskService.create(taskRequest);
 			
-			expect(result).toEqual(mockResponse);
-			expect(apiClient.post).toHaveBeenCalledWith('/api/tasks', taskRequest);
+			expect(result).toEqual(expectedResponse);
+			expect(apiClient.post).toHaveBeenCalledWith(
+				expect.stringContaining('/api/tasks'),
+				taskRequest
+			);
 		});
 	});
 	
@@ -102,7 +117,9 @@ describe('taskService', () => {
 			const result = await taskService.cancel('123');
 			
 			expect(result).toEqual(mockResponse);
-			expect(apiClient.delete).toHaveBeenCalledWith('/api/tasks/123');
+			expect(apiClient.delete).toHaveBeenCalledWith(
+				expect.stringContaining('/api/tasks/123')
+			);
 		});
 		
 		it('DELETEが失敗したらPOSTメソッドを試す', async () => {
@@ -122,7 +139,9 @@ describe('taskService', () => {
 			
 			expect(deleteCallCount).toBe(1);
 			expect(result).toEqual(mockResponse);
-			expect(apiClient.post).toHaveBeenCalledWith('/api/tasks/123/cancel');
+			expect(apiClient.post).toHaveBeenCalledWith(
+				expect.stringContaining('/api/tasks/123/cancel')
+			);
 			
 			// 元に戻す
 			apiClient.delete = originalDelete;
@@ -137,7 +156,9 @@ describe('taskService', () => {
 			const result = await taskService.streamLogs('123');
 			
 			expect(result).toBe(mockStream);
-			expect(apiClient.stream).toHaveBeenCalledWith('/api/tasks/123/logs');
+			expect(apiClient.stream).toHaveBeenCalledWith(
+				expect.stringContaining('/api/tasks/123/logs')
+			);
 		});
 	});
 });

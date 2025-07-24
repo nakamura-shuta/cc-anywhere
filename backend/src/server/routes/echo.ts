@@ -13,4 +13,22 @@ export const echoRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get("/error-test", () => {
     throw new Error("Test error");
   });
+
+  // WebSocket status endpoint
+  fastify.get("/websocket-status", () => {
+    const wsServer = fastify.wsServer;
+    if (!wsServer) {
+      return {
+        enabled: false,
+        message: "WebSocket server not initialized",
+      };
+    }
+
+    const stats = wsServer.getStats();
+    return {
+      enabled: true,
+      stats,
+      url: "ws://localhost:5000/ws",
+    };
+  });
 };

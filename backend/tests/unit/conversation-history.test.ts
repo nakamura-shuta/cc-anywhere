@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { TaskExecutorImpl } from "../../src/claude/executor";
 import { TaskQueueImpl } from "../../src/queue/task-queue";
 import { TaskStatus, type TaskRequest } from "../../src/claude/types";
 import { getSharedDbProvider, closeSharedServices } from "../../src/db/shared-instance";
@@ -19,7 +18,6 @@ describe("Conversation History", () => {
       // Column might already exist
     }
 
-    executor = new TaskExecutorImpl();
     queue = new TaskQueueImpl({ concurrency: 1, autoStart: false });
   });
 

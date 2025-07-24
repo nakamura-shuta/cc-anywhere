@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createWebSocketConnection, setWebSocketContext } from '$lib/websocket/websocket.svelte';
 	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
 	
 	// Props
@@ -12,19 +13,32 @@
 	// コンテキストに設定
 	setWebSocketContext(ws);
 	
-	// 開発環境ではWebSocketを無効化（必要に応じて有効化）
-	const ENABLE_WEBSOCKET = false;
+	// WebSocketを有効化
+	const ENABLE_WEBSOCKET = true;
 	
-	// ブラウザ環境でのみ接続
-	$effect(() => {
-		if (browser && ENABLE_WEBSOCKET) {
-			ws.connect();
-			
-			// クリーンアップ
-			return () => {
-				ws.disconnect();
-			};
+	// マウント時に一度だけ接続
+	onMount(() => {
+		console.log('[WebSocketProvider] onMountが呼ばれました', {
+			browser,
+			ENABLE_WEBSOCKET,
+			wsInstance: !!ws
+		});
+		
+		if (ENABLE_WEBSOCKET && browser) {
+			console.log('[WebSocketProvider] ブラウザ環境でWebSocket接続を開始');
+			// 少し遅延を入れて接続
+			setTimeout(() => {
+				ws.connect();
+			}, 100);
 		}
+		
+		// クリーンアップ
+		return () => {
+			console.log('[WebSocketProvider] アンマウント時にWebSocket切断');
+			if (browser) {
+				ws.disconnect();
+			}
+		};
 	});
 </script>
 

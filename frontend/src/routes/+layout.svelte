@@ -13,14 +13,10 @@
 	let { children } = $props();
 	// WebSocketプロバイダー
 	import WebSocketProvider from '$lib/components/providers/websocket-provider.svelte';
-	// WebSocket接続状態フック
-	import { useWebSocketStatus } from '$lib/hooks/use-websocket.svelte';
+	// WebSocket接続状態表示コンポーネント
+	import WebSocketStatus from '$lib/components/websocket-status.svelte';
 	// 現在のページ情報を取得するためのストア
 	import { page } from '$app/stores';
-	import { Wifi, WifiOff } from 'lucide-svelte';
-	
-	// WebSocket接続状態
-	let wsStatus = $state<ReturnType<typeof useWebSocketStatus> | null>(null);
 	
 	// ナビゲーションメニューの定義
 	// 各アイテムはhref（リンク先）とlabel（表示テキスト）を持つ
@@ -30,11 +26,6 @@
 		{ href: '/scheduler', label: 'スケジューラー' },
 		{ href: '/settings', label: '設定' },
 	];
-	
-	// WebSocket接続状態を取得
-	$effect(() => {
-		wsStatus = useWebSocketStatus();
-	});
 	
 </script>
 
@@ -52,22 +43,7 @@
 						</a>
 						
 						<!-- WebSocket接続状態 -->
-						{#if wsStatus}
-							<div class="flex items-center gap-2 text-sm">
-								{#if wsStatus.connected}
-									<Wifi class="h-4 w-4 text-green-500" />
-									<span class="text-muted-foreground">
-										{wsStatus.authenticated ? '接続済み' : '認証中...'}
-									</span>
-								{:else if wsStatus.connecting}
-									<Wifi class="h-4 w-4 text-yellow-500 animate-pulse" />
-									<span class="text-muted-foreground">接続中...</span>
-								{:else}
-									<WifiOff class="h-4 w-4 text-destructive" />
-									<span class="text-muted-foreground">未接続</span>
-								{/if}
-							</div>
-						{/if}
+						<WebSocketStatus />
 					</div>
 					
 					<!-- ナビゲーションメニュー -->

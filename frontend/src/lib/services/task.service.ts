@@ -1,6 +1,7 @@
 // タスクサービス - SvelteKitのload関数で使用
 
 import { apiClient } from '$lib/api/client';
+import { API_ENDPOINTS } from '$lib/config/api';
 import type { 
 	TaskResponse, 
 	TaskRequest, 
@@ -30,7 +31,7 @@ export const taskService = {
 			total: number;
 			limit: number;
 			offset: number;
-		}>('/api/tasks', { params: queryParams });
+		}>(API_ENDPOINTS.tasks, { params: queryParams });
 		
 		// PaginatedResponseフォーマットに変換
 		const page = params?.page || 1;
@@ -56,7 +57,7 @@ export const taskService = {
 
 	// 単一タスクの取得
 	async get(id: string): Promise<TaskResponse> {
-		const task = await apiClient.get<TaskResponse>(`/api/tasks/${id}`);
+		const task = await apiClient.get<TaskResponse>(API_ENDPOINTS.task(id));
 		// idフィールドを追加
 		return {
 			...task,
@@ -66,7 +67,7 @@ export const taskService = {
 
 	// タスクの作成
 	async create(request: TaskRequest): Promise<TaskResponse> {
-		const task = await apiClient.post<TaskResponse>('/api/tasks', request);
+		const task = await apiClient.post<TaskResponse>(API_ENDPOINTS.tasks, request);
 		// idフィールドを追加
 		return {
 			...task,
@@ -78,25 +79,25 @@ export const taskService = {
 	async cancel(id: string): Promise<TaskResponse> {
 		// 互換性のためDELETEメソッドも試す
 		try {
-			return apiClient.delete<TaskResponse>(`/api/tasks/${id}`);
+			return apiClient.delete<TaskResponse>(API_ENDPOINTS.task(id));
 		} catch {
 			// 失敗したらPOSTメソッドを試す
-			return apiClient.post<TaskResponse>(`/api/tasks/${id}/cancel`);
+			return apiClient.post<TaskResponse>(API_ENDPOINTS.taskCancel(id));
 		}
 	},
 
 	// タスクログの取得
 	async getLogs(id: string): Promise<TaskLogResponse> {
-		return apiClient.get<TaskLogResponse>(`/api/tasks/${id}/logs`);
+		return apiClient.get<TaskLogResponse>(API_ENDPOINTS.taskLogs(id));
 	},
 
 	// タスクログのストリーミング
 	async streamLogs(id: string): Promise<ReadableStream> {
-		return apiClient.stream(`/api/tasks/${id}/logs`);
+		return apiClient.stream(API_ENDPOINTS.taskLogs(id));
 	},
 
 	// タスクの削除
 	async delete(id: string): Promise<void> {
-		return apiClient.delete(`/api/tasks/${id}`);
+		return apiClient.delete(API_ENDPOINTS.task(id));
 	}
 };

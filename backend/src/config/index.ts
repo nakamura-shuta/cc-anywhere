@@ -80,7 +80,7 @@ export const config = {
     enabled: !!env.API_KEY,
   },
   cors: {
-    origin: env.CORS_ORIGIN?.split(",") || true,
+    origin: env.CORS_ORIGIN === "*" ? true : env.CORS_ORIGIN?.split(",") || true,
   },
   tasks: {
     defaultTimeout: env.TASK_TIMEOUT_MS,

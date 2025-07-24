@@ -7,7 +7,7 @@
 	import { goto } from '$app/navigation';
 	import { format } from 'date-fns';
 	import { ja } from 'date-fns/locale';
-	import { Plus, RefreshCw, Eye, XCircle } from 'lucide-svelte';
+	import { Plus, RefreshCw, Eye, XCircle, GitBranch } from 'lucide-svelte';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -27,6 +27,14 @@
 	function formatDate(date: string | undefined) {
 		if (!date) return '-';
 		return format(new Date(date), 'yyyy/MM/dd HH:mm', { locale: ja });
+	}
+	
+	// 作業ディレクトリパスからリポジトリ名を取得
+	function getRepositoryName(path: string | undefined): string {
+		if (!path) return '-';
+		// パスの最後の部分を取得（例: /path/to/repo -> repo）
+		const parts = path.split('/');
+		return parts[parts.length - 1] || '-';
 	}
 	
 	// タスクの詳細表示
@@ -64,7 +72,7 @@
 	// 新しいタスク画面へ
 	function goToNewTask() {
 		// 一時的な回避策：window.location.hrefを使用
-		window.location.href = '/api';
+		window.location.href = '/tasks/new';
 	}
 </script>
 
@@ -77,6 +85,10 @@
 			<p class="text-muted-foreground">実行中のタスクを管理</p>
 		</div>
 		<div class="flex gap-2">
+			<Button variant="outline" onclick={() => window.location.href = '/tasks/tree'}>
+				<GitBranch class="mr-2 h-4 w-4" />
+				ツリー表示
+			</Button>
 			<Button variant="outline" onclick={refresh}>
 				<RefreshCw class="mr-2 h-4 w-4" />
 				更新
@@ -101,55 +113,45 @@
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>ステータス</Table.Head>
+						<Table.Head>リポジトリ</Table.Head>
 						<Table.Head>指示内容</Table.Head>
 						<Table.Head>作成日時</Table.Head>
-						<Table.Head>更新日時</Table.Head>
-						<Table.Head class="text-right">操作</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#if data.tasks && data.tasks.length > 0}
 						{#each data.tasks as task}
-							<Table.Row>
+							<Table.Row 
+								class="cursor-pointer hover:bg-muted/50 transition-colors"
+								onclick={() => viewTask(task.taskId)}
+							>
 								<Table.Cell>
 									<Badge variant={getStatusVariant(task.status)}>
 										{task.status}
 									</Badge>
 								</Table.Cell>
-								<Table.Cell class="max-w-md truncate">
-									{task.instruction}
+								<Table.Cell class="text-sm">
+									{getRepositoryName(task.context?.workingDirectory || task.workingDirectory)}
+								</Table.Cell>
+								<Table.Cell class="max-w-md">
+									<div class="space-y-1">
+										<p class="truncate">{task.instruction}</p>
+										{#if task.continuedFrom || task.parentTaskId}
+											<div class="flex items-center gap-1 text-xs text-muted-foreground">
+												<RefreshCw class="h-3 w-3" />
+												<span>継続タスク</span>
+											</div>
+										{/if}
+									</div>
 								</Table.Cell>
 								<Table.Cell>
 									{formatDate(task.createdAt)}
-								</Table.Cell>
-								<Table.Cell>
-									{formatDate(task.completedAt || task.startedAt || task.createdAt)}
-								</Table.Cell>
-								<Table.Cell class="text-right">
-									<div class="flex gap-2 justify-end">
-										<Button 
-											variant="ghost" 
-											size="sm"
-											onclick={() => viewTask(task.taskId)}
-										>
-											<Eye class="h-4 w-4" />
-										</Button>
-										{#if task.status === 'running' || task.status === 'pending'}
-											<Button 
-												variant="ghost" 
-												size="sm"
-												onclick={() => cancelTask(task.taskId)}
-											>
-												<XCircle class="h-4 w-4" />
-											</Button>
-										{/if}
-									</div>
 								</Table.Cell>
 							</Table.Row>
 						{/each}
 					{:else}
 						<Table.Row>
-							<Table.Cell colspan={5} class="text-center text-muted-foreground">
+							<Table.Cell colspan={4} class="text-center text-muted-foreground">
 								タスクがありません
 							</Table.Cell>
 						</Table.Row>

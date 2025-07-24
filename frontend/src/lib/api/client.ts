@@ -1,6 +1,6 @@
 // APIクライアント - Fetch APIのラッパー
 
-import { API_BASE_URL, getApiHeaders } from '$lib/config/api';
+import { getApiBaseUrl, getApiHeaders } from '$lib/config/api';
 
 // APIエラー
 export class ApiError extends Error {
@@ -32,11 +32,26 @@ export class ApiClient {
 	private baseUrl: string;
 
 	constructor(baseUrl?: string) {
-		this.baseUrl = baseUrl || API_BASE_URL;
+		this.baseUrl = baseUrl || getApiBaseUrl();
+		// デバッグ用
+		if (typeof window !== 'undefined') {
+			console.log('ApiClient initialized with baseUrl:', this.baseUrl);
+		}
 	}
 
 	// URLパラメータの構築
 	private buildUrl(endpoint: string, params?: Record<string, string | number | boolean>): string {
+		// エンドポイントが絶対URLの場合はそのまま使用
+		if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+			const url = new URL(endpoint);
+			if (params) {
+				Object.entries(params).forEach(([key, value]) => {
+					url.searchParams.append(key, String(value));
+				});
+			}
+			return url.toString();
+		}
+		
 		const url = new URL(endpoint, this.baseUrl);
 		if (params) {
 			Object.entries(params).forEach(([key, value]) => {
@@ -93,6 +108,16 @@ export class ApiClient {
 		const { params, timeout, ...fetchOptions } = options;
 		const url = this.buildUrl(endpoint, params);
 
+		// デバッグ用
+		if (typeof window !== 'undefined') {
+			console.log('API Request:', {
+				endpoint,
+				baseUrl: this.baseUrl,
+				fullUrl: url,
+				method: fetchOptions.method || 'GET'
+			});
+		}
+
 		const defaultOptions: RequestInit = {
 			headers: getApiHeaders(),
 			...fetchOptions
@@ -110,6 +135,13 @@ export class ApiClient {
 					// JSONパースエラーの場合はテキストを取得
 					errorData = { error: await response.text() };
 				}
+				console.error('API Error:', {
+					status: response.status,
+					statusText: response.statusText,
+					errorData,
+					endpoint,
+					requestBody: fetchOptions.body
+				});
 				throw new ApiError(response.status, response.statusText, errorData);
 			}
 

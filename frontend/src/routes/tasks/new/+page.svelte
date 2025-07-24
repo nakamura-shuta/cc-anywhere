@@ -6,18 +6,33 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Select from '$lib/components/ui/select';
-	import { Switch } from '$lib/components/ui/switch';
 	import { taskStore } from '$lib/stores/api.svelte';
 	import { ArrowLeft, Send } from 'lucide-svelte';
 	import type { TaskRequest } from '$lib/types/api';
+	import DirectorySelector from '$lib/components/directory-selector.svelte';
 	
 	// フォームの状態
 	let instruction = $state('');
-	let workingDirectory = $state('');
+	let selectedDirectories = $state<string[]>([]);
 	let maxTurns = $state(30);
 	let timeout = $state(300000);
-	let useAsync = $state(false);
-	let permissionMode = $state<string>('ask');
+	let useAsync = $state(true);
+	let permissionMode = $state<string>('allow');
+	
+	// 権限モードの選択肢
+	const permissionModes = [
+		{ value: 'ask', label: '確認する (ask)' },
+		{ value: 'allow', label: 'すべて許可 (allow)' },
+		{ value: 'deny', label: 'すべて拒否 (deny)' },
+		{ value: 'bypassPermissions', label: '権限バイパス (bypassPermissions)' },
+		{ value: 'acceptEdits', label: '編集を受け入れる (acceptEdits)' },
+		{ value: 'plan', label: '計画モード (plan)' }
+	];
+	
+	// 選択された権限モードのラベル
+	const selectedPermissionLabel = $derived(
+		permissionModes.find(m => m.value === permissionMode)?.label ?? '権限モードを選択'
+	);
 	
 	// 送信中フラグ
 	let submitting = $state(false);
@@ -31,26 +46,37 @@
 			return;
 		}
 		
+		if (selectedDirectories.length === 0) {
+			alert('作業ディレクトリを選択してください');
+			return;
+		}
+		
 		submitting = true;
 		
 		const request: TaskRequest = {
 			instruction: instruction.trim(),
-			context: workingDirectory ? { workingDirectory } : undefined,
+			context: {
+				workingDirectory: selectedDirectories[0], // 最初に選択されたディレクトリを使用
+				files: [] // 必要に応じてファイルを指定
+			},
 			options: {
 				timeout,
 				async: useAsync,
 				sdk: {
 					maxTurns,
-					permissionMode: permissionMode as 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+					permissionMode: Array.isArray(permissionMode) ? permissionMode[0] : permissionMode as 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan'
 				}
 			}
 		};
 		
+		console.log('Creating task with request:', JSON.stringify(request, null, 2));
+		console.log('Permission mode type:', typeof permissionMode, 'value:', permissionMode);
+		
 		try {
 			const result = await taskStore.createTask(request);
 			if (result.data) {
-				// 作成成功したらタスク詳細ページへ
-				goto(`/tasks/${result.data.id}`);
+				// 作成成功したらタスク一覧ページへ
+				goto('/tasks');
 			}
 		} catch (error) {
 			console.error('Failed to create task:', error);
@@ -91,17 +117,13 @@
 					/>
 				</div>
 
-				<div class="space-y-2">
-					<Label for="workingDirectory">作業ディレクトリ</Label>
-					<Input
-						id="workingDirectory"
-						bind:value={workingDirectory}
-						placeholder="例: /path/to/project"
-					/>
-					<p class="text-sm text-muted-foreground">
-						指定しない場合はデフォルトのディレクトリが使用されます
-					</p>
-				</div>
+				<!-- 作業ディレクトリセレクター -->
+				<DirectorySelector 
+					bind:selectedDirectories={selectedDirectories}
+					onSelectionChange={(selected) => {
+						selectedDirectories = selected;
+					}}
+				/>
 
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-2">
@@ -129,24 +151,20 @@
 
 				<div class="space-y-2">
 					<Label for="permissionMode">権限モード</Label>
-					<Select.Root type="multiple" value={[permissionMode]} onValueChange={(v: string[]) => permissionMode = v[0] || 'ask'}>
+					<Select.Root type="single" bind:value={permissionMode}>
 						<Select.Trigger id="permissionMode">
-							<span>{permissionMode === 'ask' ? '確認する (ask)' : permissionMode === 'allow' ? 'すべて許可 (allow)' : permissionMode === 'deny' ? 'すべて拒否 (deny)' : '権限モードを選択'}</span>
+							{selectedPermissionLabel}
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="ask">確認する (ask)</Select.Item>
-							<Select.Item value="allow">すべて許可 (allow)</Select.Item>
-							<Select.Item value="deny">すべて拒否 (deny)</Select.Item>
-							<Select.Item value="acceptEdits">編集を受け入れる</Select.Item>
-							<Select.Item value="plan">計画モード</Select.Item>
+							{#each permissionModes as mode}
+								<Select.Item value={mode.value} label={mode.label}>
+									{mode.label}
+								</Select.Item>
+							{/each}
 						</Select.Content>
 					</Select.Root>
 				</div>
 
-				<div class="flex items-center space-x-2">
-					<Switch id="async" bind:checked={useAsync} />
-					<Label for="async">非同期実行</Label>
-				</div>
 
 				<div class="flex gap-2 pt-4">
 					<Button type="submit" disabled={submitting} class="gap-2">
