@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ScheduledTask, ScheduleListOptions } from "../../types/scheduled-task.js";
 import { AppError } from "../../utils/errors.js";
 import { logger } from "../../utils/logger.js";
+import { serializeSchedule, serializeSchedules } from "../../utils/schedule-serializer.js";
 
 interface CreateScheduleBody {
   name: string;
@@ -35,11 +36,17 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     try {
+      // executeAtがある場合は文字列からDateオブジェクトに変換
+      const processedSchedule = {
+        ...schedule,
+        executeAt: schedule.executeAt ? new Date(schedule.executeAt) : undefined,
+      };
+
       const newSchedule = schedulerService.createSchedule({
         name,
         description,
         taskRequest,
-        schedule,
+        schedule: processedSchedule,
         status,
         metadata: {
           createdAt: new Date(),
@@ -53,7 +60,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
         name: newSchedule.name,
       });
 
-      return reply.code(201).send(newSchedule);
+      return reply.code(201).send(serializeSchedule(newSchedule));
     } catch (error) {
       if (error instanceof Error && error.message.includes("Invalid cron expression")) {
         throw new AppError(error.message, 400, "INVALID_CRON");
@@ -75,7 +82,10 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
       status,
     });
 
-    return response;
+    return {
+      schedules: serializeSchedules(response.schedules),
+      total: response.total,
+    };
   });
 
   // Get schedule by ID
@@ -87,7 +97,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
       throw new AppError(`Schedule ${id} not found`, 404, "SCHEDULE_NOT_FOUND");
     }
 
-    return schedule;
+    return serializeSchedule(schedule);
   });
 
   // Update schedule
@@ -103,7 +113,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       logger.info("Schedule updated via API", { scheduleId: id });
-      return updated;
+      return serializeSchedule(updated);
     },
   );
 
@@ -130,7 +140,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     logger.info("Schedule enabled via API", { scheduleId: id });
-    return updated;
+    return serializeSchedule(updated);
   });
 
   // Disable schedule
@@ -143,7 +153,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     logger.info("Schedule disabled via API", { scheduleId: id });
-    return updated;
+    return serializeSchedule(updated);
   });
 
   // Get execution history

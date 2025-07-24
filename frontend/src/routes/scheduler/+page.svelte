@@ -17,6 +17,12 @@
 	let isCreateDialogOpen = $state(false);
 	let selectedStatus = $state(data.status || 'all');
 	
+	// データの変更を監視して schedules を更新
+	$effect(() => {
+		// データが変更されたら schedules を更新
+		schedules = data.schedules;
+	});
+	
 	// ステータスの選択肢
 	const statusOptions = [
 		{ value: 'all', label: 'すべて' },

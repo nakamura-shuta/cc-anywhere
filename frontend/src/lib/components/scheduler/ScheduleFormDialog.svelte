@@ -168,7 +168,14 @@
 			open = false;
 		} catch (err) {
 			console.error('Failed to create schedule:', err);
-			toast.error('スケジュールの作成に失敗しました');
+			// エラーの詳細を表示
+			if (err instanceof Error && 'errorData' in err) {
+				const errorData = (err as any).errorData;
+				console.error('Error details:', errorData);
+				toast.error(errorData?.message || 'スケジュールの作成に失敗しました');
+			} else {
+				toast.error('スケジュールの作成に失敗しました');
+			}
 		} finally {
 			isSubmitting = false;
 		}

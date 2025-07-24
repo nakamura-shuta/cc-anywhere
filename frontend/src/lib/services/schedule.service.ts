@@ -6,7 +6,13 @@ import type { ScheduledTask, ScheduledTaskHistory, ScheduleListResponse } from '
 export const scheduleService = {
 	// スケジュール一覧の取得
 	async list(params?: { limit?: number; offset?: number; status?: string }): Promise<ScheduleListResponse> {
-		return apiClient.get<ScheduleListResponse>('/api/schedules', { params });
+		// status が undefined の場合は送信しない
+		const cleanParams: any = {};
+		if (params?.limit !== undefined) cleanParams.limit = params.limit;
+		if (params?.offset !== undefined) cleanParams.offset = params.offset;
+		if (params?.status !== undefined) cleanParams.status = params.status;
+		
+		return apiClient.get<ScheduleListResponse>('/api/schedules', { params: cleanParams });
 	},
 
 	// 単一スケジュールの取得

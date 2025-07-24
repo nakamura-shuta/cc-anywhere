@@ -2,6 +2,9 @@ import type { PageLoad } from './$types';
 import { scheduleService } from '$lib/services/schedule.service';
 import { error } from '@sveltejs/kit';
 
+// このページは動的データを扱うため、プリレンダリングを無効化
+export const prerender = false;
+
 export const load: PageLoad = async ({ url }) => {
 	try {
 		const page = Number(url.searchParams.get('page')) || 1;
