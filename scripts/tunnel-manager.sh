@@ -14,6 +14,7 @@ NC='\033[0m' # No Color
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+BACKEND_DIR="$PROJECT_DIR/backend"
 
 # ヘルプ表示
 show_help() {
@@ -33,7 +34,7 @@ show_help() {
 
 # 現在の設定を表示
 show_current_config() {
-    cd "$PROJECT_DIR"
+    cd "$BACKEND_DIR"
     
     local tunnel_type=$(grep "^TUNNEL_TYPE=" .env 2>/dev/null | cut -d'=' -f2 || echo "none")
     local enable_ngrok=$(grep "^ENABLE_NGROK=" .env 2>/dev/null | cut -d'=' -f2 || echo "false")
@@ -57,7 +58,7 @@ show_current_config() {
 
 # トンネルの設定
 setup_tunnel() {
-    cd "$PROJECT_DIR"
+    cd "$BACKEND_DIR"
     
     echo -e "${YELLOW}トンネルのセットアップ${NC}"
     echo ""
@@ -93,7 +94,11 @@ setup_tunnel() {
             case $cf_choice in
                 1)
                     echo -e "${YELLOW}自動セットアップを実行します...${NC}"
-                    "$SCRIPT_DIR/setup-cloudflare-tunnel.sh"
+                    if [ -f "$SCRIPT_DIR/setup-cloudflare-tunnel.sh" ]; then
+                        "$SCRIPT_DIR/setup-cloudflare-tunnel.sh"
+                    else
+                        echo -e "${RED}setup-cloudflare-tunnel.sh が見つかりません${NC}"
+                    fi
                     ;;
                 2)
                     echo ""
@@ -143,12 +148,12 @@ setup_tunnel() {
 
 # トンネルURLを表示
 show_tunnel_url() {
-    cd "$PROJECT_DIR"
+    cd "$BACKEND_DIR"
     
     # サーバーが動作しているか確認
     if ! curl -s http://localhost:5000/health > /dev/null 2>&1; then
         echo -e "${RED}CC-Anywhereが起動していません${NC}"
-        echo "起動: npm run dev"
+        echo "起動: ./scripts/start-clamshell.sh"
         return 1
     fi
     
@@ -160,23 +165,19 @@ show_tunnel_url() {
     
     if [ "$tunnel_type" = "cloudflare" ]; then
         echo -e "${MAGENTA}Cloudflare Tunnel URL:${NC}"
-        # server.logまたはアクセス情報ファイルから取得
-        if [ -f "$PROJECT_DIR/data/last-access-info.json" ]; then
-            jq -r '.url // "取得中..."' "$PROJECT_DIR/data/last-access-info.json" 2>/dev/null || echo "取得中..."
-        elif [ -f "$PROJECT_DIR/server.log" ]; then
-            grep -i "cloudflare.*ready at" "$PROJECT_DIR/server.log" | tail -1 | grep -o "https://[^ ]*" || echo "取得中..."
+        # data/last-access-info.jsonまたはPM2ログから取得
+        if [ -f "$BACKEND_DIR/data/last-access-info.json" ]; then
+            jq -r '.url // "取得中..."' "$BACKEND_DIR/data/last-access-info.json" 2>/dev/null || echo "取得中..."
         else
-            echo "取得中..."
+            pm2 logs cc-anywhere-backend --lines 200 --nostream --raw | grep -o "https://.*\.trycloudflare\.com" | tail -1 || echo "取得中..."
         fi
     elif [ "$tunnel_type" = "ngrok" ] || [ "$(grep "^ENABLE_NGROK=" .env 2>/dev/null | cut -d'=' -f2)" = "true" ]; then
         echo -e "${MAGENTA}ngrok URL:${NC}"
-        # server.logまたはアクセス情報ファイルから取得
-        if [ -f "$PROJECT_DIR/data/last-access-info.json" ]; then
-            jq -r '.url // "取得中..."' "$PROJECT_DIR/data/last-access-info.json" 2>/dev/null || echo "取得中..."
-        elif [ -f "$PROJECT_DIR/server.log" ]; then
-            grep -i "ngrok.*started\|https://.*ngrok" "$PROJECT_DIR/server.log" | tail -1 | grep -o "https://[^ ]*" || echo "取得中..."
+        # data/last-access-info.jsonまたはPM2ログから取得
+        if [ -f "$BACKEND_DIR/data/last-access-info.json" ]; then
+            jq -r '.url // "取得中..."' "$BACKEND_DIR/data/last-access-info.json" 2>/dev/null || echo "取得中..."
         else
-            echo "取得中..."
+            pm2 logs cc-anywhere-backend --lines 200 --nostream --raw | grep -o "https://.*\.ngrok\(-free\)\?.app" | tail -1 || echo "取得中..."
         fi
     else
         echo -e "${YELLOW}外部アクセスは無効です${NC}"
@@ -185,27 +186,36 @@ show_tunnel_url() {
     # ローカルURL
     local port=$(grep "^PORT=" .env 2>/dev/null | cut -d'=' -f2 || echo "5000")
     echo ""
-    echo -e "${BLUE}ローカルURL:${NC} http://localhost:$port"
+    echo -e "${BLUE}ローカルURL:${NC}"
+    echo "  - バックエンド: http://localhost:$port"
+    echo "  - フロントエンド: http://localhost:3000"
 }
 
 # QRコードを表示
 show_qr_code() {
-    cd "$PROJECT_DIR"
+    cd "$BACKEND_DIR"
     
     if ! curl -s http://localhost:5000/health > /dev/null 2>&1; then
         echo -e "${RED}CC-Anywhereが起動していません${NC}"
-        echo "起動: npm run dev"
+        echo "起動: ./scripts/start-clamshell.sh"
         return 1
     fi
     
-    # より詳細な表示のため専用スクリプトを呼び出し
-    "$SCRIPT_DIR/show-full-qr.sh"
+    # QRコード表示スクリプトを呼び出し
+    if [ -f "$SCRIPT_DIR/show-qr-direct.sh" ]; then
+        "$SCRIPT_DIR/show-qr-direct.sh"
+    else
+        echo -e "${YELLOW}QRコード情報の取得中...${NC}"
+        if [ -f "$BACKEND_DIR/data/last-qr.txt" ]; then
+            cat "$BACKEND_DIR/data/last-qr.txt"
+        else
+            echo -e "${RED}QRコードがまだ生成されていません${NC}"
+        fi
+    fi
 }
 
 # トンネルの状態確認
 check_tunnel_status() {
-    cd "$PROJECT_DIR"
-    
     echo -e "${BLUE}=== トンネル状態 ===${NC}"
     echo ""
     
@@ -215,13 +225,9 @@ check_tunnel_status() {
     if curl -s http://localhost:5000/health > /dev/null 2>&1; then
         echo -e "サーバー: ${GREEN}実行中${NC}"
         
-        # 最新のトンネル状態をログから確認
-        local tunnel_type=$(grep "^TUNNEL_TYPE=" .env 2>/dev/null | cut -d'=' -f2 || echo "none")
-        
-        if [ "$tunnel_type" != "none" ] && [ -f "$PROJECT_DIR/server.log" ]; then
-            echo ""
-            echo "最新のトンネルログ:"
-            grep -i "tunnel\|ngrok\|cloudflare" "$PROJECT_DIR/server.log" | tail -5
+        # PM2プロセスの状態を確認
+        if pm2 status | grep -q "cc-anywhere-backend"; then
+            echo -e "PM2ステータス: ${GREEN}稼働中${NC}"
         fi
     else
         echo -e "サーバー: ${RED}停止中${NC}"
@@ -240,7 +246,7 @@ case "$1" in
         setup_tunnel
         echo ""
         echo -e "${YELLOW}※ 設定を反映するにはサーバーを再起動してください${NC}"
-        echo "  Ctrl+C で停止後、npm run dev で再起動"
+        echo "  ./scripts/pm2-manager.sh restart"
         ;;
     qr)
         show_qr_code

@@ -15,15 +15,16 @@ NC='\033[0m' # No Color
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+BACKEND_DIR="$PROJECT_DIR/backend"
 
 # 保存されたQRコードファイルを直接表示
-if [ -f "$PROJECT_DIR/data/last-qr.txt" ] && [ -f "$PROJECT_DIR/data/last-access-info.json" ]; then
+if [ -f "$BACKEND_DIR/data/last-qr.txt" ] && [ -f "$BACKEND_DIR/data/last-access-info.json" ]; then
     # アクセス情報を読み込む
     if command -v jq >/dev/null 2>&1; then
-        URL=$(jq -r '.url' "$PROJECT_DIR/data/last-access-info.json" 2>/dev/null || echo "")
-        TYPE=$(jq -r '.type' "$PROJECT_DIR/data/last-access-info.json" 2>/dev/null || echo "")
-        API_KEY=$(jq -r '.apiKey // "未設定"' "$PROJECT_DIR/data/last-access-info.json" 2>/dev/null || echo "未設定")
-        WEB_UI_URL=$(jq -r '.webUIUrl // ""' "$PROJECT_DIR/data/last-access-info.json" 2>/dev/null || echo "")
+        URL=$(jq -r '.url' "$BACKEND_DIR/data/last-access-info.json" 2>/dev/null || echo "")
+        TYPE=$(jq -r '.type' "$BACKEND_DIR/data/last-access-info.json" 2>/dev/null || echo "")
+        API_KEY=$(jq -r '.apiKey // "未設定"' "$BACKEND_DIR/data/last-access-info.json" 2>/dev/null || echo "未設定")
+        WEB_UI_URL=$(jq -r '.webUIUrl // ""' "$BACKEND_DIR/data/last-access-info.json" 2>/dev/null || echo "")
     fi
     
     # 情報表示
@@ -52,7 +53,7 @@ if [ -f "$PROJECT_DIR/data/last-qr.txt" ] && [ -f "$PROJECT_DIR/data/last-access
     echo ""
     
     # QRコードを直接表示（タイムスタンプなし）
-    cat "$PROJECT_DIR/data/last-qr.txt"
+    cat "$BACKEND_DIR/data/last-qr.txt"
     
     echo ""
     echo "========================================"
