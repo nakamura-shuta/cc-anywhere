@@ -1,6 +1,10 @@
 #!/bin/bash
 # CC-Anywhere 本番環境起動スクリプト
 # PM2を使用した本番環境での起動
+# 
+# 使用方法:
+#   ./start-production.sh          # 統合モード（デフォルト）
+#   ./start-production.sh separate # 分離モード
 
 set -e
 

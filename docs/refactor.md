@@ -120,10 +120,11 @@
 
 ## 実装順序の推奨
 
-1. **Phase 1 (即座に実施)** - 一部完了
+1. **Phase 1 (即座に実施)** - ✅ 完了
    - [x] 大規模フロントエンドコンポーネントの分割（routes/tasks/+page.svelte）✅ 2025-01-25
-   - [ ] 設定ファイルとスクリプトの整理
-   - [ ] 不要なドキュメントの削除
+   - [x] 大規模フロントエンドコンポーネントの分割（routes/scheduler/+page.svelte）✅ 2025-01-25
+   - [x] 設定ファイルとスクリプトの整理 ✅ 2025-01-25
+   - [x] 不要なドキュメントの削除 ✅ 2025-01-25
 
 2. **Phase 2 (1週間以内)**
    - フロントエンド状態管理の改善
@@ -185,34 +186,29 @@
   - Svelte 5のRunesを活用した効率的な状態管理
 - 実装工数: 4-5日
 
-## 設定ファイルとスクリプトの整理
+## 設定ファイルとスクリプトの整理 ✅ 2025-01-25 完了
 
-### 重複・不要な設定ファイルの削除
-1. **フロントエンド設定**
-   - 現状: 8個の設定ファイル（一部重複あり）
-   - 改善案:
-     - vitest-setup.tsとvitest.config.tsを統合
-     - components.jsonの必要性を再評価
-   - 実装工数: 1日
+### 重複・不要な設定ファイルの削除 ✅
+1. **削除したファイル**
+   - `web.backup-20250718-181039/` - 古いバックアップディレクトリ
+   - `scripts/fix-duplicate-layout.sh` - 一時的な修正スクリプト（既に問題解決済み）
+   - `scripts/start-production-separate.sh` - 分離版起動スクリプト（READMEに手順を統合）
+   - `docs/frontend-guide.md` - frontend/README.mdと重複
+   - `docs/scheduler-ui-design.md` - features/scheduler.mdと統合済み
+   - `docs/frontend/BUTTON_NAVIGATION_FIX.md` - 一時的な修正ドキュメント
+   - `docs/deployment/spa-fix.md` - 既に修正済みの問題
 
-2. **バックエンド設定**
-   - 現状: 8個の設定ファイル
-   - 改善案:
-     - tsconfig.jsonとtsconfig.test.jsonを統合
-     - ecosystem.config.js（PM2設定）の必要性を再評価
-   - 実装工数: 1日
+2. **維持した設定ファイル**
+   - `backend/tsconfig.json` と `backend/tsconfig.test.json` - 別々の用途で必要
+   - `backend/ecosystem.config.js` - PM2設定として必要
+   - `frontend/vitest-setup.ts` と `frontend/vitest.config.ts` - テスト設定として必要
+   - `frontend/components.json` - shadcn-svelte用の設定として必要
 
-### スクリプトの整理と改善
-1. **scripts/ディレクトリ**
-   - 現状: 6個のシェルスクリプト（一部機能重複）
-   - 問題点:
-     - start-production.shとstart-production-separate.shの重複
-     - fix-duplicate-layout.sh（一時的な修正）が残存
-   - 改善案:
-     - 統合可能なスクリプトをまとめる
-     - npm scriptsへの移行を検討
-     - 不要なスクリプトの削除
-   - 実装工数: 1日
+### スクリプトの整理と改善 ✅
+1. **整理結果**
+   - 分離版デプロイの手順を`scripts/README.md`に統合
+   - 残りのスクリプトは全て必要なものとして維持
+   - 各スクリプトの役割と使用方法をREADMEで明確化
 
 ## ドキュメント構造の改善
 

@@ -53,6 +53,59 @@ PM2を使用して本番環境でサーバーを起動します。
 - tmuxセッション
 - caffeinate（スリープ防止）
 
+## フロントエンドとバックエンドの分離デプロイ
+
+フロントエンドとバックエンドを別々のプロセスやサーバーでホストする場合：
+
+### 1. バックエンドのみ起動
+```bash
+cd backend
+pm2 start ecosystem.config.js --env production
+```
+
+### 2. フロントエンドの静的ホスティング
+```bash
+cd frontend
+npm run build
+npx serve build -p 4444 -s
+```
+
+### 3. Nginxリバースプロキシ設定例
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # フロントエンド
+    location / {
+        proxy_pass http://localhost:4444;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # API
+    location /api {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # WebSocket
+    location /ws {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
 ## バックエンドスクリプト
 
 バックエンド固有のスクリプトは`backend/scripts/`にあります:
