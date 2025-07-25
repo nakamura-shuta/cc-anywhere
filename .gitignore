@@ -10,6 +10,9 @@ frontend/dist/
 frontend/.svelte-kit/
 *.tsbuildinfo
 
+# Frontend build artifacts deployed to backend
+backend/web/
+
 # Working directories
 .work/
 .claude/
