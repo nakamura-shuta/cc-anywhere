@@ -37,11 +37,18 @@ export class ClaudeCodeClient {
   async executeTask(
     prompt: string,
     options: ClaudeCodeOptions = {},
-  ): Promise<{ messages: SDKMessage[]; success: boolean; error?: Error; tracker?: TaskTracker }> {
+  ): Promise<{
+    messages: SDKMessage[];
+    success: boolean;
+    error?: Error;
+    tracker?: TaskTracker;
+    sessionId?: string;
+  }> {
     const abortController = options.abortController || new AbortController();
     const messages: SDKMessage[] = [];
     const tracker = new TaskTracker();
     const startTime = Date.now();
+    let sessionId: string | undefined;
 
     try {
       logger.debug("Executing task with Claude Code SDK", {
@@ -103,6 +110,12 @@ export class ClaudeCodeClient {
           type: message.type,
           message: JSON.stringify(message),
         });
+
+        // Extract session ID if available
+        if (!sessionId && (message as any).session_id) {
+          sessionId = (message as any).session_id;
+          logger.info("Claude Code SDK session ID detected", { sessionId });
+        }
 
         // Track turns and tool usage
         if (message.type === "assistant") {
@@ -264,7 +277,7 @@ export class ClaudeCodeClient {
         level: LogLevel.SUCCESS,
       });
 
-      return { messages, success: true, tracker };
+      return { messages, success: true, tracker, sessionId };
     } catch (error) {
       logger.error("Task execution failed", { error, prompt });
 
@@ -280,6 +293,7 @@ export class ClaudeCodeClient {
         success: false,
         error: error instanceof Error ? error : new Error(String(error)),
         tracker,
+        sessionId,
       };
     }
   }

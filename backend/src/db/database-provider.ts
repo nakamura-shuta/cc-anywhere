@@ -84,6 +84,7 @@ export class DatabaseProvider {
           retry_metadata TEXT,
           group_id TEXT,
           repository_name TEXT,
+          sdk_session_id TEXT,
           UNIQUE(id)
         )
       `);
@@ -94,6 +95,7 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
         CREATE INDEX IF NOT EXISTS idx_tasks_groupId ON tasks(group_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_repositoryName ON tasks(repository_name);
+        CREATE INDEX IF NOT EXISTS idx_tasks_sdk_session_id ON tasks(sdk_session_id);
       `);
 
       // Create batch_tasks table

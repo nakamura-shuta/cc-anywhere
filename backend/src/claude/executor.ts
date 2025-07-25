@@ -110,6 +110,7 @@ export class TaskExecutorImpl implements TaskExecutor {
     const startTime = Date.now();
     const logs: string[] = [];
     let sdkMessages: any[] = []; // Store SDK messages for conversation history
+    let sdkResult: Awaited<ReturnType<typeof this.codeClient.executeTask>> | undefined;
 
     logs.push(`Task started: ${task.instruction}`);
 
@@ -233,7 +234,6 @@ export class TaskExecutorImpl implements TaskExecutor {
       let output: unknown;
 
       // Use Claude Code SDK
-      let sdkResult: Awaited<ReturnType<typeof this.codeClient.executeTask>> | undefined;
       try {
         // Transition to setup phase
         timeoutManager.transitionToPhase(TimeoutPhase.SETUP);
@@ -457,6 +457,7 @@ export class TaskExecutorImpl implements TaskExecutor {
         duration: Date.now() - startTime,
         todos,
         conversationHistory: sdkMessages.length > 0 ? sdkMessages : undefined,
+        sdkSessionId: sdkResult?.sessionId,
       };
 
       logger.info("Task execution completed successfully", {
@@ -499,6 +500,7 @@ export class TaskExecutorImpl implements TaskExecutor {
         logs,
         duration: Date.now() - startTime,
         conversationHistory: sdkMessages.length > 0 ? sdkMessages : undefined,
+        sdkSessionId: sdkResult?.sessionId,
       };
     }
   }
@@ -745,6 +747,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       mcpConfig: sdkOptions?.mcpConfig ?? {},
       continueSession: sdkOptions?.continueSession ?? false,
       resumeSession: sdkOptions?.resumeSession ?? "",
+      continueFromTaskId: sdkOptions?.continueFromTaskId ?? "",
       outputFormat: sdkOptions?.outputFormat ?? "text",
 
       // Priority: Low

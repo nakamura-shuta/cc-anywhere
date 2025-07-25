@@ -420,6 +420,15 @@ export class TaskQueueImpl implements TaskQueue {
             });
           }
 
+          // Save SDK session ID if available
+          if (result.sdkSessionId) {
+            this.repository.updateSdkSessionId(task.id, result.sdkSessionId);
+            logger.info("SDK session ID saved", {
+              taskId: task.id,
+              sdkSessionId: result.sdkSessionId,
+            });
+          }
+
           logger.info("Task result updated in database", { taskId: task.id, status: task.status });
         } catch (error) {
           logger.error("Failed to update task result in database", { taskId: task.id, error });

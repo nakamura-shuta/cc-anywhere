@@ -25,6 +25,8 @@ export interface TaskRecord {
   conversationHistory?: any; // Parsed JSON containing SDK messages
   // Task continuation
   continuedFrom?: string; // Parent task ID for continuation
+  // Claude Code SDK session
+  sdkSessionId?: string; // Claude Code SDK session ID for continue functionality
   // Progress data
   progressData?: {
     currentTurn?: number;

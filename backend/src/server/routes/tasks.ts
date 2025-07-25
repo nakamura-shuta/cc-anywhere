@@ -270,6 +270,10 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                       type: "string",
                       description: "Resume specific session ID",
                     },
+                    continueFromTaskId: {
+                      type: "string",
+                      description: "Continue from a previous task using its SDK session ID",
+                    },
                     outputFormat: {
                       type: "string",
                       enum: ["text", "json", "stream-json"],
@@ -336,8 +340,56 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
+      // Handle continueFromTaskId option
+      let taskRequest = request.body;
+      if (request.body.options?.sdk?.continueFromTaskId) {
+        const previousTaskId = request.body.options.sdk.continueFromTaskId;
+        const previousTask = repository.getById(previousTaskId);
+
+        if (!previousTask) {
+          const errorResponse: ErrorResponse = {
+            error: {
+              message: `Previous task not found: ${previousTaskId}`,
+              statusCode: 404,
+              code: "PREVIOUS_TASK_NOT_FOUND",
+            },
+          };
+          return reply.status(404).send(errorResponse);
+        }
+
+        if (!previousTask.sdkSessionId) {
+          const errorResponse: ErrorResponse = {
+            error: {
+              message: `Previous task does not have an SDK session ID. It may have been executed before this feature was available.`,
+              statusCode: 400,
+              code: "NO_SDK_SESSION_ID",
+            },
+          };
+          return reply.status(400).send(errorResponse);
+        }
+
+        // Update the request to use resumeSession with the SDK session ID
+        taskRequest = {
+          ...request.body,
+          options: {
+            ...request.body.options,
+            sdk: {
+              ...request.body.options?.sdk,
+              resumeSession: previousTask.sdkSessionId,
+              // Remove continueFromTaskId as it's not needed for the SDK
+              continueFromTaskId: undefined,
+            },
+          },
+        };
+
+        logger.info("Using SDK session from previous task", {
+          previousTaskId,
+          sdkSessionId: previousTask.sdkSessionId,
+        });
+      }
+
       // Add task to queue
-      const taskId = taskQueue.add(request.body, 0);
+      const taskId = taskQueue.add(taskRequest, 0);
 
       // Get task details
       const queuedTask = taskQueue.get(taskId);
@@ -348,22 +400,22 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       const task: TaskResponse = {
         taskId,
         status: TaskStatus.PENDING,
-        instruction: request.body.instruction,
+        instruction: taskRequest.instruction,
         createdAt: queuedTask.addedAt,
         retryMetadata: queuedTask.retryMetadata,
-        workingDirectory: request.body.context?.workingDirectory,
+        workingDirectory: taskRequest.context?.workingDirectory,
       };
 
       // Handle async tasks
-      if (request.body.options?.async) {
+      if (taskRequest.options?.async) {
         return reply.status(202).send(task);
       }
 
       // Wait for task completion for sync tasks
       const timeout =
-        typeof request.body.options?.timeout === "number"
-          ? request.body.options.timeout
-          : request.body.options?.timeout?.total || 300000;
+        typeof taskRequest.options?.timeout === "number"
+          ? taskRequest.options.timeout
+          : taskRequest.options?.timeout?.total || 300000;
       const startTime = Date.now();
 
       while (Date.now() - startTime < timeout) {
@@ -459,6 +511,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         todos: queuedTask.result?.todos || record.progressData?.todos,
         continuedFrom: record.continuedFrom || undefined,
         progressData: record.progressData || undefined,
+        sdkSessionId: record.sdkSessionId || undefined,
       };
 
       void reply.send(task);

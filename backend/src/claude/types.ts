@@ -60,6 +60,7 @@ export interface ClaudeCodeSDKOptions {
   mcpConfig?: Record<string, MCPServerConfig>;
   continueSession?: boolean;
   resumeSession?: string;
+  continueFromTaskId?: string;
   outputFormat?: "text" | "json" | "stream-json";
 
   // Priority: Low
@@ -140,6 +141,7 @@ export interface TaskResponse {
   groupId?: string;
   todos?: TodoItem[];
   continuedFrom?: string;
+  sdkSessionId?: string;
   progressData?: {
     currentTurn?: number;
     maxTurns?: number;
@@ -169,6 +171,8 @@ export interface ClaudeExecutionResult {
   logs: string[];
   /** Total execution duration in milliseconds */
   duration: number;
+  /** Claude Code SDK session ID for continue functionality */
+  sdkSessionId?: string;
   /** Tools used during execution */
   toolsUsed?: string[];
   /** Files modified during execution */

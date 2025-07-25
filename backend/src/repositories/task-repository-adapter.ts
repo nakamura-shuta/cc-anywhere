@@ -61,9 +61,9 @@ export class TaskRepositoryAdapter {
         result, error, created_at, updated_at, completed_at, 
         started_at, cancelled_at, retry_count, max_retries,
         retry_metadata, group_id, repository_name, conversation_history, continued_from,
-        progress_data
+        sdk_session_id, progress_data
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `);
 
@@ -88,6 +88,7 @@ export class TaskRepositoryAdapter {
       entity.repositoryName || null,
       entity.conversationHistory ? JSON.stringify(entity.conversationHistory) : null,
       entity.continuedFrom || task.context?.continuedFrom || task.context?.parentTaskId || null,
+      null, // sdk_session_id - initially null
       null, // progress_data - initially null
     );
 
@@ -349,6 +350,14 @@ export class TaskRepositoryAdapter {
     stmt.run(JSON.stringify(progressData), new Date().toISOString(), id);
   }
 
+  // New method: updateSdkSessionId
+  updateSdkSessionId(id: string, sdkSessionId: string): void {
+    const stmt = this.db.prepare(`
+      UPDATE tasks SET sdk_session_id = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run(sdkSessionId, new Date().toISOString(), id);
+  }
+
   // Legacy method: resetTaskForRetry
   resetTaskForRetry(id: string): void {
     const stmt = this.db.prepare(`
@@ -431,6 +440,8 @@ export class TaskRepositoryAdapter {
       repositoryName: entity.repositoryName,
       conversationHistory: entity.conversationHistory,
       continuedFrom: entity.continuedFrom,
+      sdkSessionId: undefined, // Not in TaskEntity
+      progressData: undefined, // Not in TaskEntity
     };
   }
 
@@ -459,6 +470,7 @@ export class TaskRepositoryAdapter {
         ? JSON.parse(row.conversation_history)
         : undefined,
       continuedFrom: row.continued_from || undefined,
+      sdkSessionId: row.sdk_session_id || undefined,
       progressData: row.progress_data ? JSON.parse(row.progress_data) : undefined,
     };
   }
