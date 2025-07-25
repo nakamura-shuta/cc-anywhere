@@ -25,10 +25,20 @@
 		workingDirectory: '',
 		scheduleType: 'cron' as 'cron' | 'once',
 		cronExpression: '0 0 * * *', // デフォルト: 毎日0時
-		executeAt: '',
+		executeAt: getDefaultExecuteAt(), // デフォルト: 1時間後
 		timezone: 'Asia/Tokyo',
 		timeout: 300
 	});
+	
+	// デフォルトの実行日時を取得（現在時刻の1時間後）
+	function getDefaultExecuteAt(): string {
+		const date = new Date();
+		date.setHours(date.getHours() + 1);
+		date.setMinutes(0);
+		date.setSeconds(0);
+		date.setMilliseconds(0);
+		return toDateTimeLocal(date);
+	}
 	
 	let isSubmitting = $state(false);
 	let repositories = $state<Repository[]>([]);
@@ -152,14 +162,18 @@
 				taskRequest.context.workingDirectory = formData.workingDirectory;
 			}
 			
-			// スケジュールを作成
-			const created = await scheduleService.create({
+			// 送信データをログ出力（デバッグ用）
+			const createData = {
 				name: formData.name,
 				description: formData.description || undefined,
 				taskRequest,
 				schedule,
 				status: 'active'
-			});
+			};
+			console.log('Creating schedule with data:', createData);
+			
+			// スケジュールを作成
+			const created = await scheduleService.create(createData);
 			
 			// 親コンポーネントに通知
 			dispatch('create', created);
@@ -172,7 +186,16 @@
 			if (err instanceof Error && 'errorData' in err) {
 				const errorData = (err as any).errorData;
 				console.error('Error details:', errorData);
-				toast.error(errorData?.message || 'スケジュールの作成に失敗しました');
+				// APIエラーメッセージを詳細に表示
+				if (errorData?.error) {
+					toast.error(errorData.error);
+				} else if (errorData?.message) {
+					toast.error(errorData.message);
+				} else {
+					toast.error('スケジュールの作成に失敗しました');
+				}
+			} else if (err instanceof Error) {
+				toast.error(err.message);
 			} else {
 				toast.error('スケジュールの作成に失敗しました');
 			}

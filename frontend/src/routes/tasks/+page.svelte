@@ -5,10 +5,14 @@
 	import { onMount, onDestroy } from 'svelte';
 	import TaskList from './components/TaskList.svelte';
 	import TaskPagination from './components/TaskPagination.svelte';
+	import TaskFilter from './components/TaskFilter.svelte';
 	import { taskListStore } from './stores/task-list.svelte';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
+	
+	// 現在のフィルター状態
+	let currentStatus = $state('all');
 	
 	// WebSocketコンテキストの取得とストアの初期化
 	import { getWebSocketContext } from '$lib/websocket/websocket.svelte';
@@ -41,8 +45,39 @@
 	
 	// ページ変更
 	function handlePageChange(page: number) {
-		window.location.href = `/tasks?page=${page}`;
+		const params = new URLSearchParams();
+		params.set('page', page.toString());
+		if (currentStatus !== 'all') {
+			params.set('status', currentStatus);
+		}
+		window.location.href = `/tasks?${params.toString()}`;
 	}
+	
+	// ステータスフィルター変更
+	function handleStatusChange(status: string) {
+		const params = new URLSearchParams();
+		params.set('page', '1'); // フィルター変更時は1ページ目に戻る
+		if (status !== 'all') {
+			params.set('status', status);
+		}
+		window.location.href = `/tasks?${params.toString()}`;
+	}
+	
+	// フィルタリングされたタスク
+	const filteredTasks = $derived(
+		currentStatus === 'all' 
+			? taskListStore.tasks 
+			: taskListStore.tasks.filter(task => task.status === currentStatus)
+	);
+	
+	// URLパラメータから初期状態を設定
+	$effect(() => {
+		const urlParams = new URLSearchParams(window.location.search);
+		const statusParam = urlParams.get('status');
+		if (statusParam) {
+			currentStatus = statusParam;
+		}
+	});
 </script>
 
 <!-- タスク一覧ページ -->
@@ -65,9 +100,15 @@
 		</div>
 	</div>
 
+	<!-- フィルター -->
+	<TaskFilter 
+		currentStatus={currentStatus}
+		onStatusChange={handleStatusChange}
+	/>
+
 	<!-- タスク一覧 -->
 	<TaskList 
-		tasks={taskListStore.tasks} 
+		tasks={filteredTasks} 
 		onTaskClick={viewTask} 
 	/>
 
