@@ -168,7 +168,7 @@
 				description: formData.description || undefined,
 				taskRequest,
 				schedule,
-				status: 'active'
+				status: 'active' as const
 			};
 			console.log('Creating schedule with data:', createData);
 			

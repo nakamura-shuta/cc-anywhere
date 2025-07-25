@@ -61,6 +61,22 @@
 		}
 	}
 	
+	// タスクの経過時間を取得
+	function getTaskAge(): number {
+		if (!currentTask.completedAt) return 0;
+		return Date.now() - new Date(currentTask.completedAt).getTime();
+	}
+	
+	// SDK Continueで続行
+	async function handleSdkContinue() {
+		// 新しいタスク作成画面に遷移（SDK Continue用パラメータ付き）
+		const params = new URLSearchParams({
+			continueFromTaskId: data.task.id,
+			mode: 'sdk-continue'
+		});
+		window.location.href = `/tasks/new?${params.toString()}`;
+	}
+	
 	// 長いパスを省略表示
 	function truncatePath(path: string, maxLength: number = 60): string {
 		if (path.length <= maxLength) return path;
@@ -304,14 +320,92 @@
 			{/if}
 			{#if currentTask.status === 'completed'}
 				<Card.Footer>
-					<Button 
-						variant="default" 
-						onclick={() => window.location.href = `/tasks/${data.task.id}/continue`}
-						class="gap-2"
-					>
-						<RefreshCw class="h-4 w-4" />
-						継続タスクを作成
-					</Button>
+					<div class="w-full space-y-4">
+						<Separator />
+						<div class="space-y-4">
+							<h4 class="text-sm font-semibold">継続オプション</h4>
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+								{#if data.task.sdkSessionId}
+									<!-- SDK Continue オプション -->
+									<div class="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+										<div class="space-y-3">
+											<div class="flex items-center gap-2">
+												<MessageSquare class="h-5 w-5 text-primary" />
+												<h5 class="font-medium">会話を継続</h5>
+												<Badge variant="default" class="text-xs">推奨</Badge>
+											</div>
+											<p class="text-sm text-muted-foreground">
+												前回の会話の文脈を保持して続行します
+											</p>
+											<ul class="text-xs text-muted-foreground space-y-1">
+												<li>✅ 30分以内の追加作業</li>
+												<li>✅ 同じトピックの継続</li>
+												<li>✅ 文脈が必要な作業</li>
+											</ul>
+											<Button 
+												variant="default" 
+												onclick={() => handleSdkContinue()}
+												class="w-full gap-2"
+											>
+												<MessageSquare class="h-4 w-4" />
+												SDK Continueで続行
+											</Button>
+										</div>
+									</div>
+								{:else}
+									<!-- SDK Continue 無効化状態 -->
+									<div class="p-4 border rounded-lg opacity-50">
+										<div class="space-y-3">
+											<div class="flex items-center gap-2">
+												<MessageSquare class="h-5 w-5 text-muted-foreground" />
+												<h5 class="font-medium">会話を継続</h5>
+											</div>
+											<p class="text-sm text-muted-foreground">
+												セッションIDがないため利用できません
+											</p>
+											<Button 
+												variant="outline" 
+												disabled
+												class="w-full gap-2"
+											>
+												<MessageSquare class="h-4 w-4" />
+												SDK Continue利用不可
+											</Button>
+										</div>
+									</div>
+								{/if}
+								
+								<!-- 継続タスク オプション -->
+								<div class="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+									<div class="space-y-3">
+										<div class="flex items-center gap-2">
+											<RefreshCw class="h-5 w-5 text-primary" />
+											<h5 class="font-medium">結果を基に新規タスク</h5>
+											{#if !data.task.sdkSessionId || getTaskAge() > 30 * 60 * 1000}
+												<Badge variant="default" class="text-xs">推奨</Badge>
+											{/if}
+										</div>
+										<p class="text-sm text-muted-foreground">
+											前回の結果を参考に新しいタスクを開始します
+										</p>
+										<ul class="text-xs text-muted-foreground space-y-1">
+											<li>✅ 時間経過後の作業</li>
+											<li>✅ 異なる種類の作業</li>
+											<li>✅ 新しい文脈での作業</li>
+										</ul>
+										<Button 
+											variant="outline" 
+											onclick={() => window.location.href = `/tasks/${data.task.id}/continue`}
+											class="w-full gap-2"
+										>
+											<RefreshCw class="h-4 w-4" />
+											継続タスクを作成
+										</Button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
 				</Card.Footer>
 			{/if}
 		</Card.Root>

@@ -1,7 +1,7 @@
 # リファクタリング計画
 
 ## 分析日時
-2025-07-25
+2025-01-25
 
 ## 現状分析
 
@@ -11,6 +11,7 @@
 - WebSocketによるリアルタイム通信が実装されている
 - 包括的なドキュメントが整備されている
 - スケジューラー機能など高度な機能が実装されている
+- Claude Code SDK session管理の問題が修正され、continue機能が正常動作している ✅ 2025-01-25
 
 ### 改善点
 - バックエンドのアーキテクチャに複雑性と重複が見られる
@@ -185,6 +186,20 @@
   - WebSocketメッセージとの同期を一元化
   - Svelte 5のRunesを活用した効率的な状態管理
 - 実装工数: 4-5日
+
+## 最近修正されたバグ ✅ 2025-01-25
+
+### Claude Code SDK session ID抽出問題
+- **問題**: SDKが`session_id`（snake_case）を返すが、コードは`sessionId`（camelCase）を探していた
+- **影響**: セッションIDが保存されず、SDK continue機能が動作しない
+- **修正内容**:
+  - ClaudeCodeClientで`session_id`フィールドを正しく抽出するよう修正
+  - 単体テスト・統合テストのモックデータを修正
+  - SDK continue機能の動作を確認
+- **関連ファイル**:
+  - `/backend/src/claude/claude-code-client.ts:115-117`
+  - `/backend/tests/unit/claude/sdk-session.test.ts`
+  - `/backend/tests/integration/sdk-continue.test.ts`
 
 ## 設定ファイルとスクリプトの整理 ✅ 2025-01-25 完了
 

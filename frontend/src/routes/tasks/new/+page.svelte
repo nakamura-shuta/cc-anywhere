@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
@@ -7,9 +8,12 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Select from '$lib/components/ui/select';
 	import { taskStore } from '$lib/stores/api.svelte';
-	import { ArrowLeft, Send } from 'lucide-svelte';
+	import { taskService } from '$lib/services/task.service';
+	import { ArrowLeft, Send, MessageSquare } from 'lucide-svelte';
 	import type { TaskRequest } from '$lib/types/api';
 	import DirectorySelector from '$lib/components/directory-selector.svelte';
+	import { onMount } from 'svelte';
+	import * as Alert from '$lib/components/ui/alert';
 	
 	// フォームの状態
 	let instruction = $state('');
@@ -36,6 +40,33 @@
 	
 	// 送信中フラグ
 	let submitting = $state(false);
+	
+	// SDK Continueモード
+	let continueFromTaskId = $state<string>('');
+	let isSdkContinueMode = $state(false);
+	let previousTask = $state<any>(null);
+	
+	// URLパラメータを取得
+	onMount(async () => {
+		const searchParams = new URLSearchParams($page.url.searchParams);
+		continueFromTaskId = searchParams.get('continueFromTaskId') || '';
+		isSdkContinueMode = searchParams.get('mode') === 'sdk-continue';
+		
+		// SDK Continueモードの場合、前のタスク情報を取得
+		if (continueFromTaskId && isSdkContinueMode) {
+			try {
+				previousTask = await taskService.get(continueFromTaskId);
+				// 前のタスクの作業ディレクトリを引き継ぐ
+				if (previousTask.workingDirectory) {
+					selectedDirectories = [previousTask.workingDirectory];
+				} else if (previousTask.context?.workingDirectory) {
+					selectedDirectories = [previousTask.context.workingDirectory];
+				}
+			} catch (error) {
+				console.error('Failed to load previous task:', error);
+			}
+		}
+	});
 	
 	// フォームの送信
 	async function handleSubmit(event: Event) {
@@ -64,7 +95,9 @@
 				async: useAsync,
 				sdk: {
 					maxTurns,
-					permissionMode: Array.isArray(permissionMode) ? permissionMode[0] : permissionMode as 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+					permissionMode: Array.isArray(permissionMode) ? permissionMode[0] : permissionMode as 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan',
+					// SDK Continueモードの場合、continueFromTaskIdを設定
+					...(isSdkContinueMode && continueFromTaskId ? { continueFromTaskId } : {})
 				}
 			}
 		};
@@ -93,9 +126,25 @@
 			<ArrowLeft class="h-4 w-4" />
 			タスク一覧に戻る
 		</Button>
-		<h1 class="text-3xl font-bold">新規タスク作成</h1>
+		<h1 class="text-3xl font-bold">
+			{isSdkContinueMode ? 'SDK Continue - 会話を継続' : '新規タスク作成'}
+		</h1>
 	</div>
 
+	{#if isSdkContinueMode && previousTask}
+		<Alert.Root class="mb-6">
+			<MessageSquare class="h-4 w-4" />
+			<Alert.Title>SDK Continueモード</Alert.Title>
+			<Alert.Description>
+				<p class="mb-2">前回の会話の文脈を保持して継続します。</p>
+				<div class="mt-2 p-2 bg-muted rounded text-sm">
+					<p class="font-medium mb-1">前回のタスク:</p>
+					<p class="text-muted-foreground">{previousTask.instruction}</p>
+				</div>
+			</Alert.Description>
+		</Alert.Root>
+	{/if}
+	
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>タスク設定</Card.Title>

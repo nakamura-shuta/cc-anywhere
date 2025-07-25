@@ -47,6 +47,7 @@ export interface ClaudeCodeSDKOptions {
 	executableArgs?: string[];
 	continueSession?: boolean;
 	resumeSession?: string;
+	continueFromTaskId?: string; // SDK Continue機能用
 	outputFormat?: "text" | "json" | "stream-json";
 	verbose?: boolean;
 }
@@ -85,6 +86,7 @@ export interface TaskResponse {
 	continuedFrom?: string;
 	parentTaskId?: string;
 	duration?: number;
+	sdkSessionId?: string; // Claude Code SDK session ID
 	options?: {
 		permissionMode?: string;
 		timeout?: number;
