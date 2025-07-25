@@ -120,10 +120,10 @@
 
 ## 実装順序の推奨
 
-1. **Phase 1 (即座に実施)**
-   - 大規模フロントエンドコンポーネントの分割（routes/tasks/+page.svelte等）
-   - 設定ファイルとスクリプトの整理
-   - 不要なドキュメントの削除
+1. **Phase 1 (即座に実施)** - 一部完了
+   - [x] 大規模フロントエンドコンポーネントの分割（routes/tasks/+page.svelte）✅ 2025-01-25
+   - [ ] 設定ファイルとスクリプトの整理
+   - [ ] 不要なドキュメントの削除
 
 2. **Phase 2 (1週間以内)**
    - フロントエンド状態管理の改善
@@ -150,18 +150,32 @@
 ## フロントエンド固有の改善項目
 
 ### 大規模コンポーネントの分割
-1. **routes/tasks/+page.svelte (372行)**
+1. **routes/tasks/+page.svelte (372行)** ✅ 2025-01-25 完了
    - 現状: ビジネスロジック、UI、WebSocket処理が混在
    - 改善案: 
      - TaskList, TaskListItem, TaskPaginationコンポーネントに分割
      - WebSocket処理を専用ストアに移動
      - ビジネスロジックをサービス層に分離
    - 実装工数: 3-4日
+   - **実装結果**:
+     - メインコンポーネントを372行から75行に削減（約80%削減）
+     - TaskListコンポーネント（46行）：タスク一覧のコンテナ
+     - TaskListItemコンポーネント（68行）：個別タスクの表示行
+     - TaskPaginationコンポーネント（32行）：ページネーション
+     - task-list.svelte.tsストア（205行）：WebSocket処理とタスク状態管理
+     - Svelte lifecycle_outside_componentエラーも修正済み
 
-2. **routes/scheduler/+page.svelte**
+2. **routes/scheduler/+page.svelte** ✅ 2025-01-25 完了
    - 現状: スケジュール管理の全機能が1ファイルに集約
    - 改善案: ScheduleList, ScheduleForm, ScheduleItemコンポーネントに分割
    - 実装工数: 2-3日
+   - **実装結果**:
+     - メインコンポーネントを299行から114行に削減（約62%削減）
+     - ScheduleListコンポーネント（40行）：スケジュール一覧のコンテナ
+     - ScheduleItemコンポーネント（115行）：個別スケジュールの表示
+     - SchedulePaginationコンポーネント（45行）：ページネーション
+     - ScheduleFilterコンポーネント（40行）：ステータスフィルター
+     - schedule-list.svelte.tsストア（60行）：スケジュール状態管理
 
 ### 状態管理の改善
 - 現状: 各コンポーネントでローカルステートを管理

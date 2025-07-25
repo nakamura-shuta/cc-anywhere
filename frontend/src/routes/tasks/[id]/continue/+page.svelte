@@ -83,18 +83,37 @@
 			window.location.href = `/tasks/${response.taskId}`;
 		} catch (error) {
 			console.error('Failed to create continue task:', error);
-			if (error instanceof Error) {
-				console.error('Error details:', {
-					message: error.message,
-					stack: error.stack
+			
+			let errorMessage = '不明なエラー';
+			
+			// ApiErrorの場合
+			if (error && typeof error === 'object' && 'data' in error) {
+				const apiError = error as any;
+				console.error('API Error details:', {
+					status: apiError.status,
+					statusText: apiError.statusText,
+					data: apiError.data
 				});
-				// @ts-ignore
-				if (error.response) {
-					// @ts-ignore
-					console.error('Response error:', error.response);
+				
+				if (apiError.data?.error) {
+					errorMessage = apiError.data.error;
+				} else if (apiError.data?.message) {
+					errorMessage = apiError.data.message;
+				} else if (typeof apiError.data === 'string') {
+					errorMessage = apiError.data;
+				} else {
+					errorMessage = `${apiError.status} ${apiError.statusText}`;
 				}
+			} else if (error instanceof Error) {
+				errorMessage = error.message;
 			}
-			alert('継続タスクの作成に失敗しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
+			
+			// エラーメッセージが文字列でない場合は文字列化
+			if (typeof errorMessage !== 'string') {
+				errorMessage = JSON.stringify(errorMessage);
+			}
+			
+			alert('継続タスクの作成に失敗しました: ' + errorMessage);
 			isSubmitting = false;
 		}
 	}

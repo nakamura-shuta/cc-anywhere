@@ -871,6 +871,33 @@ Please continue from the above conversation, maintaining context and remembering
         ];
       }
 
+      // Determine working directory
+      let workingDirectory: string | undefined;
+      if (allowCrossRepository && requestWorkingDir) {
+        workingDirectory = requestWorkingDir;
+      } else if (parentWorkingDir) {
+        // Check if parent working directory exists
+        const fs = await import("fs");
+        try {
+          const stats = await fs.promises.stat(parentWorkingDir);
+          if (stats.isDirectory()) {
+            workingDirectory = parentWorkingDir;
+          } else {
+            logger.warn("Parent working directory is not a directory", { parentWorkingDir });
+            workingDirectory = request.body.context?.workingDirectory;
+          }
+        } catch (error) {
+          logger.warn("Parent working directory does not exist", {
+            parentWorkingDir,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          // Fallback to request working directory or undefined
+          workingDirectory = request.body.context?.workingDirectory;
+        }
+      } else {
+        workingDirectory = request.body.context?.workingDirectory;
+      }
+
       // Create new task with parent context
       const continuationRequest: TaskRequest = {
         instruction: request.body.instruction,
@@ -879,11 +906,7 @@ Please continue from the above conversation, maintaining context and remembering
           parentTaskId,
           continuedFrom: parentTaskId,
           conversationHistory,
-          // Use requested working directory for cross-repository, otherwise use parent's
-          workingDirectory:
-            allowCrossRepository && requestWorkingDir
-              ? requestWorkingDir
-              : parentWorkingDir || request.body.context?.workingDirectory,
+          workingDirectory,
         },
         options: {
           ...request.body.options,
