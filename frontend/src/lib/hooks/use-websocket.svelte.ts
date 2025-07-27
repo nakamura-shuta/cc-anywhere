@@ -3,7 +3,13 @@
 import { getWebSocketContext, type WebSocketMessage } from '$lib/websocket/websocket.svelte';
 
 // タスクのWebSocket通信を管理するフック
-export function useTaskWebSocket(taskId: string) {
+export function useTaskWebSocket(taskId: string, initialStatistics?: any, initialData?: {
+	toolUsageCount?: Record<string, number>;
+	todos?: any[];
+	currentTurn?: number;
+	maxTurns?: number;
+	logs?: string[];
+}) {
 	const ws = getWebSocketContext();
 	
 	// タスクをサブスクライブ
@@ -45,62 +51,137 @@ export function useTaskWebSocket(taskId: string) {
 			})
 	);
 	
-	// ツール実行状況
+	// ツール実行状況（初期データとWebSocketメッセージをマージ）
 	const toolExecutions = $derived(
-		messages
-			.filter(m => m.type === 'task:tool:start' || m.type === 'task:tool:end')
-			.map(m => ({
-				type: m.type,
-				tool: m.data?.tool || '',
-				args: m.data?.input,
-				duration: m.data?.duration,
-				success: m.data?.success,
-				error: m.data?.error,
-				timestamp: m.timestamp || new Date().toISOString()
-			}))
+		(() => {
+			// WebSocketメッセージから取得
+			const wsExecutions = messages
+				.filter(m => m.type === 'task:tool:start' || m.type === 'task:tool:end')
+				.map(m => ({
+					type: m.type,
+					tool: m.data?.tool || '',
+					args: m.data?.input,
+					duration: m.data?.duration,
+					success: m.data?.success,
+					error: m.data?.error,
+					timestamp: m.timestamp || new Date().toISOString()
+				}));
+			
+			// 初期データがある場合は、それも含める
+			if (wsExecutions.length === 0 && initialData?.toolUsageCount) {
+				// toolUsageCountから疑似的なツール実行履歴を作成
+				const initialExecutions: any[] = [];
+				Object.entries(initialData.toolUsageCount).forEach(([tool, count]) => {
+					for (let i = 0; i < count; i++) {
+						initialExecutions.push({
+							type: 'task:tool:end',
+							tool,
+							success: true,
+							timestamp: new Date().toISOString()
+						});
+					}
+				});
+				return initialExecutions;
+			}
+			
+			return wsExecutions;
+		})()
 	);
 	
-	// Claude応答
+	// Claude応答（初期データとWebSocketメッセージをマージ）
 	const claudeResponses = $derived(
-		messages
-			.filter(m => m.type === 'task:claude:response')
-			.map(m => ({
-				response: m.data?.text || '',
-				turnNumber: m.data?.turnNumber,
-				maxTurns: m.data?.maxTurns,
-				timestamp: m.timestamp || new Date().toISOString()
-			}))
+		(() => {
+			// WebSocketメッセージから取得
+			const wsResponses = messages
+				.filter(m => m.type === 'task:claude:response')
+				.map(m => ({
+					response: m.data?.text || '',
+					turnNumber: m.data?.turnNumber,
+					maxTurns: m.data?.maxTurns,
+					timestamp: m.timestamp || new Date().toISOString()
+				}));
+			
+			// 初期データがある場合は、それも含める
+			if (wsResponses.length === 0 && initialData?.currentTurn && initialData.currentTurn > 0) {
+				// 現在のターン数から疑似的な応答履歴を作成
+				const initialResponses = [];
+				for (let i = 1; i <= initialData.currentTurn; i++) {
+					initialResponses.push({
+						response: `Turn ${i}`,
+						turnNumber: i,
+						maxTurns: initialData.maxTurns || 0,
+						timestamp: new Date().toISOString()
+					});
+				}
+				return initialResponses;
+			}
+			
+			return wsResponses;
+		})()
 	);
 	
 	// タスク統計
 	const statistics = $derived(
 		(() => {
 			const statsMessages = messages.filter(m => m.type === 'task:statistics');
-			if (statsMessages.length === 0) return null;
 			
-			const latest = statsMessages[statsMessages.length - 1];
-			// statistics オブジェクトが payload 内にネストされている可能性を考慮
-			return latest.data?.statistics || latest.data || null;
+			// WebSocketメッセージがある場合はそれを優先
+			if (statsMessages.length > 0) {
+				const latest = statsMessages[statsMessages.length - 1];
+				// statistics オブジェクトが payload 内にネストされている可能性を考慮
+				const stats = latest.data?.statistics || latest.data || null;
+				
+				// デバッグ: 統計情報の内容をログ出力
+				if (stats) {
+					console.log('[TaskWebSocket] Statistics received from WebSocket:', stats);
+				}
+				
+				return stats;
+			}
+			
+			// WebSocketメッセージがない場合は初期値を使用
+			if (initialStatistics) {
+				console.log('[TaskWebSocket] Using initial statistics:', initialStatistics);
+				return initialStatistics;
+			}
+			
+			return null;
 		})()
 	);
 	
-	// TODOリスト更新
+	// TODOリスト更新（初期データとWebSocketメッセージをマージ）
 	const todoUpdates = $derived(
-		messages
-			.filter(m => m.type === 'task:todo_update')
-			.map(m => {
-				if (m.data?.todos && Array.isArray(m.data.todos)) {
-					return m.data.todos.map((todo: any) => ({
-						id: todo.id,
-						content: todo.content || '',
-						status: todo.status || '',
-						priority: todo.priority || 'medium',
-						timestamp: m.timestamp || new Date().toISOString()
-					}));
-				}
-				return [];
-			})
-			.flat()
+		(() => {
+			// WebSocketメッセージから取得
+			const wsTodos = messages
+				.filter(m => m.type === 'task:todo_update')
+				.map(m => {
+					if (m.data?.todos && Array.isArray(m.data.todos)) {
+						return m.data.todos.map((todo: any) => ({
+							id: todo.id,
+							content: todo.content || '',
+							status: todo.status || '',
+							priority: todo.priority || 'medium',
+							timestamp: m.timestamp || new Date().toISOString()
+						}));
+					}
+					return [];
+				})
+				.flat();
+			
+			// 初期データがある場合は、それを使用
+			if (wsTodos.length === 0 && initialData?.todos && initialData.todos.length > 0) {
+				return initialData.todos.map((todo: any) => ({
+					id: todo.id,
+					content: todo.content || '',
+					status: todo.status || '',
+					priority: todo.priority || 'medium',
+					timestamp: new Date().toISOString()
+				}));
+			}
+			
+			return wsTodos;
+		})()
 	);
 	
 	// タスクの進捗

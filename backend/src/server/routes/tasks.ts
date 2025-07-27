@@ -71,6 +71,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                     retryMetadata: { nullable: true, additionalProperties: true },
                     allowedTools: { type: "array", nullable: true, items: { type: "string" } },
                     continuedFrom: { type: "string", nullable: true },
+                    sdkSessionId: { type: "string", nullable: true },
                   },
                 },
               },
@@ -121,6 +122,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           workingDirectory: queuedTask.request.context?.workingDirectory,
           todos: queuedTask.result?.todos,
           continuedFrom: record.continuedFrom || undefined,
+          sdkSessionId: record.sdkSessionId,
         };
 
         return taskResponse;
@@ -323,6 +325,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
               logs: { type: "array", nullable: true, items: { type: "string" } },
               retryMetadata: { nullable: true, additionalProperties: true },
               allowedTools: { type: "array", nullable: true, items: { type: "string" } },
+              sdkSessionId: { type: "string", nullable: true },
             },
           },
           202: {
@@ -334,6 +337,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
               createdAt: { type: "string" },
               workingDirectory: { type: "string", nullable: true },
               retryMetadata: { nullable: true, additionalProperties: true },
+              sdkSessionId: { type: "string", nullable: true },
             },
           },
         },
@@ -427,6 +431,9 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           updatedTask.status === TaskStatus.FAILED ||
           updatedTask.status === TaskStatus.CANCELLED
         ) {
+          // Get updated record to include sdkSessionId
+          const updatedRecord = repository.getById(taskId);
+
           return reply.status(201).send({
             taskId,
             status: updatedTask.status,
@@ -445,6 +452,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
             retryMetadata: updatedTask.retryMetadata,
             allowedTools: updatedTask.request.options?.allowedTools,
             workingDirectory: updatedTask.request.context?.workingDirectory,
+            sdkSessionId: updatedRecord?.sdkSessionId,
           });
         }
 
@@ -511,7 +519,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         todos: queuedTask.result?.todos || record.progressData?.todos,
         continuedFrom: record.continuedFrom || undefined,
         progressData: record.progressData || undefined,
-        sdkSessionId: record.sdkSessionId || undefined,
+        sdkSessionId: record.sdkSessionId,
       };
 
       void reply.send(task);

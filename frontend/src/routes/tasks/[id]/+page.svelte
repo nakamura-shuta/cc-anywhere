@@ -20,8 +20,23 @@
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
 	
-	// WebSocketでタスクを監視
-	const ws = useTaskWebSocket(data.task.id);
+	// 初期データを抽出（progressDataから）
+	const initialData = {
+		toolUsageCount: data.task.progressData?.toolUsageCount || {},
+		todos: data.task.progressData?.todos || data.task.todos || [],
+		currentTurn: data.task.progressData?.currentTurn || 0,
+		maxTurns: data.task.progressData?.maxTurns || 0,
+		logs: data.task.logs || []
+	};
+	
+	// デバッグ: progressDataの内容を確認
+	if (data.task.progressData) {
+		console.log('[TaskDetail] progressData:', data.task.progressData);
+		console.log('[TaskDetail] initialData:', initialData);
+	}
+	
+	// WebSocketでタスクを監視（初期統計情報と初期データを渡す）
+	const ws = useTaskWebSocket(data.task.taskId || data.task.id, null, initialData);
 	
 	// タスクの状態（WebSocketからの更新を反映）
 	let currentTask = $state(data.task);
@@ -71,7 +86,7 @@
 	async function handleSdkContinue() {
 		// 新しいタスク作成画面に遷移（SDK Continue用パラメータ付き）
 		const params = new URLSearchParams({
-			continueFromTaskId: data.task.id,
+			continueFromTaskId: currentTask.taskId || currentTask.id,
 			mode: 'sdk-continue'
 		});
 		window.location.href = `/tasks/new?${params.toString()}`;
@@ -120,17 +135,32 @@
 		return truncated;
 	}
 	
+	// タスク更新中フラグ
+	let isRefreshing = $state(false);
+	
 	// タスクの更新
 	async function refreshTask() {
-		await taskStore.fetchTask(data.task.id);
-		const logsResponse = await taskService.getLogs(data.task.id);
-		logs = logsResponse.logs || [];
+		if (isRefreshing) return; // 更新中は無視
+		isRefreshing = true;
+		
+		try {
+			const taskId = currentTask.taskId || currentTask.id;
+			await taskStore.fetchTask(taskId);
+			const taskState = taskStore.getTaskState(taskId);
+			if (taskState.data) {
+				currentTask = taskState.data;
+			}
+			const logsResponse = await taskService.getLogs(currentTask.taskId || currentTask.id);
+			logs = logsResponse.logs || [];
+		} finally {
+			isRefreshing = false;
+		}
 	}
 	
 	// タスクのキャンセル
 	async function cancelTask() {
 		if (confirm('このタスクをキャンセルしますか？')) {
-			await taskStore.cancelTask(data.task.id);
+			await taskStore.cancelTask(currentTask.taskId || currentTask.id);
 			await refreshTask();
 		}
 	}
@@ -142,7 +172,7 @@
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `task-${data.task.id}-logs.txt`;
+		a.download = `task-${currentTask.taskId || currentTask.id}-logs.txt`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}
@@ -171,27 +201,42 @@
 		}
 	});
 	
+	// 最後に処理したステータス変更を記録
+	let lastProcessedStatus = $state<string | null>(null);
+	
 	// ステータス変更を監視
 	$effect(() => {
-		if (ws.statusChange) {
-			console.log('[TaskDetail] Status change detected:', ws.statusChange);
+		if (!ws.statusChange) return;
+		
+		const changeType = ws.statusChange.type;
+		const changeData = ws.statusChange.data;
+		
+		// 同じステータス変更を二重に処理しない
+		const statusKey = `${changeType}-${changeData?.timestamp || Date.now()}`;
+		if (statusKey === lastProcessedStatus) return;
+		lastProcessedStatus = statusKey;
+		
+		console.log('[TaskDetail] Status change detected:', changeType, changeData);
+		
+		// ステータスを抽出
+		const newStatus = changeData?.status || 
+			(changeType === 'task:update' && changeData?.status) ||
+			changeType.replace('task:', '');
+		
+		if (newStatus && ['completed', 'failed', 'cancelled', 'running', 'pending'].includes(newStatus)) {
+			// ローカルのステータスのみ更新（APIは呼ばない）
+			currentTask = {
+				...currentTask,
+				status: newStatus as TaskStatus,
+				updatedAt: new Date().toISOString()
+			};
 			
-			// タスクのステータスを更新
-			const newStatus = ws.statusChange.data?.status || 
-				(ws.statusChange.type === 'task:update' && ws.statusChange.data?.status) ||
-				ws.statusChange.type.replace('task:', '');
-			
-			if (newStatus) {
-				currentTask = {
-					...currentTask,
-					status: newStatus as TaskStatus,
-					updatedAt: new Date().toISOString()
-				};
-			}
-			
-			// ステータスが完了系の場合、タスクを再取得
-			if (['task:completed', 'task:failed', 'task:cancelled', 'completed', 'failed', 'cancelled'].includes(newStatus)) {
-				refreshTask();
+			// 完了系のステータスの場合のみ、タスクの詳細を取得
+			if (['completed', 'failed', 'cancelled'].includes(newStatus) && !isRefreshing) {
+				// 少し待ってからAPIを呼ぶ（サーバー側でsdkSessionIdが保存されるのを待つ）
+				setTimeout(() => {
+					if (!isRefreshing) refreshTask();
+				}, 500);
 			}
 		}
 	});
@@ -238,43 +283,43 @@
 			<Card.Content class="space-y-4">
 				<div>
 					<p class="text-sm text-muted-foreground">ID</p>
-					<p class="font-mono">{data.task.id}</p>
+					<p class="font-mono">{currentTask.taskId || currentTask.id}</p>
 				</div>
-				{#if data.task.continuedFrom || data.task.parentTaskId}
+				{#if currentTask.continuedFrom || currentTask.parentTaskId}
 					<div>
 						<p class="text-sm text-muted-foreground">親タスク</p>
 						<Button 
 							variant="link" 
 							class="h-auto p-0 text-primary hover:underline"
-							onclick={() => window.location.href = `/tasks/${data.task.continuedFrom || data.task.parentTaskId}`}
+							onclick={() => window.location.href = `/tasks/${currentTask.continuedFrom || currentTask.parentTaskId}`}
 						>
 							<Folder class="h-4 w-4 mr-1" />
-							{data.task.continuedFrom || data.task.parentTaskId}
+							{currentTask.continuedFrom || currentTask.parentTaskId}
 						</Button>
 					</div>
 				{/if}
 				<div>
 					<p class="text-sm text-muted-foreground mb-2">指示内容</p>
 					<div class="bg-muted/50 rounded-lg p-4 max-h-64 overflow-y-auto">
-						<p class="whitespace-pre-wrap break-words text-sm">{data.task.instruction}</p>
+						<p class="whitespace-pre-wrap break-words text-sm">{currentTask.instruction}</p>
 					</div>
 				</div>
-				{#if data.task.context?.workingDirectory || data.task.workingDirectory}
+				{#if currentTask.context?.workingDirectory || currentTask.workingDirectory}
 					<div>
 						<p class="text-sm text-muted-foreground">作業ディレクトリ</p>
 						<div class="flex items-center gap-2">
 							<Folder class="h-4 w-4 text-muted-foreground flex-shrink-0" />
-							<p class="font-mono text-sm text-gray-700 dark:text-gray-300" title={data.task.context?.workingDirectory || data.task.workingDirectory}>
-								{truncatePath(data.task.context?.workingDirectory || data.task.workingDirectory || '')}
+							<p class="font-mono text-sm text-gray-700 dark:text-gray-300" title={currentTask.context?.workingDirectory || currentTask.workingDirectory}>
+								{truncatePath(currentTask.context?.workingDirectory || currentTask.workingDirectory || '')}
 							</p>
 						</div>
 					</div>
 				{/if}
-				{#if data.task.context?.repositories && data.task.context.repositories.length > 0}
+				{#if currentTask.context?.repositories && currentTask.context.repositories.length > 0}
 					<div>
 						<p class="text-sm text-muted-foreground">対象リポジトリ</p>
 						<div class="flex flex-wrap gap-2 mt-1">
-							{#each data.task.context.repositories as repo}
+							{#each currentTask.context.repositories as repo}
 								<Badge variant="secondary" class="text-xs">
 									<Folder class="h-3 w-3 mr-1" />
 									{repo.split('/').pop()}
@@ -299,10 +344,10 @@
 						<p class="text-sm">{formatDate(currentTask.completedAt)}</p>
 					</div>
 				{/if}
-				{#if data.task.error}
+				{#if currentTask.error}
 					<div>
 						<p class="text-sm text-muted-foreground">エラー</p>
-						<p class="text-destructive whitespace-pre-wrap break-words">{data.task.error}</p>
+						<p class="text-destructive whitespace-pre-wrap break-words">{typeof currentTask.error === 'string' ? currentTask.error : currentTask.error?.message || JSON.stringify(currentTask.error)}</p>
 					</div>
 				{/if}
 			</Card.Content>
@@ -325,7 +370,7 @@
 						<div class="space-y-4">
 							<h4 class="text-sm font-semibold">継続オプション</h4>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-								{#if data.task.sdkSessionId}
+								{#if currentTask.sdkSessionId}
 									<!-- SDK Continue オプション -->
 									<div class="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
 										<div class="space-y-3">
@@ -381,7 +426,7 @@
 										<div class="flex items-center gap-2">
 											<RefreshCw class="h-5 w-5 text-primary" />
 											<h5 class="font-medium">結果を基に新規タスク</h5>
-											{#if !data.task.sdkSessionId || getTaskAge() > 30 * 60 * 1000}
+											{#if !currentTask.sdkSessionId || getTaskAge() > 30 * 60 * 1000}
 												<Badge variant="default" class="text-xs">推奨</Badge>
 											{/if}
 										</div>
@@ -395,7 +440,7 @@
 										</ul>
 										<Button 
 											variant="outline" 
-											onclick={() => window.location.href = `/tasks/${data.task.id}/continue`}
+											onclick={() => window.location.href = `/tasks/${currentTask.taskId || currentTask.id}/continue`}
 											class="w-full gap-2"
 										>
 											<RefreshCw class="h-4 w-4" />
@@ -436,44 +481,16 @@
 			</Card.Root>
 		{/if}
 
-		<!-- タスク統計 -->
-		{#if ws.statistics}
-			<Card.Root>
-				<Card.Header>
-					<Card.Title>実行統計</Card.Title>
-				</Card.Header>
-				<Card.Content>
-					<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-						<div class="text-center">
-							<p class="text-2xl font-bold">{ws.statistics?.totalToolCalls || 0}</p>
-							<p class="text-sm text-muted-foreground">ツール使用回数</p>
-						</div>
-						<div class="text-center">
-							<p class="text-2xl font-bold">{ws.statistics?.modifiedFiles || 0}</p>
-							<p class="text-sm text-muted-foreground">変更ファイル数</p>
-						</div>
-						<div class="text-center">
-							<p class="text-2xl font-bold">{ws.statistics?.totalExecutions || 0}</p>
-							<p class="text-sm text-muted-foreground">実行コマンド数</p>
-						</div>
-						<div class="text-center">
-							<p class="text-2xl font-bold">{ws.statistics?.totalTurns || 0}</p>
-							<p class="text-sm text-muted-foreground">実行ターン数</p>
-						</div>
-					</div>
-				</Card.Content>
-			</Card.Root>
-		{/if}
 
 		<!-- 実行結果 -->
-		{#if data.task.result}
+		{#if currentTask.result}
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>実行結果</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					<div class="bg-muted p-4 rounded-lg overflow-auto max-h-96">
-						<pre class="text-xs whitespace-pre-wrap break-words font-mono">{JSON.stringify(data.task.result, null, 2)}</pre>
+						<pre class="text-xs whitespace-pre-wrap break-words font-mono">{JSON.stringify(currentTask.result, null, 2)}</pre>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -671,5 +688,6 @@
 				</Tabs>
 			</Card.Content>
 		</Card.Root>
+		
 	</div>
 </div>

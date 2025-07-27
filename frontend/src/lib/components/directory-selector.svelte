@@ -12,10 +12,12 @@
 	// Props
 	let { 
 		selectedDirectories = $bindable([]), 
-		onSelectionChange = () => {} 
+		onSelectionChange = () => {},
+		readonly = false 
 	}: {
 		selectedDirectories?: string[];
 		onSelectionChange?: (selected: string[]) => void;
+		readonly?: boolean;
 	} = $props();
 
 	// State
@@ -47,6 +49,8 @@
 
 	// ディレクトリの選択/解除
 	function toggleDirectory(path: string) {
+		if (readonly) return;
+		
 		if (selectedDirectories.includes(path)) {
 			selectedDirectories = selectedDirectories.filter(p => p !== path);
 		} else {
@@ -57,6 +61,8 @@
 
 	// すべて選択/解除
 	function toggleAll() {
+		if (readonly) return;
+		
 		if (isAllSelected) {
 			selectedDirectories = [];
 		} else {
@@ -73,9 +79,13 @@
 
 <Card>
 	<CardHeader>
-		<CardTitle>作業ディレクトリ選択</CardTitle>
+		<CardTitle>作業ディレクトリ{readonly ? '' : '選択'}</CardTitle>
 		<CardDescription>
-			タスクを実行する作業ディレクトリを選択してください
+			{#if readonly}
+				SDK Continueモードでは前回のタスクと同じ作業ディレクトリを使用します
+			{:else}
+				タスクを実行する作業ディレクトリを選択してください
+			{/if}
 		</CardDescription>
 	</CardHeader>
 	<CardContent>
@@ -107,16 +117,18 @@
 			<!-- ディレクトリ一覧 -->
 			<div class="space-y-4">
 				<!-- すべて選択 -->
-				<div class="flex items-center space-x-2 pb-2 border-b">
-					<Checkbox
-						checked={isAllSelected}
-						indeterminate={isIndeterminate}
-						onCheckedChange={toggleAll}
-					/>
-					<Label class="text-sm font-medium cursor-pointer" onclick={toggleAll}>
-						すべて選択 ({selectedDirectories.length}/{repositories.length})
-					</Label>
-				</div>
+				{#if !readonly}
+					<div class="flex items-center space-x-2 pb-2 border-b">
+						<Checkbox
+							checked={isAllSelected}
+							indeterminate={isIndeterminate}
+							onCheckedChange={toggleAll}
+						/>
+						<Label class="text-sm font-medium cursor-pointer" onclick={toggleAll}>
+							すべて選択 ({selectedDirectories.length}/{repositories.length})
+						</Label>
+					</div>
+				{/if}
 
 				<!-- ディレクトリリスト -->
 				<div class="space-y-2">
@@ -125,18 +137,18 @@
 						{@const isAvailable = isDirectoryAvailable(repo)}
 						
 						<div 
-							class="flex items-center space-x-3 p-3 rounded-lg border transition-colors {isSelected ? 'bg-muted/50 border-primary/20' : 'hover:bg-muted/30'}"
+							class="flex items-center space-x-3 p-3 rounded-lg border transition-colors {isSelected ? 'bg-muted/50 border-primary/20' : readonly ? '' : 'hover:bg-muted/30'}"
 						>
 							<Checkbox
 								checked={isSelected}
-								disabled={!isAvailable}
+								disabled={!isAvailable || readonly}
 								onCheckedChange={() => toggleDirectory(repo.path)}
 							/>
 							
 							<div class="flex-1 min-w-0">
 								<Label 
-									class="flex items-center gap-2 cursor-pointer"
-									onclick={() => isAvailable && toggleDirectory(repo.path)}
+									class="flex items-center gap-2 {readonly ? '' : 'cursor-pointer'}"
+									onclick={() => !readonly && isAvailable && toggleDirectory(repo.path)}
 								>
 									<Folder class="h-4 w-4 text-muted-foreground flex-shrink-0" />
 									<span class="font-medium">{repo.name}</span>

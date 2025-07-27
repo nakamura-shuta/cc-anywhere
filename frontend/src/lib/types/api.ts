@@ -92,6 +92,20 @@ export interface TaskResponse {
 		timeout?: number;
 		[key: string]: any;
 	};
+	// 進捗データ（統計情報を含む）
+	progressData?: {
+		currentTurn?: number;
+		maxTurns?: number;
+		toolUsageCount?: Record<string, number>;
+		statistics?: {
+			totalToolCalls: number;
+			processedFiles: number;
+			createdFiles: number;
+			modifiedFiles: number;
+			totalExecutions: number;
+		};
+		todos?: any[];
+	};
 }
 
 // タスクログレスポンス

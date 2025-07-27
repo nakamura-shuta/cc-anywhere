@@ -1,7 +1,5 @@
 {
-  "url": "https://lucy-retention-reaching-hence.trycloudflare.com",
-  "type": "cloudflare",
-  "apiKey": "hoge",
-  "webUIUrl": "https://lucy-retention-reaching-hence.trycloudflare.com/?apiKey=hoge",
-  "timestamp": "2025-07-15T00:15:23.711Z"
+  "url": "https://98f248cd6a6a.ngrok-free.app",
+  "type": "ngrok",
+  "timestamp": "2025-07-26T16:33:12.649Z"
 }

@@ -20,9 +20,18 @@ export class TaskTracker {
    * Record tool usage
    */
   recordToolUsage(detail: Omit<ToolUsageDetail, "timestamp">): void {
-    this.toolUsages.push({
+    const toolUsage = {
       ...detail,
       timestamp: new Date(),
+    };
+    this.toolUsages.push(toolUsage);
+
+    // Debug log
+    console.log("[TaskTracker] Recording tool usage:", {
+      tool: toolUsage.tool,
+      status: toolUsage.status,
+      action: detail.action || "unknown",
+      totalUsages: this.toolUsages.length,
     });
   }
 
@@ -344,6 +353,12 @@ export class TaskTracker {
 
     let totalToolUsage = 0;
 
+    // Debug log
+    console.log("[TaskTracker] Calculating statistics:", {
+      totalRecords: this.toolUsages.length,
+      records: this.toolUsages.map((u) => ({ tool: u.tool, status: u.status })),
+    });
+
     for (const usage of this.toolUsages) {
       if (usage.status !== "start") {
         totalToolUsage++;
@@ -366,6 +381,11 @@ export class TaskTracker {
         }
       }
     }
+
+    console.log("[TaskTracker] Statistics calculated:", {
+      totalToolUsage,
+      toolTypes: Array.from(toolUsageByType.entries()),
+    });
 
     return {
       totalToolUsage,

@@ -321,21 +321,34 @@ export class TaskQueueImpl implements TaskQueue {
 
                   case "statistics":
                     if (progress.data) {
-                      // Update progress data statistics
-                      if (progress.data.totalToolCalls !== undefined) {
-                        progressData.statistics.totalToolCalls = progress.data.totalToolCalls;
-                      }
-                      if (progress.data.processedFiles !== undefined) {
-                        progressData.statistics.processedFiles = progress.data.processedFiles;
-                      }
-                      if (progress.data.createdFiles !== undefined) {
-                        progressData.statistics.createdFiles = progress.data.createdFiles;
-                      }
-                      if (progress.data.modifiedFiles !== undefined) {
-                        progressData.statistics.modifiedFiles = progress.data.modifiedFiles;
-                      }
-                      if (progress.data.totalExecutions !== undefined) {
-                        progressData.statistics.totalExecutions = progress.data.totalExecutions;
+                      // Claude Code SDKから送信される統計情報をprogressDataに保存
+                      // Claude Code SDK形式: totalTurns, totalToolCalls, toolStats, currentPhase, elapsedTime
+                      progressData.statistics.totalToolCalls = progress.data.totalToolCalls || 0;
+                      progressData.currentTurn =
+                        progress.data.totalTurns || progressData.currentTurn;
+
+                      // ツール統計から詳細情報を抽出
+                      if (progress.data.toolStats) {
+                        let modifiedFiles = 0;
+                        let createdFiles = 0;
+                        let totalExecutions = 0;
+
+                        Object.entries(progress.data.toolStats).forEach(
+                          ([tool, stats]: [string, any]) => {
+                            if (tool === "Edit" || tool === "MultiEdit") {
+                              modifiedFiles += stats.count || 0;
+                            } else if (tool === "Write") {
+                              createdFiles += stats.count || 0;
+                            } else if (tool === "Bash") {
+                              totalExecutions += stats.count || 0;
+                            }
+                          },
+                        );
+
+                        progressData.statistics.modifiedFiles = modifiedFiles;
+                        progressData.statistics.createdFiles = createdFiles;
+                        progressData.statistics.totalExecutions = totalExecutions;
+                        progressData.statistics.processedFiles = modifiedFiles + createdFiles;
                       }
 
                       // Save progress data to database

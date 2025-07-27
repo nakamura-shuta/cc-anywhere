@@ -400,6 +400,7 @@ export class TaskRepositoryAdapter {
             error: record.error,
             logs: record.result.logs,
             todos: record.result.todos,
+            sdkSessionId: record.sdkSessionId,
           }
         : undefined,
       error: record.error ? new Error(record.error.message || record.error) : undefined,

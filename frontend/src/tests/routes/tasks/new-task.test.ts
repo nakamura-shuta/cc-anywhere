@@ -18,15 +18,35 @@ vi.mock('$lib/services/task.service', () => ({
 	}
 }));
 
+vi.mock('$lib/services/repository.service', () => ({
+	repositoryService: {
+		list: vi.fn().mockResolvedValue([
+			{
+				id: '1',
+				name: 'project-a',
+				path: '/home/user/project-a',
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString()
+			}
+		])
+	}
+}));
+
 vi.mock('$app/stores', () => {
 	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const { writable } = require('svelte/store');
+	const pageStore = writable({
+		url: {
+			searchParams: new URLSearchParams()
+		}
+	});
+	
 	return {
-		page: writable({
-			url: {
-				searchParams: new URLSearchParams()
-			}
-		})
+		page: {
+			subscribe: pageStore.subscribe,
+			set: pageStore.set,
+			update: pageStore.update
+		}
 	};
 });
 
@@ -34,7 +54,8 @@ vi.mock('$app/stores', () => {
 import Page from '../../../routes/tasks/new/+page.svelte';
 import { taskStore } from '$lib/stores/api.svelte';
 import { taskService } from '$lib/services/task.service';
-import { page as pageStore } from '$app/stores';
+import { page } from '$app/stores';
+const pageStore = page as any;
 
 describe('New Task Page - SDK Continue Mode', () => {
 	beforeEach(() => {
@@ -186,13 +207,25 @@ describe('New Task Page - SDK Continue Mode', () => {
 			updatedAt: new Date().toISOString()
 		});
 
-		render(Page);
+		const { container } = render(Page);
 
 		await waitFor(() => {
 			// DirectorySelectorが前のタスクの作業ディレクトリを表示していることを確認
-			// (DirectorySelectorコンポーネントの実装に応じて調整が必要)
 			expect(taskService.get).toHaveBeenCalledWith('task-123');
 		});
+
+		// SDKContinueモードのメッセージが表示されていることを確認
+		expect(screen.getByText(/SDK Continueモードでは前回のタスクと同じ作業ディレクトリを使用します/)).toBeInTheDocument();
+		
+		// チェックボックスが無効化されていることを確認
+		const checkboxes = container.querySelectorAll('button[role="checkbox"]');
+		expect(checkboxes.length).toBeGreaterThan(0);
+		checkboxes.forEach(checkbox => {
+			expect(checkbox).toBeDisabled();
+		});
+
+		// 「すべて選択」オプションが表示されていないことを確認
+		expect(screen.queryByText(/すべて選択/)).not.toBeInTheDocument();
 	});
 
 	it('should handle error when loading previous task fails', async () => {

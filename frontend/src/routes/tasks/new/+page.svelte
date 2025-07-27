@@ -172,6 +172,7 @@
 					onSelectionChange={(selected) => {
 						selectedDirectories = selected;
 					}}
+					readonly={isSdkContinueMode}
 				/>
 
 				<div class="grid grid-cols-2 gap-4">

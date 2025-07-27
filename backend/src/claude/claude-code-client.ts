@@ -167,6 +167,14 @@ export class ClaudeCodeClient {
           }
 
           // Track tool usage (record each tool detail for proper statistics)
+          logger.debug("Recording tool usage", {
+            toolDetailsCount: toolDetails.length,
+            toolDetails: toolDetails.map((d) => ({
+              tool: d.tool,
+              status: d.status,
+              action: d.action,
+            })),
+          });
           for (const detail of toolDetails) {
             tracker.recordToolUsage(detail);
           }
