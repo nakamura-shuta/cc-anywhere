@@ -188,25 +188,24 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	// TODOリスト更新（初期データとWebSocketメッセージをマージ）
 	const todoUpdates = $derived(
 		(() => {
-			// WebSocketメッセージから取得
-			const wsTodos = messages
-				.filter(m => m.type === 'task:todo_update')
-				.map(m => {
-					if (m.data?.todos && Array.isArray(m.data.todos)) {
-						return m.data.todos.map((todo: any) => ({
-							id: todo.id,
-							content: todo.content || '',
-							status: todo.status || '',
-							priority: todo.priority || 'medium',
-							timestamp: m.timestamp || new Date().toISOString()
-						}));
-					}
-					return [];
-				})
-				.flat();
+			// 最新のTODOリストを取得（WebSocketメッセージを逆順に確認）
+			const latestTodoMessage = messages
+				.filter(m => m.type === 'task:todo_update' && m.data?.todos)
+				.reverse()[0];
 			
-			// 初期データがある場合は、それを使用
-			if (wsTodos.length === 0 && initialData?.todos && initialData.todos.length > 0) {
+			if (latestTodoMessage && latestTodoMessage.data?.todos) {
+				// 最新のTODOリストをそのまま使用
+				return latestTodoMessage.data.todos.map((todo: any) => ({
+					id: todo.id,
+					content: todo.content || '',
+					status: todo.status || '',
+					priority: todo.priority || 'medium',
+					timestamp: latestTodoMessage.timestamp || new Date().toISOString()
+				}));
+			}
+			
+			// WebSocketメッセージがない場合は初期データを使用
+			if (initialData?.todos && initialData.todos.length > 0) {
 				return initialData.todos.map((todo: any) => ({
 					id: todo.id,
 					content: todo.content || '',
@@ -216,7 +215,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 				}));
 			}
 			
-			return wsTodos;
+			return [];
 		})()
 	);
 	
