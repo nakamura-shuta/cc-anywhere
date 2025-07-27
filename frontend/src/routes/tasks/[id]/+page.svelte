@@ -26,7 +26,10 @@
 		todos: data.task.progressData?.todos || data.task.todos || [],
 		currentTurn: data.task.progressData?.currentTurn || 0,
 		maxTurns: data.task.progressData?.maxTurns || 0,
-		logs: data.task.logs || []
+		logs: data.task.progressData?.logs || data.task.logs || [],
+		// 詳細情報も含める
+		toolExecutions: data.task.progressData?.toolExecutions || [],
+		claudeResponses: data.task.progressData?.claudeResponses || []
 	};
 	
 	// デバッグ: progressDataの内容を確認
@@ -41,8 +44,8 @@
 	// タスクの状態（WebSocketからの更新を反映）
 	let currentTask = $state(data.task);
 	
-	// ログ（初期値 + WebSocketからのリアルタイム更新）
-	let logs = $state<string[]>(data.logs || []);
+	// ログはWebSocketから取得（初期ログも含まれる）
+	// let logs = $state<string[]>(data.logs || []); // 削除：ws.logsを使用
 	
 	// 自動スクロール用のDOM参照
 	let logContainer = $state<HTMLDivElement>();
@@ -167,7 +170,9 @@
 	
 	// ログのダウンロード
 	function downloadLogs() {
-		const content = logs.join('\n');
+		// WebSocketログまたは初期ログを使用
+		const logsToDownload = ws.logs.length > 0 ? ws.logs : (data.logs || []);
+		const content = logsToDownload.join('\n');
 		const blob = new Blob([content], { type: 'text/plain' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
@@ -177,27 +182,15 @@
 		URL.revokeObjectURL(url);
 	}
 	
-	// WebSocketからのログ更新を監視
+	// 自動スクロール処理
 	$effect(() => {
-		// WebSocketから新しいログを受信したら追加
-		if (ws.logs.length > 0) {
-			// 既存のログと比較して新しいログのみ追加
-			// ws.logsには全てのWebSocketログが含まれるため、既存のlogsに含まれないものだけ追加
-			const currentLogCount = logs.length;
-			if (ws.logs.length > currentLogCount) {
-				// 新しいログのみを追加（最後のN個）
-				const newLogs = ws.logs.slice(currentLogCount);
-				logs = [...logs, ...newLogs];
-				
-				// 自動スクロール
-				if (shouldAutoScroll && logContainer) {
-					setTimeout(() => {
-						if (logContainer) {
-							logContainer.scrollTop = logContainer.scrollHeight;
-						}
-					}, 100);
+		// ログが更新されたら自動スクロール
+		if (shouldAutoScroll && logContainer && ws.logs.length > 0) {
+			setTimeout(() => {
+				if (logContainer) {
+					logContainer.scrollTop = logContainer.scrollHeight;
 				}
-			}
+			}, 100);
 		}
 	});
 	
@@ -557,7 +550,10 @@
 				</div>
 			</Card.Header>
 			<Card.Content>
-				<Tabs bind:value={selectedTab} class="w-full">
+				<Tabs bind:value={selectedTab} class="w-full" onValueChange={(value) => {
+					console.log('[TaskDetail] Tab value changed via onValueChange:', value);
+					selectedTab = value;
+				}}>
 					<TabsList class="grid w-full grid-cols-2 md:grid-cols-4">
 						<TabsTrigger value="logs" class="text-xs">
 							<Activity class="h-3 w-3 mr-1" />
@@ -579,14 +575,22 @@
 					
 					<!-- ログタブ -->
 					<TabsContent value="logs" class="mt-4">
-						{#if logs.length > 0}
+						{#if ws.logs.length > 0 || (data.logs && data.logs.length > 0)}
 							<div 
 								bind:this={logContainer}
 								class="bg-black text-green-400 p-4 rounded-lg font-mono text-xs overflow-x-auto overflow-y-auto max-h-96 space-y-1"
 							>
-								{#each logs as log}
-									<div class="whitespace-pre-wrap break-words">{log}</div>
-								{/each}
+								<!-- 初期ログを表示（WebSocketログがない場合） -->
+								{#if ws.logs.length === 0 && data.logs}
+									{#each data.logs as log}
+										<div class="whitespace-pre-wrap break-words">{log}</div>
+									{/each}
+								{:else}
+									<!-- WebSocketログを表示（TODO更新などがフォーマットされる） -->
+									{#each ws.logs as log}
+										<div class="whitespace-pre-wrap break-words">{log}</div>
+									{/each}
+								{/if}
 							</div>
 						{:else}
 							<p class="text-muted-foreground text-center py-8">ログがありません</p>
@@ -674,9 +678,11 @@
 													<Badge variant="secondary" class="text-xs">低</Badge>
 												{/if}
 											</div>
-											<span class="text-xs text-muted-foreground">
-												{formatDate(todo.timestamp)}
-											</span>
+											{#if todo.timestamp}
+												<span class="text-xs text-muted-foreground">
+													{formatDate(todo.timestamp)}
+												</span>
+											{/if}
 										</div>
 									</div>
 								{/each}

@@ -9,6 +9,8 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	currentTurn?: number;
 	maxTurns?: number;
 	logs?: string[];
+	toolExecutions?: any[];
+	claudeResponses?: any[];
 }) {
 	const ws = getWebSocketContext();
 	
@@ -27,28 +29,37 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	
 	// 最新のログメッセージ（すべてのログタイプを含む）
 	const logs = $derived(
-		messages
-			.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update'].includes(m.type))
-			.map(m => {
-				// メッセージタイプに応じてフォーマット
-				switch (m.type) {
-					case 'task:log':
-						return m.data?.log || '';
-					case 'task:tool:start':
-						return `🛠️ [${m.data?.tool}] 開始${m.data?.input ? `: ${JSON.stringify(m.data.input).slice(0, 100)}...` : ''}`;
-					case 'task:tool:end':
-						return `✅ [${m.data?.tool}] ${m.data?.success ? '成功' : '失敗'}${m.data?.duration ? ` (${m.data.duration}ms)` : ''}`;
-					case 'task:claude:response':
-						return `🤖 Claude: ${m.data?.text || ''}`;
-					case 'task:todo_update':
-						if (m.data?.todos) {
-							return `📝 TODO更新: ${m.data.todos.map((t: any) => `${t.content} [${t.status}]`).join(', ')}`;
-						}
-						return '📝 TODO更新';
-					default:
-						return JSON.stringify(m.data);
-				}
-			})
+		(() => {
+			const wsLogs = messages
+				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update'].includes(m.type))
+				.map(m => {
+					// メッセージタイプに応じてフォーマット
+					switch (m.type) {
+						case 'task:log':
+							return m.data?.log || '';
+						case 'task:tool:start':
+							return `🛠️ [${m.data?.tool}] 開始${m.data?.input ? `: ${JSON.stringify(m.data.input).slice(0, 100)}...` : ''}`;
+						case 'task:tool:end':
+							return `✅ [${m.data?.tool}] ${m.data?.success ? '成功' : '失敗'}${m.data?.duration ? ` (${m.data.duration}ms)` : ''}`;
+						case 'task:claude:response':
+							return `🤖 Claude: ${m.data?.text || ''}`;
+						case 'task:todo_update':
+							if (m.data?.todos) {
+								return `📝 TODO更新: ${m.data.todos.map((t: any) => `${t.content} [${t.status}]`).join(', ')}`;
+							}
+							return '📝 TODO更新';
+						default:
+							return JSON.stringify(m.data);
+					}
+				});
+			
+			// WebSocketログがない場合は初期ログを使用
+			if (wsLogs.length === 0 && initialData?.logs && initialData.logs.length > 0) {
+				return initialData.logs;
+			}
+			
+			return wsLogs;
+		})()
 	);
 	
 	// ツール実行状況（初期データとWebSocketメッセージをマージ）
@@ -67,21 +78,35 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 					timestamp: m.timestamp || new Date().toISOString()
 				}));
 			
-			// 初期データがある場合は、それも含める
-			if (wsExecutions.length === 0 && initialData?.toolUsageCount) {
-				// toolUsageCountから疑似的なツール実行履歴を作成
-				const initialExecutions: any[] = [];
-				Object.entries(initialData.toolUsageCount).forEach(([tool, count]) => {
-					for (let i = 0; i < count; i++) {
-						initialExecutions.push({
-							type: 'task:tool:end',
-							tool,
-							success: true,
-							timestamp: new Date().toISOString()
-						});
-					}
-				});
-				return initialExecutions;
+			// 初期データがある場合は、それを使用
+			if (wsExecutions.length === 0) {
+				// 詳細なツール実行履歴がある場合はそれを使用
+				if (initialData?.toolExecutions && initialData.toolExecutions.length > 0) {
+					return initialData.toolExecutions.map(exec => ({
+						type: exec.type === 'start' ? 'task:tool:start' : 'task:tool:end',
+						tool: exec.tool,
+						args: exec.args,
+						duration: exec.duration,
+						success: exec.success,
+						error: exec.error,
+						timestamp: exec.timestamp
+					}));
+				}
+				// 詳細履歴がない場合は、toolUsageCountから疑似的な履歴を作成
+				else if (initialData?.toolUsageCount) {
+					const initialExecutions: any[] = [];
+					Object.entries(initialData.toolUsageCount).forEach(([tool, count]) => {
+						for (let i = 0; i < count; i++) {
+							initialExecutions.push({
+								type: 'task:tool:end',
+								tool,
+								success: true,
+								timestamp: new Date().toISOString()
+							});
+						}
+					});
+					return initialExecutions;
+				}
 			}
 			
 			return wsExecutions;
@@ -101,19 +126,30 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 					timestamp: m.timestamp || new Date().toISOString()
 				}));
 			
-			// 初期データがある場合は、それも含める
-			if (wsResponses.length === 0 && initialData?.currentTurn && initialData.currentTurn > 0) {
-				// 現在のターン数から疑似的な応答履歴を作成
-				const initialResponses = [];
-				for (let i = 1; i <= initialData.currentTurn; i++) {
-					initialResponses.push({
-						response: `Turn ${i}`,
-						turnNumber: i,
-						maxTurns: initialData.maxTurns || 0,
-						timestamp: new Date().toISOString()
-					});
+			// 初期データがある場合は、それを使用
+			if (wsResponses.length === 0) {
+				// 詳細なClaude応答履歴がある場合はそれを使用
+				if (initialData?.claudeResponses && initialData.claudeResponses.length > 0) {
+					return initialData.claudeResponses.map(resp => ({
+						response: resp.text || '',
+						turnNumber: resp.turnNumber,
+						maxTurns: resp.maxTurns,
+						timestamp: resp.timestamp
+					}));
 				}
-				return initialResponses;
+				// 詳細履歴がない場合は、ターン数から疑似的な履歴を作成
+				else if (initialData?.currentTurn && initialData.currentTurn > 0) {
+					const initialResponses = [];
+					for (let i = 1; i <= initialData.currentTurn; i++) {
+						initialResponses.push({
+							response: `Turn ${i}`,
+							turnNumber: i,
+							maxTurns: initialData.maxTurns || 0,
+							timestamp: new Date().toISOString()
+						});
+					}
+					return initialResponses;
+				}
 			}
 			
 			return wsResponses;

@@ -165,6 +165,10 @@ export class TaskQueueImpl implements TaskQueue {
           totalExecutions: 0,
         },
         todos: [] as any[],
+        // 詳細な実行履歴
+        toolExecutions: [] as any[],
+        claudeResponses: [] as any[],
+        logs: [] as string[],
       };
 
       // Set up progress handler for WebSocket log streaming
@@ -182,6 +186,16 @@ export class TaskQueueImpl implements TaskQueue {
                       taskId: task.id,
                       message: progress.message,
                     });
+                    // ログをprogressDataに保存
+                    progressData.logs.push(progress.message);
+                    // 定期的にDBに保存（100ログごと）
+                    if (progressData.logs.length % 100 === 0) {
+                      try {
+                        this.repository.updateProgressData(task.id, progressData);
+                      } catch (error) {
+                        logger.error("Failed to update progress data", { taskId: task.id, error });
+                      }
+                    }
                     this.wsServer?.broadcastTaskLog({
                       taskId: task.id,
                       log: progress.message,
@@ -259,16 +273,24 @@ export class TaskQueueImpl implements TaskQueue {
                       if (toolName) {
                         progressData.toolUsageCount[toolName] =
                           (progressData.toolUsageCount[toolName] || 0) + 1;
+                      }
 
-                        // Save progress data to database
-                        try {
-                          this.repository.updateProgressData(task.id, progressData);
-                        } catch (error) {
-                          logger.error("Failed to update progress data", {
-                            taskId: task.id,
-                            error,
-                          });
-                        }
+                      // ツール実行履歴を保存
+                      progressData.toolExecutions.push({
+                        type: "start",
+                        tool: progress.data.tool,
+                        timestamp,
+                        args: progress.data.input,
+                      });
+
+                      // Save progress data to database
+                      try {
+                        this.repository.updateProgressData(task.id, progressData);
+                      } catch (error) {
+                        logger.error("Failed to update progress data", {
+                          taskId: task.id,
+                          error,
+                        });
                       }
 
                       this.wsServer?.broadcastToolStart({
@@ -283,6 +305,27 @@ export class TaskQueueImpl implements TaskQueue {
 
                   case "tool:end":
                     if (progress.data) {
+                      // ツール実行履歴を保存
+                      progressData.toolExecutions.push({
+                        type: "end",
+                        tool: progress.data.tool,
+                        timestamp,
+                        output: progress.data.output,
+                        error: progress.data.error,
+                        duration: progress.data.duration,
+                        success: progress.data.success,
+                      });
+
+                      // Save progress data to database
+                      try {
+                        this.repository.updateProgressData(task.id, progressData);
+                      } catch (error) {
+                        logger.error("Failed to update progress data", {
+                          taskId: task.id,
+                          error,
+                        });
+                      }
+
                       this.wsServer?.broadcastToolEnd({
                         taskId: task.id,
                         toolId: progress.data.toolId,
@@ -301,6 +344,14 @@ export class TaskQueueImpl implements TaskQueue {
                       // Update progress data
                       progressData.currentTurn = progress.data.turnNumber || 1;
                       progressData.maxTurns = progress.data.maxTurns || progressData.maxTurns;
+
+                      // Claude応答履歴を保存
+                      progressData.claudeResponses.push({
+                        text: progress.message,
+                        turnNumber: progress.data.turnNumber || 1,
+                        maxTurns: progress.data.maxTurns,
+                        timestamp,
+                      });
 
                       // Save progress data to database
                       try {
@@ -373,6 +424,8 @@ export class TaskQueueImpl implements TaskQueue {
                         type: progress.type,
                         message: progress.message,
                       });
+                      // ログをprogressDataに保存
+                      progressData.logs.push(progress.message);
                       // Also broadcast as a log message
                       this.wsServer?.broadcastTaskLog({
                         taskId: task.id,
@@ -423,6 +476,15 @@ export class TaskQueueImpl implements TaskQueue {
         try {
           this.repository.updateResult(task.id, task.result);
           this.repository.updateStatus(task.id, TaskStatus.COMPLETED);
+
+          // Save final progress data
+          this.repository.updateProgressData(task.id, progressData);
+          logger.info("Final progress data saved", {
+            taskId: task.id,
+            logsCount: progressData.logs.length,
+            toolExecutionsCount: progressData.toolExecutions.length,
+            claudeResponsesCount: progressData.claudeResponses.length,
+          });
 
           // Save conversation history if available
           if (result.conversationHistory) {

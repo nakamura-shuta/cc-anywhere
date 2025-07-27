@@ -45,6 +45,24 @@ export interface TaskRecord {
       priority: "high" | "medium" | "low";
       id: string;
     }>;
+    // 詳細な実行履歴
+    toolExecutions?: Array<{
+      type: "start" | "end";
+      tool: string;
+      timestamp: string;
+      args?: any;
+      output?: any;
+      error?: string;
+      duration?: number;
+      success?: boolean;
+    }>;
+    claudeResponses?: Array<{
+      text: string;
+      turnNumber: number;
+      maxTurns?: number;
+      timestamp: string;
+    }>;
+    logs?: string[];
   };
 }
 

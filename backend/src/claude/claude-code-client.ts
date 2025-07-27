@@ -584,19 +584,11 @@ export class ClaudeCodeClient {
           // Emit progress updates for task descriptions
           const text = content.text.trim();
 
-          // Look for action indicators in both Japanese and English
-          if (
-            text.match(
-              /^(実行|作成|編集|読み取り|検索|確認|分析|処理|インストール|Installing|Creating|Writing|Reading|Executing|Checking)/i,
-            )
-          ) {
-            return text.split("\n")[0] || null; // First line only
+          // すべてのassistantメッセージを返す（最初の500文字まで）
+          if (text.length > 500) {
+            return text.substring(0, 500) + "...";
           }
-
-          // Short status updates
-          if (text.length < 150 && !text.includes("\n\n")) {
-            return text;
-          }
+          return text;
         } else if (content.type === "tool_use" && content.tool_use?.name) {
           // Tool usage notification with details
           const toolName = content.tool_use.name;
