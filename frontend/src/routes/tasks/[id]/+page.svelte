@@ -10,7 +10,7 @@
 	import { TaskStatus } from '$lib/types/api';
 	import { format } from 'date-fns';
 	import { ja } from 'date-fns/locale';
-	import { ArrowLeft, RefreshCw, XCircle, Download, Clock, Activity, MessageSquare, CheckSquare, Folder, ChevronRight, GitBranch } from 'lucide-svelte';
+	import { ArrowLeft, RefreshCw, XCircle, Download, Clock, Activity, MessageSquare, CheckSquare, Folder, ChevronRight, GitBranch, Terminal, FileText, Search, ListTodo, Globe, Layers, CheckCircle, AlertCircle, Loader2 } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
@@ -58,6 +58,112 @@
 	$effect(() => {
 		console.log('[TaskDetail] Selected tab changed to:', selectedTab);
 	});
+	
+	// ツールのアイコンを取得
+	function getToolIcon(toolName: string) {
+		switch (toolName) {
+			case 'Bash':
+			case 'bash':
+				return Terminal;
+			case 'Read':
+			case 'Write':
+			case 'Edit':
+			case 'MultiEdit':
+				return FileText;
+			case 'Grep':
+			case 'Glob':
+			case 'LS':
+				return Search;
+			case 'TodoWrite':
+				return ListTodo;
+			case 'WebSearch':
+				return Globe;
+			case 'Task':
+				return Layers;
+			default:
+				return null;
+		}
+	}
+	
+	// ツール引数を見やすい形式でフォーマット
+	function formatToolArgs(toolName: string, args: any): { formatted: string, type: 'text' | 'code' | 'list' } {
+		if (!args) return { formatted: '', type: 'text' };
+		
+		switch (toolName) {
+			case 'Bash':
+			case 'bash':
+				return { 
+					formatted: args.command || '',
+					type: 'code'
+				};
+				
+			case 'Read':
+			case 'Write':
+			case 'Edit':
+			case 'MultiEdit':
+				if (args.file_path) {
+					let formatted = `📄 ${args.file_path}`;
+					if (toolName === 'Edit' && args.old_string) {
+						formatted += '\n\n🔍 検索:\n' + (args.old_string.length > 100 ? args.old_string.substring(0, 100) + '...' : args.old_string);
+					}
+					if (toolName === 'MultiEdit' && args.edits) {
+						formatted += `\n\n📝 ${args.edits.length} 箇所を編集`;
+					}
+					return { formatted, type: 'text' };
+				}
+				break;
+				
+			case 'Grep':
+			case 'Glob':
+			case 'LS':
+				if (args.pattern) {
+					return { 
+						formatted: `🔍 パターン: ${args.pattern}${args.path ? '\n📁 パス: ' + args.path : ''}`,
+						type: 'text'
+					};
+				} else if (args.path) {
+					return { 
+						formatted: `📁 パス: ${args.path}`,
+						type: 'text'
+					};
+				}
+				break;
+				
+			case 'TodoWrite':
+				if (args.todos && Array.isArray(args.todos)) {
+					const todoList = args.todos.map((todo: any) => 
+						`${todo.status === 'completed' ? '✅' : todo.status === 'in_progress' ? '🔄' : '⬜'} ${todo.content}`
+					).join('\n');
+					return { formatted: todoList, type: 'list' };
+				}
+				break;
+				
+			case 'WebSearch':
+				if (args.query) {
+					return { 
+						formatted: `🔍 検索: "${args.query}"${args.allowed_domains ? '\n🌐 対象: ' + args.allowed_domains.join(', ') : ''}`,
+						type: 'text'
+					};
+				}
+				break;
+				
+			case 'Task':
+				if (args.prompt) {
+					const preview = args.prompt.length > 150 ? args.prompt.substring(0, 150) + '...' : args.prompt;
+					return { 
+						formatted: `📋 タスク: ${args.description || 'サブタスク'}\n\n${preview}`,
+						type: 'text'
+					};
+				}
+				break;
+		}
+		
+		// デフォルトはJSON表示
+		return { 
+			formatted: JSON.stringify(args, null, 2),
+			type: 'code'
+		};
+	}
 	
 	// タスクのステータスに応じたバッジのバリアント
 	function getStatusVariant(status: string) {
@@ -602,30 +708,73 @@
 						{#if ws.toolExecutions.length > 0}
 							<div class="space-y-2 max-h-96 overflow-x-auto overflow-y-auto">
 								{#each ws.toolExecutions as tool}
-									<div class="p-3 rounded-lg border {tool.type === 'task:tool:start' ? 'bg-muted/50' : 'bg-green-50 dark:bg-green-950/20'}">
-										<div class="flex items-center justify-between">
-											<div class="flex items-center gap-2">
-												<Badge variant={tool.type === 'task:tool:start' ? 'secondary' : 'default'}>
-													{tool.tool}
-												</Badge>
-												<span class="text-xs text-muted-foreground">
-													{formatDate(tool.timestamp)}
-												</span>
+									{@const isStart = tool.type === 'task:tool:start'}
+									{@const isError = tool.error || tool.success === false}
+									{@const ToolIcon = getToolIcon(tool.tool)}
+									<div class="p-4 rounded-lg border transition-colors {isStart ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800' : isError ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800' : 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'}">
+										<div class="flex items-start gap-3">
+											<!-- ステータスアイコン -->
+											<div class="flex-shrink-0 mt-0.5">
+												{#if isStart}
+													<Loader2 class="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin" />
+												{:else if isError}
+													<AlertCircle class="h-5 w-5 text-red-600 dark:text-red-400" />
+												{:else}
+													<CheckCircle class="h-5 w-5 text-green-600 dark:text-green-400" />
+												{/if}
 											</div>
-											{#if tool.duration}
-												<span class="text-xs text-muted-foreground">
-													{tool.duration}ms
-												</span>
-											{/if}
+											
+											<!-- メインコンテンツ -->
+											<div class="flex-1 min-w-0">
+												<div class="flex items-center gap-2 mb-1">
+													{#if ToolIcon}
+														<ToolIcon class="h-4 w-4 text-muted-foreground" />
+													{/if}
+													<span class="font-medium text-sm">{tool.tool}</span>
+													<Badge variant={isStart ? 'secondary' : isError ? 'destructive' : 'default'} class="text-xs">
+														{isStart ? '実行中' : isError ? '失敗' : '完了'}
+													</Badge>
+												</div>
+												
+												<!-- タイムスタンプと実行時間 -->
+												<div class="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+													<span>{formatDate(tool.timestamp)}</span>
+													{#if tool.duration}
+														<span class="flex items-center gap-1">
+															<Clock class="h-3 w-3" />
+															{tool.duration}ms
+														</span>
+													{/if}
+												</div>
+												
+												<!-- 引数/詳細 -->
+												{#if tool.args}
+													{@const { formatted, type } = formatToolArgs(tool.tool, tool.args)}
+													{#if formatted}
+														<div class="overflow-hidden rounded-md {type === 'code' ? 'bg-slate-900 dark:bg-slate-950' : 'bg-background/50'} border">
+															{#if type === 'code'}
+																<div class="p-3 overflow-x-auto">
+																	<pre class="text-xs font-mono {type === 'code' ? 'text-slate-100' : ''}">{formatted}</pre>
+																</div>
+															{:else}
+																<div class="p-3">
+																	<p class="text-xs whitespace-pre-wrap break-words {type === 'list' ? 'space-y-1' : ''}">{formatted}</p>
+																</div>
+															{/if}
+														</div>
+													{/if}
+												{/if}
+												
+												<!-- エラーメッセージ -->
+												{#if tool.error}
+													<div class="mt-2 p-2 bg-red-100 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+														<p class="text-xs text-red-700 dark:text-red-300 break-words">
+															<strong>エラー:</strong> {tool.error}
+														</p>
+													</div>
+												{/if}
+											</div>
 										</div>
-										{#if tool.args}
-											<div class="mt-2 overflow-auto max-h-32 bg-muted/50 p-2 rounded">
-												<pre class="text-xs whitespace-pre-wrap break-words">{JSON.stringify(tool.args, null, 2)}</pre>
-											</div>
-										{/if}
-										{#if tool.error}
-											<div class="mt-2 text-xs text-destructive break-words">エラー: {tool.error}</div>
-										{/if}
 									</div>
 								{/each}
 							</div>
