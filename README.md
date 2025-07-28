@@ -70,10 +70,8 @@ git clone https://github.com/your-username/cc-anywhere
 cd cc-anywhere
 
 # 環境変数の設定
-cd backend
 cp .env.example .env
 # .envファイルを編集してCLAUDE_API_KEYを設定
-cd ..
 
 # 統合ビルド（フロントエンド＋バックエンド）
 ./scripts/build-all.sh

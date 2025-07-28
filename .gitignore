@@ -24,6 +24,8 @@ backend/config/repositories.json
 .env
 .env.local
 .env.*.local
+backend/.env
+backend/.env.backup
 
 # IDE
 .vscode/

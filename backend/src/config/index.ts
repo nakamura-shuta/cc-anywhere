@@ -1,8 +1,9 @@
 import dotenv from "dotenv";
 import { z } from "zod";
+import path from "path";
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from root .env file
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Environment configuration schema
 const envSchema = z.object({
