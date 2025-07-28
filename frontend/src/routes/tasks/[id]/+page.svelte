@@ -765,6 +765,18 @@
 													{/if}
 												{/if}
 												
+												<!-- 実行結果 -->
+												{#if tool.output && tool.type === 'task:tool:end'}
+													<div class="mt-2">
+														<p class="text-xs font-medium text-muted-foreground mb-1">実行結果:</p>
+														<div class="overflow-hidden rounded-md bg-background/50 border">
+															<div class="p-3 overflow-x-auto max-h-48 overflow-y-auto">
+																<pre class="text-xs font-mono whitespace-pre-wrap break-words">{tool.output}</pre>
+															</div>
+														</div>
+													</div>
+												{/if}
+												
 												<!-- エラーメッセージ -->
 												{#if tool.error}
 													<div class="mt-2 p-2 bg-red-100 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
