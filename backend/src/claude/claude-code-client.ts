@@ -50,6 +50,10 @@ export class ClaudeCodeClient {
     const startTime = Date.now();
     let sessionId: string | undefined;
 
+    // Tool tracking for duration calculation (タスクごとに独立)
+    const toolStartTimes: Map<string, number> = new Map();
+    const toolNameMap: Map<string, string> = new Map();
+
     try {
       logger.debug("Executing task with Claude Code SDK", {
         promptLength: prompt.length,
@@ -133,7 +137,7 @@ export class ClaudeCodeClient {
         }
 
         // Extract and track tool usage
-        const toolDetails = this.extractToolUsageFromMessage(message);
+        const toolDetails = this.extractToolUsageFromMessage(message, toolStartTimes, toolNameMap);
         for (const toolDetail of toolDetails) {
           if (toolDetail.action === "start") {
             // Tool start event
@@ -379,11 +383,11 @@ export class ClaudeCodeClient {
     return null;
   }
 
-  // Tool tracking for duration calculation
-  private toolStartTimes: Map<string, number> = new Map();
-  private toolNameMap: Map<string, string> = new Map();
-
-  private extractToolUsageFromMessage(message: SDKMessage): ToolUsageDetail[] {
+  private extractToolUsageFromMessage(
+    message: SDKMessage,
+    toolStartTimes: Map<string, number>,
+    toolNameMap: Map<string, string>,
+  ): ToolUsageDetail[] {
     const toolDetails: ToolUsageDetail[] = [];
 
     if (message.type === "assistant") {
@@ -395,8 +399,8 @@ export class ClaudeCodeClient {
             const startTime = Date.now();
 
             // Store start time and tool name for later use
-            this.toolStartTimes.set(toolId, startTime);
-            this.toolNameMap.set(toolId, content.name);
+            toolStartTimes.set(toolId, startTime);
+            toolNameMap.set(toolId, content.name);
 
             // Tool start
             toolDetails.push({
@@ -417,13 +421,13 @@ export class ClaudeCodeClient {
           if (result.type === "tool_result") {
             const toolId = result.tool_use_id;
             const endTime = Date.now();
-            const startTime = this.toolStartTimes.get(toolId) || endTime;
-            const toolName = this.toolNameMap.get(toolId) || "unknown";
+            const startTime = toolStartTimes.get(toolId) || endTime;
+            const toolName = toolNameMap.get(toolId) || "unknown";
             const duration = endTime - startTime;
 
             // Clean up tracking maps
-            this.toolStartTimes.delete(toolId);
-            this.toolNameMap.delete(toolId);
+            toolStartTimes.delete(toolId);
+            toolNameMap.delete(toolId);
 
             // Tool end
             toolDetails.push({

@@ -707,7 +707,7 @@
 					<TabsContent value="tools" class="mt-4">
 						{#if ws.toolExecutions.length > 0}
 							<div class="space-y-2 max-h-96 overflow-x-auto overflow-y-auto">
-								{#each ws.toolExecutions as tool}
+								{#each ws.toolExecutions.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) as tool}
 									{@const isStart = tool.type === 'task:tool:start'}
 									{@const isError = tool.error || tool.success === false}
 									{@const ToolIcon = getToolIcon(tool.tool)}

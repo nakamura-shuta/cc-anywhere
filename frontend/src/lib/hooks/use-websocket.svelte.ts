@@ -66,28 +66,88 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	const toolExecutions = $derived(
 		(() => {
 			// WebSocketメッセージから取得
-			const wsExecutions = messages
-				.filter(m => m.type === 'task:tool:start' || m.type === 'task:tool:end')
-				.map(m => ({
-					type: m.type,
-					tool: m.data?.tool || '',
-					args: m.data?.input,
-					duration: m.data?.duration,
-					success: m.data?.success,
-					error: m.data?.error,
-					timestamp: m.timestamp || new Date().toISOString()
-				}));
+			const wsMessages = messages.filter(m => m.type === 'task:tool:start' || m.type === 'task:tool:end');
+			
+			// ツールIDごとにstartとendをペアリング
+			const toolMap = new Map<string, any>();
+			const completedTools: any[] = [];
+			const toolByName = new Map<string, any[]>(); // ツール名でもトラッキング
+			
+			wsMessages.forEach(m => {
+				const toolId = m.data?.toolId;
+				const toolName = m.data?.tool || '';
+				
+				// デバッグログ
+				console.log(`[ToolExecution] ${m.type}`, { toolId, toolName, data: m.data });
+				
+				if (m.type === 'task:tool:start') {
+					const startEvent = {
+						type: 'task:tool:start',
+						tool: toolName,
+						toolId: toolId || `${toolName}-${m.timestamp}`,
+						args: m.data?.input,
+						timestamp: m.timestamp || new Date().toISOString()
+					};
+					
+					// toolIdがある場合はそれで記録
+					if (toolId) {
+						toolMap.set(toolId, startEvent);
+					}
+					
+					// ツール名でも記録（toolIdがない場合のフォールバック）
+					if (!toolByName.has(toolName)) {
+						toolByName.set(toolName, []);
+					}
+					toolByName.get(toolName)!.push(startEvent);
+					
+				} else if (m.type === 'task:tool:end') {
+					let startEvent = null;
+					
+					// まずtoolIdで探す
+					if (toolId && toolMap.has(toolId)) {
+						startEvent = toolMap.get(toolId);
+						toolMap.delete(toolId);
+					} 
+					// toolIdがない場合、ツール名で最も古い開始イベントを探す
+					else if (toolByName.has(toolName) && toolByName.get(toolName)!.length > 0) {
+						const toolEvents = toolByName.get(toolName)!;
+						startEvent = toolEvents.shift(); // 最も古いものを取得
+						// toolMapからも削除
+						if (startEvent.toolId && toolMap.has(startEvent.toolId)) {
+							toolMap.delete(startEvent.toolId);
+						}
+					}
+					
+					// 終了イベントを記録
+					completedTools.push({
+						type: 'task:tool:end',
+						tool: toolName,
+						toolId: toolId || startEvent?.toolId || `${toolName}-${m.timestamp}`,
+						args: startEvent?.args,
+						duration: m.data?.duration,
+						success: m.data?.success,
+						error: m.data?.error,
+						timestamp: m.timestamp || new Date().toISOString()
+					});
+				}
+			});
+			
+			// まだ終了していないツール（実行中）を追加
+			const runningTools = Array.from(toolMap.values());
+			const wsExecutions = [...completedTools, ...runningTools];
 			
 			// 初期データがある場合は、それを使用
 			if (wsExecutions.length === 0) {
 				// 詳細なツール実行履歴がある場合はそれを使用
 				if (initialData?.toolExecutions && initialData.toolExecutions.length > 0) {
-					return initialData.toolExecutions.map(exec => ({
-						type: exec.type === 'start' ? 'task:tool:start' : 'task:tool:end',
+					// 初期データをそのまま完了したツールとして表示
+					return initialData.toolExecutions.map((exec: any) => ({
+						type: 'task:tool:end', // すべて完了として表示
 						tool: exec.tool,
+						toolId: `${exec.tool}-${exec.timestamp}`,
 						args: exec.args,
 						duration: exec.duration,
-						success: exec.success,
+						success: exec.success !== false,
 						error: exec.error,
 						timestamp: exec.timestamp
 					}));
@@ -100,6 +160,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 							initialExecutions.push({
 								type: 'task:tool:end',
 								tool,
+								toolId: `${tool}-${i}`,
 								success: true,
 								timestamp: new Date().toISOString()
 							});

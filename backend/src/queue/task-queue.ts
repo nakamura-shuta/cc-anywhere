@@ -180,22 +180,16 @@ export class TaskQueueImpl implements TaskQueue {
             ? async (progress: { type: string; message: string; data?: any }) => {
                 const timestamp = new Date().toISOString();
 
+                // すべてのメッセージをログとして保存（WebSocketと同じ形式）
+                let logMessage = "";
+
                 switch (progress.type) {
                   case "log":
                     logger.debug("Sending progress log via WebSocket", {
                       taskId: task.id,
                       message: progress.message,
                     });
-                    // ログをprogressDataに保存
-                    progressData.logs.push(progress.message);
-                    // 定期的にDBに保存（100ログごと）
-                    if (progressData.logs.length % 100 === 0) {
-                      try {
-                        this.repository.updateProgressData(task.id, progressData);
-                      } catch (error) {
-                        logger.error("Failed to update progress data", { taskId: task.id, error });
-                      }
-                    }
+                    logMessage = progress.message;
                     this.wsServer?.broadcastTaskLog({
                       taskId: task.id,
                       log: progress.message,
@@ -206,6 +200,18 @@ export class TaskQueueImpl implements TaskQueue {
 
                   case "tool_usage":
                     if (progress.data) {
+                      // ログメッセージをフォーマット（レガシー形式）
+                      const toolStatus =
+                        progress.data.status === "success"
+                          ? "✓"
+                          : progress.data.status === "failure"
+                            ? "✗"
+                            : "⚡";
+                      logMessage = `[${progress.data.tool}] ${toolStatus} ${progress.data.status === "start" ? "開始" : progress.data.status === "success" ? "成功" : "失敗"}`;
+                      if (progress.data.filePath) logMessage += `: ${progress.data.filePath}`;
+                      else if (progress.data.command) logMessage += `: ${progress.data.command}`;
+                      else if (progress.data.pattern) logMessage += `: ${progress.data.pattern}`;
+
                       this.wsServer?.broadcastToolUsage({
                         taskId: task.id,
                         tool: {
@@ -218,6 +224,7 @@ export class TaskQueueImpl implements TaskQueue {
 
                   case "progress":
                     if (progress.data) {
+                      // プログレスメッセージはログに含めない（進捗バー表示用）
                       this.wsServer?.broadcastTaskProgress({
                         taskId: task.id,
                         progress: {
@@ -230,6 +237,7 @@ export class TaskQueueImpl implements TaskQueue {
 
                   case "summary":
                     if (progress.data) {
+                      // サマリーメッセージもログに含めない（別UI表示用）
                       this.wsServer?.broadcastTaskSummary({
                         taskId: task.id,
                         summary: progress.data,
@@ -241,6 +249,9 @@ export class TaskQueueImpl implements TaskQueue {
                       // 実行中のタスクのTODOを一時的に保存
                       task.todos = progress.data.todos;
                       progressData.todos = progress.data.todos;
+
+                      // ログメッセージをフォーマット
+                      logMessage = `📝 TODO更新: ${progress.data.todos.map((t: any) => `${t.content} [${t.status}]`).join(", ")}`;
 
                       // Save progress data to database
                       try {
@@ -283,6 +294,9 @@ export class TaskQueueImpl implements TaskQueue {
                         args: progress.data.input,
                       });
 
+                      // ログメッセージをフォーマット
+                      logMessage = `🛠️ [${progress.data.tool}] 開始${progress.data.input ? `: ${JSON.stringify(progress.data.input).slice(0, 100)}...` : ""}`;
+
                       // Save progress data to database
                       try {
                         this.repository.updateProgressData(task.id, progressData);
@@ -315,6 +329,9 @@ export class TaskQueueImpl implements TaskQueue {
                         duration: progress.data.duration,
                         success: progress.data.success,
                       });
+
+                      // ログメッセージをフォーマット
+                      logMessage = `✅ [${progress.data.tool}] ${progress.data.success ? "成功" : "失敗"}${progress.data.duration ? ` (${progress.data.duration}ms)` : ""}`;
 
                       // Save progress data to database
                       try {
@@ -353,6 +370,9 @@ export class TaskQueueImpl implements TaskQueue {
                         timestamp,
                       });
 
+                      // ログメッセージをフォーマット
+                      logMessage = `🤖 Claude: ${progress.message || ""}`;
+
                       // Save progress data to database
                       try {
                         this.repository.updateProgressData(task.id, progressData);
@@ -373,7 +393,7 @@ export class TaskQueueImpl implements TaskQueue {
                   case "statistics":
                     if (progress.data) {
                       // Claude Code SDKから送信される統計情報をprogressDataに保存
-                      // Claude Code SDK形式: totalTurns, totalToolCalls, toolStats, currentPhase, elapsedTime
+                      // 統計情報はログに含めない（別UI表示用）
                       progressData.statistics.totalToolCalls = progress.data.totalToolCalls || 0;
                       progressData.currentTurn =
                         progress.data.totalTurns || progressData.currentTurn;
@@ -424,8 +444,7 @@ export class TaskQueueImpl implements TaskQueue {
                         type: progress.type,
                         message: progress.message,
                       });
-                      // ログをprogressDataに保存
-                      progressData.logs.push(progress.message);
+                      logMessage = progress.message;
                       // Also broadcast as a log message
                       this.wsServer?.broadcastTaskLog({
                         taskId: task.id,
@@ -434,6 +453,20 @@ export class TaskQueueImpl implements TaskQueue {
                       });
                     }
                 }
+
+                // すべてのログメッセージをprogressData.logsに保存
+                if (logMessage) {
+                  progressData.logs.push(logMessage);
+
+                  // 定期的にDBに保存（100ログごと）
+                  if (progressData.logs.length % 100 === 0) {
+                    try {
+                      this.repository.updateProgressData(task.id, progressData);
+                    } catch (error) {
+                      logger.error("Failed to update progress data", { taskId: task.id, error });
+                    }
+                  }
+                }
               }
             : undefined,
         },
@@ -441,6 +474,15 @@ export class TaskQueueImpl implements TaskQueue {
 
       // Execute the task with taskId for cancellation support
       const result = await this.executor.execute(requestWithProgress, task.id, task.retryMetadata);
+
+      // 最終的なprogressDataをログに記録（デバッグ用）
+      logger.info("Final progressData before saving", {
+        taskId: task.id,
+        logsCount: progressData.logs.length,
+        toolExecutionsCount: progressData.toolExecutions.length,
+        claudeResponsesCount: progressData.claudeResponses.length,
+        todosCount: progressData.todos.length,
+      });
 
       // Update task with result
       task.completedAt = new Date();
