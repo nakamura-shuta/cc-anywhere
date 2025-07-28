@@ -142,6 +142,7 @@ export interface TaskResponse {
   todos?: TodoItem[];
   continuedFrom?: string;
   sdkSessionId?: string;
+  conversationHistory?: any[];
   progressData?: {
     currentTurn?: number;
     maxTurns?: number;

@@ -32,6 +32,7 @@ export class TaskRepositoryAdapter {
     groupId?: string;
     repositoryName?: string;
     conversationHistory?: any;
+    continuedFrom?: string;
   }): TaskRecord {
     const entity: TaskEntity = {
       id: task.id,
@@ -47,7 +48,10 @@ export class TaskRepositoryAdapter {
       repositoryName: task.repositoryName || undefined,
       conversationHistory: task.conversationHistory || undefined,
       continuedFrom:
-        (task.context as any)?.continuedFrom || (task.context as any)?.parentTaskId || undefined,
+        task.continuedFrom ||
+        (task.context as any)?.continuedFrom ||
+        (task.context as any)?.parentTaskId ||
+        undefined,
       createdAt: new Date(),
       updatedAt: new Date(),
       completedAt: undefined,
@@ -87,7 +91,7 @@ export class TaskRepositoryAdapter {
       entity.groupId || null,
       entity.repositoryName || null,
       entity.conversationHistory ? JSON.stringify(entity.conversationHistory) : null,
-      entity.continuedFrom || task.context?.continuedFrom || task.context?.parentTaskId || null,
+      entity.continuedFrom || null,
       null, // sdk_session_id - initially null
       null, // progress_data - initially null
     );
@@ -308,10 +312,12 @@ export class TaskRepositoryAdapter {
   }
 
   // Legacy method: updateResult
-  updateResult(id: string, result: TaskResponse): void {
+  updateResult(id: string, result: any): void {
     const stmt = this.db.prepare(`
       UPDATE tasks SET result = ?, updated_at = ? WHERE id = ?
     `);
+
+    // Simply stringify the result as-is
     stmt.run(JSON.stringify(result), new Date().toISOString(), id);
   }
 
@@ -444,6 +450,50 @@ export class TaskRepositoryAdapter {
       sdkSessionId: undefined, // Not in TaskEntity
       progressData: undefined, // Not in TaskEntity
     };
+  }
+
+  /**
+   * Get the latest SDK session ID in a task continuation chain
+   * @param taskId - The task ID to start from
+   * @returns The latest SDK session ID in the chain, or undefined if not found
+   */
+  getLatestSdkSessionId(taskId: string): string | undefined {
+    // First, find all tasks that are part of the continuation chain
+    const visited = new Set<string>();
+    let currentTaskId: string | undefined = taskId;
+    let latestTask: TaskRecord | undefined;
+
+    // Traverse forward to find the latest task in the chain
+    while (currentTaskId) {
+      // Prevent infinite loops
+      if (visited.has(currentTaskId)) break;
+      visited.add(currentTaskId);
+
+      // Find tasks that continued from the current task
+      const stmt = this.db.prepare(`
+        SELECT * FROM tasks 
+        WHERE continued_from = ? 
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `);
+
+      const row = stmt.get(currentTaskId) as any;
+      if (row) {
+        latestTask = this.rowToRecord(row);
+        currentTaskId = row.id;
+      } else {
+        // No more continuations found
+        if (!latestTask) {
+          // If we haven't found any continuations, get the original task
+          const originalTask = this.getById(taskId);
+          latestTask = originalTask || undefined;
+        }
+        break;
+      }
+    }
+
+    // Return the SDK session ID from the latest task in the chain
+    return latestTask?.sdkSessionId;
   }
 
   // Helper: Convert database row to record

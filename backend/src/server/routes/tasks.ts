@@ -361,10 +361,13 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.status(404).send(errorResponse);
         }
 
-        if (!previousTask.sdkSessionId) {
+        // Get the latest SDK session ID in the continuation chain
+        const latestSdkSessionId = repository.getLatestSdkSessionId(previousTaskId);
+
+        if (!latestSdkSessionId) {
           const errorResponse: ErrorResponse = {
             error: {
-              message: `Previous task does not have an SDK session ID. It may have been executed before this feature was available.`,
+              message: `No SDK session ID found in the task chain. The tasks may have been executed before this feature was available.`,
               statusCode: 400,
               code: "NO_SDK_SESSION_ID",
             },
@@ -372,23 +375,24 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.status(400).send(errorResponse);
         }
 
-        // Update the request to use resumeSession with the SDK session ID
+        // Update the request to use resumeSession with the latest SDK session ID
         taskRequest = {
           ...request.body,
           options: {
             ...request.body.options,
             sdk: {
               ...request.body.options?.sdk,
-              resumeSession: previousTask.sdkSessionId,
+              resumeSession: latestSdkSessionId,
               // Remove continueFromTaskId as it's not needed for the SDK
               continueFromTaskId: undefined,
             },
           },
         };
 
-        logger.info("Using SDK session from previous task", {
+        logger.info("Using latest SDK session from task chain", {
           previousTaskId,
-          sdkSessionId: previousTask.sdkSessionId,
+          latestSdkSessionId,
+          originalSdkSessionId: previousTask.sdkSessionId,
         });
       }
 
@@ -520,6 +524,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         continuedFrom: record.continuedFrom || undefined,
         progressData: record.progressData || undefined,
         sdkSessionId: record.sdkSessionId,
+        conversationHistory: record.conversationHistory || undefined,
       };
 
       void reply.send(task);

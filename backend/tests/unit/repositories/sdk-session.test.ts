@@ -156,4 +156,161 @@ describe("TaskRepositoryAdapter SDK Session", () => {
     const task = repository.getById(taskId);
     expect(task!.sdkSessionId).toBe(sdkSessionId);
   });
+
+  describe("getLatestSdkSessionId", () => {
+    it("should return SDK session ID for a single task", () => {
+      const taskId = uuidv4();
+      const sdkSessionId = "single-task-session";
+
+      repository.create({
+        id: taskId,
+        instruction: "Single task",
+        priority: 0,
+        status: TaskStatus.PENDING,
+      });
+
+      repository.updateSdkSessionId(taskId, sdkSessionId);
+
+      const latestSessionId = repository.getLatestSdkSessionId(taskId);
+      expect(latestSessionId).toBe(sdkSessionId);
+    });
+
+    it("should return latest SDK session ID in a continuation chain", () => {
+      // Create first task
+      const task1Id = uuidv4();
+      const session1Id = "session-1";
+
+      repository.create({
+        id: task1Id,
+        instruction: "First task",
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+      });
+      repository.updateSdkSessionId(task1Id, session1Id);
+
+      // Create second task continued from first
+      const task2Id = uuidv4();
+      const session2Id = "session-2";
+
+      repository.create({
+        id: task2Id,
+        instruction: "Second task",
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+        continuedFrom: task1Id,
+      });
+      repository.updateSdkSessionId(task2Id, session2Id);
+
+      // Create third task continued from second
+      const task3Id = uuidv4();
+      const session3Id = "session-3";
+
+      repository.create({
+        id: task3Id,
+        instruction: "Third task",
+        continuedFrom: task2Id,
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+      });
+      repository.updateSdkSessionId(task3Id, session3Id);
+
+      // Should return the latest session ID (session-3) when starting from task1
+      const latestSessionId = repository.getLatestSdkSessionId(task1Id);
+      expect(latestSessionId).toBe(session3Id);
+    });
+
+    it("should handle task without SDK session ID", () => {
+      const taskId = uuidv4();
+
+      repository.create({
+        id: taskId,
+        instruction: "Task without session",
+        priority: 0,
+        status: TaskStatus.PENDING,
+      });
+
+      const latestSessionId = repository.getLatestSdkSessionId(taskId);
+      expect(latestSessionId).toBeUndefined();
+    });
+
+    it("should handle non-existent task", () => {
+      const nonExistentId = uuidv4();
+      const latestSessionId = repository.getLatestSdkSessionId(nonExistentId);
+      expect(latestSessionId).toBeUndefined();
+    });
+
+    it("should handle broken continuation chain", () => {
+      // Create first task
+      const task1Id = uuidv4();
+      const session1Id = "session-1";
+
+      repository.create({
+        id: task1Id,
+        instruction: "First task",
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+      });
+      repository.updateSdkSessionId(task1Id, session1Id);
+
+      // Create second task continued from first
+      const task2Id = uuidv4();
+
+      repository.create({
+        id: task2Id,
+        instruction: "Second task without session",
+        continuedFrom: task1Id,
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+      });
+      // Intentionally not setting SDK session ID for task2
+
+      // Create third task continued from second
+      const task3Id = uuidv4();
+      const session3Id = "session-3";
+
+      repository.create({
+        id: task3Id,
+        instruction: "Third task",
+        continuedFrom: task2Id,
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+      });
+      repository.updateSdkSessionId(task3Id, session3Id);
+
+      // Should return the latest session ID that exists (session-3)
+      const latestSessionId = repository.getLatestSdkSessionId(task1Id);
+      expect(latestSessionId).toBe(session3Id);
+    });
+
+    it("should handle circular references gracefully", () => {
+      // This shouldn't happen in practice, but we should handle it
+      const task1Id = uuidv4();
+      const task2Id = uuidv4();
+      const session1Id = "session-1";
+      const session2Id = "session-2";
+
+      // Create two tasks
+      repository.create({
+        id: task1Id,
+        instruction: "Task 1",
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+      });
+      repository.updateSdkSessionId(task1Id, session1Id);
+
+      repository.create({
+        id: task2Id,
+        instruction: "Task 2",
+        continuedFrom: task1Id,
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+      });
+      repository.updateSdkSessionId(task2Id, session2Id);
+
+      // Try to create a circular reference (shouldn't be possible in practice)
+      // The method should handle this gracefully
+      const latestSessionId = repository.getLatestSdkSessionId(task1Id);
+      expect(latestSessionId).toBe(session2Id);
+    });
+  });
 });

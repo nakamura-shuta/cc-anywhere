@@ -86,6 +86,9 @@ export class TaskQueueImpl implements TaskQueue {
 
     // Persist task to database
     try {
+      // Extract continuedFrom from SDK options if present
+      const continuedFrom = request.options?.sdk?.continueFromTaskId;
+
       this.repository.create({
         id: taskId,
         instruction: request.instruction,
@@ -96,6 +99,7 @@ export class TaskQueueImpl implements TaskQueue {
         retryMetadata,
         groupId: metadata?.groupId,
         repositoryName: metadata?.repositoryName,
+        continuedFrom: continuedFrom || undefined,
       });
     } catch (error) {
       logger.error("Failed to persist task", { taskId, error });

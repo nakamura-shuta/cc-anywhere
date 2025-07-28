@@ -6,13 +6,13 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Input } from '$lib/components/ui/input';
 	import { apiClient } from '$lib/api/client';
-	import { ArrowLeft, Play, Info, Folder } from 'lucide-svelte';
+	import { ArrowLeft, Play, Info } from 'lucide-svelte';
 	import type { TaskResponse } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/date';
 	import { getStatusVariant } from '$lib/utils/task';
+	import DirectorySelector from '$lib/components/directory-selector.svelte';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -20,13 +20,20 @@
 	// フォームの状態
 	let instruction = $state('');
 	let isSubmitting = $state(false);
-	let changeWorkingDirectory = $state(false);
-	let customWorkingDirectory = $state('');
+	
+	// 親タスクの作業ディレクトリを初期値として設定
+	const parentWorkingDir = data.parentTask.context?.workingDirectory || data.parentTask.workingDirectory;
+	let selectedDirectories = $state<string[]>(parentWorkingDir ? [parentWorkingDir] : []);
 	
 	// 継続タスクを作成
 	async function createContinueTask() {
 		if (!instruction.trim()) {
 			alert('指示内容を入力してください');
+			return;
+		}
+		
+		if (selectedDirectories.length === 0) {
+			alert('作業ディレクトリを選択してください');
 			return;
 		}
 		
@@ -36,9 +43,7 @@
 			instruction: instruction,
 			context: {
 				// 作業ディレクトリの設定
-				workingDirectory: changeWorkingDirectory && customWorkingDirectory.trim() 
-					? customWorkingDirectory.trim()
-					: (data.parentTask.context?.workingDirectory || data.parentTask.workingDirectory),
+				workingDirectory: selectedDirectories[0], // 最初に選択されたディレクトリを使用
 				repositories: data.parentTask.context?.repositories
 			},
 			options: {
@@ -153,8 +158,8 @@
 							<p class="font-semibold mb-1">継続タスクについて</p>
 							<ul class="list-disc list-inside space-y-1">
 								<li>前回の会話履歴が引き継がれます</li>
-								<li>デフォルトでは同じ作業ディレクトリで実行されます</li>
-								<li>必要に応じて別の作業ディレクトリを指定できます</li>
+								<li>作業ディレクトリを空欄にすると親タスクと同じディレクトリで実行されます</li>
+								<li>別のディレクトリを指定することで、異なるプロジェクトで作業を継続できます</li>
 								<li>前回の変更内容を前提として実行できます</li>
 							</ul>
 						</div>
@@ -172,44 +177,13 @@
 					/>
 				</div>
 				
-				<!-- 作業ディレクトリ変更オプション -->
-				<div class="space-y-3">
-					<div class="flex items-center space-x-2">
-						<Checkbox 
-							id="change-dir"
-							bind:checked={changeWorkingDirectory}
-							disabled={isSubmitting}
-						/>
-						<Label 
-							for="change-dir" 
-							class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-						>
-							別の作業ディレクトリで実行
-						</Label>
-					</div>
-					
-					{#if changeWorkingDirectory}
-						<div class="space-y-2 animate-in slide-in-from-top-2">
-							<Label for="working-directory">
-								新しい作業ディレクトリ
-							</Label>
-							<div class="relative">
-								<Folder class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-								<Input
-									id="working-directory"
-									type="text"
-									bind:value={customWorkingDirectory}
-									placeholder="/path/to/new/directory"
-									class="pl-10"
-									disabled={isSubmitting}
-								/>
-							</div>
-							<p class="text-xs text-muted-foreground">
-								絶対パスまたは相対パスを指定してください
-							</p>
-						</div>
-					{/if}
-				</div>
+				<!-- 作業ディレクトリ選択 -->
+				<DirectorySelector 
+					bind:selectedDirectories={selectedDirectories}
+					onSelectionChange={(selected) => {
+						selectedDirectories = selected;
+					}}
+				/>
 			</Card.Content>
 			<Card.Footer>
 				<Button 

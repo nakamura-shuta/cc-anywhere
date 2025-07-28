@@ -330,6 +330,15 @@ export class TaskExecutorImpl implements TaskExecutor {
           }
         };
 
+        // Log SDK options for debugging
+        logger.info("Executing Claude Code SDK with options", {
+          taskId,
+          hasResumeSession: !!sdkOptions.resumeSession,
+          resumeSession: sdkOptions.resumeSession,
+          continueSession: sdkOptions.continueSession,
+          continueFromTaskId: sdkOptions.continueFromTaskId,
+        });
+
         // Claude Code SDKの実行
         sdkResult = await this.codeClient.executeTask(prompt, {
           maxTurns: sdkOptions.maxTurns,
@@ -355,6 +364,15 @@ export class TaskExecutorImpl implements TaskExecutor {
           throw sdkResult.error || new Error("Task execution failed");
         }
 
+        logger.info("SDK execution result", {
+          success: sdkResult.success,
+          hasMessages: !!sdkResult.messages,
+          messageCount: sdkResult.messages?.length || 0,
+          hasSessionId: !!sdkResult.sessionId,
+          sessionId: sdkResult.sessionId,
+          taskId,
+        });
+
         // Generate task summary if tracker is available
         if (sdkResult.tracker) {
           const summary = sdkResult.tracker.generateSummary(sdkResult.success, output);
@@ -372,7 +390,12 @@ export class TaskExecutorImpl implements TaskExecutor {
         }
 
         // Store SDK messages for conversation history
-        sdkMessages = sdkResult.messages;
+        sdkMessages = sdkResult.messages || [];
+        logger.info("SDK messages collected", {
+          messageCount: sdkMessages.length,
+          hasMessages: sdkMessages.length > 0,
+          taskId,
+        });
 
         // Process result based on output format
         const processedResult = this.processClaudeCodeResult(sdkResult, sdkOptions.outputFormat);
