@@ -93,7 +93,7 @@ CC-Anywhereは2つのデプロイメントアーキテクチャをサポート�
 
 1. **バックエンドのCORS設定**:
    ```env
-   # backend/.env
+   # .env
    CORS_ORIGIN=http://localhost:4444,https://your-domain.com
    ```
 

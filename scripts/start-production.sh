@@ -20,6 +20,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 BACKEND_DIR="$PROJECT_DIR/backend"
+ROOT_DIR="$PROJECT_DIR"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║       CC-Anywhere 本番環境起動               ║${NC}"
@@ -44,9 +45,9 @@ PM2_VERSION=$(pm2 --version)
 echo -e "   PM2: ${GREEN}v${PM2_VERSION}${NC}"
 
 # .envファイル確認
-if [ ! -f "$BACKEND_DIR/.env" ]; then
+if [ ! -f "$ROOT_DIR/.env" ]; then
     echo -e "${RED}エラー: .envファイルが見つかりません${NC}"
-    echo "backend/.env.example をコピーして設定してください"
+    echo ".env.example をコピーして設定してください"
     exit 1
 fi
 
@@ -109,17 +110,17 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 
 # ポート情報を取得
-PORT=$(grep "^PORT=" "$BACKEND_DIR/.env" | cut -d'=' -f2 || echo "5000")
+PORT=$(grep "^PORT=" "$ROOT_DIR/.env" | cut -d'=' -f2 || echo "5000")
 
 echo -e "${BLUE}アクセスURL:${NC}"
 echo "  http://localhost:${PORT}"
 echo ""
 
 # 外部アクセス設定確認
-if grep -q "TUNNEL_TYPE=ngrok" "$BACKEND_DIR/.env" 2>/dev/null; then
+if grep -q "TUNNEL_TYPE=ngrok" "$ROOT_DIR/.env" 2>/dev/null; then
     echo -e "${MAGENTA}外部アクセス: ngrok有効${NC}"
     echo "  ※ 数秒後に外部URLが表示されます"
-elif grep -q "TUNNEL_TYPE=cloudflare" "$BACKEND_DIR/.env" 2>/dev/null; then
+elif grep -q "TUNNEL_TYPE=cloudflare" "$ROOT_DIR/.env" 2>/dev/null; then
     echo -e "${MAGENTA}外部アクセス: Cloudflare Tunnel有効${NC}"
 fi
 

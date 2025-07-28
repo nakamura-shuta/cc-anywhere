@@ -14,7 +14,8 @@ NC='\033[0m' # No Color
 
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+ROOT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+PROJECT_DIR="$ROOT_DIR"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 BACKEND_DIR="$PROJECT_DIR/backend"
 
@@ -39,11 +40,11 @@ if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
 fi
 
 # .envファイル確認
-if [ ! -f "$BACKEND_DIR/.env" ]; then
+if [ ! -f "$ROOT_DIR/.env" ]; then
     echo -e "${RED}エラー: .envファイルが見つかりません${NC}"
-    if [ -f "$BACKEND_DIR/.env.example" ]; then
+    if [ -f "$ROOT_DIR/.env.example" ]; then
         echo -e "${YELLOW}.env.exampleから作成します${NC}"
-        cp "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
+        cp "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
         echo -e "${YELLOW}※ .envファイルを編集してCLAUDE_API_KEYを設定してください${NC}"
     else
         exit 1

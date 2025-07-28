@@ -29,8 +29,8 @@ rm -rf frontend/.svelte-kit backend/.tsbuildinfo
 
 #### 2. 環境変数の確認
 ```bash
-# backend/.envファイルを確認
-cat backend/.env
+# .envファイルを確認
+cat .env
 
 # 以下が設定されているか確認:
 # - CLAUDE_API_KEY
@@ -104,7 +104,7 @@ lsof -i :5000
 
 詳細なログを有効にする:
 
-1. バックエンドの`.env`を編集:
+1. `.env`を編集:
    ```
    LOG_LEVEL=debug
    NODE_ENV=development

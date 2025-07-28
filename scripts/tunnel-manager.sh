@@ -14,6 +14,7 @@ NC='\033[0m' # No Color
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+ROOT_DIR="$PROJECT_DIR"
 BACKEND_DIR="$PROJECT_DIR/backend"
 
 # ヘルプ表示
@@ -36,14 +37,14 @@ show_help() {
 show_current_config() {
     cd "$BACKEND_DIR"
     
-    local tunnel_type=$(grep "^TUNNEL_TYPE=" .env 2>/dev/null | cut -d'=' -f2 || echo "none")
-    local enable_ngrok=$(grep "^ENABLE_NGROK=" .env 2>/dev/null | cut -d'=' -f2 || echo "false")
+    local tunnel_type=$(grep "^TUNNEL_TYPE=" "$ROOT_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "none")
+    local enable_ngrok=$(grep "^ENABLE_NGROK=" "$ROOT_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "false")
     
     echo -e "${BLUE}現在のトンネル設定:${NC}"
     
     if [ "$tunnel_type" = "cloudflare" ]; then
         echo -e "  タイプ: ${GREEN}Cloudflare Tunnel${NC}"
-        local cf_token=$(grep "^CLOUDFLARE_TUNNEL_TOKEN=" .env 2>/dev/null | cut -d'=' -f2 || echo "未設定")
+        local cf_token=$(grep "^CLOUDFLARE_TUNNEL_TOKEN=" "$ROOT_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "未設定")
         if [ -n "$cf_token" ] && [ "$cf_token" != "未設定" ]; then
             echo -e "  トークン: ${GREEN}設定済み${NC}"
         else
@@ -58,7 +59,7 @@ show_current_config() {
 
 # トンネルの設定
 setup_tunnel() {
-    cd "$BACKEND_DIR"
+    cd "$ROOT_DIR"
     
     echo -e "${YELLOW}トンネルのセットアップ${NC}"
     echo ""
@@ -75,11 +76,11 @@ setup_tunnel() {
         1)
             echo -e "${GREEN}ngrokを設定します${NC}"
             if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' .env 2>/dev/null || echo "TUNNEL_TYPE=ngrok" >> .env
-                sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' .env 2>/dev/null || echo "ENABLE_NGROK=true" >> .env
+                sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' "$ROOT_DIR/.env" 2>/dev/null || echo "TUNNEL_TYPE=ngrok" >> "$ROOT_DIR/.env"
+                sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' "$ROOT_DIR/.env" 2>/dev/null || echo "ENABLE_NGROK=true" >> "$ROOT_DIR/.env"
             else
-                sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' .env 2>/dev/null || echo "TUNNEL_TYPE=ngrok" >> .env
-                sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' .env 2>/dev/null || echo "ENABLE_NGROK=true" >> .env
+                sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' "$ROOT_DIR/.env" 2>/dev/null || echo "TUNNEL_TYPE=ngrok" >> "$ROOT_DIR/.env"
+                sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' "$ROOT_DIR/.env" 2>/dev/null || echo "ENABLE_NGROK=true" >> "$ROOT_DIR/.env"
             fi
             echo -e "${GREEN}✓ ngrok設定完了${NC}"
             ;;
@@ -112,13 +113,13 @@ setup_tunnel() {
                     
                     if [ -n "$cf_token" ]; then
                         if [[ "$OSTYPE" == "darwin"* ]]; then
-                            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env 2>/dev/null || echo "TUNNEL_TYPE=cloudflare" >> .env
-                            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
-                            sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" .env 2>/dev/null || echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> .env
+                            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' "$ROOT_DIR/.env" 2>/dev/null || echo "TUNNEL_TYPE=cloudflare" >> "$ROOT_DIR/.env"
+                            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$ROOT_DIR/.env" 2>/dev/null
+                            sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" "$ROOT_DIR/.env" 2>/dev/null || echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> "$ROOT_DIR/.env"
                         else
-                            sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env 2>/dev/null || echo "TUNNEL_TYPE=cloudflare" >> .env
-                            sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
-                            sed -i "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" .env 2>/dev/null || echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> .env
+                            sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' "$ROOT_DIR/.env" 2>/dev/null || echo "TUNNEL_TYPE=cloudflare" >> "$ROOT_DIR/.env"
+                            sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$ROOT_DIR/.env" 2>/dev/null
+                            sed -i "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" "$ROOT_DIR/.env" 2>/dev/null || echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> "$ROOT_DIR/.env"
                         fi
                         echo -e "${GREEN}✓ Cloudflare Tunnel設定完了${NC}"
                     else
@@ -135,11 +136,11 @@ setup_tunnel() {
         3)
             echo -e "${YELLOW}外部アクセスを無効化します${NC}"
             if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' .env 2>/dev/null || echo "TUNNEL_TYPE=none" >> .env
-                sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
+                sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' "$ROOT_DIR/.env" 2>/dev/null || echo "TUNNEL_TYPE=none" >> "$ROOT_DIR/.env"
+                sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$ROOT_DIR/.env" 2>/dev/null
             else
-                sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' .env 2>/dev/null || echo "TUNNEL_TYPE=none" >> .env
-                sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env 2>/dev/null
+                sed -i 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' "$ROOT_DIR/.env" 2>/dev/null || echo "TUNNEL_TYPE=none" >> "$ROOT_DIR/.env"
+                sed -i 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$ROOT_DIR/.env" 2>/dev/null
             fi
             echo -e "${GREEN}✓ ローカルのみの設定完了${NC}"
             ;;
@@ -161,7 +162,7 @@ show_tunnel_url() {
     echo ""
     
     # ログから最新のURLを取得
-    local tunnel_type=$(grep "^TUNNEL_TYPE=" .env 2>/dev/null | cut -d'=' -f2 || echo "none")
+    local tunnel_type=$(grep "^TUNNEL_TYPE=" "$ROOT_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "none")
     
     if [ "$tunnel_type" = "cloudflare" ]; then
         echo -e "${MAGENTA}Cloudflare Tunnel URL:${NC}"
@@ -171,7 +172,7 @@ show_tunnel_url() {
         else
             pm2 logs cc-anywhere-backend --lines 200 --nostream --raw | grep -o "https://.*\.trycloudflare\.com" | tail -1 || echo "取得中..."
         fi
-    elif [ "$tunnel_type" = "ngrok" ] || [ "$(grep "^ENABLE_NGROK=" .env 2>/dev/null | cut -d'=' -f2)" = "true" ]; then
+    elif [ "$tunnel_type" = "ngrok" ] || [ "$(grep "^ENABLE_NGROK=" "$ROOT_DIR/.env" 2>/dev/null | cut -d'=' -f2)" = "true" ]; then
         echo -e "${MAGENTA}ngrok URL:${NC}"
         # data/last-access-info.jsonまたはPM2ログから取得
         if [ -f "$BACKEND_DIR/data/last-access-info.json" ]; then
@@ -184,7 +185,7 @@ show_tunnel_url() {
     fi
     
     # ローカルURL
-    local port=$(grep "^PORT=" .env 2>/dev/null | cut -d'=' -f2 || echo "5000")
+    local port=$(grep "^PORT=" "$ROOT_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "5000")
     echo ""
     echo -e "${BLUE}ローカルURL:${NC}"
     echo "  - バックエンド: http://localhost:$port"

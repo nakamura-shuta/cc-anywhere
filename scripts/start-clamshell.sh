@@ -15,6 +15,7 @@ NC='\033[0m' # No Color
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+ROOT_DIR="$PROJECT_DIR"
 BACKEND_DIR="$PROJECT_DIR/backend"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 
@@ -29,10 +30,10 @@ cd "$PROJECT_DIR"
 # 1. 環境設定の確認と有効化
 echo -e "${YELLOW}1. 環境設定を確認中...${NC}"
 
-# backend/.envファイルの確認
-if [ ! -f "$BACKEND_DIR/.env" ]; then
-    echo -e "${RED}エラー: $BACKEND_DIR/.env ファイルが見つかりません${NC}"
-    echo "backend/.env.example をコピーして設定してください"
+# .envファイルの確認
+if [ ! -f "$ROOT_DIR/.env" ]; then
+    echo -e "${RED}エラー: $ROOT_DIR/.env ファイルが見つかりません${NC}"
+    echo ".env.example をコピーして設定してください"
     exit 1
 fi
 
@@ -48,57 +49,57 @@ case $choice in
     1)
         # ngrokを有効化
         echo -e "${GREEN}ngrokを使用します${NC}"
-        if grep -q "ENABLE_NGROK=" "$BACKEND_DIR/.env"; then
-            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' "$BACKEND_DIR/.env"
+        if grep -q "ENABLE_NGROK=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' "$ROOT_DIR/.env"
         else
-            echo "ENABLE_NGROK=true" >> "$BACKEND_DIR/.env"
+            echo "ENABLE_NGROK=true" >> "$ROOT_DIR/.env"
         fi
-        if grep -q "TUNNEL_TYPE=" "$BACKEND_DIR/.env"; then
-            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' "$BACKEND_DIR/.env"
+        if grep -q "TUNNEL_TYPE=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' "$ROOT_DIR/.env"
         else
-            echo "TUNNEL_TYPE=ngrok" >> "$BACKEND_DIR/.env"
+            echo "TUNNEL_TYPE=ngrok" >> "$ROOT_DIR/.env"
         fi
         ;;
     2)
         # Cloudflare Tunnelを有効化
         echo -e "${GREEN}Cloudflare Tunnelを使用します${NC}"
-        if ! grep -q "CLOUDFLARE_TUNNEL_TOKEN=" "$BACKEND_DIR/.env" || grep -q "CLOUDFLARE_TUNNEL_TOKEN=$" "$BACKEND_DIR/.env"; then
+        if ! grep -q "CLOUDFLARE_TUNNEL_TOKEN=" "$ROOT_DIR/.env" || grep -q "CLOUDFLARE_TUNNEL_TOKEN=$" "$ROOT_DIR/.env"; then
             echo -e "${YELLOW}Cloudflare Tunnel Tokenが必要です${NC}"
             echo "https://dash.cloudflare.com でトンネルを作成してトークンを取得してください"
             read -p "Cloudflare Tunnel Token: " cf_token
-            if grep -q "CLOUDFLARE_TUNNEL_TOKEN=" "$BACKEND_DIR/.env"; then
-                sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" "$BACKEND_DIR/.env"
+            if grep -q "CLOUDFLARE_TUNNEL_TOKEN=" "$ROOT_DIR/.env"; then
+                sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" "$ROOT_DIR/.env"
             else
-                echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> "$BACKEND_DIR/.env"
+                echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> "$ROOT_DIR/.env"
             fi
         fi
-        if grep -q "TUNNEL_TYPE=" "$BACKEND_DIR/.env"; then
-            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' "$BACKEND_DIR/.env"
+        if grep -q "TUNNEL_TYPE=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' "$ROOT_DIR/.env"
         else
-            echo "TUNNEL_TYPE=cloudflare" >> "$BACKEND_DIR/.env"
+            echo "TUNNEL_TYPE=cloudflare" >> "$ROOT_DIR/.env"
         fi
-        if grep -q "ENABLE_NGROK=" "$BACKEND_DIR/.env"; then
-            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$BACKEND_DIR/.env"
+        if grep -q "ENABLE_NGROK=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$ROOT_DIR/.env"
         fi
         ;;
     3)
         # ローカルのみ
         echo -e "${GREEN}ローカルアクセスのみ${NC}"
-        if grep -q "ENABLE_NGROK=" "$BACKEND_DIR/.env"; then
-            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$BACKEND_DIR/.env"
+        if grep -q "ENABLE_NGROK=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$ROOT_DIR/.env"
         fi
-        if grep -q "TUNNEL_TYPE=" "$BACKEND_DIR/.env"; then
-            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' "$BACKEND_DIR/.env"
+        if grep -q "TUNNEL_TYPE=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' "$ROOT_DIR/.env"
         else
-            echo "TUNNEL_TYPE=none" >> "$BACKEND_DIR/.env"
+            echo "TUNNEL_TYPE=none" >> "$ROOT_DIR/.env"
         fi
         ;;
 esac
 
 # QRコード表示を確認
-if ! grep -q "SHOW_QR_CODE=true" "$BACKEND_DIR/.env"; then
+if ! grep -q "SHOW_QR_CODE=true" "$ROOT_DIR/.env"; then
     echo -e "${YELLOW}QRコード表示を有効化中...${NC}"
-    sed -i '' 's/SHOW_QR_CODE=false/SHOW_QR_CODE=true/g' "$BACKEND_DIR/.env"
+    sed -i '' 's/SHOW_QR_CODE=false/SHOW_QR_CODE=true/g' "$ROOT_DIR/.env"
 fi
 
 echo -e "${GREEN}✓ 外部アクセス設定完了${NC}"
@@ -194,7 +195,7 @@ echo -e "${BLUE}（10秒程度かかります）${NC}"
 sleep 10
 
 # アプリケーションのURLを表示
-PORT=$(grep "^PORT=" "$BACKEND_DIR/.env" | cut -d'=' -f2 || echo "5000")
+PORT=$(grep "^PORT=" "$ROOT_DIR/.env" | cut -d'=' -f2 || echo "5000")
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"

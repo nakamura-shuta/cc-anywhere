@@ -48,7 +48,7 @@ PM2を使用して本番環境でサーバーを起動します。
 
 **事前準備:**
 1. `npm run build`または`./scripts/build-all.sh`でビルド済みであること
-2. `backend/.env`ファイルに必要な環境変数が設定されていること
+2. `.env`ファイルに必要な環境変数が設定されていること
 3. PM2がインストールされていること（`npm install -g pm2`）
 
 ### `start-dev.sh`
@@ -160,8 +160,7 @@ server {
 
 ```bash
 # 1. 環境設定
-cd backend
-# .envファイルを作成（必要な環境変数は backend/README.md 参照）
+# .envファイルを作成（必要な環境変数は README.md 参照）
 cat > .env << EOF
 CLAUDE_API_KEY=your-api-key-here
 PORT=5000
