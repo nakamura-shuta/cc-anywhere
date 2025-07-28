@@ -600,14 +600,7 @@
 				<Card.Content>
 					<div class="space-y-3">
 						<div class="flex justify-between text-sm">
-							<span class="flex items-center gap-2">
-								{ws.progress.message}
-								{#if ws.progress.turn && ws.progress.maxTurns}
-									<span class="text-muted-foreground">
-										(ターン {ws.progress.turn}/{ws.progress.maxTurns})
-									</span>
-								{/if}
-							</span>
+							<span>{ws.progress.message}</span>
 							{#if elapsedTime && elapsedTime !== '-'}
 								<span class="flex items-center gap-1 text-muted-foreground">
 									<Clock class="h-3 w-3" />
