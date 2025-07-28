@@ -1,21 +1,17 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import { taskStore } from '$lib/stores/api.svelte';
-	import { taskService } from '$lib/services/task.service';
 	import { useTaskWebSocket } from '$lib/hooks/use-websocket.svelte';
 	import { TaskStatus } from '$lib/types/api';
 	import { format } from 'date-fns';
 	import { ja } from 'date-fns/locale';
 	import { ArrowLeft, RefreshCw, XCircle, Download, Clock, Activity, MessageSquare, CheckSquare, Folder, ChevronRight, GitBranch, Terminal, FileText, Search, ListTodo, Globe, Layers, CheckCircle, AlertCircle, Loader2 } from 'lucide-svelte';
-	import { onMount } from 'svelte';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Separator } from '$lib/components/ui/separator';
-	import * as Collapsible from '$lib/components/ui/collapsible';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -201,14 +197,6 @@
 		window.location.href = `/tasks/new?${params.toString()}`;
 	}
 	
-	// エスケープされた改行文字を実際の改行に変換
-	function unescapeString(str: string): string {
-		if (typeof str !== 'string') return str;
-		return str
-			.split('\\n').join('\n')
-			.split('\\t').join('\t')
-			.split('\\r').join('\r');
-	}
 	
 	// 長いパスを省略表示
 	function truncatePath(path: string, maxLength: number = 60): string {
@@ -599,7 +587,16 @@
 				</Card.Header>
 				<Card.Content>
 					<div class="bg-muted p-4 rounded-lg overflow-auto max-h-96">
-						<pre class="text-xs whitespace-pre-wrap break-words font-mono">{JSON.stringify(currentTask.result, null, 2)}</pre>
+						{#if typeof currentTask.result === 'string'}
+							<div class="text-xs font-mono">
+								{#each currentTask.result.split('\n') as line, i}
+									{#if i > 0}<br />{/if}
+									<span>{line}</span>
+								{/each}
+							</div>
+						{:else}
+							<pre class="text-xs whitespace-pre-wrap break-words font-mono">{JSON.stringify(currentTask.result, null, 2)}</pre>
+						{/if}
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -777,14 +774,18 @@
 												
 												<!-- 実行結果 -->
 												{#if tool.output && tool.type === 'task:tool:end'}
-													{@const formattedOutput = typeof tool.output === 'string' 
-														? unescapeString(tool.output)
-														: JSON.stringify(tool.output, null, 2)}
 													<div class="mt-2">
 														<p class="text-xs font-medium text-muted-foreground mb-1">実行結果:</p>
 														<div class="overflow-hidden rounded-md bg-slate-900 dark:bg-slate-950 border">
 															<div class="p-3 overflow-x-auto max-h-48 overflow-y-auto">
-																<pre class="text-xs font-mono text-slate-100 whitespace-pre-wrap break-words">{formattedOutput}</pre>
+																{#if typeof tool.output === 'string'}
+																	{#each tool.output.split('\n') as line, i}
+																		{#if i > 0}<br />{/if}
+																		<span class="text-xs font-mono text-slate-100">{line}</span>
+																	{/each}
+																{:else}
+																	<pre class="text-xs font-mono text-slate-100" style="white-space: pre-wrap; word-break: break-word;">{JSON.stringify(tool.output, null, 2)}</pre>
+																{/if}
 															</div>
 														</div>
 													</div>
@@ -824,7 +825,16 @@
 											</span>
 										</div>
 										<div class="prose prose-sm dark:prose-invert max-w-none">
-											<p class="whitespace-pre-wrap break-words m-0">{unescapeString(response.response)}</p>
+											{#if typeof response.response === 'string'}
+												<div class="m-0">
+													{#each response.response.split('\n') as line, i}
+														{#if i > 0}<br />{/if}
+														<span>{line}</span>
+													{/each}
+												</div>
+											{:else}
+												<p class="whitespace-pre-wrap break-words m-0">{response.response}</p>
+											{/if}
 										</div>
 									</div>
 								{/each}
