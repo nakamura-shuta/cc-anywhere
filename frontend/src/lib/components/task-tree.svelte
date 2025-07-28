@@ -3,10 +3,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Collapsible from '$lib/components/ui/collapsible';
 	import { ChevronRight, ChevronDown, GitBranch, Circle } from 'lucide-svelte';
-	import { format } from 'date-fns';
-	import { ja } from 'date-fns/locale';
 	import type { TaskResponse } from '$lib/types/api';
 	import TaskTree from './task-tree.svelte';
+	import { formatDate } from '$lib/utils/date';
+	import { getStatusVariant } from '$lib/utils/task';
 	
 	interface TaskNode extends TaskResponse {
 		children?: TaskNode[];
@@ -36,26 +36,6 @@
 	
 	// 折りたたみ状態
 	let isOpen = $state(depth < 2); // 深さ2まではデフォルトで開く
-	
-	// タスクのステータスに応じたバッジのバリアント
-	function getStatusVariant(status: string) {
-		switch (status) {
-			case 'completed': return 'default';
-			case 'running': return 'secondary';
-			case 'failed': return 'destructive';
-			case 'cancelled': return 'outline';
-			default: return 'secondary';
-		}
-	}
-	
-	// 日付フォーマット
-	function formatDate(dateString: string) {
-		try {
-			return format(new Date(dateString), 'MM/dd HH:mm', { locale: ja });
-		} catch {
-			return dateString;
-		}
-	}
 	
 	// タスク詳細へ遷移
 	function viewTask(taskId: string) {
@@ -103,7 +83,7 @@
 										{task.status}
 									</Badge>
 									<span class="text-xs text-muted-foreground">
-										{formatDate(task.createdAt)}
+										{formatDate(task.createdAt, 'full')}
 									</span>
 									{#if taskNode.children.length > 0}
 										<div class="flex items-center gap-1 text-xs text-muted-foreground">
@@ -163,7 +143,7 @@
 									{task.status}
 								</Badge>
 								<span class="text-xs text-muted-foreground">
-									{formatDate(task.createdAt)}
+									{formatDate(task.createdAt, 'full')}
 								</span>
 							</div>
 							<p class="text-sm line-clamp-2">{task.instruction}</p>

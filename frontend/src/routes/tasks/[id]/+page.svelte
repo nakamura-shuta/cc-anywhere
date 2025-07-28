@@ -6,9 +6,9 @@
 	import { taskStore } from '$lib/stores/api.svelte';
 	import { useTaskWebSocket } from '$lib/hooks/use-websocket.svelte';
 	import { TaskStatus } from '$lib/types/api';
-	import { format } from 'date-fns';
-	import { ja } from 'date-fns/locale';
 	import { ArrowLeft, RefreshCw, XCircle, Download, Clock, Activity, MessageSquare, CheckSquare, Folder, ChevronRight, GitBranch, Terminal, FileText, Search, ListTodo, Globe, Layers, CheckCircle, AlertCircle, Loader2 } from 'lucide-svelte';
+	import { formatDate } from '$lib/utils/date';
+	import { getStatusVariant } from '$lib/utils/task';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Separator } from '$lib/components/ui/separator';
@@ -28,11 +28,6 @@
 		claudeResponses: data.task.progressData?.claudeResponses || []
 	};
 	
-	// デバッグ: progressDataの内容を確認
-	if (data.task.progressData) {
-		console.log('[TaskDetail] progressData:', data.task.progressData);
-		console.log('[TaskDetail] initialData:', initialData);
-	}
 	
 	// WebSocketでタスクを監視（初期統計情報と初期データを渡す）
 	const ws = useTaskWebSocket(data.task.taskId || data.task.id, null, initialData);
@@ -51,9 +46,6 @@
 	let selectedTab = $state('logs');
 	
 	// タブ切り替え時のデバッグ
-	$effect(() => {
-		console.log('[TaskDetail] Selected tab changed to:', selectedTab);
-	});
 	
 	// ツールのアイコンを取得
 	function getToolIcon(toolName: string) {
@@ -159,26 +151,6 @@
 			formatted: JSON.stringify(args, null, 2),
 			type: 'code'
 		};
-	}
-	
-	// タスクのステータスに応じたバッジのバリアント
-	function getStatusVariant(status: string) {
-		switch (status) {
-			case 'completed': return 'default';
-			case 'running': return 'secondary';
-			case 'failed': return 'destructive';
-			case 'cancelled': return 'outline';
-			default: return 'secondary';
-		}
-	}
-	
-	// 日付フォーマット
-	function formatDate(dateString: string) {
-		try {
-			return format(new Date(dateString), 'yyyy/MM/dd HH:mm:ss', { locale: ja });
-		} catch {
-			return dateString;
-		}
 	}
 	
 	// 経過時間をフォーマット
@@ -352,8 +324,6 @@
 		if (statusKey === lastProcessedStatus) return;
 		lastProcessedStatus = statusKey;
 		
-		console.log('[TaskDetail] Status change detected:', changeType, changeData);
-		
 		// ステータスを抽出
 		const newStatus = changeData?.status || 
 			(changeType === 'task:update' && changeData?.status) ||
@@ -467,17 +437,17 @@
 				<div class="grid grid-cols-2 gap-4">
 					<div>
 						<p class="text-sm text-muted-foreground">作成日時</p>
-						<p class="text-sm">{formatDate(currentTask.createdAt)}</p>
+						<p class="text-sm">{formatDate(currentTask.createdAt, 'full')}</p>
 					</div>
 					<div>
 						<p class="text-sm text-muted-foreground">更新日時</p>
-						<p class="text-sm">{currentTask.updatedAt ? formatDate(currentTask.updatedAt) : '-'}</p>
+						<p class="text-sm">{currentTask.updatedAt ? formatDate(currentTask.updatedAt, 'full') : '-'}</p>
 					</div>
 				</div>
 				{#if currentTask.completedAt}
 					<div>
 						<p class="text-sm text-muted-foreground">完了日時</p>
-						<p class="text-sm">{formatDate(currentTask.completedAt)}</p>
+						<p class="text-sm">{formatDate(currentTask.completedAt, 'full')}</p>
 					</div>
 				{/if}
 				{#if currentTask.error}
@@ -673,7 +643,7 @@
 												{childTask.status}
 											</Badge>
 											<span class="text-xs text-muted-foreground">
-												{formatDate(childTask.createdAt)}
+												{formatDate(childTask.createdAt, 'full')}
 											</span>
 										</div>
 										<p class="text-sm">{childTask.instruction}</p>
@@ -704,10 +674,7 @@
 				</div>
 			</Card.Header>
 			<Card.Content>
-				<Tabs bind:value={selectedTab} class="w-full" onValueChange={(value) => {
-					console.log('[TaskDetail] Tab value changed via onValueChange:', value);
-					selectedTab = value;
-				}}>
+				<Tabs bind:value={selectedTab} class="w-full">
 					<TabsList class="grid w-full grid-cols-2 md:grid-cols-4">
 						<TabsTrigger value="logs" class="text-xs">
 							<Activity class="h-3 w-3 mr-1" />
@@ -786,7 +753,7 @@
 												
 												<!-- タイムスタンプと実行時間 -->
 												<div class="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-													<span>{formatDate(tool.timestamp)}</span>
+													<span>{formatDate(tool.timestamp, 'full')}</span>
 													{#if tool.duration}
 														<span class="flex items-center gap-1">
 															<Clock class="h-3 w-3" />
@@ -859,7 +826,7 @@
 										<div class="flex items-center gap-2 mb-2">
 											<MessageSquare class="h-4 w-4 text-blue-600 dark:text-blue-400" />
 											<span class="text-xs text-muted-foreground">
-												{formatDate(response.timestamp)}
+												{formatDate(response.timestamp, 'full')}
 												{#if response.turnNumber && response.maxTurns}
 													(ターン {response.turnNumber}/{response.maxTurns})
 												{/if}
@@ -905,7 +872,7 @@
 											</div>
 											{#if todo.timestamp}
 												<span class="text-xs text-muted-foreground">
-													{formatDate(todo.timestamp)}
+													{formatDate(todo.timestamp, 'full')}
 												</span>
 											{/if}
 										</div>

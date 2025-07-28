@@ -33,10 +33,6 @@ export class ApiClient {
 
 	constructor(baseUrl?: string) {
 		this.baseUrl = baseUrl || getApiBaseUrl();
-		// デバッグ用
-		if (typeof window !== 'undefined') {
-			console.log('ApiClient initialized with baseUrl:', this.baseUrl);
-		}
 	}
 
 	// URLパラメータの構築
@@ -108,15 +104,6 @@ export class ApiClient {
 		const { params, timeout, ...fetchOptions } = options;
 		const url = this.buildUrl(endpoint, params);
 
-		// デバッグ用
-		if (typeof window !== 'undefined') {
-			console.log('API Request:', {
-				endpoint,
-				baseUrl: this.baseUrl,
-				fullUrl: url,
-				method: fetchOptions.method || 'GET'
-			});
-		}
 
 		const defaultOptions: RequestInit = {
 			headers: getApiHeaders(),

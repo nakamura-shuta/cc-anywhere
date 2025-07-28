@@ -3,6 +3,8 @@
 	import * as Table from '$lib/components/ui/table';
 	import { RefreshCw } from 'lucide-svelte';
 	import type { TaskResponse } from '$lib/types/api';
+	import { formatDate } from '$lib/utils/date';
+	import { getStatusVariant } from '$lib/utils/task';
 	
 	interface Props {
 		task: TaskResponse;
@@ -11,34 +13,11 @@
 	
 	let { task, onClick }: Props = $props();
 	
-	// タスクのステータスに応じたバッジのバリアント
-	function getStatusVariant(status: string) {
-		switch (status) {
-			case 'completed': return 'default';
-			case 'running': return 'secondary';
-			case 'failed': return 'destructive';
-			case 'cancelled': return 'outline';
-			default: return 'secondary';
-		}
-	}
-	
 	// 作業ディレクトリパスからリポジトリ名を取得
 	function getRepositoryName(path: string | undefined): string {
 		if (!path) return '-';
 		const parts = path.split('/');
 		return parts[parts.length - 1] || '-';
-	}
-	
-	// 日付フォーマット
-	function formatDate(date: string | undefined) {
-		if (!date) return '-';
-		return new Date(date).toLocaleString('ja-JP', {
-			year: 'numeric',
-			month: '2-digit',
-			day: '2-digit',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
 	}
 </script>
 
@@ -66,6 +45,6 @@
 		</div>
 	</Table.Cell>
 	<Table.Cell>
-		{formatDate(task.createdAt)}
+		{formatDate(task.createdAt, 'full')}
 	</Table.Cell>
 </Table.Row>

@@ -5,8 +5,6 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { goto } from '$app/navigation';
-	import { format } from 'date-fns';
-	import { ja } from 'date-fns/locale';
 	import { ArrowLeft, RefreshCw, GitBranch, List } from 'lucide-svelte';
 	import TaskTree from '$lib/components/task-tree.svelte';
 	

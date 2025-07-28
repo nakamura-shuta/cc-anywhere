@@ -33,12 +33,6 @@ class TaskListStore {
 			const customEvent = event as CustomEvent;
 			const message = customEvent.detail;
 			
-			console.log('[TaskListStore] WebSocketメッセージ受信:', {
-				type: message.type,
-				taskId: message.taskId,
-				data: message.data
-			});
-			
 			// タスクの状態変更に応じて一覧を更新
 			switch (message.type) {
 				case 'task:update':
@@ -87,7 +81,6 @@ class TaskListStore {
 	
 	// すべてのタスクをサブスクライブ
 	private subscribeToAllTasks() {
-		console.log('[TaskListStore] すべてのタスクをサブスクライブ');
 		if (this.ws) {
 			this.ws.subscribe('*');
 		}
@@ -140,11 +133,9 @@ class TaskListStore {
 				updatedTask, 
 				...this.tasks.slice(existingTaskIndex + 1)
 			];
-			console.log('[TaskListStore] タスクを更新:', updatedTask);
 		} else if (status === 'pending' || status === 'running') {
 			// 新しいタスクの場合（pendingまたはrunningステータス）
 			// APIから詳細情報を取得
-			console.log('[TaskListStore] 新しいタスクを検出、APIから詳細を取得:', taskId);
 			this.fetchTaskDetails(taskId);
 		}
 	}
@@ -186,7 +177,6 @@ class TaskListStore {
 				updatedTask, 
 				...this.tasks.slice(index + 1)
 			];
-			console.log('[TaskListStore] タスクを更新:', updatedTask);
 		}
 	}
 	
@@ -210,11 +200,10 @@ class TaskListStore {
 						id: task.id || task.taskId
 					};
 					this.tasks = [newTask, ...this.tasks];
-					console.log('[TaskListStore] 新しいタスクを追加:', newTask);
 				}
 			}
-		} catch (error) {
-			console.error('[TaskListStore] タスク詳細の取得に失敗:', error);
+		} catch {
+			// タスク詳細の取得に失敗した場合は無視
 		}
 	}
 }

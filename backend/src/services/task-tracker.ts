@@ -1,5 +1,6 @@
 import type { ToolUsageDetail, TaskProgressInfo, TaskSummary } from "../types/enhanced-logging.js";
 import type { TodoItem } from "../types/todo.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * TaskTracker collects and analyzes task execution information
@@ -27,7 +28,7 @@ export class TaskTracker {
     this.toolUsages.push(toolUsage);
 
     // Debug log
-    console.log("[TaskTracker] Recording tool usage:", {
+    logger.debug("Recording tool usage", {
       tool: toolUsage.tool,
       status: toolUsage.status,
       action: detail.action || "unknown",
@@ -354,7 +355,7 @@ export class TaskTracker {
     let totalToolUsage = 0;
 
     // Debug log
-    console.log("[TaskTracker] Calculating statistics:", {
+    logger.debug("Calculating statistics", {
       totalRecords: this.toolUsages.length,
       records: this.toolUsages.map((u) => ({ tool: u.tool, status: u.status })),
     });
@@ -382,7 +383,7 @@ export class TaskTracker {
       }
     }
 
-    console.log("[TaskTracker] Statistics calculated:", {
+    logger.debug("Statistics calculated", {
       totalToolUsage,
       toolTypes: Array.from(toolUsageByType.entries()),
     });

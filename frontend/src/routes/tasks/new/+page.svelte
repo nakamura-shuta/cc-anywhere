@@ -63,7 +63,7 @@
 					selectedDirectories = [previousTask.context.workingDirectory];
 				}
 			} catch (error) {
-				console.error('Failed to load previous task:', error);
+				// 前のタスクが取得できなくても続行
 			}
 		}
 	});
@@ -102,9 +102,6 @@
 			}
 		};
 		
-		console.log('Creating task with request:', JSON.stringify(request, null, 2));
-		console.log('Permission mode type:', typeof permissionMode, 'value:', permissionMode);
-		
 		try {
 			const result = await taskStore.createTask(request);
 			if (result.data) {
@@ -112,7 +109,6 @@
 				goto('/tasks');
 			}
 		} catch (error) {
-			console.error('Failed to create task:', error);
 			alert('タスクの作成に失敗しました');
 		} finally {
 			submitting = false;

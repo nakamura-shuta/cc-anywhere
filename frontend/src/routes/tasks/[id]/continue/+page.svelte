@@ -8,9 +8,9 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { apiClient } from '$lib/api/client';
 	import { ArrowLeft, Play, Info } from 'lucide-svelte';
-	import { format } from 'date-fns';
-	import { ja } from 'date-fns/locale';
 	import type { TaskResponse } from '$lib/types/api';
+	import { formatDate } from '$lib/utils/date';
+	import { getStatusVariant } from '$lib/utils/task';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -18,26 +18,6 @@
 	// フォームの状態
 	let instruction = $state('');
 	let isSubmitting = $state(false);
-	
-	// 日付フォーマット
-	function formatDate(dateString: string) {
-		try {
-			return format(new Date(dateString), 'yyyy/MM/dd HH:mm:ss', { locale: ja });
-		} catch {
-			return dateString;
-		}
-	}
-	
-	// タスクのステータスに応じたバッジのバリアント
-	function getStatusVariant(status: string) {
-		switch (status) {
-			case 'completed': return 'default';
-			case 'running': return 'secondary';
-			case 'failed': return 'destructive';
-			case 'cancelled': return 'outline';
-			default: return 'secondary';
-		}
-	}
 	
 	// 継続タスクを作成
 	async function createContinueTask() {
@@ -65,16 +45,10 @@
 			}
 		};
 		
-		console.log('Creating continue task with request:', requestData);
-		console.log('Parent task:', data.parentTask);
-		
 		const parentTaskId = data.parentTask.id || data.parentTask.taskId;
 		if (!parentTaskId) {
-			console.error('Parent task has no ID:', data.parentTask);
 			throw new Error('親タスクのIDが取得できません');
 		}
-		
-		console.log('Using parent task ID:', parentTaskId);
 		
 		try {
 			const response = await apiClient.post<TaskResponse>(`/api/tasks/${parentTaskId}/continue`, requestData);
@@ -82,18 +56,11 @@
 			// タスク詳細画面へ遷移
 			window.location.href = `/tasks/${response.taskId}`;
 		} catch (error) {
-			console.error('Failed to create continue task:', error);
-			
 			let errorMessage = '不明なエラー';
 			
 			// ApiErrorの場合
 			if (error && typeof error === 'object' && 'data' in error) {
 				const apiError = error as any;
-				console.error('API Error details:', {
-					status: apiError.status,
-					statusText: apiError.statusText,
-					data: apiError.data
-				});
 				
 				if (apiError.data?.error) {
 					errorMessage = apiError.data.error;
@@ -154,7 +121,7 @@
 				<div class="grid grid-cols-2 gap-4">
 					<div>
 						<p class="text-sm text-muted-foreground">完了日時</p>
-						<p>{formatDate(data.parentTask.completedAt || data.parentTask.updatedAt)}</p>
+						<p>{formatDate(data.parentTask.completedAt || data.parentTask.updatedAt, 'full')}</p>
 					</div>
 					<div>
 						<p class="text-sm text-muted-foreground">実行時間</p>

@@ -53,16 +53,10 @@ export class WebSocketConnection {
 	connect() {
 		// ブラウザ環境でのみ実行
 		if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
-			console.warn('[WebSocket] ブラウザ環境ではありません。接続をスキップします。');
 			return;
 		}
 		
 		if (this.connected || this.connecting || this.ws) {
-			console.log('[WebSocket] 既に接続中または接続済み', {
-				connected: this.connected,
-				connecting: this.connecting,
-				hasWs: !!this.ws
-			});
 			return;
 		}
 		
@@ -70,15 +64,8 @@ export class WebSocketConnection {
 		this.error = null;
 		
 		try {
-			console.log('[WebSocket] 接続を開始します:', this.url);
 			// グローバルのWebSocketを明示的に使用
 			this.ws = new window.WebSocket(this.url);
-			
-			// WebSocketの状態を確認
-			console.log('[WebSocket] WebSocket作成完了', {
-				readyState: this.ws.readyState,
-				url: this.ws.url
-			});
 			
 			// イベントハンドラー
 			this.ws.onopen = () => this.handleOpen();
@@ -86,7 +73,6 @@ export class WebSocketConnection {
 			this.ws.onerror = (error) => this.handleError(error);
 			this.ws.onclose = (event) => this.handleClose(event);
 		} catch (err) {
-			console.error('[WebSocket] 接続エラー:', err);
 			this.connecting = false;
 			this.error = err instanceof Error ? err : new Error('接続エラー');
 		}
@@ -115,7 +101,6 @@ export class WebSocketConnection {
 	// メッセージ送信
 	send(data: any) {
 		if (!this.connected || !this.ws) {
-			console.error('WebSocket未接続');
 			return;
 		}
 		
@@ -126,15 +111,12 @@ export class WebSocketConnection {
 	authenticate() {
 		// ブラウザ環境でのみ実行
 		if (typeof window === 'undefined') {
-			console.warn('[WebSocket] ブラウザ環境ではありません。認証をスキップします。');
 			return;
 		}
 		
 		const apiKey = getApiKey();
-		console.log('[WebSocket] 認証を開始', { hasApiKey: !!apiKey });
 		
 		if (!apiKey) {
-			console.warn('[WebSocket] APIキーが設定されていません');
 			// 開発環境の場合はデフォルトAPIキーを使用
 			const defaultApiKey = 'hoge';
 			console.log('[WebSocket] デフォルトAPIキーを使用します');
@@ -157,7 +139,6 @@ export class WebSocketConnection {
 			}
 		};
 		
-		console.log('[WebSocket] 認証メッセージを送信', { type: authMessage.type });
 		this.send(authMessage);
 	}
 	
@@ -211,7 +192,6 @@ export class WebSocketConnection {
 	
 	// ハンドラー
 	private handleOpen() {
-		console.log('[WebSocket] 接続成功');
 		this.connected = true;
 		this.connecting = false;
 		this.reconnectAttempts = 0;
@@ -250,8 +230,6 @@ export class WebSocketConnection {
 				this.taskMessages = new Map(this.taskMessages).set(message.taskId, [...taskMessages, message]);
 			}
 			
-			// デバッグ: すべてのメッセージタイプをログ
-			console.log('[WebSocket] メッセージ受信:', message.type, message);
 			
 			// カスタムイベントをディスパッチ（タスク一覧などで使用）
 			if (typeof window !== 'undefined') {
@@ -261,31 +239,27 @@ export class WebSocketConnection {
 			// 認証成功
 			if (message.type === 'auth:success') {
 				this.authenticated = true;
-				console.log('[WebSocket] 認証成功');
 			}
 			
 			// 認証エラー
 			if (message.type === 'auth:error') {
 				this.authenticated = false;
-				console.error('[WebSocket] 認証失敗:', message.error);
 			}
 			
 			// pong（ハートビート応答）
 			if (message.type === 'pong') {
 				// ハートビート応答を受信
 			}
-		} catch (error) {
-			console.error('メッセージ解析エラー:', error);
+		} catch {
+			// メッセージ解析エラーは無視
 		}
 	}
 	
-	private handleError(error: Event) {
-		console.error('WebSocketエラー:', error);
+	private handleError(_error: Event) {
 		this.error = new Error('WebSocket接続エラー');
 	}
 	
 	private handleClose(event: CloseEvent) {
-		console.log('WebSocket切断:', event.code, event.reason);
 		this.connected = false;
 		this.connecting = false;
 		this.authenticated = false;
@@ -313,8 +287,6 @@ export class WebSocketConnection {
 		
 		this.reconnectAttempts++;
 		const delay = Math.min(5000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
-		
-		console.log(`${delay}ms後に再接続を試みます（${this.reconnectAttempts}/10）`);
 		
 		this.reconnectTimer = window.setTimeout(() => {
 			this.reconnectTimer = undefined;

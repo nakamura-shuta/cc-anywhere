@@ -77,8 +77,6 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 				const toolId = m.data?.toolId;
 				const toolName = m.data?.tool || '';
 				
-				// デバッグログ
-				console.log(`[ToolExecution] ${m.type}`, { toolId, toolName, data: m.data });
 				
 				if (m.type === 'task:tool:start') {
 					const startEvent = {
@@ -230,17 +228,12 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 				// statistics オブジェクトが payload 内にネストされている可能性を考慮
 				const stats = latest.data?.statistics || latest.data || null;
 				
-				// デバッグ: 統計情報の内容をログ出力
-				if (stats) {
-					console.log('[TaskWebSocket] Statistics received from WebSocket:', stats);
-				}
 				
 				return stats;
 			}
 			
 			// WebSocketメッセージがない場合は初期値を使用
 			if (initialStatistics) {
-				console.log('[TaskWebSocket] Using initial statistics:', initialStatistics);
 				return initialStatistics;
 			}
 			
