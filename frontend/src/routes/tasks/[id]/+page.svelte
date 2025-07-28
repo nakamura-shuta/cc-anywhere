@@ -181,6 +181,45 @@
 		}
 	}
 	
+	// 経過時間をフォーマット
+	let elapsedTime = $state('');
+	
+	function updateElapsedTime() {
+		if (!currentTask.startedAt) {
+			elapsedTime = '-';
+			return;
+		}
+		
+		try {
+			const start = new Date(currentTask.startedAt).getTime();
+			const now = Date.now();
+			const elapsed = now - start;
+			
+			const seconds = Math.floor(elapsed / 1000);
+			const minutes = Math.floor(seconds / 60);
+			const hours = Math.floor(minutes / 60);
+			
+			if (hours > 0) {
+				elapsedTime = `${hours}時間${minutes % 60}分${seconds % 60}秒`;
+			} else if (minutes > 0) {
+				elapsedTime = `${minutes}分${seconds % 60}秒`;
+			} else {
+				elapsedTime = `${seconds}秒`;
+			}
+		} catch {
+			elapsedTime = '-';
+		}
+	}
+	
+	// タスクが実行中の場合、経過時間を定期的に更新
+	$effect(() => {
+		if (currentTask.status === 'running') {
+			updateElapsedTime();
+			const interval = setInterval(updateElapsedTime, 1000);
+			return () => clearInterval(interval);
+		}
+	});
+	
 	// タスクの経過時間を取得
 	function getTaskAge(): number {
 		if (!currentTask.completedAt) return 0;
@@ -559,20 +598,29 @@
 					<Card.Title>実行進捗</Card.Title>
 				</Card.Header>
 				<Card.Content>
-					<div class="space-y-4">
-						<div class="space-y-2">
-							<div class="flex justify-between text-sm">
-								<span>{ws.progress.message}</span>
-								<span>{ws.progress.percent}%</span>
-							</div>
-							<Progress value={ws.progress.percent} class="h-2" />
+					<div class="space-y-3">
+						<div class="flex justify-between text-sm">
+							<span class="flex items-center gap-2">
+								{ws.progress.message}
+								{#if ws.progress.turn && ws.progress.maxTurns}
+									<span class="text-muted-foreground">
+										(ターン {ws.progress.turn}/{ws.progress.maxTurns})
+									</span>
+								{/if}
+							</span>
+							{#if elapsedTime && elapsedTime !== '-'}
+								<span class="flex items-center gap-1 text-muted-foreground">
+									<Clock class="h-3 w-3" />
+									{elapsedTime}
+								</span>
+							{/if}
 						</div>
-						{#if ws.progress.turn && ws.progress.maxTurns}
-							<div class="flex items-center gap-2 text-sm text-muted-foreground">
-								<Clock class="h-4 w-4" />
-								<span>ターン {ws.progress.turn} / {ws.progress.maxTurns}</span>
+						<!-- インジケーターとして無限ループするプログレスバー -->
+						<div class="relative overflow-hidden h-2 bg-muted rounded-full">
+							<div class="absolute inset-0 -translate-x-full animate-pulse bg-gradient-to-r from-transparent via-primary/20 to-transparent" 
+								style="animation: shimmer 2s infinite;">
 							</div>
-						{/if}
+						</div>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -881,3 +929,14 @@
 		
 	</div>
 </div>
+
+<style>
+	@keyframes shimmer {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(200%);
+		}
+	}
+</style>
