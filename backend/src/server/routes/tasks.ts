@@ -876,27 +876,19 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       const requestWorkingDir = request.body.context?.workingDirectory;
 
       // Check if cross-repository continuation is allowed
-      const allowCrossRepository = request.body.options?.allowCrossRepository === true;
+      // Automatically allow cross-repository if working directory is explicitly specified and different
+      const allowCrossRepository =
+        request.body.options?.allowCrossRepository === true ||
+        (requestWorkingDir !== undefined && requestWorkingDir !== parentWorkingDir);
 
-      // If both are specified and they don't match, check if cross-repository is allowed
+      // If both are specified and they don't match, log the cross-repository continuation
       if (parentWorkingDir && requestWorkingDir && parentWorkingDir !== requestWorkingDir) {
-        if (!allowCrossRepository) {
-          const errorResponse: ErrorResponse = {
-            error: {
-              message:
-                "Continuation tasks must use the same working directory as the parent task. Set options.allowCrossRepository to true to enable cross-repository continuation.",
-              statusCode: 400,
-              code: "WORKING_DIRECTORY_MISMATCH",
-            },
-          };
-          return reply.status(400).send(errorResponse);
-        }
-
         // Log cross-repository continuation
-        logger.info("Cross-repository continuation enabled", {
+        logger.info("Cross-repository continuation detected", {
           parentTaskId,
           parentWorkingDir,
           requestWorkingDir,
+          allowCrossRepository,
         });
       }
 
