@@ -201,6 +201,15 @@
 		window.location.href = `/tasks/new?${params.toString()}`;
 	}
 	
+	// エスケープされた改行文字を実際の改行に変換
+	function unescapeString(str: string): string {
+		if (typeof str !== 'string') return str;
+		return str
+			.split('\\n').join('\n')
+			.split('\\t').join('\t')
+			.split('\\r').join('\r');
+	}
+	
 	// 長いパスを省略表示
 	function truncatePath(path: string, maxLength: number = 60): string {
 		if (path.length <= maxLength) return path;
@@ -769,13 +778,13 @@
 												<!-- 実行結果 -->
 												{#if tool.output && tool.type === 'task:tool:end'}
 													{@const formattedOutput = typeof tool.output === 'string' 
-														? tool.output.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+														? unescapeString(tool.output)
 														: JSON.stringify(tool.output, null, 2)}
 													<div class="mt-2">
 														<p class="text-xs font-medium text-muted-foreground mb-1">実行結果:</p>
-														<div class="overflow-hidden rounded-md bg-background/50 border">
+														<div class="overflow-hidden rounded-md bg-slate-900 dark:bg-slate-950 border">
 															<div class="p-3 overflow-x-auto max-h-48 overflow-y-auto">
-																<pre class="text-xs font-mono whitespace-pre-wrap break-words">{formattedOutput}</pre>
+																<pre class="text-xs font-mono text-slate-100 whitespace-pre-wrap break-words">{formattedOutput}</pre>
 															</div>
 														</div>
 													</div>
@@ -815,7 +824,7 @@
 											</span>
 										</div>
 										<div class="prose prose-sm dark:prose-invert max-w-none">
-											<p class="whitespace-pre-wrap break-words m-0">{response.response}</p>
+											<p class="whitespace-pre-wrap break-words m-0">{unescapeString(response.response)}</p>
 										</div>
 									</div>
 								{/each}
