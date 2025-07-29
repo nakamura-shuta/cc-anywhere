@@ -71,7 +71,7 @@ export const getApiKey = (): string | null => {
 		
 		// 開発環境のデフォルトAPIキー
 		if (dev) {
-			return 'hoge';
+			return 'test-api-key';
 		}
 	}
 	return null;

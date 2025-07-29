@@ -143,6 +143,7 @@ export class ApiClient {
 
 			// JSONレスポンスのパース
 			const data = await response.json();
+			console.log('API Response:', endpoint, data);
 			return data;
 		} catch (error) {
 			// ネットワークエラーやタイムアウト

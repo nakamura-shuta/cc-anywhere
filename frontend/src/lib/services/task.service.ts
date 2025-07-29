@@ -12,8 +12,8 @@ export class TaskService implements EntityService<TaskResponse> {
     limit?: number;
     offset?: number;
   }): Promise<TaskResponse[]> {
-    const response = await apiClient.get<any>('/api/tasks', { params });
-    return response.data.tasks;
+    const response = await apiClient.get<{ tasks: TaskResponse[], total: number, limit: number, offset: number }>('/api/tasks', { params });
+    return response.tasks;
   }
   
   async get(id: string): Promise<TaskResponse> {
@@ -51,7 +51,7 @@ export class TaskService implements EntityService<TaskResponse> {
   }
   
   async getLogs(id: string): Promise<string[]> {
-    const response = await apiClient.get<any>(`/api/tasks/${id}/logs`);
+    const response = await apiClient.get<{ taskId: string; logs: string[] }>(`/api/tasks/${id}/logs`);
     return response.logs || [];
   }
 }

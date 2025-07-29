@@ -21,15 +21,13 @@ describe('taskService', () => {
 	describe('list', () => {
 		it('タスク一覧を取得', async () => {
 			const mockApiResponse = {
-				data: {
-					tasks: [
-						{ taskId: '1', instruction: 'Task 1', status: 'completed' },
-						{ taskId: '2', instruction: 'Task 2', status: 'running' }
-					],
-					total: 2,
-					limit: 20,
-					offset: 0
-				}
+				tasks: [
+					{ taskId: '1', instruction: 'Task 1', status: 'completed' },
+					{ taskId: '2', instruction: 'Task 2', status: 'running' }
+				],
+				total: 2,
+				limit: 20,
+				offset: 0
 			};
 			
 			const expectedResponse = [
@@ -52,12 +50,10 @@ describe('taskService', () => {
 		
 		it('ステータスでフィルタリング', async () => {
 			const mockApiResponse = {
-				data: {
-					tasks: [{ taskId: '1', instruction: 'Task 1', status: 'running' }],
-					total: 1,
-					limit: 20,
-					offset: 0
-				}
+				tasks: [{ taskId: '1', instruction: 'Task 1', status: 'running' }],
+				total: 1,
+				limit: 20,
+				offset: 0
 			};
 			
 			vi.mocked(apiClient.get).mockResolvedValueOnce(mockApiResponse);
