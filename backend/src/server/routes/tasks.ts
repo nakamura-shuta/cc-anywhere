@@ -351,6 +351,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       // Handle continueFromTaskId option
       let taskRequest = request.body;
+
       if (request.body.options?.sdk?.continueFromTaskId) {
         const previousTaskId = request.body.options.sdk.continueFromTaskId;
         const previousTask = repository.getById(previousTaskId);
@@ -377,8 +378,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
             sdk: {
               ...request.body.options?.sdk,
               resumeSession: latestSdkSessionId,
-              // Remove continueFromTaskId as it's not needed for the SDK
-              continueFromTaskId: undefined,
+              // Keep continueFromTaskId for the queue to process
+              continueFromTaskId: previousTaskId,
             },
           },
         };
