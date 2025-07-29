@@ -63,6 +63,7 @@
 					selectedDirectories = [previousTask.context.workingDirectory];
 				}
 			} catch (error) {
+				console.error('Failed to load previous task:', error);
 				// 前のタスクが取得できなくても続行
 			}
 		}

@@ -4,10 +4,10 @@ import { taskService } from '$lib/services/task.service';
 export const load: PageLoad = async () => {
 	try {
 		// 全タスクを取得（ツリー表示のため）
-		const response = await taskService.list({ limit: 1000 });
+		const tasks = await taskService.list({ limit: 1000 });
 		
 		return {
-			tasks: response.data || []
+			tasks: tasks || []
 		};
 	} catch (error) {
 		console.error('Failed to load tasks:', error);

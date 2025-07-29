@@ -1,6 +1,7 @@
 // APIクライアント - Fetch APIのラッパー
 
-import { getApiBaseUrl, getApiHeaders } from '$lib/config/api';
+import { getConfig } from '$lib/config';
+import { getApiHeaders } from '$lib/config/api';
 
 // APIエラー
 export class ApiError extends Error {
@@ -32,7 +33,8 @@ export class ApiClient {
 	private baseUrl: string;
 
 	constructor(baseUrl?: string) {
-		this.baseUrl = baseUrl || getApiBaseUrl();
+		const config = getConfig();
+		this.baseUrl = baseUrl || config.api.baseUrl;
 	}
 
 	// URLパラメータの構築
@@ -58,9 +60,11 @@ export class ApiClient {
 	}
 
 	// タイムアウト付きfetch
-	private async fetchWithTimeout(url: string, options: RequestInit, timeout = 30000): Promise<Response> {
+	private async fetchWithTimeout(url: string, options: RequestInit, timeout?: number): Promise<Response> {
+		const config = getConfig();
+		const actualTimeout = timeout || config.api.timeout;
 		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), timeout);
+		const timeoutId = setTimeout(() => controller.abort(), actualTimeout);
 
 		try {
 			const response = await fetch(url, {

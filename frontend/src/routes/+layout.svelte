@@ -17,6 +17,9 @@
 	import WebSocketStatus from '$lib/components/websocket-status.svelte';
 	// 現在のページ情報を取得するためのストア
 	import { page } from '$app/stores';
+	// WebSocket統合の初期化
+	import { setupWebSocketIntegration } from '$lib/stores/websocket-integration.svelte';
+	import { onMount } from 'svelte';
 	
 	// ナビゲーションメニューの定義
 	// 各アイテムはhref（リンク先）とlabel（表示テキスト）を持つ
@@ -26,6 +29,22 @@
 		{ href: '/scheduler', label: 'スケジューラー' },
 		{ href: '/settings', label: '設定' },
 	];
+	
+	// WebSocket統合の初期化
+	onMount(() => {
+		// グローバルにWebSocket統合を設定
+		if (!window.__wsIntegration) {
+			window.__wsIntegration = setupWebSocketIntegration();
+		}
+		
+		// クリーンアップ
+		return () => {
+			if (window.__wsIntegration) {
+				window.__wsIntegration.cleanup();
+				window.__wsIntegration = undefined;
+			}
+		};
+	});
 	
 </script>
 

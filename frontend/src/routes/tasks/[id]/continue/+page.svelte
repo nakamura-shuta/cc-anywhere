@@ -7,9 +7,10 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Input } from '$lib/components/ui/input';
-	import { apiClient } from '$lib/api/client';
+	import { taskStore } from '$lib/stores/task.svelte';
+	import { taskService } from '$lib/services/task.service';
 	import { ArrowLeft, Play, Info } from 'lucide-svelte';
-	import type { TaskResponse } from '$lib/types/api';
+	import type { TaskResponse, TaskRequest } from '$lib/types/api';
 	import { formatDate } from '$lib/utils/date';
 	import { getStatusVariant } from '$lib/utils/task';
 	import DirectorySelector from '$lib/components/directory-selector.svelte';
@@ -39,7 +40,7 @@
 		
 		isSubmitting = true;
 		
-		const requestData = {
+		const requestData: TaskRequest = {
 			instruction: instruction,
 			context: {
 				// 作業ディレクトリの設定
@@ -50,7 +51,7 @@
 				timeout: 600000, // 10分
 				async: true, // 非同期実行
 				sdk: {
-					permissionMode: data.parentTask.options?.permissionMode || 'allow',
+					permissionMode: (data.parentTask.options?.permissionMode || 'allow') as 'default' | 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan',
 					maxTurns: 30
 				}
 			}
@@ -62,36 +63,16 @@
 		}
 		
 		try {
-			const response = await apiClient.post<TaskResponse>(`/api/tasks/${parentTaskId}/continue`, requestData);
+			// taskServiceのcontinueメソッドを使用
+			const response = await taskService.continue(parentTaskId, requestData);
+			
+			// 新しいタスクをストアに追加
+			taskStore.items = [...taskStore.items, response];
 			
 			// タスク詳細画面へ遷移
-			window.location.href = `/tasks/${response.taskId}`;
+			await goto(`/tasks/${response.taskId}`);
 		} catch (error) {
-			let errorMessage = '不明なエラー';
-			
-			// ApiErrorの場合
-			if (error && typeof error === 'object' && 'data' in error) {
-				const apiError = error as any;
-				
-				if (apiError.data?.error) {
-					errorMessage = apiError.data.error;
-				} else if (apiError.data?.message) {
-					errorMessage = apiError.data.message;
-				} else if (typeof apiError.data === 'string') {
-					errorMessage = apiError.data;
-				} else {
-					errorMessage = `${apiError.status} ${apiError.statusText}`;
-				}
-			} else if (error instanceof Error) {
-				errorMessage = error.message;
-			}
-			
-			// エラーメッセージが文字列でない場合は文字列化
-			if (typeof errorMessage !== 'string') {
-				errorMessage = JSON.stringify(errorMessage);
-			}
-			
-			alert('継続タスクの作成に失敗しました: ' + errorMessage);
+			taskStore.error = error instanceof Error ? error : new Error('継続タスクの作成に失敗しました');
 			isSubmitting = false;
 		}
 	}

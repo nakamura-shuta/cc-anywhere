@@ -6,7 +6,7 @@
 	import TaskList from './components/TaskList.svelte';
 	import TaskPagination from './components/TaskPagination.svelte';
 	import TaskFilter from './components/TaskFilter.svelte';
-	import { taskListStore } from './stores/task-list.svelte';
+	import { taskListStore } from './stores/task-list-migrated.svelte';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -14,14 +14,9 @@
 	// 現在のフィルター状態
 	let currentStatus = $state('all');
 	
-	// WebSocketコンテキストの取得とストアの初期化
-	import { getWebSocketContext } from '$lib/websocket/websocket.svelte';
-	
 	// ストアの初期化
 	$effect(() => {
-		// コンポーネント内でWebSocketコンテキストを取得
-		const ws = getWebSocketContext();
-		taskListStore.initialize(data.tasks || [], ws);
+		taskListStore.initialize(data.tasks || []);
 	});
 	
 	// コンポーネントのライフサイクル

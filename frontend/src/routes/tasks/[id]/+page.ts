@@ -21,7 +21,7 @@ export const load: PageLoad = async ({ params }) => {
 		try {
 			// 全タスクを取得して、このタスクを親とするタスクをフィルタリング
 			const allTasks = await taskService.list({ limit: 100 });
-			childTasks = allTasks.data.filter(
+			childTasks = allTasks.filter(
 				(t: TaskResponse) => t.continuedFrom === params.id || t.parentTaskId === params.id
 			);
 		} catch (err) {
@@ -30,7 +30,7 @@ export const load: PageLoad = async ({ params }) => {
 		
 		return {
 			task,
-			logs: logs.logs,
+			logs,
 			childTasks
 		};
 	} catch (err) {

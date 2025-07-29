@@ -19,13 +19,13 @@
 	// 初期データを抽出（progressDataから）
 	const initialData = {
 		toolUsageCount: data.task.progressData?.toolUsageCount || {},
-		todos: data.task.progressData?.todos || data.task.todos || [],
+		todos: data.task.progressData?.todos || [],
 		currentTurn: data.task.progressData?.currentTurn || 0,
 		maxTurns: data.task.progressData?.maxTurns || 0,
-		logs: data.task.progressData?.logs || data.task.logs || [],
+		logs: data.logs || [],
 		// 詳細情報も含める
-		toolExecutions: data.task.progressData?.toolExecutions || [],
-		claudeResponses: data.task.progressData?.claudeResponses || []
+		toolExecutions: [],
+		claudeResponses: []
 	};
 	
 	

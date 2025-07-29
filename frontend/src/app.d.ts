@@ -27,6 +27,15 @@ declare global {
 		// Cloudflare WorkersやVercelなど、特定のプラットフォームに依存する型
 		// interface Platform {}
 	}
+
+	// WebSocket統合のグローバル型
+	interface Window {
+		__wsIntegration?: {
+			ws: import('$lib/stores/websocket-enhanced.svelte').EnhancedWebSocketStore;
+			router: import('$lib/stores/message-router.svelte').MessageRouter;
+			cleanup: () => void;
+		};
+	}
 }
 
 export {};

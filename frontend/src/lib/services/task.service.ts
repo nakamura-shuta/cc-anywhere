@@ -1,103 +1,60 @@
-// タスクサービス - SvelteKitのload関数で使用
-
 import { apiClient } from '$lib/api/client';
-import { API_ENDPOINTS } from '$lib/config/api';
-import type { 
-	TaskResponse, 
-	TaskRequest, 
-	TaskLogResponse,
-	PaginationParams,
-	PaginatedResponse 
-} from '$lib/types/api';
+import type { TaskResponse, TaskRequest } from '$lib/types/api';
+import type { EntityService } from '$lib/stores/factory.svelte';
 
-export const taskService = {
-	// タスク一覧の取得（ページネーション対応）
-	async list(params?: PaginationParams & { status?: string }): Promise<PaginatedResponse<TaskResponse>> {
-		// 以前の実装と互換性を保つため、offset/limitも対応
-		const queryParams: any = {};
-		if (params) {
-			if (params.page && params.limit) {
-				queryParams.offset = (params.page - 1) * params.limit;
-				queryParams.limit = params.limit;
-			}
-			if (params.status) queryParams.status = params.status;
-			if (params.sort) queryParams.sort = params.sort;
-			if (params.order) queryParams.order = params.order;
-		}
-		
-		// APIレスポンスを取得
-		const response = await apiClient.get<{
-			tasks: TaskResponse[];
-			total: number;
-			limit: number;
-			offset: number;
-		}>(API_ENDPOINTS.tasks, { params: queryParams });
-		
-		// PaginatedResponseフォーマットに変換
-		const page = params?.page || 1;
-		const limit = response.limit;
-		const totalPages = Math.ceil(response.total / limit);
-		
-		// TaskResponseの変換（idフィールドを追加）
-		const tasks = response.tasks.map(task => ({
-			...task,
-			id: task.taskId // idフィールドを追加
-		}));
-		
-		return {
-			data: tasks,
-			pagination: {
-				page,
-				limit,
-				total: response.total,
-				totalPages
-			}
-		};
-	},
+/**
+ * タスクサービス
+ * EntityServiceインターフェースを実装
+ */
+export class TaskService implements EntityService<TaskResponse> {
+  async list(params?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<TaskResponse[]> {
+    const response = await apiClient.get<any>('/api/tasks', { params });
+    return response.data.tasks;
+  }
+  
+  async get(id: string): Promise<TaskResponse> {
+    const response = await apiClient.get<TaskResponse>(`/api/tasks/${id}`);
+    return response;
+  }
+  
+  async create(data: Partial<TaskRequest>): Promise<TaskResponse> {
+    const response = await apiClient.post<TaskResponse>('/api/tasks', data);
+    return response;
+  }
+  
+  async update(id: string, data: Partial<TaskRequest>): Promise<TaskResponse> {
+    const response = await apiClient.put<TaskResponse>(`/api/tasks/${id}`, data);
+    return response;
+  }
+  
+  async delete(id: string): Promise<void> {
+    await apiClient.delete(`/api/tasks/${id}`);
+  }
+  
+  // タスク固有のメソッド
+  async cancel(id: string): Promise<void> {
+    await apiClient.delete(`/api/tasks/${id}`);
+  }
+  
+  async retry(id: string): Promise<TaskResponse> {
+    const response = await apiClient.post<TaskResponse>(`/api/tasks/${id}/retry`);
+    return response;
+  }
+  
+  async continue(id: string, data: TaskRequest): Promise<TaskResponse> {
+    const response = await apiClient.post<TaskResponse>(`/api/tasks/${id}/continue`, data);
+    return response;
+  }
+  
+  async getLogs(id: string): Promise<string[]> {
+    const response = await apiClient.get<any>(`/api/tasks/${id}/logs`);
+    return response.logs || [];
+  }
+}
 
-	// 単一タスクの取得
-	async get(id: string): Promise<TaskResponse> {
-		const task = await apiClient.get<TaskResponse>(API_ENDPOINTS.task(id));
-		// idフィールドを追加
-		return {
-			...task,
-			id: task.taskId
-		};
-	},
-
-	// タスクの作成
-	async create(request: TaskRequest): Promise<TaskResponse> {
-		const task = await apiClient.post<TaskResponse>(API_ENDPOINTS.tasks, request);
-		// idフィールドを追加
-		return {
-			...task,
-			id: task.taskId
-		};
-	},
-
-	// タスクのキャンセル（以前の実装はDELETEメソッド）
-	async cancel(id: string): Promise<TaskResponse> {
-		// 互換性のためDELETEメソッドも試す
-		try {
-			return apiClient.delete<TaskResponse>(API_ENDPOINTS.task(id));
-		} catch {
-			// 失敗したらPOSTメソッドを試す
-			return apiClient.post<TaskResponse>(API_ENDPOINTS.taskCancel(id));
-		}
-	},
-
-	// タスクログの取得
-	async getLogs(id: string): Promise<TaskLogResponse> {
-		return apiClient.get<TaskLogResponse>(API_ENDPOINTS.taskLogs(id));
-	},
-
-	// タスクログのストリーミング
-	async streamLogs(id: string): Promise<ReadableStream> {
-		return apiClient.stream(API_ENDPOINTS.taskLogs(id));
-	},
-
-	// タスクの削除
-	async delete(id: string): Promise<void> {
-		return apiClient.delete(API_ENDPOINTS.task(id));
-	}
-};
+// シングルトンインスタンス
+export const taskService = new TaskService();

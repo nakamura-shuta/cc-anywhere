@@ -11,22 +11,24 @@ export const load: PageLoad = async ({ url }) => {
 	// URLパラメータからページネーション情報を取得
 	const page = Number(url.searchParams.get('page')) || 1;
 	const limit = Number(url.searchParams.get('limit')) || 20;
-	const sort = url.searchParams.get('sort') || 'createdAt';
-	const order = (url.searchParams.get('order') || 'desc') as 'asc' | 'desc';
 
 	try {
 
 		// APIからタスク一覧を取得
-		const response = await taskService.list({
-			page,
+		const offset = (page - 1) * limit;
+		const tasks = await taskService.list({
 			limit,
-			sort,
-			order
+			offset
 		});
 
 		return {
-			tasks: response.data,
-			pagination: response.pagination
+			tasks,
+			pagination: {
+				page,
+				limit,
+				total: tasks.length,
+				totalPages: Math.ceil(tasks.length / limit)
+			}
 		};
 	} catch (err) {
 		console.error('Failed to load tasks:', err);

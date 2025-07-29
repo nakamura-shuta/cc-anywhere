@@ -9,7 +9,7 @@
 	import ScheduleList from './components/ScheduleList.svelte';
 	import ScheduleFilter from './components/ScheduleFilter.svelte';
 	import SchedulePagination from './components/SchedulePagination.svelte';
-	import { scheduleListStore } from './stores/schedule-list.svelte';
+	import { scheduleListStore } from './stores/schedule-list-migrated.svelte';
 	
 	let { data }: { data: PageData } = $props();
 	let isCreateDialogOpen = $state(false);
@@ -47,7 +47,8 @@
 	
 	// スケジュールが作成されたときの処理
 	function handleScheduleCreated(event: CustomEvent<any>) {
-		scheduleListStore.addSchedule(event.detail);
+		// 新しいスケジュールをストアに追加
+		scheduleListStore.schedules = [...scheduleListStore.schedules, event.detail];
 		isCreateDialogOpen = false;
 		toast.success('スケジュールを作成しました');
 	}
