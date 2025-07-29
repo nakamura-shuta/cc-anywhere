@@ -56,6 +56,12 @@ const envSchema = z.object({
   WORKTREE_DEFAULT_BASE_BRANCH: z.string().optional(), // デフォルトは現在のブランチを使用
   // Claude Code SDK設定
   DEFAULT_MAX_TURNS: z.string().default("50").transform(Number), // デフォルト値（最大）
+  // AWS Bedrock設定
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  AWS_REGION: z.string().default("us-east-1"),
+  // 実行モード設定
+  FORCE_EXECUTION_MODE: z.enum(["api-key", "bedrock"]).optional(),
 });
 
 // Parse and validate environment variables
@@ -129,4 +135,10 @@ export const config = {
   claudeCodeSDK: {
     defaultMaxTurns: env.DEFAULT_MAX_TURNS,
   },
+  aws: {
+    accessKeyId: env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+    region: env.AWS_REGION,
+  },
+  forceExecutionMode: env.FORCE_EXECUTION_MODE,
 } as const;

@@ -21,25 +21,34 @@
    - エラーハンドリングミドルウェアの強化
    - 全ルートハンドラのリファクタリング
    - エラーハンドリングガイドライン作成
-2. **フロントエンド状態管理の改善**
+2. ~~**フロントエンド状態管理の改善**~~ ✅ (2025-07-29 完了)
+   - APIレスポンス構造の統一とストアでの適切な処理
+   - WebSocket状態管理の改善
+   - Svelte 5 Runesを活用した効率的な状態管理
 3. **リポジトリパターンの改善** (中優先度)
 
 #### **Phase 3: 2週間以内**
 1. **依存性注入（DI）の実装** (高優先度)
-2. **Amazon Bedrock対応** 🚧 (調査済み、実装保留)
-   - **調査結果** (2025-07-28):
-     - Claude Code SDKはBedrock対応を謳っている
+2. **Amazon Bedrock対応** 🚧 (詳細調査完了、実装保留)
+   - **詳細調査結果** (2025-07-29):
+     - Claude Code SDKはBedrock対応を実装済み
      - 環境変数`CLAUDE_CODE_USE_BEDROCK=1`で切り替え可能
-     - 最新モデル名: Opus 4, Sonnet 4, Haiku 3.5
-   - **実装状況**:
-     - backend実装は最新モデル名に更新済み
-     - テストコード作成済み
-   - **問題点**:
-     - モデルID/ARN形式の問題でタイムアウトが発生
-     - 推論プロファイルの指定方法が不明確
+     - us-east-1リージョンでのみ動作確認（実行時間: 約58秒）
+     - ap-northeast-1リージョンは未対応（400エラー）
+   - **技術的詳細**:
+     - モデル名が自動変換される: `claude-opus-4-20250514` → `us.anthropic.claude-opus-4-20250514-v1:0`
+     - AWS認証情報は環境変数で設定必要（動的認証情報管理は未対応）
+     - APIキーモードより約6倍遅い応答時間
+     - デフォルトモデル（Opus 4）のみ動作、他モデル指定は400エラー
+   - **必要な環境変数**:
+     - `CLAUDE_CODE_USE_BEDROCK=1`
+     - `AWS_ACCESS_KEY_ID`
+     - `AWS_SECRET_ACCESS_KEY`
+     - `AWS_REGION` (us-east-1推奨)
    - **今後の対応**:
-     - SDKのBedrock対応が安定するまで保留
-     - 通常のAPIキー経由での動作を前提とする
+     - cc-anywhereで`USE_BEDROCK=true`時に自動的に`CLAUDE_CODE_USE_BEDROCK=1`を設定
+     - リージョン制限とエラーハンドリングの改善
+     - 通常のAPIキー経由での動作を推奨
 3. **サブエージェント機能の対応** (高優先度 🔴)
 
 #### **Phase 4: 1ヶ月以内**
@@ -350,6 +359,7 @@
   - `getLatestSdkSessionId`メソッドでタスクチェーンの最新セッションIDを自動追跡
   - Claude Code SDK仕様（resumeSession時に新セッションID生成）への対応
   - `continueFromTaskId`指定で自動的に最新セッションIDを使用
+  - **追加修正 (2025-07-29)**: `continued_from`フィールドが保存されない問題を修正
 - **結果**: 完全な会話の継続が可能に
 - **関連ファイル**:
   - `/backend/src/claude/claude-code-client.ts`
@@ -412,6 +422,15 @@
   - SchedulePaginationコンポーネント（45行）：ページネーション
   - ScheduleFilterコンポーネント（40行）：ステータスフィルター
   - schedule-list.svelte.tsストア（60行）：スケジュール状態管理
+
+### フロントエンド状態管理の改善 ✅ (2025-07-29)
+- **問題**: APIレスポンス構造の不整合、WebSocket状態管理の複雑さ
+- **実装内容**:
+  - APIレスポンス構造の統一（`response.data.tasks`から`response.tasks`へ）
+  - WebSocketストアの状態管理改善
+  - タスク一覧・詳細ページのリアクティブ更新
+  - Svelte 5 Runesを活用した効率的な状態管理
+- **結果**: フロントエンドの安定性向上、コードの保守性改善
 
 ### フロントエンドの全面的な再構築 ✅ (2025-07-23)
 - **Svelte 5 + SvelteKitへの移行完了**

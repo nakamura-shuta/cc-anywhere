@@ -1,12 +1,10 @@
-import { type SDKMessage } from "@anthropic-ai/claude-code";
+import { query, type SDKMessage } from "@anthropic-ai/claude-code";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { TaskTracker } from "../services/task-tracker";
 import type { ToolUsageDetail, TaskProgressInfo } from "../types/enhanced-logging";
 import { LogLevel } from "../types/enhanced-logging";
 import type { WebSearchConfig } from "./types";
-import type { ClaudeCodeStrategy, ExecutionMode, QueryOptions } from "./strategies";
-import { ClaudeCodeClientFactory } from "./claude-code-client-factory";
 
 export interface ClaudeCodeOptions {
   maxTurns?: number;
@@ -29,16 +27,11 @@ export interface ClaudeCodeOptions {
 }
 
 export class ClaudeCodeClient {
-  private strategy: ClaudeCodeStrategy;
-
-  constructor(private clientConfig: typeof config = config) {
-    this.strategy = ClaudeCodeClientFactory.createStrategy(this.determineExecutionMode(), {
-      claudeApiKey: clientConfig.claude.apiKey,
-      awsAccessKeyId: clientConfig.aws?.accessKeyId,
-      awsSecretAccessKey: clientConfig.aws?.secretAccessKey,
-      awsRegion: clientConfig.aws?.region,
-      forceExecutionMode: clientConfig.forceExecutionMode,
-    });
+  constructor() {
+    // Ensure API key is set
+    if (!config.claude.apiKey) {
+      throw new Error("CLAUDE_API_KEY environment variable is required");
+    }
   }
 
   async executeTask(
@@ -98,7 +91,7 @@ export class ClaudeCodeClient {
         hasTodoWriteInDisallowed: finalDisallowedTools.includes("TodoWrite"),
       });
 
-      const queryOptions: QueryOptions = {
+      for await (const message of query({
         prompt,
         abortController,
         options: {
@@ -115,9 +108,7 @@ export class ClaudeCodeClient {
           resume: options.resumeSession,
           // outputFormat and verbose are not supported by SDK
         },
-      };
-
-      for await (const message of this.strategy.executeQuery(queryOptions)) {
+      })) {
         messages.push(message);
         logger.debug("Received SDK message", {
           type: message.type,
@@ -647,63 +638,5 @@ export class ClaudeCodeClient {
     }
 
     return message;
-  }
-
-  /**
-   * Switch to a different execution strategy
-   * @param mode Execution mode to switch to
-   */
-  switchStrategy(mode: ExecutionMode): void {
-    this.strategy = ClaudeCodeClientFactory.createStrategy(mode, {
-      claudeApiKey: this.clientConfig.claude.apiKey,
-      awsAccessKeyId: this.clientConfig.aws?.accessKeyId,
-      awsSecretAccessKey: this.clientConfig.aws?.secretAccessKey,
-      awsRegion: this.clientConfig.aws?.region,
-    });
-    logger.info(`Switched to ${mode} mode`);
-  }
-
-  /**
-   * Get the current execution mode
-   * @returns Current execution mode
-   */
-  getCurrentMode(): ExecutionMode {
-    return this.strategy.getExecutionMode();
-  }
-
-  /**
-   * Check if a specific mode is available
-   * @param mode Optional mode to check. If not provided, checks current mode
-   * @returns true if mode is available
-   */
-  isAvailable(mode?: ExecutionMode): boolean {
-    if (mode) {
-      try {
-        const strategy = ClaudeCodeClientFactory.createStrategy(mode, {
-          claudeApiKey: this.clientConfig.claude.apiKey,
-          awsAccessKeyId: this.clientConfig.aws?.accessKeyId,
-          awsSecretAccessKey: this.clientConfig.aws?.secretAccessKey,
-          awsRegion: this.clientConfig.aws?.region,
-        });
-        return strategy.isAvailable();
-      } catch {
-        return false;
-      }
-    }
-    return this.strategy.isAvailable();
-  }
-
-  /**
-   * Determine the execution mode based on available credentials
-   * @returns Execution mode to use
-   */
-  private determineExecutionMode(): ExecutionMode {
-    return ClaudeCodeClientFactory.determineExecutionMode({
-      claudeApiKey: this.clientConfig.claude.apiKey,
-      awsAccessKeyId: this.clientConfig.aws?.accessKeyId,
-      awsSecretAccessKey: this.clientConfig.aws?.secretAccessKey,
-      awsRegion: this.clientConfig.aws?.region,
-      forceExecutionMode: this.clientConfig.forceExecutionMode,
-    });
   }
 }

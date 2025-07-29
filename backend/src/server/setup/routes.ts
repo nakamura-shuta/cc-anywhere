@@ -10,6 +10,7 @@ import { batchTaskRoutes } from "../routes/batch-tasks";
 import { presetRoutes } from "../routes/presets";
 import { scheduleRoutes } from "../routes/schedules";
 import { sessionRoutes } from "../routes/sessions";
+import { settingsRoutes } from "../routes/settings";
 
 /**
  * Register all API routes for the application
@@ -31,6 +32,7 @@ export async function registerRoutes(
   await app.register(presetRoutes, { prefix: "/api" });
   await app.register(scheduleRoutes);
   await app.register(sessionRoutes);
+  await app.register(settingsRoutes);
 
   // Register worker routes only in managed mode
   if (workerMode === "managed") {
