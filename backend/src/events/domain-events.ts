@@ -146,6 +146,24 @@ export interface RateLimitExceededEvent {
 }
 
 /**
+ * Error tracking events
+ */
+export interface ErrorOccurredEvent {
+  error: {
+    code: string;
+    message: string;
+    statusCode: number;
+    name: string;
+  };
+  request: {
+    method: string;
+    url: string;
+    id: string;
+  };
+  timestamp: Date;
+}
+
+/**
  * All domain events mapped by event type
  */
 export interface DomainEventMap {
@@ -178,6 +196,9 @@ export interface DomainEventMap {
   "system.startup": SystemStartupEvent;
   "system.shutdown": SystemShutdownEvent;
   "system.ratelimit.exceeded": RateLimitExceededEvent;
+
+  // Error events
+  "error.occurred": ErrorOccurredEvent;
 }
 
 /**

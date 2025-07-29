@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
-import { getSharedBatchTaskService } from "../../db/shared-instance";
-import { checkApiKey } from "../middleware/auth";
-import { SystemError } from "../../utils/errors";
+import { getSharedBatchTaskService } from "../../db/shared-instance.js";
+import { checkApiKey } from "../middleware/auth.js";
+import { SystemError } from "../../utils/errors.js";
 
 export const batchTaskRoutes: FastifyPluginAsync = async (app: any) => {
   // Ensure queue is available

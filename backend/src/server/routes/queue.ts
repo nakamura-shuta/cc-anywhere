@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { AppError } from "../../utils/errors";
-import { logger } from "../../utils/logger";
+import { SystemError } from "../../utils/errors.js";
+import { logger } from "../../utils/logger.js";
 
 // Request schemas
 const addToQueueSchema = z.object({
@@ -71,7 +71,9 @@ const queueRoutes: FastifyPluginAsync = async (fastify) => {
         });
       } catch (error) {
         logger.error("Failed to add task to queue", { error });
-        throw new AppError("Failed to add task to queue", 500, "QUEUE_ERROR");
+        throw new SystemError("Failed to add task to queue", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     },
   );

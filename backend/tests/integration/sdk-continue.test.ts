@@ -213,7 +213,7 @@ describe("SDK Continue Integration Tests", () => {
 
     expect(response.statusCode).toBe(404);
     const error = response.json();
-    expect(error.error.code).toBe("PREVIOUS_TASK_NOT_FOUND");
+    expect(error.error.code).toBe("TASK_NOT_FOUND");
   });
 
   it("should return 400 when previous task has no SDK session ID", async () => {
@@ -245,7 +245,7 @@ describe("SDK Continue Integration Tests", () => {
 
     expect(response.statusCode).toBe(400);
     const error = response.json();
-    expect(error.error.code).toBe("NO_SDK_SESSION_ID");
+    expect(error.error.code).toBe("INVALID_TASK_REQUEST");
   });
 
   it("should work with async tasks", async () => {

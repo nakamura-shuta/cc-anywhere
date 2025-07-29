@@ -1,6 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { ScheduledTask, ScheduleListOptions } from "../../types/scheduled-task.js";
-import { AppError } from "../../utils/errors.js";
+import { ValidationError } from "../../utils/errors.js";
+import {
+  ScheduleNotFoundError,
+  InvalidScheduleError,
+  InvalidCronExpressionError,
+} from "../../utils/schedule-errors.js";
 import { logger } from "../../utils/logger.js";
 import { serializeSchedule, serializeSchedules } from "../../utils/schedule-serializer.js";
 
@@ -32,7 +37,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
     const { name, description, taskRequest, schedule, status = "active" } = request.body;
 
     if (!name || !taskRequest || !schedule) {
-      throw new AppError("Missing required fields", 400, "INVALID_REQUEST");
+      throw new ValidationError("Missing required fields");
     }
 
     try {
@@ -63,10 +68,13 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.code(201).send(serializeSchedule(newSchedule));
     } catch (error) {
       if (error instanceof Error && error.message.includes("Invalid cron expression")) {
-        throw new AppError(error.message, 400, "INVALID_CRON");
+        // Extract cron expression from error message if possible
+        const cronMatch = error.message.match(/cron expression:\s*(.+)/);
+        const cronExpression = cronMatch?.[1] || "unknown";
+        throw new InvalidCronExpressionError(cronExpression);
       }
       if (error instanceof Error && error.message.includes("executeAt")) {
-        throw new AppError(error.message, 400, "INVALID_SCHEDULE");
+        throw new InvalidScheduleError(error.message, "executeAt");
       }
       throw error;
     }
@@ -94,7 +102,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
 
     const schedule = schedulerService.getSchedule(id);
     if (!schedule) {
-      throw new AppError(`Schedule ${id} not found`, 404, "SCHEDULE_NOT_FOUND");
+      throw new ScheduleNotFoundError(id);
     }
 
     return serializeSchedule(schedule);
@@ -109,7 +117,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
 
       const updated = schedulerService.updateSchedule(id, updates);
       if (!updated) {
-        throw new AppError(`Schedule ${id} not found`, 404, "SCHEDULE_NOT_FOUND");
+        throw new ScheduleNotFoundError(id);
       }
 
       logger.info("Schedule updated via API", { scheduleId: id });
@@ -123,7 +131,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
 
     const deleted = schedulerService.deleteSchedule(id);
     if (!deleted) {
-      throw new AppError(`Schedule ${id} not found`, 404, "SCHEDULE_NOT_FOUND");
+      throw new ScheduleNotFoundError(id);
     }
 
     logger.info("Schedule deleted via API", { scheduleId: id });
@@ -136,7 +144,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
 
     const updated = schedulerService.enableSchedule(id);
     if (!updated) {
-      throw new AppError(`Schedule ${id} not found`, 404, "SCHEDULE_NOT_FOUND");
+      throw new ScheduleNotFoundError(id);
     }
 
     logger.info("Schedule enabled via API", { scheduleId: id });
@@ -149,7 +157,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
 
     const updated = schedulerService.disableSchedule(id);
     if (!updated) {
-      throw new AppError(`Schedule ${id} not found`, 404, "SCHEDULE_NOT_FOUND");
+      throw new ScheduleNotFoundError(id);
     }
 
     logger.info("Schedule disabled via API", { scheduleId: id });
@@ -163,7 +171,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
     // Verify schedule exists
     const schedule = schedulerService.getSchedule(id);
     if (!schedule) {
-      throw new AppError(`Schedule ${id} not found`, 404, "SCHEDULE_NOT_FOUND");
+      throw new ScheduleNotFoundError(id);
     }
 
     const history = schedulerService.getHistory(id);

@@ -1,11 +1,16 @@
 import type { FastifyPluginAsync } from "fastify";
-import { TaskStatus, type TaskRequest, type TaskResponse } from "../../claude/types";
-import { logger } from "../../utils/logger";
-import type { ErrorResponse, TaskLogResponse, TaskCancelResponse } from "../../types/api";
-import { RetryService } from "../../services/retry-service";
-import { checkApiKey } from "../middleware/auth";
-import { SystemError } from "../../utils/errors";
-import { ConversationFormatter } from "../../utils/conversation-formatter";
+import { TaskStatus, type TaskRequest, type TaskResponse } from "../../claude/types.js";
+import { logger } from "../../utils/logger.js";
+import type { ErrorResponse, TaskLogResponse, TaskCancelResponse } from "../../types/api.js";
+import { RetryService } from "../../services/retry-service.js";
+import { checkApiKey } from "../middleware/auth.js";
+import {
+  TaskNotFoundError,
+  InvalidTaskRequestError,
+  TaskExecutionError,
+  TaskCancellationError,
+} from "../../utils/task-errors.js";
+import { ConversationFormatter } from "../../utils/conversation-formatter.js";
 
 // eslint-disable-next-line @typescript-eslint/require-await
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
@@ -351,28 +356,17 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         const previousTask = repository.getById(previousTaskId);
 
         if (!previousTask) {
-          const errorResponse: ErrorResponse = {
-            error: {
-              message: `Previous task not found: ${previousTaskId}`,
-              statusCode: 404,
-              code: "PREVIOUS_TASK_NOT_FOUND",
-            },
-          };
-          return reply.status(404).send(errorResponse);
+          throw new TaskNotFoundError(previousTaskId);
         }
 
         // Get the latest SDK session ID in the continuation chain
         const latestSdkSessionId = repository.getLatestSdkSessionId(previousTaskId);
 
         if (!latestSdkSessionId) {
-          const errorResponse: ErrorResponse = {
-            error: {
-              message: `No SDK session ID found in the task chain. The tasks may have been executed before this feature was available.`,
-              statusCode: 400,
-              code: "NO_SDK_SESSION_ID",
-            },
-          };
-          return reply.status(400).send(errorResponse);
+          throw new InvalidTaskRequestError(
+            "No SDK session ID found in the task chain. The tasks may have been executed before this feature was available.",
+            "continueFromTaskId",
+          );
         }
 
         // Update the request to use resumeSession with the latest SDK session ID
@@ -402,7 +396,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       // Get task details
       const queuedTask = taskQueue.get(taskId);
       if (!queuedTask) {
-        throw new SystemError("Failed to create task", { taskId });
+        throw new TaskExecutionError("Failed to create task", taskId);
       }
 
       const task: TaskResponse = {
@@ -488,15 +482,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       const record = repository.getById(request.params.taskId);
 
       if (!record) {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Task not found",
-            statusCode: 404,
-            code: "TASK_NOT_FOUND",
-          },
-        };
-        void reply.status(404).send(errorResponse);
-        return;
+        throw new TaskNotFoundError(request.params.taskId);
       }
 
       const queuedTask = repository.toQueuedTask(record);
@@ -544,15 +530,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       const record = repository.getById(request.params.taskId);
 
       if (!record) {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Task not found",
-            statusCode: 404,
-            code: "TASK_NOT_FOUND",
-          },
-        };
-        void reply.status(404).send(errorResponse);
-        return;
+        throw new TaskNotFoundError(request.params.taskId);
       }
 
       const queuedTask = repository.toQueuedTask(record);
@@ -588,28 +566,14 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       if (record.status !== "pending" && record.status !== "running") {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Task cannot be cancelled in current state",
-            statusCode: 400,
-            code: "INVALID_STATE",
-          },
-        };
-        return reply.status(400).send(errorResponse);
+        throw new InvalidTaskRequestError("Task cannot be cancelled in current state", "status");
       }
 
       // Cancel the task
       const success = await taskQueue.cancelTask(request.params.taskId);
 
       if (!success) {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Failed to cancel task",
-            statusCode: 500,
-            code: "CANCEL_FAILED",
-          },
-        };
-        return reply.status(500).send(errorResponse);
+        throw new TaskCancellationError(request.params.taskId, "Failed to cancel task");
       }
 
       const cancelResponse: TaskCancelResponse = {
@@ -645,14 +609,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Check if task can be retried
       if (record.status !== "failed") {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Only failed tasks can be retried",
-            statusCode: 400,
-            code: "INVALID_STATE",
-          },
-        };
-        return reply.status(400).send(errorResponse);
+        throw new InvalidTaskRequestError("Only failed tasks can be retried", "status");
       }
 
       // Check if task has retries configured
@@ -660,26 +617,12 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       const retryConfig = RetryService.getRetryOptions(queuedTask.request.options);
 
       if (!retryConfig.maxRetries || retryConfig.maxRetries === 0) {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Task does not have retry configured",
-            statusCode: 400,
-            code: "NO_RETRY_CONFIG",
-          },
-        };
-        return reply.status(400).send(errorResponse);
+        throw new InvalidTaskRequestError("Task does not have retry configured", "retryConfig");
       }
 
       // Check if max retries already reached
       if (record.retryCount >= record.maxRetries) {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Maximum retry attempts already reached",
-            statusCode: 400,
-            code: "MAX_RETRIES_REACHED",
-          },
-        };
-        return reply.status(400).send(errorResponse);
+        throw new InvalidTaskRequestError("Maximum retry attempts already reached", "retryCount");
       }
 
       try {
@@ -709,10 +652,11 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         // Get the new task
         const newTask = taskQueue.get(newTaskId);
         if (!newTask) {
-          throw new SystemError("Failed to create retry task", {
-            originalTaskId: request.params.taskId,
+          throw new TaskExecutionError(
+            "Failed to create retry task",
             newTaskId,
-          });
+            new Error(`Original task ID: ${request.params.taskId}`),
+          );
         }
 
         const response: TaskResponse = {
@@ -733,15 +677,11 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(201).send(response);
       } catch (error) {
         logger.error("Failed to retry task", { taskId: request.params.taskId, error });
-
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Failed to retry task",
-            statusCode: 500,
-            code: "RETRY_FAILED",
-          },
-        };
-        return reply.status(500).send(errorResponse);
+        throw new TaskExecutionError(
+          "Failed to retry task",
+          request.params.taskId,
+          error instanceof Error ? error : undefined,
+        );
       }
     },
   );
@@ -851,26 +791,12 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       const parentRecord = repository.getById(parentTaskId);
 
       if (!parentRecord) {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Parent task not found",
-            statusCode: 404,
-            code: "PARENT_TASK_NOT_FOUND",
-          },
-        };
-        return reply.status(404).send(errorResponse);
+        throw new TaskNotFoundError(parentTaskId);
       }
 
       // Check if parent task is completed
       if (parentRecord.status !== "completed") {
-        const errorResponse: ErrorResponse = {
-          error: {
-            message: "Can only continue from completed tasks",
-            statusCode: 400,
-            code: "INVALID_STATE",
-          },
-        };
-        return reply.status(400).send(errorResponse);
+        throw new InvalidTaskRequestError("Can only continue from completed tasks", "status");
       }
 
       // Build continuation task request
@@ -981,7 +907,11 @@ Please continue from the above conversation, maintaining context and remembering
       const queuedTask = taskQueue.get(taskId);
 
       if (!queuedTask) {
-        throw new SystemError("Failed to create continuation task", { parentTaskId, taskId });
+        throw new TaskExecutionError(
+          "Failed to create continuation task",
+          taskId,
+          new Error(`Parent task ID: ${parentTaskId}`),
+        );
       }
 
       const response: TaskResponse & { continuedFrom?: string } = {
