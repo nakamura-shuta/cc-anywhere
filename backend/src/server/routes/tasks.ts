@@ -114,14 +114,14 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           createdAt: queuedTask.addedAt,
           startedAt: queuedTask.startedAt,
           completedAt: queuedTask.completedAt,
-          result: queuedTask.result?.result,
+          result: queuedTask.result,
           error: queuedTask.error
             ? {
                 message: queuedTask.error.message,
                 code: "EXECUTION_ERROR",
               }
             : undefined,
-          logs: queuedTask.result?.logs,
+          logs: record.progressData?.logs,
           retryMetadata: queuedTask.retryMetadata,
           allowedTools: queuedTask.request.options?.allowedTools,
           workingDirectory: queuedTask.request.context?.workingDirectory,
@@ -478,6 +478,16 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     "/tasks/:taskId",
     {
       preHandler: checkApiKey,
+      schema: {
+        params: {
+          type: "object",
+          properties: {
+            taskId: { type: "string" },
+          },
+          required: ["taskId"],
+        },
+        // レスポンススキーマを削除（Fastifyのバグ回避）
+      },
     },
     (request, reply) => {
       const record = repository.getById(request.params.taskId);
@@ -494,20 +504,20 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         createdAt: queuedTask.addedAt,
         startedAt: queuedTask.startedAt,
         completedAt: queuedTask.completedAt,
-        result: queuedTask.result?.result,
+        result: queuedTask.result,
         error: queuedTask.error
           ? {
               message: queuedTask.error.message,
               code: "EXECUTION_ERROR",
             }
           : undefined,
-        logs: queuedTask.result?.logs,
+        logs: record.progressData?.logs,
         retryMetadata: queuedTask.retryMetadata,
         allowedTools: queuedTask.request.options?.allowedTools,
         workingDirectory: queuedTask.request.context?.workingDirectory,
         repositoryName: record.repositoryName || undefined,
         groupId: record.groupId || undefined,
-        todos: queuedTask.result?.todos || record.progressData?.todos,
+        todos: record.progressData?.todos,
         continuedFrom: record.continuedFrom || undefined,
         progressData: record.progressData || undefined,
         sdkSessionId: record.sdkSessionId,
@@ -534,10 +544,9 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         throw new TaskNotFoundError(request.params.taskId);
       }
 
-      const queuedTask = repository.toQueuedTask(record);
       const logResponse: TaskLogResponse = {
         taskId: request.params.taskId,
-        logs: queuedTask.result?.logs || [],
+        logs: record.progressData?.logs || [],
       };
       void reply.send(logResponse);
     },

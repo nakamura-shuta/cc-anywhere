@@ -136,7 +136,7 @@
 
 				<div class="pt-4">
 					<Button 
-						on:click={saveSettings} 
+						onclick={saveSettings} 
 						disabled={loading || selectedMode === settings.executionMode}
 					>
 						Save Settings

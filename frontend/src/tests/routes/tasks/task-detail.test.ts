@@ -26,7 +26,7 @@ vi.mock('$lib/services/task.service', () => ({
 }));
 
 // モックWebSocket
-vi.mock('$lib/hooks/use-websocket.svelte', () => ({
+vi.mock('$lib/hooks/use-task-websocket-enhanced.svelte', () => ({
 	useTaskWebSocket: vi.fn(() => ({
 		connected: true,
 		logs: [],
@@ -41,7 +41,6 @@ vi.mock('$lib/hooks/use-websocket.svelte', () => ({
 
 describe('Task Detail Page - Continue Options', () => {
 	const mockTask = {
-		id: 'task-123',
 		taskId: 'task-123',
 		status: TaskStatus.COMPLETED,
 		instruction: 'Test task',

@@ -1,4 +1,4 @@
-import { ClaudeCodeClient } from "./claude-code-client";
+import { getSharedClaudeClient } from "./shared-instance";
 import type {
   TaskRequest,
   TaskExecutor,
@@ -18,6 +18,7 @@ import { WorktreeManager } from "../services/worktree/worktree-manager";
 import type { Worktree, WorktreeConfig } from "../services/worktree/types";
 import { NotFoundError, TaskCancelledError, SystemError } from "../utils/errors";
 import { mapPermissionMode } from "./permission-mode-mapper";
+import type { ClaudeCodeClient } from "./claude-code-client";
 
 /**
  * Task execution engine that handles Claude API interactions
@@ -37,7 +38,7 @@ export class TaskExecutorImpl implements TaskExecutor {
   private worktreeManager?: WorktreeManager;
 
   constructor() {
-    this.codeClient = new ClaudeCodeClient();
+    this.codeClient = getSharedClaudeClient();
     this.retryHandler = new RetryHandler();
 
     // Initialize instruction processor
@@ -238,11 +239,22 @@ export class TaskExecutorImpl implements TaskExecutor {
         // Transition to setup phase
         timeoutManager.transitionToPhase(TimeoutPhase.SETUP);
 
+        // Log execution mode and model
+        const executionMode = this.codeClient.getCurrentMode();
+        const modelName = this.codeClient.getModelName();
+        logger.info("Task execution mode", {
+          taskId,
+          executionMode,
+          model: modelName,
+          workingDirectory,
+        });
+        logs.push(`Execution mode: ${executionMode} (Model: ${modelName})`);
+
         // Notify progress: Starting task
         if (processedTask.options?.onProgress) {
           await processedTask.options.onProgress({
             type: "log",
-            message: "タスク実行を開始します...",
+            message: `タスク実行を開始します... (${executionMode}モード)`,
           });
         }
 
@@ -405,6 +417,19 @@ export class TaskExecutorImpl implements TaskExecutor {
             ? processedResult.output
             : this.codeClient.formatMessagesAsString(sdkResult.messages);
 
+        // デバッグ: outputの内容を確認
+        logger.info("Executor output details", {
+          taskId,
+          outputType: typeof output,
+          outputLength: typeof output === "string" ? output.length : JSON.stringify(output).length,
+          outputSample:
+            typeof output === "string"
+              ? output.substring(0, 200)
+              : JSON.stringify(output).substring(0, 200),
+          messageCount: sdkResult.messages?.length || 0,
+          outputFormat: sdkOptions.outputFormat,
+        });
+
         logs.push(`Received ${sdkResult.messages.length} messages from Claude Code`);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
@@ -482,6 +507,17 @@ export class TaskExecutorImpl implements TaskExecutor {
         conversationHistory: sdkMessages.length > 0 ? sdkMessages : undefined,
         sdkSessionId: sdkResult?.sessionId,
       };
+
+      // デバッグ: 最終的なresultオブジェクトを確認
+      logger.info("Final result object", {
+        taskId,
+        resultKeys: Object.keys(result),
+        outputType: typeof result.output,
+        outputSample:
+          typeof result.output === "string"
+            ? result.output.substring(0, 200)
+            : JSON.stringify(result.output).substring(0, 200),
+      });
 
       logger.info("Task execution completed successfully", {
         taskId,

@@ -504,17 +504,19 @@ export class TaskQueueImpl implements TaskQueue {
           hasTodos: !!result.todos && result.todos.length > 0,
         });
 
-        task.result = {
+        // デバッグ: resultの内容を確認
+        logger.info("Task result details", {
           taskId: task.id,
-          status: TaskStatus.COMPLETED,
-          instruction: task.request.instruction,
-          createdAt: task.addedAt,
-          startedAt: task.startedAt,
-          completedAt: task.completedAt,
-          result: result.output,
-          logs: result.logs,
-          todos: result.todos || task.todos, // Use saved todos if result doesn't have them
-        };
+          resultType: typeof result.output,
+          resultIsString: typeof result.output === "string",
+          resultSample:
+            typeof result.output === "string"
+              ? result.output.substring(0, 200)
+              : JSON.stringify(result.output).substring(0, 200),
+          fullResult: result.output,
+        });
+
+        task.result = result.output as any; // TODO: 型の整合性を改善
 
         this.completedCount++;
 
@@ -558,7 +560,7 @@ export class TaskQueueImpl implements TaskQueue {
         // Emit task completed event
         void this.eventBus.emit("task.completed", {
           taskId: task.id,
-          result: task.result,
+          result: task.result!,
           duration: result.duration || 0,
           completedAt: task.completedAt,
         });
@@ -661,17 +663,7 @@ export class TaskQueueImpl implements TaskQueue {
         // Max retries reached or error not retryable
         task.status = TaskStatus.FAILED;
         task.error = error;
-        task.result = {
-          taskId: task.id,
-          status: TaskStatus.FAILED,
-          instruction: task.request.instruction,
-          createdAt: task.addedAt,
-          startedAt: task.startedAt,
-          completedAt: task.completedAt,
-          error: errorInfo,
-          logs: result.logs,
-          retryMetadata: task.retryMetadata,
-        };
+        task.result = undefined; // 失敗時はresultをundefinedに設定
 
         this.failedCount++;
 

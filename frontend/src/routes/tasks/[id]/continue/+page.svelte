@@ -57,7 +57,7 @@
 			}
 		};
 		
-		const parentTaskId = data.parentTask.id || data.parentTask.taskId;
+		const parentTaskId = data.parentTask.taskId;
 		if (!parentTaskId) {
 			throw new Error('親タスクのIDが取得できません');
 		}
@@ -80,7 +80,7 @@
 
 <div class="container mx-auto p-4 md:p-6 max-w-4xl">
 	<div class="mb-6">
-		<Button variant="ghost" onclick={() => window.location.href = `/tasks/${data.parentTask.id || data.parentTask.taskId}`} class="gap-2 mb-4">
+		<Button variant="ghost" onclick={() => window.location.href = `/tasks/${data.parentTask.taskId}`} class="gap-2 mb-4">
 			<ArrowLeft class="h-4 w-4" />
 			親タスクに戻る
 		</Button>

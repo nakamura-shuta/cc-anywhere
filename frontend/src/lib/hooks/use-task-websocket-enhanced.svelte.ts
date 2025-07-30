@@ -1,6 +1,7 @@
-// WebSocketフック（Svelte 5 Runes使用）
+// タスクWebSocketフック（新しい実装）
 
-import { getWebSocketContext, type WebSocketMessage } from '$lib/websocket/websocket.svelte';
+import { getWebSocketStore } from '$lib/stores/websocket-enhanced.svelte';
+import type { WebSocketMessage } from '$lib/stores/websocket-enhanced.svelte';
 
 // タスクのWebSocket通信を管理するフック
 export function useTaskWebSocket(taskId: string, initialStatistics?: any, initialData?: {
@@ -12,44 +13,77 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	toolExecutions?: any[];
 	claudeResponses?: any[];
 }) {
-	const ws = getWebSocketContext();
+	const ws = getWebSocketStore();
+	
+	// タスク関連のメッセージを保存
+	let taskMessages = $state<WebSocketMessage[]>([]);
 	
 	// タスクをサブスクライブ
 	$effect(() => {
-		ws.subscribe(taskId);
+		// 接続が確立されたら購読
+		if (ws.isConnected) {
+			ws.send({
+				type: 'subscribe',
+				payload: { taskId }
+			});
+		}
+		
+		// 接続イベントをリッスン
+		const unsubscribeAuth = ws.on('auth:success', () => {
+			ws.send({
+				type: 'subscribe',
+				payload: { taskId }
+			});
+		});
 		
 		// クリーンアップ時にアンサブスクライブ
 		return () => {
-			ws.unsubscribe(taskId);
+			unsubscribeAuth();
+			if (ws.isConnected) {
+				ws.send({
+					type: 'unsubscribe',
+					payload: { taskId }
+				});
+			}
 		};
 	});
 	
-	// タスクのメッセージを取得（リアクティブ）
-	const messages = $derived(ws.getTaskMessages(taskId));
+	// タスク関連のメッセージをリッスン
+	$effect(() => {
+		const unsubscribe = ws.onAny((message) => {
+			// タスクIDが一致するメッセージを保存
+			if (message.payload?.taskId === taskId || 
+			    (message.type.startsWith('task:') && !message.payload?.taskId)) {
+				taskMessages = [...taskMessages, message];
+			}
+		});
+		
+		return unsubscribe;
+	});
 	
 	// 最新のログメッセージ（すべてのログタイプを含む）
 	const logs = $derived(
 		(() => {
-			const wsLogs = messages
+			const wsLogs = taskMessages
 				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update'].includes(m.type))
 				.map(m => {
 					// メッセージタイプに応じてフォーマット
 					switch (m.type) {
 						case 'task:log':
-							return m.data?.log || '';
+							return m.payload?.log || '';
 						case 'task:tool:start':
-							return `🛠️ [${m.data?.tool}] 開始${m.data?.input ? `: ${JSON.stringify(m.data.input).slice(0, 100)}...` : ''}`;
+							return `🛠️ [${m.payload?.tool}] 開始${m.payload?.input ? `: ${JSON.stringify(m.payload.input).slice(0, 100)}...` : ''}`;
 						case 'task:tool:end':
-							return `✅ [${m.data?.tool}] ${m.data?.success ? '成功' : '失敗'}${m.data?.duration ? ` (${m.data.duration}ms)` : ''}`;
+							return `✅ [${m.payload?.tool}] ${m.payload?.success ? '成功' : '失敗'}${m.payload?.duration ? ` (${m.payload.duration}ms)` : ''}`;
 						case 'task:claude:response':
-							return `🤖 Claude: ${m.data?.text || ''}`;
+							return `🤖 Claude: ${m.payload?.text || ''}`;
 						case 'task:todo_update':
-							if (m.data?.todos) {
-								return `📝 TODO更新: ${m.data.todos.map((t: any) => `${t.content} [${t.status}]`).join(', ')}`;
+							if (m.payload?.todos) {
+								return `📝 TODO更新: ${m.payload.todos.map((t: any) => `${t.content} [${t.status}]`).join(', ')}`;
 							}
 							return '📝 TODO更新';
 						default:
-							return JSON.stringify(m.data);
+							return JSON.stringify(m.payload);
 					}
 				});
 			
@@ -66,7 +100,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	const toolExecutions = $derived(
 		(() => {
 			// WebSocketメッセージから取得
-			const wsMessages = messages.filter(m => m.type === 'task:tool:start' || m.type === 'task:tool:end');
+			const wsMessages = taskMessages.filter(m => m.type === 'task:tool:start' || m.type === 'task:tool:end');
 			
 			// ツールIDごとにstartとendをペアリング
 			const toolMap = new Map<string, any>();
@@ -74,8 +108,8 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 			const toolByName = new Map<string, any[]>(); // ツール名でもトラッキング
 			
 			wsMessages.forEach(m => {
-				const toolId = m.data?.toolId;
-				const toolName = m.data?.tool || '';
+				const toolId = m.payload?.toolId;
+				const toolName = m.payload?.tool || '';
 				
 				
 				if (m.type === 'task:tool:start') {
@@ -83,7 +117,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 						type: 'task:tool:start',
 						tool: toolName,
 						toolId: toolId || `${toolName}-${m.timestamp}`,
-						args: m.data?.input,
+						args: m.payload?.input,
 						timestamp: m.timestamp || new Date().toISOString()
 					};
 					
@@ -122,10 +156,10 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 						tool: toolName,
 						toolId: toolId || startEvent?.toolId || `${toolName}-${m.timestamp}`,
 						args: startEvent?.args,
-						output: m.data?.output,
-						duration: m.data?.duration,
-						success: m.data?.success,
-						error: m.data?.error,
+						output: m.payload?.output,
+						duration: m.payload?.duration,
+						success: m.payload?.success,
+						error: m.payload?.error,
 						timestamp: m.timestamp || new Date().toISOString()
 					});
 				}
@@ -178,12 +212,12 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	const claudeResponses = $derived(
 		(() => {
 			// WebSocketメッセージから取得
-			const wsResponses = messages
+			const wsResponses = taskMessages
 				.filter(m => m.type === 'task:claude:response')
 				.map(m => ({
-					response: m.data?.text || '',
-					turnNumber: m.data?.turnNumber,
-					maxTurns: m.data?.maxTurns,
+					response: m.payload?.text || '',
+					turnNumber: m.payload?.turnNumber,
+					maxTurns: m.payload?.maxTurns,
 					timestamp: m.timestamp || new Date().toISOString()
 				}));
 			
@@ -220,14 +254,13 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	// タスク統計
 	const statistics = $derived(
 		(() => {
-			const statsMessages = messages.filter(m => m.type === 'task:statistics');
+			const statsMessages = taskMessages.filter(m => m.type === 'task:statistics');
 			
 			// WebSocketメッセージがある場合はそれを優先
 			if (statsMessages.length > 0) {
 				const latest = statsMessages[statsMessages.length - 1];
 				// statistics オブジェクトが payload 内にネストされている可能性を考慮
-				const stats = latest.data?.statistics || latest.data || null;
-				
+				const stats = latest.payload?.statistics || latest.payload || null;
 				
 				return stats;
 			}
@@ -245,13 +278,13 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	const todoUpdates = $derived(
 		(() => {
 			// 最新のTODOリストを取得（WebSocketメッセージを逆順に確認）
-			const latestTodoMessage = messages
-				.filter(m => m.type === 'task:todo_update' && m.data?.todos)
+			const latestTodoMessage = taskMessages
+				.filter(m => m.type === 'task:todo_update' && m.payload?.todos)
 				.reverse()[0];
 			
-			if (latestTodoMessage && latestTodoMessage.data?.todos) {
+			if (latestTodoMessage && latestTodoMessage.payload?.todos) {
 				// 最新のTODOリストをそのまま使用
-				return latestTodoMessage.data.todos.map((todo: any) => ({
+				return latestTodoMessage.payload.todos.map((todo: any) => ({
 					id: todo.id,
 					content: todo.content || '',
 					status: todo.status || '',
@@ -279,60 +312,63 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	const progress = $derived(
 		(() => {
 			// 進捗メッセージとClaude応答から進捗を計算
-			const progressMessages = messages.filter(m => m.type === 'task:progress');
-			const claudeMessages = messages.filter(m => m.type === 'task:claude:response');
+			const progressMessages = taskMessages.filter(m => m.type === 'task:progress');
+			const claudeMessages = taskMessages.filter(m => m.type === 'task:claude:response');
 			
 			// 最新のClaude応答からturn情報を取得
 			const latestClaude = claudeMessages[claudeMessages.length - 1];
-			const turn = latestClaude?.data?.turnNumber || 0;
-			const maxTurns = latestClaude?.data?.maxTurns || 0;
+			const turn = latestClaude?.payload?.turnNumber || 0;
+			const maxTurns = latestClaude?.payload?.maxTurns || 0;
 			
 			// 最新の進捗メッセージ
 			const latestProgress = progressMessages[progressMessages.length - 1];
-			const phase = latestProgress?.data?.progress?.phase || latestProgress?.data?.phase;
-			const message = latestProgress?.data?.progress?.message || latestProgress?.data?.message || '';
+			const phase = latestProgress?.payload?.progress?.phase || latestProgress?.payload?.phase;
+			const message = latestProgress?.payload?.progress?.message || latestProgress?.payload?.message || '';
 			
 			// フェーズに基づいて進捗を計算
 			let percent = 0;
 			if (phase === 'setup') percent = 10;
 			else if (phase === 'planning') percent = 20;
 			else if (phase === 'execution') {
-				// 実行フェーズではターン数も考慮
+				// ターン数に基づいて進捗を計算（20%～80%）
 				if (maxTurns > 0) {
-					percent = 20 + Math.min(60, (turn / maxTurns) * 60);
+					percent = Math.min(80, 20 + (turn / maxTurns) * 60);
 				} else {
-					percent = 50; // ターン数が不明な場合は50%
+					percent = 50;
 				}
 			}
 			else if (phase === 'cleanup') percent = 90;
 			else if (phase === 'complete') percent = 100;
 			
+			// 初期データがある場合
+			if (percent === 0 && initialData?.currentTurn && initialData.maxTurns) {
+				percent = Math.min(80, 20 + (initialData.currentTurn / initialData.maxTurns) * 60);
+			}
+			
 			return {
-				percent,
+				percent: Math.round(percent),
 				message,
+				phase,
 				turn,
-				maxTurns,
-				phase
+				maxTurns
 			};
 		})()
 	);
 	
-	// タスクのステータス変更
+	// 最新の状態変更（タスクの状態更新）
 	const statusChange = $derived(
 		(() => {
-			const statusMessages = messages.filter(m => 
-				['task:completed', 'task:failed', 'task:cancelled', 'task:update'].includes(m.type)
+			const statusMessages = taskMessages.filter(m => 
+				['task:status', 'task:running', 'task:completed', 'task:failed', 'task:cancelled', 'task:update'].includes(m.type)
 			);
-			if (statusMessages.length === 0) return null;
 			
-			return statusMessages[statusMessages.length - 1];
+			return statusMessages[statusMessages.length - 1] || null;
 		})()
 	);
 	
 	return {
-		get connected() { return ws.connected; },
-		get authenticated() { return ws.authenticated; },
-		get messages() { return messages; },
+		get connected() { return ws.isConnected; },
+		get messages() { return taskMessages; },
 		get logs() { return logs; },
 		get toolExecutions() { return toolExecutions; },
 		get claudeResponses() { return claudeResponses; },
@@ -340,41 +376,6 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 		get todoUpdates() { return todoUpdates; },
 		get progress() { return progress; },
 		get statusChange() { return statusChange; },
-		clearMessages: () => ws.clearTaskMessages(taskId)
-	};
-}
-
-// WebSocket接続状態を管理するフック
-export function useWebSocketStatus() {
-	const ws = getWebSocketContext();
-	
-	return {
-		get connected() { return ws.connected; },
-		get connecting() { return ws.connecting; },
-		get authenticated() { return ws.authenticated; },
-		get error() { return ws.error; },
-		get isReady() { return ws.isReady; },
-		connect: () => ws.connect(),
-		disconnect: () => ws.disconnect()
-	};
-}
-
-// リアルタイムメッセージを監視するフック
-export function useWebSocketMessages(filter?: (message: WebSocketMessage) => boolean) {
-	const ws = getWebSocketContext();
-	
-	// フィルタリングされたメッセージ
-	const filteredMessages = $derived(
-		filter ? ws.messages.filter(filter) : ws.messages
-	);
-	
-	// 最新のメッセージ
-	const latestMessage = $derived(
-		filteredMessages[filteredMessages.length - 1]
-	);
-	
-	return {
-		get messages() { return filteredMessages; },
-		get latestMessage() { return latestMessage; }
+		clearMessages: () => { taskMessages = []; }
 	};
 }

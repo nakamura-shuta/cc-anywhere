@@ -66,7 +66,6 @@ export interface TaskRequest {
 
 // タスクレスポンス
 export interface TaskResponse {
-	id: string; // taskIdとidの両方をサポート
 	taskId: string;
 	status: TaskStatus;
 	instruction: string;

@@ -19,7 +19,7 @@ export interface WebSocketMessage {
  * @param service エンティティサービス
  * @returns エンティティストアクラス
  */
-export function createEntityStore<T extends { id: string }>(
+export function createEntityStore<T extends { id: string } | { taskId: string }>(
   name: string,
   service: EntityService<T>
 ) {
@@ -30,9 +30,14 @@ export function createEntityStore<T extends { id: string }>(
     loading = $state(false);
     error = $state<Error | null>(null);
     
+    // IDを取得するヘルパー関数
+    private getItemId(item: T): string {
+      return 'id' in item ? item.id : (item as any).taskId;
+    }
+    
     // 派生値
     selected = $derived(
-      this.items.find(item => item.id === this.selectedId) || null
+      this.items.find(item => this.getItemId(item) === this.selectedId) || null
     );
     
     count = $derived(this.items.length);
@@ -65,7 +70,7 @@ export function createEntityStore<T extends { id: string }>(
         this.error = null;
         const item = await service.get(id);
         // 既存のアイテムを更新または追加
-        const index = this.items.findIndex(i => i.id === id);
+        const index = this.items.findIndex(i => this.getItemId(i) === id);
         if (index >= 0) {
           this.items = replaceInArray(this.items, index, item);
         } else {
@@ -104,7 +109,7 @@ export function createEntityStore<T extends { id: string }>(
         const updated = await service.update(id, data);
         this.items = updateArray(
           this.items,
-          item => item.id === id,
+          item => this.getItemId(item) === id,
           () => updated
         );
         return updated;
@@ -122,7 +127,7 @@ export function createEntityStore<T extends { id: string }>(
         this.loading = true;
         this.error = null;
         await service.delete(id);
-        this.items = removeFromArray(this.items, item => item.id === id);
+        this.items = removeFromArray(this.items, item => this.getItemId(item) === id);
         if (this.selectedId === id) {
           this.selectedId = null;
         }
@@ -143,11 +148,24 @@ export function createEntityStore<T extends { id: string }>(
     
     // ローカル更新（API呼び出しなし）
     updateLocal(id: string, data: Partial<T>): void {
+      console.log(`[${name}Store] updateLocal called:`, { id, data });
+      
+      const index = this.items.findIndex(item => this.getItemId(item) === id);
+      console.log(`[${name}Store] Item found at index:`, index);
+      
+      if (index !== -1) {
+        console.log(`[${name}Store] Current item:`, this.items[index]);
+      }
+      
       this.items = updateArray(
         this.items,
-        item => item.id === id,
+        item => this.getItemId(item) === id,
         item => ({ ...item, ...data })
       );
+      
+      if (index !== -1) {
+        console.log(`[${name}Store] Updated item:`, this.items[index]);
+      }
     }
     
     // WebSocket更新の統一処理
@@ -156,18 +174,19 @@ export function createEntityStore<T extends { id: string }>(
       
       switch (type) {
         case `${name}.created`:
-          if (!this.items.find(item => item.id === payload.id)) {
+          if (!this.items.find(item => this.getItemId(item) === (payload.id || payload.taskId))) {
             this.items = [...this.items, payload];
           }
           break;
           
         case `${name}.updated`:
-          this.updateLocal(payload.id, payload);
+          this.updateLocal(payload.id || payload.taskId, payload);
           break;
           
         case `${name}.deleted`:
-          this.items = removeFromArray(this.items, item => item.id === payload.id);
-          if (this.selectedId === payload.id) {
+          const itemId = payload.id || payload.taskId;
+          this.items = removeFromArray(this.items, item => this.getItemId(item) === itemId);
+          if (this.selectedId === itemId) {
             this.selectedId = null;
           }
           break;
@@ -183,7 +202,7 @@ export function createEntityStore<T extends { id: string }>(
     
     // ユーティリティメソッド
     findById(id: string): T | undefined {
-      return this.items.find(item => item.id === id);
+      return this.items.find(item => this.getItemId(item) === id);
     }
     
     clear(): void {

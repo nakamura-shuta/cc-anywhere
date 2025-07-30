@@ -21,6 +21,11 @@ export async function setupWorkerMode(
 ): Promise<WorkerModeSetupResult> {
   logger.info("Initializing application", { workerMode });
 
+  // 実行モードをログに出力
+  if (config.forceExecutionMode) {
+    logger.info("Using forced execution mode", { mode: config.forceExecutionMode });
+  }
+
   let taskQueue: TaskQueueImpl;
   let workerManager: WorkerManager | undefined;
 

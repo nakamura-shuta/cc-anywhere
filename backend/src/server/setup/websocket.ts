@@ -36,6 +36,7 @@ export async function configureWebSocket(
       status: task.status,
     });
 
+    // タスク完了の更新を送信
     wsServer.broadcastTaskUpdate({
       taskId: task.id,
       status: task.status,
@@ -46,13 +47,25 @@ export async function configureWebSocket(
           task.completedAt && task.startedAt
             ? task.completedAt.getTime() - task.startedAt.getTime()
             : undefined,
-        result: task.result?.result,
+        result: task.result,
         workingDirectory: task.request.context?.workingDirectory,
+      },
+    });
+
+    // 進捗完了メッセージも送信
+    wsServer.broadcastTaskProgress({
+      taskId: task.id,
+      progress: {
+        phase: "complete",
+        message: "タスクが完了しました",
+        level: "success",
+        timestamp: new Date().toISOString(),
       },
     });
   });
 
   taskQueue.onTaskError((task, error) => {
+    // タスクエラーの更新を送信
     wsServer.broadcastTaskUpdate({
       taskId: task.id,
       status: task.status,
@@ -63,6 +76,17 @@ export async function configureWebSocket(
           code: "EXECUTION_ERROR",
         },
         workingDirectory: task.request.context?.workingDirectory,
+      },
+    });
+
+    // 進捗失敗メッセージも送信
+    wsServer.broadcastTaskProgress({
+      taskId: task.id,
+      progress: {
+        phase: "complete",
+        message: `タスクが失敗しました: ${error.message}`,
+        level: "error",
+        timestamp: new Date().toISOString(),
       },
     });
   });

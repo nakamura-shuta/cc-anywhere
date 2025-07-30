@@ -185,7 +185,7 @@ describe("TaskQueue", () => {
 
       const task = queue.get(taskId);
       expect(task?.status).toBe(TaskStatus.COMPLETED);
-      expect(task?.result?.result).toBe("Task completed");
+      expect(task?.result).toBe("Task completed");
       expect(task?.startedAt).toBeDefined();
       expect(task?.completedAt).toBeDefined();
     });
@@ -208,7 +208,7 @@ describe("TaskQueue", () => {
       const task = queue.get(taskId);
       expect(task?.status).toBe(TaskStatus.FAILED);
       expect(task?.error?.message).toBe("Task failed");
-      expect(task?.result?.error?.message).toBe("Task failed");
+      expect(task?.result).toBeUndefined(); // 失敗時はresultがundefined
     });
 
     it("should respect concurrency limit", async () => {

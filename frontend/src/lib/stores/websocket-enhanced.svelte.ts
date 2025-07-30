@@ -33,6 +33,7 @@ export class EnhancedWebSocketStore {
     maxReconnectAttempts: 5,
     heartbeatInterval: 30000,
     maxQueueSize: 100,
+    apiKey: import.meta.env.VITE_API_KEY || ''
   };
   
   // リアクティブ状態
@@ -164,8 +165,24 @@ export class EnhancedWebSocketStore {
     // ハートビート開始
     this.startHeartbeat();
     
+    // 認証メッセージを送信
+    this.authenticate();
+    
     // キューに溜まったメッセージを送信
     this.flushMessageQueue();
+  }
+  
+  /**
+   * 認証処理
+   */
+  private authenticate(): void {
+    console.log('[WebSocket] Sending authentication');
+    const apiKey = this.config.apiKey || import.meta.env.VITE_API_KEY || '';
+    
+    this.send({
+      type: 'auth',
+      payload: { apiKey }
+    });
   }
   
   /**

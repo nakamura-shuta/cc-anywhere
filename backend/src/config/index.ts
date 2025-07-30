@@ -11,7 +11,7 @@ const envSchema = z.object({
   PORT: z.string().default("3000").transform(Number),
   HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
-  CLAUDE_API_KEY: z.string(),
+  CLAUDE_API_KEY: z.string().optional(),
   API_KEY: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
   TASK_TIMEOUT_MS: z.string().default("1800000").transform(Number), // 30 minutes

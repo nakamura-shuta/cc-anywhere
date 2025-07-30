@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { TaskQueueImpl } from "../../../src/queue/task-queue";
-import { TaskStatus } from "../../../src/claude/types";
 import type { TaskRequest } from "../../../src/claude/types";
 import { getTypedEventBus } from "../../../src/events";
 
@@ -111,9 +110,7 @@ describe("TaskQueue Event Emissions", () => {
     expect(handler).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId,
-        result: expect.objectContaining({
-          status: TaskStatus.COMPLETED,
-        }),
+        result: "Task completed",
         duration: expect.any(Number),
         completedAt: expect.any(Date),
       }),
@@ -121,9 +118,7 @@ describe("TaskQueue Event Emissions", () => {
         type: "task.completed",
         payload: expect.objectContaining({
           taskId,
-          result: expect.objectContaining({
-            status: TaskStatus.COMPLETED,
-          }),
+          result: "Task completed",
           duration: expect.any(Number),
           completedAt: expect.any(Date),
         }),

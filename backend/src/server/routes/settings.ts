@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { ClaudeCodeClient } from "../../claude/claude-code-client";
+import { getSharedClaudeClient } from "../../claude/shared-instance";
 import type { ExecutionMode } from "../../claude/strategies";
 import { logger } from "../../utils/logger";
 
@@ -17,7 +17,7 @@ export interface UpdateSettingsRequest {
 }
 
 export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
-  const claudeClient = new ClaudeCodeClient();
+  const claudeClient = getSharedClaudeClient();
 
   // Get current settings
   fastify.get<{

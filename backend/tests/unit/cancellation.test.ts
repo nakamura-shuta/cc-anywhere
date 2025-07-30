@@ -4,9 +4,9 @@ import { TaskQueueImpl } from "../../src/queue/task-queue";
 import { TaskStatus } from "../../src/claude/types";
 import type { TaskRequest } from "../../src/claude/types";
 
-// Mock the ClaudeCodeClient
-vi.mock("../../src/claude/claude-code-client", () => ({
-  ClaudeCodeClient: vi.fn().mockImplementation(() => ({
+// Mock the shared instance
+vi.mock("../../src/claude/shared-instance", () => ({
+  getSharedClaudeClient: vi.fn().mockReturnValue({
     executeTask: vi.fn().mockImplementation(async (prompt, options) => {
       // Simulate a long-running task that checks abort signal
       return new Promise((resolve, reject) => {
@@ -35,7 +35,9 @@ vi.mock("../../src/claude/claude-code-client", () => ({
       });
     }),
     formatMessagesAsString: vi.fn().mockReturnValue("Task completed"),
-  })),
+    getCurrentMode: vi.fn().mockReturnValue("api-key"),
+    getModelName: vi.fn().mockReturnValue("claude-3-opus-20240229"),
+  }),
 }));
 
 // Mock the logger
@@ -65,7 +67,7 @@ describe("Task Cancellation", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    executor = new TaskExecutorImpl(true);
+    executor = new TaskExecutorImpl();
     queue = new TaskQueueImpl({ autoStart: false });
   });
 

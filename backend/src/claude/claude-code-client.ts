@@ -694,6 +694,14 @@ export class ClaudeCodeClient {
   }
 
   /**
+   * Get the current model name
+   * @returns Model name being used
+   */
+  getModelName(): string {
+    return this.strategy.getModelName();
+  }
+
+  /**
    * Determine the execution mode based on available credentials
    * @returns Execution mode to use
    */

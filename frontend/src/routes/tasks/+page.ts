@@ -1,7 +1,8 @@
 // タスク一覧ページのデータロード
 
 import type { PageLoad } from './$types';
-import { taskService } from '$lib/services/task.service';
+import { apiClient } from '$lib/api/client';
+import type { TaskResponse } from '$lib/types/api';
 import { error } from '@sveltejs/kit';
 
 // このページは動的データを扱うため、プリレンダリングを無効化
@@ -16,18 +17,20 @@ export const load: PageLoad = async ({ url }) => {
 
 		// APIからタスク一覧を取得
 		const offset = (page - 1) * limit;
-		const tasks = await taskService.list({
-			limit,
-			offset
+		const response = await apiClient.get<{ tasks: TaskResponse[], total: number, limit: number, offset: number }>('/api/tasks', {
+			params: {
+				limit,
+				offset
+			}
 		});
 
 		return {
-			tasks,
+			tasks: response.tasks,
 			pagination: {
 				page,
 				limit,
-				total: tasks.length,
-				totalPages: Math.ceil(tasks.length / limit)
+				total: response.total,
+				totalPages: Math.ceil(response.total / limit)
 			}
 		};
 	} catch (err) {

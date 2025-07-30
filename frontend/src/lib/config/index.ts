@@ -44,18 +44,22 @@ export function getConfig() {
 export function getWebSocketUrl(): string {
   const wsUrl = config.websocket.url;
   if (wsUrl) {
-    return wsUrl;
+    // /wsエンドポイントを追加
+    return wsUrl.endsWith('/ws') ? wsUrl : `${wsUrl}/ws`;
   }
   
   // API URLからWebSocket URLを生成
   const apiUrl = config.api.baseUrl;
+  let wsBaseUrl: string;
   if (apiUrl.startsWith('https://')) {
-    return apiUrl.replace('https://', 'wss://');
+    wsBaseUrl = apiUrl.replace('https://', 'wss://');
   } else if (apiUrl.startsWith('http://')) {
-    return apiUrl.replace('http://', 'ws://');
+    wsBaseUrl = apiUrl.replace('http://', 'ws://');
+  } else {
+    wsBaseUrl = 'ws://localhost:5000';
   }
   
-  return 'ws://localhost:5000';
+  return `${wsBaseUrl}/ws`;
 }
 
 /**

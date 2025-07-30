@@ -4,7 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import { taskStore } from '$lib/stores/api.svelte';
-	import { useTaskWebSocket } from '$lib/hooks/use-websocket.svelte';
+	import { useTaskWebSocket } from '$lib/hooks/use-task-websocket-enhanced.svelte';
 	import { TaskStatus } from '$lib/types/api';
 	import { ArrowLeft, RefreshCw, XCircle, Download, Clock, Activity, MessageSquare, CheckSquare, Folder, ChevronRight, GitBranch, Terminal, FileText, Search, ListTodo, Globe, Layers, CheckCircle, AlertCircle, Loader2 } from 'lucide-svelte';
 	import { formatDate } from '$lib/utils/date';
@@ -30,7 +30,7 @@
 	
 	
 	// WebSocketでタスクを監視（初期統計情報と初期データを渡す）
-	const ws = useTaskWebSocket(data.task.taskId || data.task.id, null, initialData);
+	const ws = useTaskWebSocket(data.task.taskId, null, initialData);
 	
 	// タスクの状態（WebSocketからの更新を反映）
 	let currentTask = $state(data.task);
@@ -202,7 +202,7 @@
 	async function handleSdkContinue() {
 		// 新しいタスク作成画面に遷移（SDK Continue用パラメータ付き）
 		const params = new URLSearchParams({
-			continueFromTaskId: currentTask.taskId || currentTask.id,
+			continueFromTaskId: currentTask.taskId,
 			mode: 'sdk-continue'
 		});
 		window.location.href = `/tasks/new?${params.toString()}`;
@@ -261,14 +261,16 @@
 		isRefreshing = true;
 		
 		try {
-			const taskId = currentTask.taskId || currentTask.id;
+			const taskId = currentTask.taskId;
 			await taskStore.fetchTask(taskId);
 			const taskState = taskStore.getTaskState(taskId);
 			if (taskState.data) {
 				currentTask = taskState.data;
+				console.log('[RefreshTask] Updated task:', currentTask);
+				console.log('[RefreshTask] Task result:', currentTask.result);
 			}
 			// logsはws.logsを使用するため、ここでは取得しない
-			// const logsResponse = await taskService.getLogs(currentTask.taskId || currentTask.id);
+			// const logsResponse = await taskService.getLogs(currentTask.taskId);
 			// logs = logsResponse.logs || [];
 		} finally {
 			isRefreshing = false;
@@ -278,7 +280,7 @@
 	// タスクのキャンセル
 	async function cancelTask() {
 		if (confirm('このタスクをキャンセルしますか？')) {
-			await taskStore.cancelTask(currentTask.taskId || currentTask.id);
+			await taskStore.cancelTask(currentTask.taskId);
 			await refreshTask();
 		}
 	}
@@ -292,7 +294,7 @@
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `task-${currentTask.taskId || currentTask.id}-logs.txt`;
+		a.download = `task-${currentTask.taskId}-logs.txt`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}
@@ -317,7 +319,7 @@
 		if (!ws.statusChange) return;
 		
 		const changeType = ws.statusChange.type;
-		const changeData = ws.statusChange.data;
+		const changeData = ws.statusChange.payload;
 		
 		// 同じステータス変更を二重に処理しない
 		const statusKey = `${changeType}-${changeData?.timestamp || Date.now()}`;
@@ -330,12 +332,23 @@
 			changeType.replace('task:', '');
 		
 		if (newStatus && ['completed', 'failed', 'cancelled', 'running', 'pending'].includes(newStatus)) {
+			console.log('[StatusChange] New status:', newStatus, 'Change type:', changeType, 'Payload:', changeData);
+			
 			// ローカルのステータスのみ更新（APIは呼ばない）
 			currentTask = {
 				...currentTask,
 				status: newStatus as TaskStatus,
 				updatedAt: new Date().toISOString()
 			};
+			
+			// task:updateメッセージの場合、metadata内のresultも更新
+			if (changeType === 'task:update' && changeData?.metadata?.result !== undefined) {
+				currentTask = {
+					...currentTask,
+					result: changeData.metadata.result
+				};
+				console.log('[StatusChange] Updated result from WebSocket:', changeData.metadata.result);
+			}
 			
 			// 完了系のステータスの場合のみ、タスクの詳細を取得
 			if (['completed', 'failed', 'cancelled'].includes(newStatus) && !isRefreshing) {
@@ -389,7 +402,7 @@
 			<Card.Content class="space-y-4">
 				<div>
 					<p class="text-sm text-muted-foreground">ID</p>
-					<p class="font-mono">{currentTask.taskId || currentTask.id}</p>
+					<p class="font-mono">{currentTask.taskId}</p>
 				</div>
 				{#if currentTask.continuedFrom || currentTask.parentTaskId}
 					<div>
@@ -434,15 +447,9 @@
 						</div>
 					</div>
 				{/if}
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<p class="text-sm text-muted-foreground">作成日時</p>
-						<p class="text-sm">{formatDate(currentTask.createdAt, 'full')}</p>
-					</div>
-					<div>
-						<p class="text-sm text-muted-foreground">更新日時</p>
-						<p class="text-sm">{currentTask.updatedAt ? formatDate(currentTask.updatedAt, 'full') : '-'}</p>
-					</div>
+				<div>
+					<p class="text-sm text-muted-foreground">作成日時</p>
+					<p class="text-sm">{formatDate(currentTask.createdAt, 'full')}</p>
 				</div>
 				{#if currentTask.completedAt}
 					<div>
@@ -546,7 +553,7 @@
 										</ul>
 										<Button 
 											variant="outline" 
-											onclick={() => window.location.href = `/tasks/${currentTask.taskId || currentTask.id}/continue`}
+											onclick={() => window.location.href = `/tasks/${currentTask.taskId}/continue`}
 											class="w-full gap-2"
 										>
 											<RefreshCw class="h-4 w-4" />
@@ -562,7 +569,7 @@
 		</Card.Root>
 
 		<!-- 進捗表示 -->
-		{#if ws.progress && currentTask.status === 'running'}
+		{#if ws.progress && ws.progress.phase !== 'complete' && currentTask.status === 'running'}
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>実行進捗</Card.Title>
@@ -592,6 +599,11 @@
 
 		<!-- 実行結果 -->
 		{#if currentTask.result}
+			{(() => {
+				console.log('[ResultDisplay] Displaying result:', currentTask.result);
+				console.log('[ResultDisplay] Result type:', typeof currentTask.result);
+				return '';
+			})()}
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>実行結果</Card.Title>
@@ -634,7 +646,7 @@
 							<button 
 								type="button"
 								class="w-full p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer text-left"
-								onclick={() => window.location.href = `/tasks/${childTask.id || childTask.taskId}`}
+								onclick={() => window.location.href = `/tasks/${childTask.taskId}`}
 							>
 								<div class="flex items-start justify-between">
 									<div class="flex-1 space-y-2">

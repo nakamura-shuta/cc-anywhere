@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { TaskExecutorImpl } from "../../../src/claude/executor";
-import { ClaudeCodeClient } from "../../../src/claude/claude-code-client";
+import { getSharedClaudeClient } from "../../../src/claude/shared-instance";
 import type { TaskRequest } from "../../../src/claude/types";
 
-vi.mock("../../../src/claude/claude-code-client");
+vi.mock("../../../src/claude/shared-instance");
 vi.mock("fs", () => ({
   existsSync: vi.fn(() => true),
 }));
@@ -18,9 +18,11 @@ describe("TaskExecutor", () => {
     mockCodeClient = {
       executeTask: vi.fn(),
       formatMessagesAsString: vi.fn(),
+      getCurrentMode: vi.fn().mockReturnValue("api-key"),
+      getModelName: vi.fn().mockReturnValue("claude-3-opus-20240229"),
     };
 
-    vi.mocked(ClaudeCodeClient).mockImplementation(() => mockCodeClient);
+    vi.mocked(getSharedClaudeClient).mockReturnValue(mockCodeClient);
 
     executor = new TaskExecutorImpl();
   });

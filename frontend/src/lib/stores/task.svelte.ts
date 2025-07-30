@@ -7,6 +7,38 @@ import type { TaskResponse } from '$lib/types/api';
  * EntityStoreを継承して実装
  */
 class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
+  constructor() {
+    super();
+    // 初期化時に全タスクを購読
+    this.subscribeToAllTasks();
+  }
+  
+  private subscribeToAllTasks(): void {
+    // WebSocketストアを取得してタスクの更新を購読
+    import('./websocket-enhanced.svelte').then(({ getWebSocketStore }) => {
+      const ws = getWebSocketStore();
+      
+      // WebSocket接続後に全タスクを購読
+      const unsubscribe = ws.on('auth:success', () => {
+        // 全タスクの更新を購読
+        ws.send({
+          type: 'subscribe',
+          payload: { taskId: '*' }
+        });
+        
+        // 一度だけ実行するので解除
+        unsubscribe();
+      });
+      
+      // 既に接続済みの場合は即座に購読
+      if (ws.isConnected) {
+        ws.send({
+          type: 'subscribe',
+          payload: { taskId: '*' }
+        });
+      }
+    });
+  }
   // タスク固有の状態
   runningCount = $derived(
     this.items.filter(task => task.status === 'running').length
@@ -30,7 +62,7 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
       this.loading = true;
       this.error = null;
       await taskService.cancel(taskId);
-      this.updateLocal(taskId, { status: 'cancelled' as any });
+      this.updateLocalByTaskId(taskId, { status: 'cancelled' as any });
       return true;
     } catch (err) {
       this.error = err instanceof Error ? err : new Error('Failed to cancel task');
@@ -89,7 +121,7 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
         break;
         
       case 'task:progress':
-        this.updateLocal(payload.taskId, {
+        this.updateLocalByTaskId(payload.taskId, {
           progressData: payload.progressData
         });
         break;
@@ -98,7 +130,10 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
   
   private handleTaskUpdate(payload: any): void {
     const taskId = payload.taskId || payload.id;
-    if (!taskId) return;
+    
+    if (!taskId) {
+      return;
+    }
     
     const updates: Partial<TaskResponse> = {};
     
@@ -118,7 +153,16 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
       updates.updatedAt = payload.timestamp;
     }
     
-    this.updateLocal(taskId, updates);
+    this.updateLocalByTaskId(taskId, updates);
+  }
+  
+  // タスクIDで更新するメソッドを追加
+  private updateLocalByTaskId(taskId: string, data: Partial<TaskResponse>): void {
+    const index = this.items.findIndex(item => item.taskId === taskId);
+    
+    if (index !== -1) {
+      this.items[index] = { ...this.items[index], ...data };
+    }
   }
   
   private handleLegacyTaskStatus(message: WebSocketMessage): void {
@@ -134,7 +178,7 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
     
     const status = statusMap[message.type] || message.payload?.status;
     if (status) {
-      this.updateLocal(taskId, { status });
+      this.updateLocalByTaskId(taskId, { status });
     }
   }
   

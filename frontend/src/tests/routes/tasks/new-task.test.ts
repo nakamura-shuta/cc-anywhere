@@ -75,7 +75,6 @@ describe('New Task Page - SDK Continue Mode', () => {
 
 		// 前のタスク情報を返すようモック
 		vi.mocked(taskService.get).mockResolvedValue({
-			id: 'task-123',
 			taskId: 'task-123',
 			status: TaskStatus.COMPLETED,
 			instruction: '前回のタスク指示',
@@ -109,7 +108,6 @@ describe('New Task Page - SDK Continue Mode', () => {
 
 		// 前のタスク情報を返すようモック
 		vi.mocked(taskService.get).mockResolvedValue({
-			id: 'task-123',
 			taskId: 'task-123',
 			status: TaskStatus.COMPLETED,
 			instruction: '前回のタスク',
@@ -122,7 +120,6 @@ describe('New Task Page - SDK Continue Mode', () => {
 		// 成功レスポンスをモック
 		const mockTaskState = {
 			data: {
-				id: 'new-task-123',
 				taskId: 'new-task-123',
 				status: TaskStatus.RUNNING,
 				instruction: '続きの作業',
@@ -197,7 +194,6 @@ describe('New Task Page - SDK Continue Mode', () => {
 		// 前のタスク情報を返すようモック
 		const previousWorkingDir = '/home/user/previous-project';
 		vi.mocked(taskService.get).mockResolvedValue({
-			id: 'task-123',
 			taskId: 'task-123',
 			status: TaskStatus.COMPLETED,
 			instruction: '前回のタスク',

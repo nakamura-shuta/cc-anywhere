@@ -22,7 +22,7 @@
 	
 	// 現在のタスクの子タスクを検索
 	let children = $derived(
-		allTasks.filter(t => t.continuedFrom === task.id || t.parentTaskId === task.id)
+		allTasks.filter(t => t.continuedFrom === task.taskId || t.parentTaskId === task.taskId)
 	);
 	
 	// ツリーノードを構築
@@ -30,7 +30,7 @@
 		...task,
 		children: children.map(child => ({
 			...child,
-			children: allTasks.filter(t => t.continuedFrom === child.id || t.parentTaskId === child.id)
+			children: allTasks.filter(t => t.continuedFrom === child.taskId || t.parentTaskId === child.taskId)
 		}))
 	});
 	
@@ -74,7 +74,7 @@
 					<button
 						type="button" 
 						class="flex-1 p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer text-left"
-						onclick={() => viewTask(task.id || task.taskId)}
+						onclick={() => viewTask(task.taskId)}
 					>
 						<div class="flex items-start justify-between">
 							<div class="flex-1 space-y-1">
@@ -134,7 +134,7 @@
 				<button
 					type="button" 
 					class="flex-1 p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer text-left"
-					onclick={() => viewTask(task.id || task.taskId)}
+					onclick={() => viewTask(task.taskId)}
 				>
 					<div class="flex items-start justify-between">
 						<div class="flex-1 space-y-1">

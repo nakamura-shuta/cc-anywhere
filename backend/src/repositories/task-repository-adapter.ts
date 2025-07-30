@@ -394,21 +394,7 @@ export class TaskRepositoryAdapter {
       startedAt: record.startedAt,
       completedAt: record.completedAt,
       retryMetadata: record.retryMetadata,
-      result: record.result
-        ? {
-            taskId: record.id,
-            status: record.status,
-            instruction: record.instruction,
-            createdAt: record.createdAt,
-            startedAt: record.startedAt,
-            completedAt: record.completedAt,
-            result: record.result.result,
-            error: record.error,
-            logs: record.result.logs,
-            todos: record.result.todos,
-            sdkSessionId: record.sdkSessionId,
-          }
-        : undefined,
+      result: record.result, // データベースに保存されているresultをそのまま返す
       error: record.error ? new Error(record.error.message || record.error) : undefined,
     };
   }
