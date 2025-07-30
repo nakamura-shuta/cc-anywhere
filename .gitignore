@@ -5,20 +5,27 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build output
-dist/
+backend/dist/
+frontend/dist/
+frontend/.svelte-kit/
 *.tsbuildinfo
+
+# Frontend build artifacts deployed to backend
+backend/web/
 
 # Working directories
 .work/
 .claude/
 
 # Configuration files with personal data
-config/repositories.json
+backend/config/repositories.json
 
 # Environment files
 .env
 .env.local
 .env.*.local
+backend/.env
+backend/.env.backup
 
 # IDE
 .vscode/
@@ -32,18 +39,20 @@ coverage/
 *.lcov
 
 # Logs
-logs/
+backend/logs/
 *.log
 
 # Temporary files
 tmp/
 temp/
 .work/sandbox/
+*.backup-*
 
 # Database
-*.db
-*.sqlite
-data/
+backend/data/*.db
+backend/data/*.db-wal
+backend/data/*.db-shm
+backend/data/*.sqlite
 
 # Personal configuration
 CLAUDE.md
@@ -56,3 +65,13 @@ CLAUDE.md
 .caffeinate.pid
 .pm2/.worktrees/
 .worktrees/
+
+# Tunnel files
+*.tunnel
+*.qr.txt
+tunnel-qr.txt
+
+# Test Repositories
+test-repo/
+test-repos/
+.repos/

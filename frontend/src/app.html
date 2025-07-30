@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ja">
+	<head>
+		<!-- 文字エンコーディングをUTF-8に設定 -->
+		<meta charset="utf-8" />
+		
+		<!-- ファビコンの設定: %sveltekit.assets%はstaticディレクトリを指す -->
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		
+		<!-- レスポンシブデザイン対応: モバイルデバイスでの表示を最適化 -->
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		
+		<!-- SvelteKitが動的に生成するhead要素（meta tags、title等）を挿入する場所 -->
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<!-- 
+			SvelteKitアプリケーションの本体が挿入される
+		-->
+		%sveltekit.body%
+	</body>
+</html>

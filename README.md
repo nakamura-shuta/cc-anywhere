@@ -44,6 +44,16 @@ curl -X POST http://localhost:5000/api/tasks \
   }'
 ```
 
+## プロジェクト構造
+
+```
+cc-anywhere/
+├── backend/      # バックエンドAPI（Node.js/TypeScript）
+├── frontend/     # フロントエンド（SvelteKit）
+├── shared/       # 共有型定義
+└── docs/         # ドキュメント
+```
+
 ## セットアップ
 
 ### 前提条件
@@ -59,12 +69,12 @@ curl -X POST http://localhost:5000/api/tasks \
 git clone https://github.com/your-username/cc-anywhere
 cd cc-anywhere
 
-# 依存関係のインストール
-npm install
-
 # 環境変数の設定
 cp .env.example .env
 # .envファイルを編集してCLAUDE_API_KEYを設定
+
+# 統合ビルド（フロントエンド＋バックエンド）
+./scripts/build-all.sh
 ```
 
 ### 環境変数
@@ -92,7 +102,7 @@ MAX_CONCURRENT_TASKS=10
 QUEUE_CONCURRENCY=2
 
 # データベース（SQLite）
-DB_PATH=./data/cc-anywhere.db
+DB_PATH=./backend/data/cc-anywhere.db
 
 # Git Worktree設定
 ENABLE_WORKTREE=true
@@ -109,12 +119,12 @@ Web UIで使用する(Claude Codeの実行対象）ローカルリポジトリ�
 
 ```bash
 # サンプルから設定ファイルを作成
-cp config/repositories.json.example config/repositories.json
+cp backend/config/repositories.json.example backend/config/repositories.json
 
 # リポジトリ情報を編集
 ```
 
-`config/repositories.json`の例：
+`backend/config/repositories.json`の例：
 ```json
 {
   "repositories": [
@@ -130,13 +140,37 @@ cp config/repositories.json.example config/repositories.json
 }
 ```
 
-### 開発サーバーの起動
+### サーバーの起動
+
+#### 本番環境（推奨）
 
 ```bash
-npm run dev
+# PM2を使用した本番環境起動
+./scripts/start-production.sh
 ```
 
-サーバーはデフォルトで `http://localhost:5000` で起動します。
+- アクセスURL: `http://localhost:5000`
+- フロントエンドとAPIが統合されて配信されます
+
+#### 開発環境
+
+```bash
+# フロントエンドとバックエンドを別々に起動（ホットリロード有効）
+./scripts/start-dev.sh
+```
+
+- バックエンドAPI: `http://localhost:5000`
+- フロントエンド開発サーバー: `http://localhost:4444`
+
+#### クラムシェルモード（MacBook）
+
+MacBookを閉じてもサーバーが動作し続けるモード：
+
+```bash
+./backend/scripts/start-clamshell.sh
+```
+
+外部アクセス方法（ngrok/Cloudflare Tunnel）を選択でき、QRコードでスマートフォンからアクセスできます。
 
 ### Web UI について
 
@@ -157,12 +191,19 @@ cc-anywhere のWeb UIは以下の機能を提供します：
 
 Web UIにアクセス：
 ```
+http://localhost:5000
+```
+
+認証が有効な場合は、URLパラメータでAPIキーを指定：
+```
 http://localhost:5000/?apiKey=your-secret-api-key
 ```
 
-別のポートで起動する場合：
+### サーバーの停止
+
 ```bash
-PORT=5001 npm run dev
+# すべてのプロセスを停止
+./scripts/stop-all.sh
 ```
 
 ### ワーカーシステム
@@ -191,7 +232,11 @@ npm run test:watch
 
 ### その他のコマンド
 
+## バックエンド
+
 ```bash
+cd backend
+
 # Lintチェック
 npm run lint
 
@@ -204,8 +249,25 @@ npm run type-check
 # ビルド
 npm run build
 
-# クリーンビルド
-npm run clean && npm run build
+# PM2管理
+./scripts/pm2-manager.sh status    # ステータス確認
+./scripts/pm2-manager.sh logs      # ログ確認
+./scripts/pm2-manager.sh restart   # 再起動
+```
+
+## フロントエンド
+
+```bash
+cd frontend
+
+# Lintチェック
+npm run lint
+
+# 型チェック（Svelte）
+npm run check
+
+# ビルド
+npm run build
 ```
 
 ## バッチタスク
@@ -240,6 +302,7 @@ npm run clean && npm run build
 - [Git Worktree](docs/features/git-worktree.md) - 独立した作業環境での実行
 - [スケジューラー](docs/features/scheduler.md) - 定期実行とCron式の使用
 - [外部アクセス](docs/features/external-access.md) - Cloudflare Tunnelの設定
+- [フロントエンド開発ガイド](docs/frontend/README.md) - Svelte 5 & shadcn-svelteの包括的な学習ガイド
 - [変更履歴](docs/CHANGELOG.md) - 最新の機能と更新
 
 ## ライセンス

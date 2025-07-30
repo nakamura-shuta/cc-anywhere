@@ -15,6 +15,9 @@ NC='\033[0m' # No Color
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+ROOT_DIR="$PROJECT_DIR"
+BACKEND_DIR="$PROJECT_DIR/backend"
+FRONTEND_DIR="$PROJECT_DIR/frontend"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║     CC-Anywhere クラムシェルモード起動       ║${NC}"
@@ -26,6 +29,13 @@ cd "$PROJECT_DIR"
 
 # 1. 環境設定の確認と有効化
 echo -e "${YELLOW}1. 環境設定を確認中...${NC}"
+
+# .envファイルの確認
+if [ ! -f "$ROOT_DIR/.env" ]; then
+    echo -e "${RED}エラー: $ROOT_DIR/.env ファイルが見つかりません${NC}"
+    echo ".env.example をコピーして設定してください"
+    exit 1
+fi
 
 # 外部アクセス方法の選択
 echo -e "${YELLOW}外部アクセス方法を選択してください:${NC}"
@@ -39,57 +49,57 @@ case $choice in
     1)
         # ngrokを有効化
         echo -e "${GREEN}ngrokを使用します${NC}"
-        if grep -q "ENABLE_NGROK=" .env; then
-            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' .env
+        if grep -q "ENABLE_NGROK=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=true/g' "$ROOT_DIR/.env"
         else
-            echo "ENABLE_NGROK=true" >> .env
+            echo "ENABLE_NGROK=true" >> "$ROOT_DIR/.env"
         fi
-        if grep -q "TUNNEL_TYPE=" .env; then
-            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' .env
+        if grep -q "TUNNEL_TYPE=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=ngrok/g' "$ROOT_DIR/.env"
         else
-            echo "TUNNEL_TYPE=ngrok" >> .env
+            echo "TUNNEL_TYPE=ngrok" >> "$ROOT_DIR/.env"
         fi
         ;;
     2)
         # Cloudflare Tunnelを有効化
         echo -e "${GREEN}Cloudflare Tunnelを使用します${NC}"
-        if ! grep -q "CLOUDFLARE_TUNNEL_TOKEN=" .env || grep -q "CLOUDFLARE_TUNNEL_TOKEN=$" .env; then
+        if ! grep -q "CLOUDFLARE_TUNNEL_TOKEN=" "$ROOT_DIR/.env" || grep -q "CLOUDFLARE_TUNNEL_TOKEN=$" "$ROOT_DIR/.env"; then
             echo -e "${YELLOW}Cloudflare Tunnel Tokenが必要です${NC}"
             echo "https://dash.cloudflare.com でトンネルを作成してトークンを取得してください"
             read -p "Cloudflare Tunnel Token: " cf_token
-            if grep -q "CLOUDFLARE_TUNNEL_TOKEN=" .env; then
-                sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" .env
+            if grep -q "CLOUDFLARE_TUNNEL_TOKEN=" "$ROOT_DIR/.env"; then
+                sed -i '' "s/CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$cf_token/g" "$ROOT_DIR/.env"
             else
-                echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> .env
+                echo "CLOUDFLARE_TUNNEL_TOKEN=$cf_token" >> "$ROOT_DIR/.env"
             fi
         fi
-        if grep -q "TUNNEL_TYPE=" .env; then
-            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' .env
+        if grep -q "TUNNEL_TYPE=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=cloudflare/g' "$ROOT_DIR/.env"
         else
-            echo "TUNNEL_TYPE=cloudflare" >> .env
+            echo "TUNNEL_TYPE=cloudflare" >> "$ROOT_DIR/.env"
         fi
-        if grep -q "ENABLE_NGROK=" .env; then
-            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env
+        if grep -q "ENABLE_NGROK=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$ROOT_DIR/.env"
         fi
         ;;
     3)
         # ローカルのみ
         echo -e "${GREEN}ローカルアクセスのみ${NC}"
-        if grep -q "ENABLE_NGROK=" .env; then
-            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' .env
+        if grep -q "ENABLE_NGROK=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/ENABLE_NGROK=.*/ENABLE_NGROK=false/g' "$ROOT_DIR/.env"
         fi
-        if grep -q "TUNNEL_TYPE=" .env; then
-            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' .env
+        if grep -q "TUNNEL_TYPE=" "$ROOT_DIR/.env"; then
+            sed -i '' 's/TUNNEL_TYPE=.*/TUNNEL_TYPE=none/g' "$ROOT_DIR/.env"
         else
-            echo "TUNNEL_TYPE=none" >> .env
+            echo "TUNNEL_TYPE=none" >> "$ROOT_DIR/.env"
         fi
         ;;
 esac
 
 # QRコード表示を確認
-if ! grep -q "SHOW_QR_CODE=true" .env; then
+if ! grep -q "SHOW_QR_CODE=true" "$ROOT_DIR/.env"; then
     echo -e "${YELLOW}QRコード表示を有効化中...${NC}"
-    sed -i '' 's/SHOW_QR_CODE=false/SHOW_QR_CODE=true/g' .env
+    sed -i '' 's/SHOW_QR_CODE=false/SHOW_QR_CODE=true/g' "$ROOT_DIR/.env"
 fi
 
 echo -e "${GREEN}✓ 外部アクセス設定完了${NC}"
@@ -98,8 +108,21 @@ echo -e "${GREEN}✓ QRコード: 有効${NC}"
 # 2. ビルド確認
 echo ""
 echo -e "${YELLOW}2. ビルドを確認中...${NC}"
-if [ ! -d "dist" ]; then
+
+# フロントエンドビルド
+if [ ! -d "$FRONTEND_DIR/build" ]; then
+    echo -e "${YELLOW}フロントエンドをビルド中...${NC}"
+    cd "$FRONTEND_DIR"
     npm run build
+    cd "$PROJECT_DIR"
+fi
+
+# バックエンドビルド
+if [ ! -d "$BACKEND_DIR/dist" ]; then
+    echo -e "${YELLOW}バックエンドをビルド中...${NC}"
+    cd "$BACKEND_DIR"
+    npm run build
+    cd "$PROJECT_DIR"
 fi
 echo -e "${GREEN}✓ ビルド完了${NC}"
 
@@ -110,10 +133,13 @@ echo -e "${YELLOW}3. 既存のプロセスを停止中...${NC}"
 # 開発モードのプロセスを停止
 pkill -f "tsx watch" 2>/dev/null || true
 pkill -f "npm run dev" 2>/dev/null || true
+pkill -f "vite" 2>/dev/null || true
 
 # PM2プロセスを停止
-pm2 stop cc-anywhere 2>/dev/null || true
-pm2 delete cc-anywhere 2>/dev/null || true
+pm2 stop cc-anywhere-backend 2>/dev/null || true
+pm2 delete cc-anywhere-backend 2>/dev/null || true
+pm2 stop cc-anywhere-frontend 2>/dev/null || true
+pm2 delete cc-anywhere-frontend 2>/dev/null || true
 
 # 既存のcaffeinateを停止
 if [ -f "$PROJECT_DIR/.caffeinate.pid" ]; then
@@ -127,8 +153,20 @@ echo -e "${GREEN}✓ クリーンアップ完了${NC}"
 echo ""
 echo -e "${YELLOW}4. PM2で起動中...${NC}"
 
-# ecosystem.config.jsを使用して起動
-pm2 start ecosystem.config.js --env production
+# バックエンドの起動
+cd "$BACKEND_DIR"
+if [ -f "ecosystem.config.js" ]; then
+    pm2 start ecosystem.config.js --env production
+else
+    # ecosystem.config.jsがない場合は直接起動
+    pm2 start dist/index.js --name cc-anywhere-backend --env production
+fi
+
+# フロントエンドの起動（静的ファイルサーバーとして）
+cd "$FRONTEND_DIR"
+pm2 serve build 3000 --name cc-anywhere-frontend --spa
+
+cd "$PROJECT_DIR"
 
 # PM2の自動起動設定
 pm2 save
@@ -157,7 +195,7 @@ echo -e "${BLUE}（10秒程度かかります）${NC}"
 sleep 10
 
 # アプリケーションのURLを表示
-PORT=$(grep "^PORT=" .env | cut -d'=' -f2 || echo "5000")
+PORT=$(grep "^PORT=" "$ROOT_DIR/.env" | cut -d'=' -f2 || echo "5000")
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
@@ -165,27 +203,29 @@ echo -e "${GREEN}║          セットアップ完了！                  ║${
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
-echo -e "${BLUE}ローカルURL:${NC} http://localhost:$PORT"
+echo -e "${BLUE}ローカルURL:${NC}"
+echo "  - バックエンド: http://localhost:$PORT"
+echo "  - フロントエンド: http://localhost:3000"
 echo ""
 
 # トンネルURLとQRコードを表示
 if [ "$choice" = "1" ]; then
     echo -e "${MAGENTA}=== ngrok URL と QRコード ===${NC}"
     # 保存されたQRコードファイルがあればそちらを優先表示
-    if [ -f "$PROJECT_DIR/data/last-qr.txt" ] && [ -f "$PROJECT_DIR/data/last-access-info.json" ]; then
+    if [ -f "$BACKEND_DIR/data/last-qr.txt" ] && [ -f "$BACKEND_DIR/data/last-access-info.json" ]; then
         "$SCRIPT_DIR/show-qr-direct.sh"
     else
         # ファイルがない場合はログから取得
-        pm2 logs cc-anywhere --lines 200 --nostream --raw | awk '/External Access Information \(ngrok\)/,/^$/{print}' | tail -100
+        pm2 logs cc-anywhere-backend --lines 200 --nostream --raw | awk '/External Access Information \(ngrok\)/,/^$/{print}' | tail -100
     fi
 elif [ "$choice" = "2" ]; then
     echo -e "${MAGENTA}=== Cloudflare Tunnel URL と QRコード ===${NC}"
     # 保存されたQRコードファイルがあればそちらを優先表示
-    if [ -f "$PROJECT_DIR/data/last-qr.txt" ] && [ -f "$PROJECT_DIR/data/last-access-info.json" ]; then
+    if [ -f "$BACKEND_DIR/data/last-qr.txt" ] && [ -f "$BACKEND_DIR/data/last-access-info.json" ]; then
         "$SCRIPT_DIR/show-qr-direct.sh"
     else
         # ファイルがない場合はログから取得
-        pm2 logs cc-anywhere --lines 200 --nostream --raw | awk '/External Access Information \(cloudflare\)/,/^$/{print}' | tail -100
+        pm2 logs cc-anywhere-backend --lines 200 --nostream --raw | awk '/External Access Information \(cloudflare\)/,/^$/{print}' | tail -100
     fi
 fi
 
@@ -196,7 +236,7 @@ echo "2. または、URLを直接ブラウザに入力"
 echo ""
 
 echo -e "${YELLOW}管理コマンド:${NC}"
-echo "  ログ確認:     pm2 logs cc-anywhere"
+echo "  ログ確認:     pm2 logs cc-anywhere-backend"
 echo "  状態確認:     pm2 status"
 echo "  停止:         ./scripts/pm2-manager.sh stop"
 echo "  URL再表示:    ./scripts/tunnel-manager.sh show"
@@ -209,4 +249,4 @@ echo ""
 
 # 最後にリアルタイムログを表示（Ctrl+Cで終了）
 echo -e "${BLUE}リアルタイムログを表示します（Ctrl+Cで終了）:${NC}"
-pm2 logs cc-anywhere --lines 0
+pm2 logs cc-anywhere-backend --lines 0

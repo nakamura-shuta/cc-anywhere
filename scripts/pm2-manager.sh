@@ -15,9 +15,11 @@ NC='\033[0m' # No Color
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+BACKEND_DIR="$PROJECT_DIR/backend"
 
 # アプリケーション名
-APP_NAME="cc-anywhere"
+APP_NAME_BACKEND="cc-anywhere-backend"
+APP_NAME_FRONTEND="cc-anywhere-frontend"
 
 # ヘルプ表示
 show_help() {
@@ -36,7 +38,6 @@ show_help() {
     echo "  info          - 詳細情報を表示"
     echo "  flush         - ログをクリア"
     echo "  reload        - グレースフルリロード"
-    echo "  scale [数]    - インスタンス数を変更"
     echo "  save          - 現在の状態を保存"
     echo "  resurrect     - 保存した状態を復元"
     echo ""
@@ -44,7 +45,7 @@ show_help() {
 
 # ステータス確認
 check_status() {
-    if pm2 describe $APP_NAME > /dev/null 2>&1; then
+    if pm2 describe $APP_NAME_BACKEND > /dev/null 2>&1; then
         return 0
     else
         return 1
@@ -55,15 +56,29 @@ check_status() {
 start_app() {
     echo -e "${GREEN}CC-Anywhereを起動中...${NC}"
     
-    # ビルドチェック
-    if [ ! -d "$PROJECT_DIR/dist" ]; then
-        echo -e "${YELLOW}ビルドが必要です...${NC}"
-        cd "$PROJECT_DIR" && npm run build
+    # フロントエンドビルドチェック
+    if [ ! -d "$PROJECT_DIR/frontend/build" ]; then
+        echo -e "${YELLOW}フロントエンドのビルドが必要です...${NC}"
+        cd "$PROJECT_DIR/frontend" && npm run build
     fi
     
-    # PM2で起動（ecosystem.config.jsを使用）
-    cd "$PROJECT_DIR"
-    pm2 start ecosystem.config.js --env development
+    # バックエンドビルドチェック
+    if [ ! -d "$BACKEND_DIR/dist" ]; then
+        echo -e "${YELLOW}バックエンドのビルドが必要です...${NC}"
+        cd "$BACKEND_DIR" && npm run build
+    fi
+    
+    # PM2で起動
+    cd "$BACKEND_DIR"
+    if [ -f "ecosystem.config.js" ]; then
+        pm2 start ecosystem.config.js --env production
+    else
+        pm2 start dist/index.js --name $APP_NAME_BACKEND
+    fi
+    
+    # フロントエンドを静的サーバーとして起動
+    cd "$PROJECT_DIR/frontend"
+    pm2 serve build 3000 --name $APP_NAME_FRONTEND --spa
     
     # macOSの場合はcaffeinateも起動
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -73,19 +88,21 @@ start_app() {
         echo -e "${CYAN}MacBookを閉じても動作し続けます${NC}"
     fi
     
-    # ngrok情報を表示
+    # トンネル情報を表示
     sleep 3
-    if grep -q "ENABLE_NGROK=true" "$PROJECT_DIR/.env" 2>/dev/null; then
+    if grep -q "ENABLE_NGROK=true" "$BACKEND_DIR/.env" 2>/dev/null; then
         echo -e "${MAGENTA}ngrokが有効です。ログでURLを確認してください${NC}"
-        pm2 logs $APP_NAME --lines 50 | grep -i "ngrok\|tunnel" || true
+        pm2 logs $APP_NAME_BACKEND --lines 50 | grep -i "ngrok\|tunnel" || true
     fi
 }
 
 # 停止
 stop_app() {
     echo -e "${YELLOW}CC-Anywhereを停止中...${NC}"
-    pm2 stop $APP_NAME 2>/dev/null || echo "既に停止しています"
-    pm2 delete $APP_NAME 2>/dev/null || true
+    pm2 stop $APP_NAME_BACKEND 2>/dev/null || echo "バックエンドは既に停止しています"
+    pm2 delete $APP_NAME_BACKEND 2>/dev/null || true
+    pm2 stop $APP_NAME_FRONTEND 2>/dev/null || echo "フロントエンドは既に停止しています"
+    pm2 delete $APP_NAME_FRONTEND 2>/dev/null || true
     
     # caffeinateも停止
     if [ -f "$PROJECT_DIR/.caffeinate.pid" ]; then
@@ -100,18 +117,25 @@ show_info() {
     echo ""
     
     if check_status; then
-        pm2 describe $APP_NAME
-        echo ""
         echo -e "${GREEN}アプリケーションは実行中です${NC}"
+        echo ""
+        echo -e "${CYAN}バックエンド:${NC}"
+        pm2 describe $APP_NAME_BACKEND | grep -E "status|cpu|memory" || true
+        echo ""
+        echo -e "${CYAN}フロントエンド:${NC}"
+        pm2 describe $APP_NAME_FRONTEND | grep -E "status|cpu|memory" || true
         
         # URLを表示
-        PORT=$(grep "^PORT=" "$PROJECT_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "5000")
-        echo -e "${CYAN}ローカルURL: http://localhost:$PORT${NC}"
+        PORT=$(grep "^PORT=" "$BACKEND_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "5000")
+        echo ""
+        echo -e "${CYAN}ローカルURL:${NC}"
+        echo "  - バックエンド: http://localhost:$PORT"
+        echo "  - フロントエンド: http://localhost:3000"
         
         # メモリ使用量
         echo ""
         echo -e "${YELLOW}リソース使用状況:${NC}"
-        pm2 list | grep $APP_NAME
+        pm2 list | grep -E "$APP_NAME_BACKEND|$APP_NAME_FRONTEND" || true
     else
         echo -e "${RED}アプリケーションは停止しています${NC}"
     fi
@@ -137,16 +161,24 @@ case "$1" in
         "$SCRIPT_DIR/start-clamshell.sh"
         ;;
     restart)
-        pm2 restart $APP_NAME
+        pm2 restart $APP_NAME_BACKEND
+        pm2 restart $APP_NAME_FRONTEND
         ;;
     status)
-        pm2 status $APP_NAME
+        pm2 status
         ;;
     logs)
-        pm2 logs $APP_NAME
+        echo -e "${CYAN}バックエンドログ:${NC}"
+        pm2 logs $APP_NAME_BACKEND
+        ;;
+    logs-backend)
+        pm2 logs $APP_NAME_BACKEND
+        ;;
+    logs-frontend)
+        pm2 logs $APP_NAME_FRONTEND
         ;;
     logs-error)
-        pm2 logs $APP_NAME --err
+        pm2 logs $APP_NAME_BACKEND --err
         ;;
     monitor)
         pm2 monit
@@ -155,18 +187,13 @@ case "$1" in
         show_info
         ;;
     flush)
-        pm2 flush $APP_NAME
+        pm2 flush $APP_NAME_BACKEND
+        pm2 flush $APP_NAME_FRONTEND
         echo -e "${GREEN}ログをクリアしました${NC}"
         ;;
     reload)
-        pm2 reload $APP_NAME
-        ;;
-    scale)
-        if [ -z "$2" ]; then
-            echo -e "${RED}インスタンス数を指定してください${NC}"
-            exit 1
-        fi
-        pm2 scale $APP_NAME $2
+        pm2 reload $APP_NAME_BACKEND
+        pm2 reload $APP_NAME_FRONTEND
         ;;
     save)
         pm2 save
