@@ -361,28 +361,31 @@
 	});
 </script>
 
-<div class="container mx-auto p-4 md:p-6 max-w-7xl">
-	<div class="mb-6">
+<div class="space-y-4 lg:space-y-6">
+	<div>
 		<Button variant="ghost" onclick={() => window.location.href = '/tasks'} class="gap-2 mb-4">
 			<ArrowLeft class="h-4 w-4" />
-			タスク一覧に戻る
+			<span class="hidden sm:inline">タスク一覧に戻る</span>
+			<span class="sm:hidden">戻る</span>
 		</Button>
-		<div class="flex items-center justify-between">
-			<h1 class="text-3xl font-bold">タスク詳細</h1>
-			<div class="flex gap-2">
+		<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+			<h1 class="text-2xl lg:text-3xl font-bold">タスク詳細</h1>
+			<div class="flex items-center gap-2">
 				{#if ws.connected}
 					<div class="flex items-center gap-2 text-sm text-muted-foreground">
 						<div class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-						リアルタイム更新中
+						<span class="hidden sm:inline">リアルタイム更新中</span>
+						<span class="sm:hidden">接続中</span>
 					</div>
 				{/if}
 				<Button 
 					variant="outline" 
 					onclick={refreshTask}
+					size="sm"
 					class="gap-2"
 				>
 					<RefreshCw class="h-4 w-4" />
-					更新
+					<span class="hidden sm:inline">更新</span>
 				</Button>
 			</div>
 		</div>
@@ -687,22 +690,26 @@
 			</Card.Header>
 			<Card.Content>
 				<Tabs bind:value={selectedTab} class="w-full">
-					<TabsList class="grid w-full grid-cols-2 md:grid-cols-4">
-						<TabsTrigger value="logs" class="text-xs">
-							<Activity class="h-3 w-3 mr-1" />
-							ログ
+					<TabsList class="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+						<TabsTrigger value="logs" class="text-xs flex-col sm:flex-row gap-1 py-2 sm:py-1.5">
+							<Activity class="h-3 w-3 sm:mr-1" />
+							<span class="hidden sm:inline">ログ</span>
+							<span class="sm:hidden">ログ</span>
 						</TabsTrigger>
-						<TabsTrigger value="tools" class="text-xs">
-							<Clock class="h-3 w-3 mr-1" />
-							ツール実行 ({ws.toolExecutions.length})
+						<TabsTrigger value="tools" class="text-xs flex-col sm:flex-row gap-1 py-2 sm:py-1.5">
+							<Clock class="h-3 w-3 sm:mr-1" />
+							<span class="hidden sm:inline">ツール実行 ({ws.toolExecutions.length})</span>
+							<span class="sm:hidden">ツール<br />({ws.toolExecutions.length})</span>
 						</TabsTrigger>
-						<TabsTrigger value="claude" class="text-xs">
-							<MessageSquare class="h-3 w-3 mr-1" />
-							Claude応答 ({ws.claudeResponses.length})
+						<TabsTrigger value="claude" class="text-xs flex-col sm:flex-row gap-1 py-2 sm:py-1.5">
+							<MessageSquare class="h-3 w-3 sm:mr-1" />
+							<span class="hidden sm:inline">Claude応答 ({ws.claudeResponses.length})</span>
+							<span class="sm:hidden">Claude<br />({ws.claudeResponses.length})</span>
 						</TabsTrigger>
-						<TabsTrigger value="todos" class="text-xs">
-							<CheckSquare class="h-3 w-3 mr-1" />
-							TODO ({ws.todoUpdates.length})
+						<TabsTrigger value="todos" class="text-xs flex-col sm:flex-row gap-1 py-2 sm:py-1.5">
+							<CheckSquare class="h-3 w-3 sm:mr-1" />
+							<span class="hidden sm:inline">TODO ({ws.todoUpdates.length})</span>
+							<span class="sm:hidden">TODO<br />({ws.todoUpdates.length})</span>
 						</TabsTrigger>
 					</TabsList>
 					

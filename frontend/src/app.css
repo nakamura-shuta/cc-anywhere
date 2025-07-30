@@ -122,4 +122,31 @@
   #app, [data-sveltekit-hydrate] {
     @apply h-full;
   }
+  
+  /* タッチターゲット最適化 */
+  @media (hover: none) and (pointer: coarse) {
+    button, 
+    a[role="button"],
+    input[type="checkbox"],
+    input[type="radio"],
+    .touch-target {
+      @apply min-h-[44px] min-w-[44px];
+    }
+  }
+  
+  /* スクロールパフォーマンス最適化 */
+  .scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* アニメーション削減対応 */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

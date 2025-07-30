@@ -15,6 +15,8 @@
 	import WebSocketProvider from '$lib/components/providers/websocket-provider.svelte';
 	// WebSocket接続状態表示コンポーネント
 	import WebSocketStatus from '$lib/components/websocket-status.svelte';
+	// モバイルメニューコンポーネント
+	import MobileMenu from '$lib/components/mobile-menu.svelte';
 	// 現在のページ情報を取得するためのストア
 	import { page } from '$app/stores';
 	// WebSocket統合の初期化
@@ -53,20 +55,25 @@
 	<div class="h-screen flex flex-col overflow-hidden">
 		<!-- ヘッダー部分 -->
 		<header class="border-b">
-			<div class="container mx-auto px-4 py-4">
+			<div class="container mx-auto px-4 py-3 lg:py-4">
 				<nav class="flex items-center justify-between">
 					<!-- ロゴ/タイトル -->
-					<div class="flex items-center gap-4">
-						<a href="/" class="text-xl font-bold">
+					<div class="flex items-center gap-2 lg:gap-4">
+						<!-- モバイルメニュー -->
+						<MobileMenu {navItems} />
+						
+						<a href="/" class="text-lg lg:text-xl font-bold">
 							CC-Anywhere
 						</a>
 						
 						<!-- WebSocket接続状態 -->
-						<WebSocketStatus />
+						<div class="ml-2 lg:ml-0">
+							<WebSocketStatus />
+						</div>
 					</div>
 					
-					<!-- ナビゲーションメニュー -->
-					<div class="flex gap-2">
+					<!-- デスクトップナビゲーションメニュー -->
+					<div class="hidden lg:flex gap-2">
 						{#each navItems as item}
 							<Button 
 								href={item.href}
@@ -83,7 +90,7 @@
 		
 		<!-- メインコンテンツエリア -->
 		<main class="flex-1 overflow-y-auto">
-			<div class="container mx-auto px-4 py-8">
+			<div class="container mx-auto px-4 py-4 lg:py-8">
 				{@render children?.()}
 			</div>
 		</main>

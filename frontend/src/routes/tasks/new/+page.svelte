@@ -117,13 +117,14 @@
 	}
 </script>
 
-<div class="container mx-auto p-6 max-w-2xl">
-	<div class="mb-6">
+<div class="max-w-2xl mx-auto">
+	<div class="mb-4 lg:mb-6">
 		<Button variant="ghost" onclick={() => goto('/tasks')} class="gap-2 mb-4">
 			<ArrowLeft class="h-4 w-4" />
-			タスク一覧に戻る
+			<span class="hidden sm:inline">タスク一覧に戻る</span>
+			<span class="sm:hidden">戻る</span>
 		</Button>
-		<h1 class="text-3xl font-bold">
+		<h1 class="text-2xl lg:text-3xl font-bold">
 			{isSdkContinueMode ? 'SDK Continue - 会話を継続' : '新規タスク作成'}
 		</h1>
 	</div>
@@ -172,7 +173,7 @@
 					readonly={isSdkContinueMode}
 				/>
 
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div class="space-y-2">
 						<Label for="maxTurns">最大ターン数</Label>
 						<Input
@@ -213,12 +214,12 @@
 				</div>
 
 
-				<div class="flex gap-2 pt-4">
-					<Button type="submit" disabled={submitting} class="gap-2">
+				<div class="flex flex-col sm:flex-row gap-2 pt-4">
+					<Button type="submit" disabled={submitting} class="gap-2 flex-1 sm:flex-initial">
 						<Send class="h-4 w-4" />
 						{submitting ? '作成中...' : 'タスクを作成'}
 					</Button>
-					<Button type="button" variant="outline" onclick={() => goto('/tasks')}>
+					<Button type="button" variant="outline" onclick={() => goto('/tasks')} class="flex-1 sm:flex-initial">
 						キャンセル
 					</Button>
 				</div>
