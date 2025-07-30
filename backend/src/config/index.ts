@@ -62,6 +62,13 @@ const envSchema = z.object({
   AWS_REGION: z.string().default("us-east-1"),
   // 実行モード設定
   FORCE_EXECUTION_MODE: z.enum(["api-key", "bedrock"]).optional(),
+  // QR認証設定
+  QR_AUTH_TOKEN: z.string().min(5).optional(),
+  QR_AUTH_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
+  QR_AUTH_SESSION_DURATION: z.string().default("86400000").transform(Number),
 });
 
 // Parse and validate environment variables
@@ -141,4 +148,9 @@ export const config = {
     region: env.AWS_REGION,
   },
   forceExecutionMode: env.FORCE_EXECUTION_MODE,
+  qrAuth: {
+    enabled: env.QR_AUTH_ENABLED,
+    token: env.QR_AUTH_TOKEN,
+    sessionDuration: env.QR_AUTH_SESSION_DURATION,
+  },
 } as const;

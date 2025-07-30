@@ -4,6 +4,7 @@ import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
 import { errorHandlerPlugin } from "../plugins/error-handler";
 import { registerStaticPlugin } from "../plugins/static";
+import { qrAuthMiddleware } from "../middleware/qr-auth";
 import { config } from "../../config";
 
 /**
@@ -22,13 +23,16 @@ export async function registerMiddleware(app: FastifyInstance): Promise<void> {
       : config.cors.origin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Auth-Token"],
   });
 
   await app.register(sensible);
 
   // Register static file serving for Web UI (before auth to bypass authentication)
   await app.register(registerStaticPlugin);
+
+  // Register QR authentication middleware
+  await app.register(qrAuthMiddleware);
 
   // Register custom plugins
   await app.register(errorHandlerPlugin);

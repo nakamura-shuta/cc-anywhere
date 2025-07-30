@@ -2,6 +2,7 @@
 
 import { getConfig } from '$lib/config';
 import { getApiHeaders } from '$lib/config/api';
+import { authStore } from '$lib/stores/auth.svelte';
 
 // APIエラー
 export class ApiError extends Error {
@@ -85,6 +86,7 @@ export class ApiClient {
 		const defaultOptions: RequestInit = {
 			headers: {
 				...getApiHeaders(),
+				...authStore.getAuthHeaders(),
 				'Accept': 'text/event-stream'
 			},
 			...fetchOptions
@@ -110,7 +112,10 @@ export class ApiClient {
 
 
 		const defaultOptions: RequestInit = {
-			headers: getApiHeaders(),
+			headers: {
+				...getApiHeaders(),
+				...authStore.getAuthHeaders()
+			},
 			...fetchOptions
 		};
 
