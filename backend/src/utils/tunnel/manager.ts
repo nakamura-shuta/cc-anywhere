@@ -68,7 +68,7 @@ class TunnelManager {
     console.log("========================================");
     console.log(`\n📡 ${tunnelType === "cloudflare" ? "Cloudflare" : "ngrok"} URL: ${tunnelUrl}`);
     console.log(`🔒 API Key: ${apiKey || "Not set (authentication disabled)"}`);
-    
+
     if (qrAuthEnabled) {
       console.log(`🔐 QR Auth: Enabled${qrAuthToken ? " (token set)" : " (token not set)"}`);
     }
@@ -78,7 +78,7 @@ class TunnelManager {
     if (apiKey) {
       webUIUrl = `${tunnelUrl}/?apiKey=${apiKey}`;
     }
-    
+
     // QR認証が有効な場合はトークンを付与
     if (qrAuthEnabled && qrAuthToken) {
       const separator = webUIUrl.includes("?") ? "&" : "?";

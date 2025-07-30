@@ -440,7 +440,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
             createdAt: updatedTask.addedAt,
             startedAt: updatedTask.startedAt,
             completedAt: updatedTask.completedAt,
-            result: updatedTask.result?.result,
+            result: updatedTask.result,
             error: updatedTask.error
               ? {
                   message: updatedTask.error.message,

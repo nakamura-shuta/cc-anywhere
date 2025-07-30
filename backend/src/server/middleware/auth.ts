@@ -2,6 +2,11 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config";
 
 export async function checkApiKey(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  // Skip API key auth if QR auth is enabled
+  if (config.qrAuth?.enabled) {
+    return;
+  }
+
   // Skip auth if not enabled
   if (!config.auth.enabled) {
     return;

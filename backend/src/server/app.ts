@@ -62,10 +62,49 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   // 5. Configure WebSocket server
   const wsServer = await configureWebSocket(app, taskQueue);
 
-  // 6. Register middleware
+  // 6. Register middleware (including authentication)
   await registerMiddleware(app);
 
-  // 7. Register routes
+  // 6.5. Apply QR auth globally to override plugin encapsulation
+  if (config.qrAuth?.enabled && config.qrAuth?.token) {
+    const { extractToken, isPublicPath } = await import("./middleware/qr-auth");
+
+    app.addHook("onRequest", async (request, reply) => {
+      // Skip public paths
+      if (isPublicPath(request.url)) return;
+
+      // Skip static files and WebSocket
+      if (
+        request.url.startsWith("/web/") ||
+        request.url === "/" ||
+        request.url.includes(".") ||
+        request.headers.upgrade === "websocket"
+      ) {
+        return;
+      }
+
+      // Extract and validate token
+      const token = extractToken(request);
+      if (token !== config.qrAuth.token) {
+        logger.warn("Unauthorized access attempt", {
+          path: request.url,
+          method: request.method,
+          ip: request.ip,
+          hasToken: !!token,
+        });
+
+        return reply.status(401).send({
+          error: {
+            message: "Unauthorized: Invalid or missing authentication token",
+            statusCode: 401,
+            code: "UNAUTHORIZED",
+          },
+        });
+      }
+    });
+  }
+
+  // 7. Register routes after middleware
   await registerRoutes(app, workerMode);
 
   // 8. Set up graceful shutdown

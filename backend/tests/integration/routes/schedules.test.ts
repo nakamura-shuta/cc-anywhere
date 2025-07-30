@@ -23,9 +23,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/schedules",
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
         payload: {
           name: "Daily backup",
           description: "Run backup every day",
@@ -54,9 +52,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/schedules",
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
         payload: {
           name: "One-time task",
           taskRequest: {
@@ -80,9 +76,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/schedules",
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
         payload: {
           // Missing required fields
           schedule: {
@@ -98,9 +92,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/schedules",
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
         payload: {
           name: "Invalid cron",
           taskRequest: {
@@ -141,9 +133,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/schedules?limit=10&offset=0",
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
 
       expect(response.statusCode).toBe(200);
@@ -156,9 +146,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/schedules?status=active",
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
 
       expect(response.statusCode).toBe(200);
@@ -184,9 +172,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "GET",
         url: `/api/schedules/${schedule.id}`,
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
 
       expect(response.statusCode).toBe(200);
@@ -199,9 +185,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "GET",
         url: "/api/schedules/non-existent",
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
 
       expect(response.statusCode).toBe(404);
@@ -225,9 +209,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "PUT",
         url: `/api/schedules/${schedule.id}`,
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
         payload: {
           name: "Updated name",
           status: "inactive",
@@ -258,9 +240,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "DELETE",
         url: `/api/schedules/${schedule.id}`,
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
 
       expect(response.statusCode).toBe(204);
@@ -269,9 +249,7 @@ describe("Schedule routes", () => {
       const getResponse = await app.inject({
         method: "GET",
         url: `/api/schedules/${schedule.id}`,
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
       expect(getResponse.statusCode).toBe(404);
     });
@@ -294,9 +272,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "POST",
         url: `/api/schedules/${schedule.id}/enable`,
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
 
       expect(response.statusCode).toBe(200);
@@ -322,9 +298,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "POST",
         url: `/api/schedules/${schedule.id}/disable`,
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
 
       expect(response.statusCode).toBe(200);
@@ -350,9 +324,7 @@ describe("Schedule routes", () => {
       const response = await app.inject({
         method: "GET",
         url: `/api/schedules/${schedule.id}/history`,
-        headers: {
-          "X-API-Key": process.env.API_KEY || "test-key",
-        },
+        // 統合テストでは認証なし
       });
 
       expect(response.statusCode).toBe(200);

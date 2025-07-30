@@ -495,15 +495,8 @@ describe("Task Routes", () => {
         startedAt: mockRecord.startedAt,
         completedAt: mockRecord.completedAt,
         result: {
-          taskId,
-          status: TaskStatus.COMPLETED,
-          instruction: "Test task",
-          createdAt: mockRecord.createdAt,
-          startedAt: mockRecord.startedAt,
-          completedAt: mockRecord.completedAt,
-          result: { message: "Task completed" },
+          message: "Task completed",
           logs: ["Task started", "Task completed"],
-          // Note: sdkSessionId is stored in the database, not in the result
         },
       };
 
@@ -540,6 +533,12 @@ describe("Task Routes", () => {
         result: { message: "Task completed" },
         logs: ["Task started", "Task completed"],
         sdkSessionId,
+      });
+
+      // resultプロパティが正しい構造を持っていることを確認
+      expect(body.result).toEqual({
+        message: "Task completed",
+        logs: ["Task started", "Task completed"],
       });
 
       // Ensure sdkSessionId is explicitly included

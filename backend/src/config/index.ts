@@ -2,8 +2,9 @@ import dotenv from "dotenv";
 import { z } from "zod";
 import path from "path";
 
-// Load environment variables from root .env file
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
+dotenv.config({ path: path.resolve(__dirname, "../../../", envFile) });
 
 // Environment configuration schema
 const envSchema = z.object({
@@ -63,11 +64,11 @@ const envSchema = z.object({
   // 実行モード設定
   FORCE_EXECUTION_MODE: z.enum(["api-key", "bedrock"]).optional(),
   // QR認証設定
-  QR_AUTH_TOKEN: z.string().min(5).optional(),
   QR_AUTH_ENABLED: z
     .string()
     .default("false")
     .transform((v) => v === "true"),
+  QR_AUTH_TOKEN: z.string().optional(),
   QR_AUTH_SESSION_DURATION: z.string().default("86400000").transform(Number),
 });
 
