@@ -64,33 +64,150 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	// 最新のログメッセージ（すべてのログタイプを含む）
 	const logs = $derived(
 		(() => {
+			// 初期データ（APIから取得）がある場合はそれを優先
+			if (initialData?.logs && initialData.logs.length > 0 && taskMessages.length === 0) {
+				// APIから取得したログを新形式に変換（古い形式の場合）
+				return initialData.logs.map(log => {
+					// 新形式の判定: タイムスタンプパターンを含むかチェック
+					// 例: "2025/1/29 12:34:56" または "2025/07/31 13:10:20"
+					const timestampPattern = /\d{4}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?/;
+					
+					// 新形式のログの特徴:
+					// 1. "ツール名\n2025/07/31 13:10:20: 詳細" (tool:start)
+					// 2. "✓ 成功\n2025/07/31 13:10:21" (tool:result)
+					// 3. "📝 TODO更新\n• タスク [completed]\n2025/07/31 13:10:22" (todo_update)
+					// 4. "2025/07/31 13:10:23 (ターン 1/5)\nテキスト..." (claude:response)
+					
+					// 新形式かどうかチェック（タイムスタンプが複数行の中に含まれている）
+					const lines = log.split('\n');
+					const hasTimestampInFormat = lines.some(line => timestampPattern.test(line));
+					
+					// 新形式の場合はそのまま返す
+					if (hasTimestampInFormat && lines.length > 1) {
+						return log;
+					}
+					
+					// 単一行でもタイムスタンプが正しい位置にある新形式はそのまま返す
+					// 例: "ログメッセージ"（task:log）
+					if (lines.length === 1 && !timestampPattern.test(log)) {
+						// 古い形式のパターンにマッチしない単純なログメッセージ
+						const oldPatterns = [
+							/^\[(.*?)\]\s*([✓✗⚡])\s*(開始|成功|失敗)/, // [Tool] ✓ 成功
+							/^(\w+)\s+(完了|失敗)\s+\d{4}\//, // Tool 完了 2025/...
+							/^ターン\s*\d+\/\d+/ // ターン 1/5
+						];
+						
+						const isOldFormat = oldPatterns.some(pattern => pattern.test(log));
+						if (!isOldFormat) {
+							return log;
+						}
+					}
+					
+					// 以下、古い形式の変換処理
+					
+					// パターン1: "TodoWrite 完了 2025/07/31 13:10" 形式（単一行の古い形式）
+					const toolCompletePattern = /^(\w+)\s+(完了|失敗)\s+(\d{4}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})$/;
+					const toolCompleteMatch = log.match(toolCompletePattern);
+					if (toolCompleteMatch) {
+						const [, tool, status, timestamp] = toolCompleteMatch;
+						const statusEmoji = status === '完了' ? '✓ 成功' : '✗ 失敗';
+						return `${statusEmoji}\n${timestamp}`;
+					}
+					
+					// パターン2: "2025/07/31 13:10 (ターン 1/30)\nTurn 1" 形式（旧バックエンド形式）
+					const claudeResponsePattern = /^(\d{4}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})\s*\(ターン\s*(\d+)\/(\d+)\)\s*\n\s*Turn\s+(\d+)$/;
+					const claudeMatch = log.match(claudeResponsePattern);
+					if (claudeMatch) {
+						const [, timestamp, turnNumber, maxTurns] = claudeMatch;
+						// 新形式に変換（ただし実際の応答テキストは不明なので空文字）
+						return `${timestamp} (ターン ${turnNumber}/${maxTurns})\n`;
+					}
+					
+					// パターン2.5: "🤖 クラウド応答 (ターン 1/30)\nTurn 1\n2025/07/31 13:10" 形式（現在のバックエンド形式）
+					const currentBackendPattern = /^🤖\s*クラウド応答\s*\(ターン\s*(\d+)\/(\d+)\)\s*\n\s*Turn\s+\d+\s*\n\s*(\d{4}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})$/;
+					const currentMatch = log.match(currentBackendPattern);
+					if (currentMatch) {
+						const [, turnNumber, maxTurns, timestamp] = currentMatch;
+						// 新形式に変換（ただし実際の応答テキストは不明なので空文字）
+						return `${timestamp} (ターン ${turnNumber}/${maxTurns})\n`;
+					}
+					
+					// パターン3: 既存の古い形式 "[ToolName] ✓ 成功: details"
+					const oldToolPattern = /^\[(.*?)\]\s*([✓✗⚡])\s*(開始|成功|失敗)(?:\s*:\s*(.*))?$/;
+					const match = log.match(oldToolPattern);
+					
+					if (match) {
+						const [, tool, status, action, details] = match;
+						const timestamp = new Date().toLocaleString('ja-JP'); // 実際のタイムスタンプは不明なので現在時刻を使用
+						
+						if (action === '開始') {
+							const toolInput = details ? `: ${details}` : '';
+							return `🛠️ ${tool}\n開始${toolInput}\n${timestamp}`;
+						} else {
+							const statusEmoji = action === '成功' ? '✅ 完了' : '❌ 失敗';
+							return `${statusEmoji}\n${tool}\n${timestamp}`;
+						}
+					}
+					
+					// 変換できない場合はそのまま返す
+					return log;
+				});
+			}
+			
+			// WebSocketメッセージがある場合はフォーマットして使用
 			const wsLogs = taskMessages
 				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update'].includes(m.type))
 				.map(m => {
-					// メッセージタイプに応じてフォーマット
+					const timestamp = new Date(m.timestamp || Date.now()).toLocaleString('ja-JP');
+					
+					// task:logはすでにフォーマット済みの可能性があるのでそのまま返す
+					if (m.type === 'task:log') {
+						return m.payload?.log || '';
+					}
+					
+					// WebSocketメッセージをフォーマット（バックエンドと同じ形式）
 					switch (m.type) {
-						case 'task:log':
-							return m.payload?.log || '';
-						case 'task:tool:start':
-							return `🛠️ [${m.payload?.tool}] 開始${m.payload?.input ? `: ${JSON.stringify(m.payload.input).slice(0, 100)}...` : ''}`;
-						case 'task:tool:end':
-							return `✅ [${m.payload?.tool}] ${m.payload?.success ? '成功' : '失敗'}${m.payload?.duration ? ` (${m.payload.duration}ms)` : ''}`;
-						case 'task:claude:response':
-							return `🤖 Claude: ${m.payload?.text || ''}`;
+						case 'task:tool:start': {
+							// Use formatted input if available, otherwise fall back to raw input
+							const formattedInput = m.payload?.formattedInput;
+							let displayInput = '';
+							
+							if (formattedInput) {
+								// For TodoWrite with multiple lines, add proper indentation
+								if (m.payload?.tool === 'TodoWrite' && formattedInput.includes('\n')) {
+									displayInput = '\n' + formattedInput;
+								} else {
+									displayInput = formattedInput ? `: ${formattedInput}` : '';
+								}
+							} else if (m.payload?.input) {
+								// Fallback to raw input with truncation
+								displayInput = `: ${JSON.stringify(m.payload.input).slice(0, 100)}...`;
+							}
+							
+							return `${m.payload?.tool}\n${timestamp}${displayInput}`;
+						}
+						case 'task:tool:end': {
+							const status = m.payload?.success ? '✅ 完了' : '❌ 失敗';
+							const duration = m.payload?.duration ? `\n実行時間: ${m.payload.duration}ms` : '';
+							return `${status}\n${m.payload?.tool}${duration}\n${timestamp}`;
+						}
+						case 'task:claude:response': {
+							const turnInfo = m.payload?.turnNumber && m.payload?.maxTurns 
+								? ` (ターン ${m.payload.turnNumber}/${m.payload.maxTurns})` 
+								: '';
+							const responseText = m.payload?.text || '';
+							return `${timestamp}${turnInfo}\n${responseText}`;
+						}
 						case 'task:todo_update':
 							if (m.payload?.todos) {
-								return `📝 TODO更新: ${m.payload.todos.map((t: any) => `${t.content} [${t.status}]`).join(', ')}`;
+								const todoList = m.payload.todos.map((t: any) => `  • ${t.content} [${t.status}]`).join('\n');
+								return `📝 TODO更新\n${todoList}\n${timestamp}`;
 							}
-							return '📝 TODO更新';
+							return `📝 TODO更新\n${timestamp}`;
 						default:
 							return JSON.stringify(m.payload);
 					}
 				});
-			
-			// WebSocketログがない場合は初期ログを使用
-			if (wsLogs.length === 0 && initialData?.logs && initialData.logs.length > 0) {
-				return initialData.logs;
-			}
 			
 			return wsLogs;
 		})()

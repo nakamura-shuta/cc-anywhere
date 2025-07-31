@@ -82,6 +82,7 @@ export interface ToolStartMessage extends WebSocketMessage {
     toolId: string;
     tool: string;
     input?: any;
+    formattedInput?: string; // Human-readable formatted input for display
     timestamp: string;
   };
 }

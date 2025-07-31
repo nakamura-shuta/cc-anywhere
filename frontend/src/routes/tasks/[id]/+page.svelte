@@ -24,8 +24,8 @@
 		maxTurns: data.task.progressData?.maxTurns || 0,
 		logs: data.logs || [],
 		// 詳細情報も含める
-		toolExecutions: [],
-		claudeResponses: []
+		toolExecutions: data.task.progressData?.toolExecutions || [],
+		claudeResponses: data.task.progressData?.claudeResponses || []
 	};
 	
 	

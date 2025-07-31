@@ -151,6 +151,60 @@ export class ClaudeCodeClient {
           if (toolDetail.action === "start") {
             // Tool start event
             if (options.onProgress) {
+              // Extract formatted details for specific tools
+              let formattedInput = "";
+              if (toolDetail.input && typeof toolDetail.input === "object") {
+                const input = toolDetail.input as Record<string, any>;
+
+                switch (toolDetail.tool) {
+                  case "TodoWrite":
+                    if (input.todos && Array.isArray(input.todos)) {
+                      formattedInput = input.todos
+                        .map((todo: any) => {
+                          const statusIcon =
+                            todo.status === "completed"
+                              ? "✅"
+                              : todo.status === "in_progress"
+                                ? "🔄"
+                                : "⬜";
+                          return `${statusIcon} ${todo.content}`;
+                        })
+                        .join("\n");
+                    }
+                    break;
+                  case "Read":
+                  case "Write":
+                  case "Edit":
+                  case "MultiEdit":
+                    formattedInput = input.file_path || input.path || "";
+                    break;
+                  case "Bash":
+                    formattedInput = input.command || "";
+                    break;
+                  case "Grep":
+                  case "Glob":
+                    formattedInput = input.pattern || "";
+                    if (input.path) {
+                      formattedInput += ` in ${input.path}`;
+                    }
+                    break;
+                  case "WebFetch":
+                  case "WebSearch":
+                    formattedInput = input.url || input.query || "";
+                    break;
+                  case "LS":
+                    formattedInput = input.path || "";
+                    break;
+                  default: {
+                    // For other tools, show a brief summary
+                    const keys = Object.keys(input).slice(0, 3);
+                    formattedInput = keys
+                      .map((k) => `${k}: ${String(input[k]).slice(0, 50)}`)
+                      .join(", ");
+                  }
+                }
+              }
+
               await options.onProgress({
                 type: "tool:start",
                 message: `${toolDetail.tool} 実行開始`,
@@ -158,6 +212,7 @@ export class ClaudeCodeClient {
                   toolId: toolDetail.toolId,
                   tool: toolDetail.tool,
                   input: toolDetail.input,
+                  formattedInput, // Add formatted input for display
                 },
               });
             }

@@ -254,8 +254,11 @@ export class TaskQueueImpl implements TaskQueue {
                       task.todos = progress.data.todos;
                       progressData.todos = progress.data.todos;
 
-                      // ログメッセージをフォーマット
-                      logMessage = `📝 TODO更新: ${progress.data.todos.map((t: any) => `${t.content} [${t.status}]`).join(", ")}`;
+                      // ログメッセージをフォーマット（タイムスタンプ付き）
+                      const todoList = progress.data.todos
+                        .map((t: any) => `  • ${t.content} [${t.status}]`)
+                        .join("\n");
+                      logMessage = `📝 TODO更新\n${todoList}\n${new Date(timestamp).toLocaleString("ja-JP")}`;
 
                       // Save progress data to database
                       try {
@@ -298,8 +301,27 @@ export class TaskQueueImpl implements TaskQueue {
                         args: progress.data.input,
                       });
 
-                      // ログメッセージをフォーマット
-                      logMessage = `🛠️ [${progress.data.tool}] 開始${progress.data.input ? `: ${JSON.stringify(progress.data.input).slice(0, 100)}...` : ""}`;
+                      // ログメッセージをフォーマット（タイムスタンプ付き）
+                      // Use formatted input if available, otherwise fall back to raw input
+                      let displayInput = "";
+                      if (progress.data.formattedInput) {
+                        // For TodoWrite with multiple lines, add proper indentation
+                        if (
+                          progress.data.tool === "TodoWrite" &&
+                          progress.data.formattedInput.includes("\n")
+                        ) {
+                          displayInput = "\n" + progress.data.formattedInput;
+                        } else {
+                          displayInput = progress.data.formattedInput
+                            ? `: ${progress.data.formattedInput}`
+                            : "";
+                        }
+                      } else if (progress.data.input) {
+                        // Fallback to raw input with truncation
+                        displayInput = `: ${JSON.stringify(progress.data.input).slice(0, 100)}...`;
+                      }
+
+                      logMessage = `${progress.data.tool}\n${new Date(timestamp).toLocaleString("ja-JP")}${displayInput}`;
 
                       // Save progress data to database
                       try {
@@ -316,6 +338,7 @@ export class TaskQueueImpl implements TaskQueue {
                         toolId: progress.data.toolId || `${progress.data.tool}-${Date.now()}`,
                         tool: progress.data.tool,
                         input: progress.data.input,
+                        formattedInput: progress.data.formattedInput, // Add formatted input
                         timestamp,
                       });
                     }
@@ -334,8 +357,12 @@ export class TaskQueueImpl implements TaskQueue {
                         success: progress.data.success,
                       });
 
-                      // ログメッセージをフォーマット
-                      logMessage = `✅ [${progress.data.tool}] ${progress.data.success ? "成功" : "失敗"}${progress.data.duration ? ` (${progress.data.duration}ms)` : ""}`;
+                      // ログメッセージをフォーマット（タイムスタンプ付き）
+                      const status = progress.data.success ? "✅ 完了" : "❌ 失敗";
+                      const duration = progress.data.duration
+                        ? `\n実行時間: ${progress.data.duration}ms`
+                        : "";
+                      logMessage = `${status}\n${progress.data.tool}${duration}\n${new Date(timestamp).toLocaleString("ja-JP")}`;
 
                       // Save progress data to database
                       try {
@@ -374,8 +401,13 @@ export class TaskQueueImpl implements TaskQueue {
                         timestamp,
                       });
 
-                      // ログメッセージをフォーマット
-                      logMessage = `🤖 Claude: ${progress.message || ""}`;
+                      // ログメッセージをフォーマット（ターン情報とタイムスタンプ付き）
+                      const turnInfo =
+                        progress.data?.turnNumber && progress.data?.maxTurns
+                          ? ` (ターン ${progress.data.turnNumber}/${progress.data.maxTurns})`
+                          : "";
+                      const responseText = progress.message || "";
+                      logMessage = `${new Date(timestamp).toLocaleString("ja-JP")}${turnInfo}\n${responseText}`;
 
                       // Save progress data to database
                       try {
