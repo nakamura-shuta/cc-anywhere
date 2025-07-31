@@ -10,6 +10,12 @@ export default defineConfig({
   ] as any, // 型の不整合を一時的に回避
   server: {
     port: 4444,
-    strictPort: true
+    strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      }
+    }
   }
 })

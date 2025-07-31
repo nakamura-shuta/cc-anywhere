@@ -23,9 +23,8 @@
 </script>
 
 <Sheet bind:open>
-	<SheetTrigger asChild let:builder>
+	<SheetTrigger>
 		<Button 
-			builders={[builder]} 
 			variant="ghost" 
 			size="icon"
 			class="lg:hidden"
