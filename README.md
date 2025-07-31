@@ -4,7 +4,7 @@ Claude Code SDKを使用してHTTP経由で指示を実行できるサーバー�
 
 ## 主な機能
 
-- 🚀 **Claude Code SDK 1.0.64** - 最新版のSDKをHTTP API経由で利用
+- 🚀 **Claude Code SDK 1.0.64** - 最新版のSDKをHTTP API経由で利用（Anthropic API/Amazon Bedrock対応）
 - 📱 **レスポンシブWeb UI** - モバイル・デスクトップ対応の使いやすいインターフェース
 - 🔄 **リアルタイム更新** - WebSocketによるタスク状況のリアルタイム表示
 - 🔐 **QR認証** - モバイルからの簡単アクセス（環境変数で制御）
@@ -19,7 +19,7 @@ Claude Code SDKを使用してHTTP経由で指示を実行できるサーバー�
 
 - Node.js 20以上
 - npm 10以上
-- Claude API キー（[Anthropic Console](https://console.anthropic.com/)で取得）
+- Claude API キー（[Anthropic Console](https://console.anthropic.com/)で取得）またはAmazon Bedrock（AWS認証情報）
 
 ### インストール手順
 
@@ -46,8 +46,13 @@ cp .env.example .env
 ### 必須設定
 
 ```env
-# Claude API キー
+# Claude API キー（Anthropic APIを使用する場合）
 CLAUDE_API_KEY=your-claude-api-key
+
+# または Amazon Bedrockを使用する場合
+FORCE_CLAUDE_MODE=bedrock
+AWS_REGION=us-east-1               # Bedrockが利用可能なリージョン
+# AWS認証情報は環境変数またはIAMロールで提供
 ```
 
 ### オプション設定
