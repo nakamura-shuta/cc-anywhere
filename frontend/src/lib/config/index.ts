@@ -42,24 +42,22 @@ export function getConfig() {
  * WebSocket URLの取得（HTTPからWSへの変換対応）
  */
 export function getWebSocketUrl(): string {
+  // ブラウザ環境では現在のホストから動的にURLを生成
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    console.log('[WebSocket] Generating URL:', `${protocol}//${host}/ws`);
+    return `${protocol}//${host}/ws`;
+  }
+  
+  // SSR環境での既定値
   const wsUrl = config.websocket.url;
   if (wsUrl) {
     // /wsエンドポイントを追加
     return wsUrl.endsWith('/ws') ? wsUrl : `${wsUrl}/ws`;
   }
   
-  // API URLからWebSocket URLを生成
-  const apiUrl = config.api.baseUrl;
-  let wsBaseUrl: string;
-  if (apiUrl.startsWith('https://')) {
-    wsBaseUrl = apiUrl.replace('https://', 'wss://');
-  } else if (apiUrl.startsWith('http://')) {
-    wsBaseUrl = apiUrl.replace('http://', 'ws://');
-  } else {
-    wsBaseUrl = 'ws://localhost:5000';
-  }
-  
-  return `${wsBaseUrl}/ws`;
+  return 'ws://localhost:5000/ws';
 }
 
 /**
