@@ -13,6 +13,7 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
     private awsAccessKeyId: string,
     private awsSecretAccessKey: string,
     private awsRegion: string,
+    private modelId?: string,
   ) {
     if (!awsAccessKeyId || !awsSecretAccessKey || !awsRegion) {
       throw new Error(
@@ -86,8 +87,8 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
   }
 
   getModelName(): string {
-    // Bedrock model ID format
-    return "us.anthropic.claude-opus-4-20250514-v1:0";
+    // Use model ID from environment variable or default
+    return this.modelId || "us.anthropic.claude-opus-4-20250514-v1:0";
   }
 
   isAvailable(): boolean {

@@ -65,7 +65,8 @@ export class ClaudeCodeClientFactory {
           );
         }
 
-        return new BedrockStrategy(accessKeyId, secretAccessKey, region);
+        const modelId = config.bedrockModelId;
+        return new BedrockStrategy(accessKeyId, secretAccessKey, region, modelId);
       }
 
       default:
