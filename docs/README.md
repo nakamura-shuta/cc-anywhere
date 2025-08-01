@@ -1,40 +1,55 @@
 # CC-Anywhere ドキュメント
 
-CC-AnywhereはClaude Code SDKを使用してHTTP経由で指示を実行できるサーバーアプリケーションです。
+CC-AnywhereはClaude Code SDKをHTTP経由で利用可能にするAPIサーバーです。
 
-## ドキュメント構成
+## 🚀 クイックスタート
 
-### 🚀 はじめに
-- [インストール](./getting-started/installation.md) - インストール方法
-- [設定](./getting-started/configuration.md) - 環境変数と設定ファイル
-- [クイックスタート](./getting-started/quickstart.md) - 基本的な使い方
+```bash
+# インストール
+git clone https://github.com/your-org/cc-anywhere.git
+cd cc-anywhere
+npm install
 
-### 📚 APIリファレンス
-- [APIリファレンス](./api/api-reference.md) - 全エンドポイントの仕様と使用例
+# 設定
+cp .env.example .env
+# .envでCLAUDE_API_KEYを設定
 
-### ✨ 機能ガイド
-- [スケジューラー](./features/scheduler.md) - 定期実行とワンタイム実行
-- [Git Worktree](./features/git-worktree.md) - 独立した作業環境での実行
-- [外部アクセス](./features/external-access.md) - Cloudflare Tunnelによる公開
-- [WebSocket](./features/websocket.md) - リアルタイムログ配信
-- [プリセット管理](./features/preset-management.md) - 設定の保存と再利用
-- [スラッシュコマンド](./features/slash-commands.md) - 特殊なタスク実行
+# 起動
+npm run dev                    # 開発環境
+./scripts/start-production.sh  # 本番環境（PM2）
+./scripts/start-clamshell.sh   # クラムシェルモード（外部アクセス）
+```
 
-### 🔧 運用ガイド
-- [PM2セットアップ](./operations/pm2-setup.md) - プロセス管理の設定
-- [トラブルシューティング](./operations/troubleshooting.md) - 問題解決ガイド
+アクセス: http://localhost:5000
 
-### 📋 その他
-- [変更履歴](./CHANGELOG.md) - バージョンごとの変更内容
-- [アーキテクチャ概要](./architecture/overview.md) - システム設計
-- [開発セットアップ](./development/setup.md) - 開発環境の構築
+## 📚 ドキュメント
 
-## クイックリンク
+- [はじめに](./getting-started/) - インストール、設定、基本的な使い方
+- [API](./api/) - エンドポイント仕様と使用例
+- [機能](./features/) - 各機能の詳細ガイド
+- [アーキテクチャ](./architecture/overview.md) - システム設計と構成
+- [デプロイ](./deployment/) - 本番環境へのデプロイと運用
+- [フロントエンド](./frontend/) - Web UI開発ガイド
+- [トラブルシューティング](./troubleshooting.md) - 問題解決
+- [変更履歴](./CHANGELOG.md) - バージョン履歴
 
-- 🌐 Web UI: `http://localhost:5000`
-- 📡 API: `http://localhost:5000/api`
-- 🔒 APIキー: `.env`ファイルで設定
+## 🔑 主な機能
 
-## サポート
+- **Claude Code SDK統合** - AI駆動のコード生成・編集
+- **非同期タスク実行** - 長時間タスクのサポート
+- **リアルタイム通信** - WebSocketでログストリーミング
+- **Git Worktree** - 独立した実行環境
+- **スケジューラー** - 定期実行とワンタイム実行
+- **外部アクセス** - ngrok/Cloudflareトンネル統合
+- **QR認証** - モバイルアクセス用認証
 
-問題が発生した場合は、[トラブルシューティング](./operations/troubleshooting.md)を参照してください。
+## 🛠 技術スタック
+
+- **Backend**: TypeScript, Fastify, SQLite
+- **Frontend**: SvelteKit, Tailwind CSS
+- **AI**: Claude Code SDK, Claude API
+- **運用**: PM2, WebSocket, Winston
+
+## 📝 ライセンス
+
+MIT

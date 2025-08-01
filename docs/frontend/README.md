@@ -1,186 +1,297 @@
-# CC-Anywhere フロントエンド開発ガイド
+# フロントエンド開発ガイド
 
-このガイドは、Svelte 5とshadcn-svelteを使用したCC-Anywhereフロントエンドの包括的なドキュメントです。初学者でもステップバイステップで学習できるように構成されています。
+CC-AnywhereのWeb UI開発に関するガイドです。
 
-## 📚 ドキュメント構成
+## 🛠 技術スタック
 
-### 1. [Svelte 5 基礎ガイド](./01-svelte-basics.md)
-Svelte 5の基本概念と新機能（Runes）について学びます。
-- コンポーネントの基本構造
-- Runesシステム（$state, $props, $effect）
-- イベントハンドリング
-- 条件付きレンダリングとリスト表示
-- 双方向バインディング
+- **フレームワーク**: SvelteKit
+- **UI**: shadcn-svelte + Tailwind CSS
+- **言語**: TypeScript
+- **ビルド**: Vite
+- **デプロイ**: Static Adapter
 
-### 2. [shadcn-svelte 基礎ガイド](./02-shadcn-svelte-basics.md)
-shadcn-svelteの導入と基本的なUIコンポーネントの使い方を解説します。
-- セットアップ方法
-- 主要コンポーネントの使用例
-  - Button, Card, Input, Table, Badge, Dialog, Select
-- テーマのカスタマイズ
-- 実践的な組み合わせ例
+## 🚀 開発環境
 
-### 3. [CC-Anywhere アーキテクチャ](./03-architecture.md)
-アプリケーションの全体構造と設計思想を理解します。
-- ディレクトリ構造
-- レイヤーアーキテクチャ
-- データフロー
-- ビルドとデプロイ
-- パフォーマンス最適化
-
-### 4. [実装例](./04-practical-examples.md)
-CC-Anywhereの実際のコードを通じて、実践的な実装パターンを学びます。
-- タスク一覧ページの完全な実装
-- データ取得パターン（+page.ts）
-- グローバルレイアウト
-- サービス層の実装
-- リアクティブな状態管理
-
-### 5. [テストガイド](./05-testing-guide.md)
-Vitest を使用したコンポーネントテストの書き方を解説します。
-- テスト環境のセットアップ
-- コンポーネントテストのパターン
-- 非同期処理のテスト
-- ストアのテスト
-- ベストプラクティス
-
-### 6. [トラブルシューティング](./06-troubleshooting.md)
-開発中に遭遇する可能性のある問題と解決方法をまとめています。
-- よくあるエラーと解決方法
-- shadcn-svelteの問題
-- ビルドとデプロイの問題
-- パフォーマンスの問題
-- デバッグのヒント
-
-## 🚀 学習の進め方
-
-### 初心者の方へ
-
-1. **基礎を固める**
-   - まず「Svelte 5 基礎ガイド」を読んで、Svelteの基本概念を理解してください
-   - 特にRunesシステムとイベントハンドリングの変更点は重要です
-
-2. **UIコンポーネントを学ぶ**
-   - 「shadcn-svelte 基礎ガイド」で、再利用可能なUIコンポーネントの使い方を学びます
-   - 実際にコンポーネントを使ってみることが大切です
-
-3. **アーキテクチャを理解する**
-   - 「CC-Anywhere アーキテクチャ」で、実際のプロジェクト構造を理解します
-   - なぜこのような構造になっているかを考えながら読んでください
-
-4. **実践的なコードを読む**
-   - 「実装例」で、実際のコードがどのように書かれているかを学びます
-   - コードをコピーして、自分で動かしてみましょう
-
-5. **テストを書く**
-   - 「テストガイド」を参考に、作成したコンポーネントのテストを書いてみます
-   - テストを書くことで、コンポーネントの理解が深まります
-
-6. **問題解決スキルを身につける**
-   - 「トラブルシューティング」は、問題に遭遇したときに参照してください
-   - よくある問題とその解決方法を知っておくことで、開発効率が向上します
-
-## 🛠️ 開発環境のセットアップ
-
-### 必要なツール
+### セットアップ
 
 ```bash
-# Node.js (v18以上)
-node --version
-
-# npm または pnpm
-npm --version
-
-# 推奨: VS Code with Svelte extension
-```
-
-### プロジェクトの起動
-
-```bash
-# フロントエンドディレクトリに移動
 cd frontend
-
-# 依存関係のインストール
 npm install
-
-# 開発サーバーの起動
 npm run dev
-
-# ブラウザで http://localhost:4444 を開く
 ```
 
-### 便利なコマンド
+開発サーバー: http://localhost:4444
+
+### ディレクトリ構造
+
+```
+frontend/
+├── src/
+│   ├── routes/          # ページコンポーネント
+│   │   ├── +page.svelte # トップページ
+│   │   ├── tasks/       # タスク関連ページ
+│   │   └── scheduler/   # スケジューラー
+│   ├── lib/
+│   │   ├── components/  # UIコンポーネント
+│   │   ├── stores/      # Svelteストア
+│   │   ├── api/         # APIクライアント
+│   │   └── config/      # 設定
+│   └── app.html        # HTMLテンプレート
+└── static/             # 静的ファイル
+```
+
+## 📝 主要コンポーネント
+
+### ページ
+
+- `/` - ダッシュボード
+- `/tasks` - タスク一覧
+- `/tasks/new` - タスク作成
+- `/tasks/[id]` - タスク詳細
+- `/scheduler` - スケジューラー
+- `/settings` - 設定
+
+### ストア（Svelte 5 Runes）
+
+```typescript
+// Svelte 5の新しいRunes APIを使用
+class TaskStore {
+  tasks = $state<Task[]>([]);
+  loading = $state(false);
+  
+  async loadTasks() {
+    this.loading = true;
+    this.tasks = await apiClient.get('/api/tasks');
+    this.loading = false;
+  }
+}
+
+export const taskStore = new TaskStore();
+```
+
+### APIクライアント
+
+```typescript
+// 動的ベースURL（ngrok/Cloudflare対応）
+class ApiClient {
+  constructor() {
+    this.baseUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : 'http://localhost:5000';
+  }
+}
+```
+
+## 🎨 UIコンポーネント
+
+### shadcn-svelte
+
+```svelte
+<script>
+  import { Button } from '$lib/components/ui/button';
+  import { Card } from '$lib/components/ui/card';
+</script>
+
+<Card>
+  <Card.Header>
+    <Card.Title>タスク作成</Card.Title>
+  </Card.Header>
+  <Card.Content>
+    <Button on:click={createTask}>実行</Button>
+  </Card.Content>
+</Card>
+```
+
+### Tailwind CSS
+
+```svelte
+<div class="container mx-auto p-4">
+  <h1 class="text-2xl font-bold mb-4">タスク一覧</h1>
+  <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <!-- コンテンツ -->
+  </div>
+</div>
+```
+
+## 📱 レスポンシブデザイン
+
+### モバイル対応
+
+```css
+/* モバイルファースト */
+.container {
+  padding: 1rem;
+}
+
+/* タブレット以上 */
+@media (min-width: 768px) {
+  .container {
+    padding: 2rem;
+  }
+}
+```
+
+### タッチ対応
+
+```svelte
+<button
+  class="p-4 min-h-[44px] touch-manipulation"
+  on:click={handleClick}
+>
+  タップ可能なボタン
+</button>
+```
+
+## 🔄 リアルタイム通信
+
+### WebSocket接続
+
+```typescript
+import { EnhancedWebSocketStore } from '$lib/stores/websocket-enhanced.svelte';
+
+const ws = new EnhancedWebSocketStore({
+  url: getWebSocketUrl(),
+  reconnect: true,
+  heartbeatInterval: 30000
+});
+
+// タスクのサブスクライブ
+ws.subscribeToTask(taskId);
+```
+
+### Server-Sent Events
+
+```typescript
+// タスクログのストリーミング
+const response = await fetch(`/api/tasks/${taskId}/logs`, {
+  headers: { 'Accept': 'text/event-stream' }
+});
+
+const reader = response.body.getReader();
+// ストリーム処理
+```
+
+## 🔒 認証
+
+### QR認証対応
+
+```typescript
+// 認証ストア
+class AuthStore {
+  authenticated = $state(false);
+  token = $state<string | null>(null);
+  
+  async authenticate(token: string) {
+    const response = await fetch(`/api/auth/verify?auth_token=${token}`);
+    if (response.ok) {
+      this.token = token;
+      this.authenticated = true;
+      localStorage.setItem('auth_token', token);
+    }
+  }
+}
+```
+
+### プライベートブラウジング対応
+
+```typescript
+// ストレージフォールバック
+try {
+  localStorage.setItem(key, value);
+} catch {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // メモリに保持
+  }
+}
+```
+
+## 🏗 ビルド設定
+
+### SvelteKit設定
+
+```javascript
+// svelte.config.js
+import adapter from '@sveltejs/adapter-static';
+
+export default {
+  kit: {
+    adapter: adapter({
+      pages: 'build',
+      assets: 'build',
+      fallback: 'index.html'
+    })
+  }
+};
+```
+
+### SPAモード
+
+```typescript
+// +layout.ts
+export const ssr = false;  // SSR無効
+export const csr = true;   // CSR有効
+export const prerender = false;
+```
+
+## 🧪 テスト
 
 ```bash
-# 型チェック
-npm run type-check
-
-# Lintチェック
-npm run lint
-
-# テスト実行
+# ユニットテスト
 npm run test:unit
 
-# ビルド
+# E2Eテスト
+npm run test:e2e
+```
+
+## 🚀 デプロイ
+
+### ビルド
+
+```bash
 npm run build
 ```
 
-## 📝 コーディング規約
+### バックエンドへの統合
 
-### 命名規則
-- コンポーネント名: PascalCase（例: `TaskList.svelte`）
-- 関数名: camelCase（例: `handleClick`）
-- ファイル名: kebab-case（例: `task-service.ts`）
+```bash
+# 自動統合
+npm run deploy:frontend
 
-### インポート順序
-1. 外部ライブラリ
-2. SvelteKit関連
-3. 内部コンポーネント
-4. 型定義
-5. スタイル
-
-```typescript
-// 外部ライブラリ
-import { format } from 'date-fns';
-
-// SvelteKit
-import { page } from '$app/stores';
-
-// 内部コンポーネント
-import { Button } from '$lib/components/ui/button';
-
-// 型定義
-import type { TaskResponse } from '$lib/types/api';
+# または全体ビルド
+cd .. && ./scripts/build-all.sh
 ```
 
-## 🔗 参考リンク
+## 💡 開発のヒント
 
-- [Svelte 5 公式ドキュメント](https://svelte.dev/docs)
-- [SvelteKit ドキュメント](https://kit.svelte.dev/docs)
-- [shadcn-svelte](https://www.shadcn-svelte.com/)
-- [Tailwind CSS](https://tailwindcss.com/docs)
-- [Vitest](https://vitest.dev/)
+1. **型安全性**: TypeScriptの型を活用
+2. **コンポーネント分割**: 再利用可能な小さい単位に
+3. **ストア管理**: グローバル状態は最小限に
+4. **エラーハンドリング**: ユーザーフレンドリーなメッセージ
+5. **パフォーマンス**: 不要な再レンダリングを避ける
 
-## 💡 Tips
+## 🐛 トラブルシューティング
 
-### Svelte 5 への移行
-既存のSvelte 4プロジェクトから移行する場合：
-- イベントハンドラーを `on:click` から `onclick` に変更
-- `export let` を `$props()` に変更
-- リアクティブな変数に `$state()` を使用
+### ビルドエラー
 
-### パフォーマンスの最適化
-- 大量のデータを扱う場合は仮想スクロールを検討
-- `$effect` の依存関係を最小化
-- 画像の遅延読み込みを活用
+```bash
+# キャッシュクリア
+rm -rf .svelte-kit build node_modules
+npm install
+npm run build
+```
 
-### デバッグ
-- Svelte DevTools を活用
-- `$inspect()` rune でリアクティブな値を監視
-- エラーバウンダリーを実装してエラーをキャッチ
+### 型エラー
 
----
+```bash
+# 型チェック
+npm run check
+```
 
-このガイドを通じて、Svelte 5とshadcn-svelteを使用したモダンなフロントエンド開発を習得できることを願っています。質問や改善提案がある場合は、プロジェクトのIssueにてお知らせください。
+### スタイルが反映されない
 
-Happy Coding! 🎉
+```bash
+# Tailwind再ビルド
+npm run dev
+```
