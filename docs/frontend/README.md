@@ -295,3 +295,10 @@ npm run check
 # Tailwind再ビルド
 npm run dev
 ```
+
+## 📖 追加ドキュメント
+
+- [状態管理ガイド](./state-management-guide.md) - Svelte 5 Runesを使った状態管理
+- [テストガイド](./testing-guide.md) - フロントエンドのテスト方法
+- [Svelteセットアップ](./svelte/setup-guide.md) - Svelte環境構築ガイド
+- [Svelte用語集](./svelte/terminology.md) - Svelte固有の用語説明
