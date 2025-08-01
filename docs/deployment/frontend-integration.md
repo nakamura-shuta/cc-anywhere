@@ -75,7 +75,7 @@ npm run deploy:frontend    # フロントエンドをbackend/webへデプロイ
 
 ```bash
 # クラムシェルモードで起動（推奨）
-./backend/scripts/start-clamshell.sh
+./scripts/start-clamshell.sh
 
 # または通常起動
 cd backend && npm start

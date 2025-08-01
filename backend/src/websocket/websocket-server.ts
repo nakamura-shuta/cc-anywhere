@@ -149,8 +149,25 @@ export class WebSocketServer {
   private handleAuth(ws: AuthenticatedWebSocket, message: AuthMessage): void {
     const { apiKey } = message.payload;
 
-    // Check if authentication is enabled
-    if (!config.auth.enabled) {
+    // Check if QR authentication is enabled first
+    if (config.qrAuth?.enabled && config.qrAuth?.token) {
+      // Validate QR token
+      if (apiKey === config.qrAuth.token) {
+        ws.authenticated = true;
+        ws.apiKey = apiKey;
+      } else {
+        // Invalid QR token
+        const errorMessage: ErrorMessage = {
+          type: "error",
+          payload: {
+            message: "Invalid authentication token",
+            code: "INVALID_API_KEY",
+          },
+        };
+        this.sendMessage(ws, errorMessage);
+        return;
+      }
+    } else if (!config.auth.enabled) {
       // If auth is disabled, always authenticate
       ws.authenticated = true;
       ws.apiKey = "no-auth";

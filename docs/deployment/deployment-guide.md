@@ -148,7 +148,7 @@ tmuxがインストールされている場合は、自動的に複数のウィ�
 MacBookを閉じてもサーバーが動作し続けるモード:
 
 ```bash
-./backend/scripts/start-clamshell.sh
+./scripts/start-clamshell.sh
 ```
 
 外部アクセス方法を選択できます:

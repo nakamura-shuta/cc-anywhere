@@ -2,6 +2,7 @@
 
 import { ApiClient, ApiError } from '$lib/api/client';
 import type { TaskResponse, TaskRequest, TaskStatus, PaginatedResponse } from '$lib/types/api';
+import { authStore } from './auth.svelte';
 
 // API呼び出しの状態を管理する汎用クラス
 export class ApiState<T> {
@@ -115,7 +116,8 @@ export class TaskStore {
 	async *streamTaskLogs(taskId: string): AsyncGenerator<string> {
 		const response = await fetch(`/api/tasks/${taskId}/logs`, {
 			headers: {
-				'Accept': 'text/event-stream'
+				'Accept': 'text/event-stream',
+				...authStore.getAuthHeaders()
 			}
 		});
 

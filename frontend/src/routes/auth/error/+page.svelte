@@ -1,6 +1,30 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
 	import { AlertCircle, QrCode, Shield } from 'lucide-svelte';
+	import { page } from '$app/stores';
+	import { Button } from '$lib/components/ui/button';
+	import { authStore } from '$lib/stores/auth.svelte';
+	
+	let retrying = false;
+	
+	async function retryAuth() {
+		retrying = true;
+		const url = new URL(window.location.href);
+		const token = url.searchParams.get('auth_token');
+		
+		if (token) {
+			const success = await authStore.authenticate(token);
+			if (success) {
+				// 成功したらトップページへ
+				window.location.href = '/';
+			} else {
+				alert('認証に失敗しました。QRコードを再度スキャンしてください。');
+			}
+		} else {
+			alert('認証トークンがURLに含まれていません。QRコードを再度スキャンしてください。');
+		}
+		retrying = false;
+	}
 </script>
 
 <div class="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
@@ -44,6 +68,12 @@
 			<div class="text-center text-sm text-muted-foreground">
 				<p>QRコードをお持ちでない場合は、</p>
 				<p>システム管理者にお問い合わせください。</p>
+			</div>
+			
+			<div class="pt-4">
+				<Button onclick={retryAuth} disabled={retrying} class="w-full">
+					{retrying ? '認証中...' : '再度認証を試みる'}
+				</Button>
 			</div>
 		</Card.Content>
 		<Card.Footer class="flex flex-col gap-2 text-xs text-muted-foreground">

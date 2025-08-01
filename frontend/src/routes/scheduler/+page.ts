@@ -1,11 +1,23 @@
 import type { PageLoad } from './$types';
 import { scheduleService } from '$lib/services/schedule.service';
 import { error } from '@sveltejs/kit';
+import { browser } from '$app/environment';
 
 // このページは動的データを扱うため、プリレンダリングを無効化
 export const prerender = false;
 
 export const load: PageLoad = async ({ url }) => {
+	// SSRを避けてクライアントサイドでのみ実行
+	if (!browser) {
+		return {
+			schedules: [],
+			total: 0,
+			currentPage: 1,
+			pageSize: 10,
+			totalPages: 0,
+			status: undefined
+		};
+	}
 	try {
 		const page = Number(url.searchParams.get('page')) || 1;
 		const limit = Number(url.searchParams.get('limit')) || 10;

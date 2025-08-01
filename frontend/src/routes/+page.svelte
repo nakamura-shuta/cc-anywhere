@@ -11,7 +11,8 @@
 <!-- ページのメインコンテンツ -->
 <div class="container">
 	<h1>CC-Anywhere</h1>
-	<p>Welcome to CC-Anywhere with SvelteKit!</p>
+	<p>Welcome to CC-Anywhere</p>
+	
 	
 	<!-- 今後のナビゲーションリンク（仮） -->
 	<nav>
@@ -51,19 +52,71 @@
 		padding: 0;
 		display: flex;
 		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	nav li {
+		flex: 1 1 auto;
+		min-width: 150px;
 	}
 
 	nav a {
 		color: #0066cc;
 		text-decoration: none;
-		padding: 0.5rem 1rem;
+		padding: 0.75rem 1rem;
 		border: 1px solid #0066cc;
 		border-radius: 4px;
 		transition: all 0.3s ease;
+		display: block;
+		text-align: center;
+		white-space: nowrap;
 	}
 
 	nav a:hover {
 		background-color: #0066cc;
 		color: white;
+	}
+
+	/* モバイル向けレスポンシブ対応 */
+	@media (max-width: 768px) {
+		.container {
+			padding: 1rem;
+		}
+
+		h1 {
+			font-size: 2rem;
+		}
+
+		p {
+			font-size: 1rem;
+			margin-bottom: 1.5rem;
+		}
+
+		nav ul {
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
+		nav li {
+			width: 100%;
+			min-width: unset;
+		}
+
+		nav a {
+			padding: 1rem;
+			font-size: 1.1rem;
+		}
+	}
+
+	/* 小さいスマートフォン向け */
+	@media (max-width: 375px) {
+		h1 {
+			font-size: 1.75rem;
+		}
+
+		nav a {
+			padding: 0.875rem 0.75rem;
+			font-size: 1rem;
+		}
 	}
 </style>

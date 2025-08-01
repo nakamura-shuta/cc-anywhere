@@ -18,9 +18,20 @@ export async function registerMiddleware(app: FastifyInstance): Promise<void> {
   });
 
   await app.register(cors, {
-    origin: config.isDevelopment
-      ? ["http://localhost:4444", "http://localhost:5000", "http://localhost:5173"]
-      : config.cors.origin,
+    origin: (origin, callback) => {
+      // ngrokやcloudflareなどのプロキシ経由のアクセスを許可
+      if (
+        !origin ||
+        origin.includes("ngrok") ||
+        origin.includes("cloudflare") ||
+        origin.includes("localhost") ||
+        config.isDevelopment
+      ) {
+        callback(null, true);
+      } else {
+        callback(null, config.cors.origin);
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Auth-Token"],

@@ -49,50 +49,23 @@ export const qrAuthMiddleware: FastifyPluginAsync = async (fastify) => {
 
   // 認証チェックフック
   fastify.addHook("onRequest", async (request, reply) => {
-    logger.debug("QR Auth hook triggered", {
-      url: request.url,
-      method: request.method,
-      enabled: config.qrAuth.enabled,
-      hasToken: !!config.qrAuth.token,
-      configToken: config.qrAuth.token,
-    });
-
     // QR認証が無効な場合はスキップ
     if (!config.qrAuth.enabled || !config.qrAuth.token) {
-      logger.warn("QR Auth skipped: disabled or no token", {
-        enabled: config.qrAuth.enabled,
-        hasToken: !!config.qrAuth.token,
-        token: config.qrAuth.token,
-        url: request.url,
-      });
       return;
     }
 
     // 認証不要なパスはスキップ
     if (isPublicPath(request.url)) {
-      logger.debug("QR Auth skipped: public path", { url: request.url });
       return;
     }
 
-    // 静的ファイルやWebSocketはスキップ
-    if (
-      request.url.startsWith("/web/") ||
-      request.url === "/" ||
-      request.url.includes(".") ||
-      request.headers.upgrade === "websocket"
-    ) {
-      logger.debug("QR Auth skipped: static/websocket", { url: request.url });
+    // APIルート以外（静的ファイル、SPAルート、WebSocket）はスキップ
+    if (!request.url.startsWith("/api/") || request.headers.upgrade === "websocket") {
       return;
     }
 
     // トークン検証
     const token = extractToken(request);
-    logger.debug("QR Auth: validating token", {
-      hasToken: !!token,
-      tokenMatches: token === config.qrAuth.token,
-      providedToken: token ? token.substring(0, 3) + "..." : "none",
-      expectedToken: config.qrAuth.token ? config.qrAuth.token.substring(0, 3) + "..." : "none",
-    });
 
     if (token !== config.qrAuth.token) {
       logger.warn("Unauthorized access attempt", {
@@ -110,8 +83,6 @@ export const qrAuthMiddleware: FastifyPluginAsync = async (fastify) => {
         },
       });
     }
-
-    logger.debug("QR Auth: access granted", { url: request.url });
   });
 
   logger.info("QR authentication middleware initialized", {

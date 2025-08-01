@@ -1,4 +1,5 @@
 import { getWebSocketUrl } from '$lib/config';
+import { authStore } from '$lib/stores/auth.svelte';
 
 export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -176,8 +177,9 @@ export class EnhancedWebSocketStore {
    * 認証処理
    */
   private authenticate(): void {
-    console.log('[WebSocket] Sending authentication');
-    const apiKey = this.config.apiKey || import.meta.env.VITE_API_KEY || '';
+    // QR認証トークンを優先的に使用
+    const authToken = authStore.authToken;
+    const apiKey = authToken || this.config.apiKey || import.meta.env.VITE_API_KEY || '';
     
     this.send({
       type: 'auth',

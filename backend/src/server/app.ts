@@ -73,13 +73,8 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
       // Skip public paths
       if (isPublicPath(request.url)) return;
 
-      // Skip static files and WebSocket
-      if (
-        request.url.startsWith("/web/") ||
-        request.url === "/" ||
-        request.url.includes(".") ||
-        request.headers.upgrade === "websocket"
-      ) {
+      // Skip non-API routes (static files, SPA routes, WebSocket)
+      if (!request.url.startsWith("/api/") || request.headers.upgrade === "websocket") {
         return;
       }
 

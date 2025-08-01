@@ -1,5 +1,8 @@
 {
-  "url": "https://9cedd91e9908.ngrok-free.app",
+  "url": "https://62483432fce9.ngrok-free.app",
   "type": "ngrok",
-  "timestamp": "2025-07-27T23:38:33.907Z"
+  "webUIUrl": "https://62483432fce9.ngrok-free.app?auth_token=hello",
+  "qrAuthEnabled": true,
+  "qrAuthToken": true,
+  "timestamp": "2025-08-01T03:05:28.404Z"
 }

@@ -8,18 +8,37 @@ class AuthStore {
 	private authenticated = $state(false);
 	private token = $state<string | null>(null);
 	private loading = $state(true);
+	private initPromise: Promise<void> | null = null;
 	
 	constructor() {
 		if (browser) {
-			this.initialize();
+			this.initPromise = this.initialize();
 		}
 	}
 	
-	private initialize() {
-		// localStorageから既存トークンを復元
-		const savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-		const savedExpiry = localStorage.getItem(AUTH_TOKEN_EXPIRY_KEY);
+	private async initialize(): Promise<void> {
+		let savedToken: string | null = null;
+		let savedExpiry: string | null = null;
 		
+		// localStorageから読み込みを試みる
+		try {
+			savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+			savedExpiry = localStorage.getItem(AUTH_TOKEN_EXPIRY_KEY);
+		} catch {
+			// localStorageが利用不可
+		}
+		
+		// localStorageで見つからない場合、sessionStorageを試す
+		if (!savedToken) {
+			try {
+				savedToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+				savedExpiry = sessionStorage.getItem(AUTH_TOKEN_EXPIRY_KEY);
+			} catch {
+				// sessionStorageも利用不可
+			}
+		}
+		
+		// トークンが見つかった場合、有効性をチェック
 		if (savedToken && savedExpiry) {
 			const expiryTime = parseInt(savedExpiry, 10);
 			if (Date.now() < expiryTime) {
@@ -34,15 +53,22 @@ class AuthStore {
 		this.loading = false;
 	}
 	
+	// 初期化が完了するまで待つ
+	async waitForInit(): Promise<void> {
+		if (this.initPromise) {
+			await this.initPromise;
+		}
+	}
+	
 	async checkAuth(): Promise<{ enabled: boolean; requiresAuth: boolean }> {
 		try {
 			const response = await fetch('/api/auth/status');
 			if (!response.ok) {
 				throw new Error('Failed to check auth status');
 			}
-			return await response.json();
-		} catch (error) {
-			console.error('Failed to check auth status:', error);
+			const status = await response.json();
+			return status;
+		} catch {
 			return { enabled: false, requiresAuth: false };
 		}
 	}
@@ -50,26 +76,40 @@ class AuthStore {
 	async authenticate(token: string): Promise<boolean> {
 		try {
 			const response = await fetch(`/api/auth/verify?auth_token=${token}`);
+			
 			if (!response.ok) {
 				throw new Error('Authentication failed');
 			}
 			
 			const result = await response.json();
+			
 			if (result.valid) {
 				this.token = token;
 				this.authenticated = true;
 				
 				// トークンを保存（24時間有効）
 				const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
-				localStorage.setItem(AUTH_TOKEN_KEY, token);
-				localStorage.setItem(AUTH_TOKEN_EXPIRY_KEY, expiryTime.toString());
+				
+				// localStorageを試す
+				try {
+					localStorage.setItem(AUTH_TOKEN_KEY, token);
+					localStorage.setItem(AUTH_TOKEN_EXPIRY_KEY, expiryTime.toString());
+				} catch {
+					// localStorageが失敗した場合、sessionStorageを試す
+					try {
+						sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+						sessionStorage.setItem(AUTH_TOKEN_EXPIRY_KEY, expiryTime.toString());
+					} catch {
+						// どちらも失敗した場合でも、メモリには保持される
+						console.warn('[Auth] Storage not available, token kept in memory only');
+					}
+				}
 				
 				return true;
 			}
 			
 			return false;
-		} catch (error) {
-			console.error('Authentication error:', error);
+		} catch {
 			return false;
 		}
 	}
@@ -84,8 +124,18 @@ class AuthStore {
 	clearAuth() {
 		this.token = null;
 		this.authenticated = false;
-		localStorage.removeItem(AUTH_TOKEN_KEY);
-		localStorage.removeItem(AUTH_TOKEN_EXPIRY_KEY);
+		try {
+			localStorage.removeItem(AUTH_TOKEN_KEY);
+			localStorage.removeItem(AUTH_TOKEN_EXPIRY_KEY);
+		} catch {
+			// エラーは無視
+		}
+		try {
+			sessionStorage.removeItem(AUTH_TOKEN_KEY);
+			sessionStorage.removeItem(AUTH_TOKEN_EXPIRY_KEY);
+		} catch {
+			// エラーは無視
+		}
 	}
 	
 	async logout() {

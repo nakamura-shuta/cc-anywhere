@@ -35,7 +35,18 @@ export class ApiClient {
 
 	constructor(baseUrl?: string) {
 		const config = getConfig();
-		this.baseUrl = baseUrl || config.api.baseUrl;
+		// 動的にbaseUrlを決定（ngrok/cloudflare対応）
+		if (!baseUrl) {
+			if (typeof window !== 'undefined') {
+				// ブラウザ環境では現在のオリジンを使用
+				this.baseUrl = window.location.origin;
+			} else {
+				// SSR時はconfigのデフォルト値を使用
+				this.baseUrl = config.api.baseUrl;
+			}
+		} else {
+			this.baseUrl = baseUrl;
+		}
 	}
 
 	// URLパラメータの構築
@@ -83,10 +94,12 @@ export class ApiClient {
 		const { params, ...fetchOptions } = options;
 		const url = this.buildUrl(endpoint, params);
 
+		const authHeaders = authStore.getAuthHeaders();
+
 		const defaultOptions: RequestInit = {
 			headers: {
 				...getApiHeaders(),
-				...authStore.getAuthHeaders(),
+				...authHeaders,
 				'Accept': 'text/event-stream'
 			},
 			...fetchOptions
@@ -111,10 +124,12 @@ export class ApiClient {
 		const url = this.buildUrl(endpoint, params);
 
 
+		const authHeaders = authStore.getAuthHeaders();
+		
 		const defaultOptions: RequestInit = {
 			headers: {
 				...getApiHeaders(),
-				...authStore.getAuthHeaders()
+				...authHeaders
 			},
 			...fetchOptions
 		};
@@ -131,13 +146,6 @@ export class ApiClient {
 					// JSONパースエラーの場合はテキストを取得
 					errorData = { error: await response.text() };
 				}
-				console.error('API Error:', {
-					status: response.status,
-					statusText: response.statusText,
-					errorData,
-					endpoint,
-					requestBody: fetchOptions.body
-				});
 				throw new ApiError(response.status, response.statusText, errorData);
 			}
 
@@ -148,7 +156,6 @@ export class ApiClient {
 
 			// JSONレスポンスのパース
 			const data = await response.json();
-			console.log('API Response:', endpoint, data);
 			return data;
 		} catch (error) {
 			// ネットワークエラーやタイムアウト

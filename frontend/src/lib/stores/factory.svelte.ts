@@ -183,13 +183,14 @@ export function createEntityStore<T extends { id: string } | { taskId: string }>
           this.updateLocal(payload.id || payload.taskId, payload);
           break;
           
-        case `${name}.deleted`:
+        case `${name}.deleted`: {
           const itemId = payload.id || payload.taskId;
           this.items = removeFromArray(this.items, item => this.getItemId(item) === itemId);
           if (this.selectedId === itemId) {
             this.selectedId = null;
           }
           break;
+        }
           
         default:
           // カスタムハンドラーで処理

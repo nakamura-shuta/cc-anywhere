@@ -15,6 +15,10 @@ export async function registerStaticPlugin(fastify: FastifyInstance): Promise<vo
     index: ["index.html"],
     // ワイルドカードを無効化（後で手動で処理）
     wildcard: false,
+    // 404エラー時にsetNotFoundHandlerに処理を委譲
+    preCompressed: false,
+    // ディレクトリ一覧を無効化
+    list: false,
   });
 
   // examplesディレクトリが存在する場合のみ登録
@@ -27,7 +31,10 @@ export async function registerStaticPlugin(fastify: FastifyInstance): Promise<vo
     });
   }
 
-  // SPAのルーティングサポート
+  // 既存の静的ファイルプラグインで処理されないルートは
+  // setNotFoundHandlerで処理するため、個別登録は不要
+
+  // SPAのルーティングサポート（フォールバック）
   // setNotFoundHandlerを使用してSPAルーティングを処理
   fastify.setNotFoundHandler(async (request, reply) => {
     // APIルートは除外

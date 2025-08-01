@@ -9,11 +9,11 @@
 	import { settingsService } from '$lib/services/settings.service';
 	import type { Settings } from '$lib/services/settings.service';
 
-	let settings: Settings | null = null;
-	let selectedMode: string = '';
-	let loading = false;
-	let error: string | null = null;
-	let successMessage: string | null = null;
+	let settings = $state<Settings | null>(null);
+	let selectedMode = $state<string>('');
+	let loading = $state(false);
+	let error = $state<string | null>(null);
+	let successMessage = $state<string | null>(null);
 
 	onMount(async () => {
 		await loadSettings();
@@ -137,7 +137,7 @@
 				<div class="pt-4">
 					<Button 
 						onclick={saveSettings} 
-						disabled={loading || selectedMode === settings.executionMode}
+						disabled={loading || selectedMode === settings?.executionMode}
 					>
 						Save Settings
 					</Button>

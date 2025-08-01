@@ -109,7 +109,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 					const toolCompletePattern = /^(\w+)\s+(完了|失敗)\s+(\d{4}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})$/;
 					const toolCompleteMatch = log.match(toolCompletePattern);
 					if (toolCompleteMatch) {
-						const [, tool, status, timestamp] = toolCompleteMatch;
+						const [, , status, timestamp] = toolCompleteMatch;
 						const statusEmoji = status === '完了' ? '✓ 成功' : '✗ 失敗';
 						return `${statusEmoji}\n${timestamp}`;
 					}
@@ -137,7 +137,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 					const match = log.match(oldToolPattern);
 					
 					if (match) {
-						const [, tool, status, action, details] = match;
+						const [, tool, , action, details] = match;
 						const timestamp = new Date().toLocaleString('ja-JP'); // 実際のタイムスタンプは不明なので現在時刻を使用
 						
 						if (action === '開始') {

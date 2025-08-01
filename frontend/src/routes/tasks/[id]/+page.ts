@@ -4,11 +4,25 @@ import type { PageLoad } from './$types';
 import { taskService } from '$lib/services/task.service';
 import { error } from '@sveltejs/kit';
 import type { TaskResponse } from '$lib/types/api';
+import { browser } from '$app/environment';
+import { authStore } from '$lib/stores/auth.svelte';
 
 // このページは動的データを扱うため、プリレンダリングを無効化
 export const prerender = false;
 
 export const load: PageLoad = async ({ params }) => {
+	// SSRを避けてクライアントサイドでのみ実行
+	if (!browser) {
+		return {
+			task: null as TaskResponse | null,
+			logs: [],
+			childTasks: []
+		};
+	}
+	
+	// authStoreの初期化を待つ
+	await authStore.waitForInit();
+	
 	try {
 		// タスクの詳細を取得
 		const task = await taskService.get(params.id);

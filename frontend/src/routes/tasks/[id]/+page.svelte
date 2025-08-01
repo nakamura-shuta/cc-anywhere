@@ -17,20 +17,28 @@
 	let { data }: { data: PageData } = $props();
 	
 	// 初期データを抽出（progressDataから）
-	const initialData = {
+	const initialData = data.task ? {
 		toolUsageCount: data.task.progressData?.toolUsageCount || {},
 		todos: data.task.progressData?.todos || [],
 		currentTurn: data.task.progressData?.currentTurn || 0,
 		maxTurns: data.task.progressData?.maxTurns || 0,
 		logs: data.logs || [],
 		// 詳細情報も含める
-		toolExecutions: data.task.progressData?.toolExecutions || [],
-		claudeResponses: data.task.progressData?.claudeResponses || []
+		toolExecutions: (data.task.progressData as any)?.toolExecutions || [],
+		claudeResponses: (data.task.progressData as any)?.claudeResponses || []
+	} : {
+		toolUsageCount: {},
+		todos: [],
+		currentTurn: 0,
+		maxTurns: 0,
+		logs: [],
+		toolExecutions: [],
+		claudeResponses: []
 	};
 	
 	
 	// WebSocketでタスクを監視（初期統計情報と初期データを渡す）
-	const ws = useTaskWebSocket(data.task.taskId, null, initialData);
+	const ws = useTaskWebSocket(data.task?.taskId || '', null, initialData);
 	
 	// タスクの状態（WebSocketからの更新を反映）
 	let currentTask = $state(data.task);
@@ -157,7 +165,7 @@
 	let elapsedTime = $state('');
 	
 	function updateElapsedTime() {
-		if (!currentTask.startedAt) {
+		if (!currentTask?.startedAt) {
 			elapsedTime = '-';
 			return;
 		}
@@ -185,7 +193,7 @@
 	
 	// タスクが実行中の場合、経過時間を定期的に更新
 	$effect(() => {
-		if (currentTask.status === 'running') {
+		if (currentTask?.status === 'running') {
 			updateElapsedTime();
 			const interval = setInterval(updateElapsedTime, 1000);
 			return () => clearInterval(interval);
@@ -194,12 +202,13 @@
 	
 	// タスクの経過時間を取得
 	function getTaskAge(): number {
-		if (!currentTask.completedAt) return 0;
+		if (!currentTask?.completedAt) return 0;
 		return Date.now() - new Date(currentTask.completedAt).getTime();
 	}
 	
 	// SDK Continueで続行
 	async function handleSdkContinue() {
+		if (!currentTask) return;
 		// 新しいタスク作成画面に遷移（SDK Continue用パラメータ付き）
 		const params = new URLSearchParams({
 			continueFromTaskId: currentTask.taskId,
@@ -261,6 +270,7 @@
 		isRefreshing = true;
 		
 		try {
+			if (!currentTask) return;
 			const taskId = currentTask.taskId;
 			await taskStore.fetchTask(taskId);
 			const taskState = taskStore.getTaskState(taskId);
@@ -279,6 +289,7 @@
 	
 	// タスクのキャンセル
 	async function cancelTask() {
+		if (!currentTask) return;
 		if (confirm('このタスクをキャンセルしますか？')) {
 			await taskStore.cancelTask(currentTask.taskId);
 			await refreshTask();
@@ -294,7 +305,7 @@
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `task-${currentTask.taskId}-logs.txt`;
+		a.download = `task-${currentTask?.taskId || 'unknown'}-logs.txt`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}
@@ -335,19 +346,21 @@
 			console.log('[StatusChange] New status:', newStatus, 'Change type:', changeType, 'Payload:', changeData);
 			
 			// ローカルのステータスのみ更新（APIは呼ばない）
-			currentTask = {
-				...currentTask,
-				status: newStatus as TaskStatus,
-				updatedAt: new Date().toISOString()
-			};
-			
-			// task:updateメッセージの場合、metadata内のresultも更新
-			if (changeType === 'task:update' && changeData?.metadata?.result !== undefined) {
+			if (currentTask) {
 				currentTask = {
 					...currentTask,
-					result: changeData.metadata.result
+					status: newStatus as TaskStatus,
+					updatedAt: new Date().toISOString()
 				};
-				console.log('[StatusChange] Updated result from WebSocket:', changeData.metadata.result);
+				
+				// task:updateメッセージの場合、metadata内のresultも更新
+				if (changeType === 'task:update' && changeData?.metadata?.result !== undefined) {
+					currentTask = {
+						...currentTask,
+						result: changeData.metadata.result
+					};
+					console.log('[StatusChange] Updated result from WebSocket:', changeData.metadata.result);
+				}
 			}
 			
 			// 完了系のステータスの場合のみ、タスクの詳細を取得
@@ -391,6 +404,7 @@
 		</div>
 	</div>
 
+	{#if currentTask}
 	<div class="grid gap-6">
 		<!-- タスク情報 -->
 		<Card.Root>
@@ -413,7 +427,7 @@
 						<Button 
 							variant="link" 
 							class="h-auto p-0 text-primary hover:underline"
-							onclick={() => window.location.href = `/tasks/${currentTask.continuedFrom || currentTask.parentTaskId}`}
+							onclick={() => { if (currentTask) window.location.href = `/tasks/${currentTask.continuedFrom || currentTask.parentTaskId}`; }}
 						>
 							<Folder class="h-4 w-4 mr-1" />
 							{currentTask.continuedFrom || currentTask.parentTaskId}
@@ -556,7 +570,7 @@
 										</ul>
 										<Button 
 											variant="outline" 
-											onclick={() => window.location.href = `/tasks/${currentTask.taskId}/continue`}
+											onclick={() => { if (currentTask) window.location.href = `/tasks/${currentTask.taskId}/continue`; }}
 											class="w-full gap-2"
 										>
 											<RefreshCw class="h-4 w-4" />
@@ -907,6 +921,11 @@
 		</Card.Root>
 		
 	</div>
+	{:else}
+	<div class="flex items-center justify-center h-64">
+		<p class="text-muted-foreground">タスクを読み込み中...</p>
+	</div>
+	{/if}
 </div>
 
 <style>

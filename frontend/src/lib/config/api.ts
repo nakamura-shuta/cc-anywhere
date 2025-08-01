@@ -95,5 +95,17 @@ export const getApiHeaders = (): HeadersInit => {
 		headers['X-API-Key'] = apiKey;
 	}
 	
+	// ngrok/cloudflare経由のアクセス時は特別なヘッダーを追加
+	if (browser) {
+		if (window.location.hostname.includes('ngrok')) {
+			headers['ngrok-skip-browser-warning'] = 'true';
+		}
+		// Cloudflare Zero Trustなどのヘッダーも考慮
+		if (window.location.hostname.includes('cloudflare') || 
+		    window.location.hostname.includes('trycloudflare')) {
+			headers['CF-Access-Client-Id'] = 'skip';
+		}
+	}
+	
 	return headers;
 };
