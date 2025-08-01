@@ -13,6 +13,7 @@
 	
 	// 現在のフィルター状態
 	let currentStatus = $state('all');
+	let currentRepository = $state('');
 	
 	// ストアの初期化
 	$effect(() => {
@@ -45,6 +46,9 @@
 		if (currentStatus !== 'all') {
 			params.set('status', currentStatus);
 		}
+		if (currentRepository) {
+			params.set('repository', currentRepository);
+		}
 		window.location.href = `/tasks?${params.toString()}`;
 	}
 	
@@ -55,22 +59,38 @@
 		if (status !== 'all') {
 			params.set('status', status);
 		}
+		if (currentRepository) {
+			params.set('repository', currentRepository);
+		}
 		window.location.href = `/tasks?${params.toString()}`;
 	}
 	
-	// フィルタリングされたタスク
-	const filteredTasks = $derived(
-		currentStatus === 'all' 
-			? taskListStore.tasks 
-			: taskListStore.tasks.filter(task => task.status === currentStatus)
-	);
+	// リポジトリフィルター変更
+	function handleRepositoryChange(repository: string) {
+		const params = new URLSearchParams();
+		params.set('page', '1'); // フィルター変更時は1ページ目に戻る
+		if (currentStatus !== 'all') {
+			params.set('status', currentStatus);
+		}
+		if (repository) {
+			params.set('repository', repository);
+		}
+		window.location.href = `/tasks?${params.toString()}`;
+	}
+	
+	// タスクはサーバーサイドでフィルタリング済みなので、そのまま使用
+	const filteredTasks = $derived(taskListStore.tasks);
 	
 	// URLパラメータから初期状態を設定
 	$effect(() => {
 		const urlParams = new URLSearchParams(window.location.search);
 		const statusParam = urlParams.get('status');
+		const repositoryParam = urlParams.get('repository');
 		if (statusParam) {
 			currentStatus = statusParam;
+		}
+		if (repositoryParam) {
+			currentRepository = repositoryParam;
 		}
 	});
 </script>
@@ -101,6 +121,8 @@
 	<TaskFilter 
 		currentStatus={currentStatus}
 		onStatusChange={handleStatusChange}
+		currentRepository={currentRepository}
+		onRepositoryChange={handleRepositoryChange}
 	/>
 
 	<!-- タスク一覧 -->

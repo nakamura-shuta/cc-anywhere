@@ -1,12 +1,30 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
+	import * as Select from '$lib/components/ui/select';
+	import { repositoryService } from '$lib/services/repository.service';
+	import { onMount } from 'svelte';
 	
 	// Props
-	let { currentStatus, onStatusChange }: {
+	let { currentStatus, onStatusChange, currentRepository = '', onRepositoryChange }: {
 		currentStatus: string;
 		onStatusChange: (status: string) => void;
+		currentRepository?: string;
+		onRepositoryChange?: (repository: string) => void;
 	} = $props();
+	
+	// リポジトリ一覧
+	let repositories = $state<string[]>([]);
+	
+	// リポジトリ一覧を取得
+	onMount(async () => {
+		try {
+			const repoList = await repositoryService.getRepositories();
+			repositories = repoList.map(repo => repo.name);
+		} catch (error) {
+			console.error('Failed to load repositories:', error);
+		}
+	});
 	
 	// フィルターオプション
 	const filters = [
@@ -18,14 +36,35 @@
 	];
 </script>
 
-<div class="flex gap-2 flex-wrap">
-	{#each filters as filter}
-		<Button
-			variant={currentStatus === filter.value ? 'default' : 'outline'}
-			size="sm"
-			onclick={() => onStatusChange(filter.value)}
-		>
-			{filter.label}
-		</Button>
-	{/each}
+<div class="space-y-4">
+	<!-- ステータスフィルター -->
+	<div class="flex gap-2 flex-wrap">
+		{#each filters as filter}
+			<Button
+				variant={currentStatus === filter.value ? 'default' : 'outline'}
+				size="sm"
+				onclick={() => onStatusChange(filter.value)}
+			>
+				{filter.label}
+			</Button>
+		{/each}
+	</div>
+	
+	<!-- リポジトリフィルター -->
+	{#if repositories.length > 0 && onRepositoryChange}
+		<div class="flex items-center gap-2">
+			<span class="text-sm text-muted-foreground">リポジトリ:</span>
+			<Select.Root value={currentRepository || 'all'} onValueChange={(value) => onRepositoryChange(value === 'all' ? '' : value)}>
+				<Select.Trigger class="w-48">
+					<span data-slot="select-value">{currentRepository || "すべてのリポジトリ"}</span>
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="all">すべてのリポジトリ</Select.Item>
+					{#each repositories as repo}
+						<Select.Item value={repo}>{repo}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
+	{/if}
 </div>

@@ -22,6 +22,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Querystring: {
       status?: TaskStatus;
+      repository?: string;
       limit?: number;
       offset?: number;
     };
@@ -43,6 +44,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
               type: "string",
               enum: Object.values(TaskStatus),
             },
+            repository: { type: "string" },
             limit: { type: "number", minimum: 1, maximum: 100, default: 20 },
             offset: { type: "number", minimum: 0, default: 0 },
           },
@@ -89,10 +91,13 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     (request, reply) => {
-      const { status, limit = 20, offset = 0 } = request.query;
+      const { status, repository: repositoryFilter, limit = 20, offset = 0 } = request.query;
 
       // Get tasks from database
-      const filter = status ? { status } : {};
+      const filter: any = {};
+      if (status) filter.status = status;
+      if (repositoryFilter) filter.workingDirectory = repositoryFilter;
+      
       const result = repository.find(filter, { limit, offset });
 
       // Convert TaskRecords to TaskResponses

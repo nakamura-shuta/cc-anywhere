@@ -65,7 +65,11 @@ export class EnhancedWebSocketStore {
       this.status = 'connecting';
       this.error = null;
       
-      this.socket = new WebSocket(this.config.url);
+      // ブラウザ環境で動的にURLを取得
+      const wsUrl = getWebSocketUrl();
+      console.log('[WebSocket] Connecting to:', wsUrl);
+      
+      this.socket = new WebSocket(wsUrl);
       
       this.socket.onopen = this.handleOpen.bind(this);
       this.socket.onmessage = this.handleMessage.bind(this);

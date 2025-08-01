@@ -283,6 +283,178 @@ describe("Task Routes", () => {
         sdkSessionId,
       });
     });
+
+    it("should filter tasks by repository", async () => {
+      const repo1Task = {
+        id: uuidv4(),
+        instruction: "Task in repo1",
+        context: { workingDirectory: "/Users/test/repo1" },
+        options: {},
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completedAt: new Date(),
+        startedAt: new Date(),
+      };
+
+      const repo2Task = {
+        id: uuidv4(),
+        instruction: "Task in repo2",
+        context: { workingDirectory: "/Users/test/repo2" },
+        options: {},
+        priority: 0,
+        status: TaskStatus.RUNNING,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        startedAt: new Date(),
+      };
+
+      const mockQueuedTask1 = {
+        id: repo1Task.id,
+        request: {
+          instruction: repo1Task.instruction,
+          context: repo1Task.context,
+          options: {},
+        },
+        status: repo1Task.status,
+        priority: 0,
+        addedAt: repo1Task.createdAt,
+        startedAt: repo1Task.startedAt,
+        completedAt: repo1Task.completedAt,
+        result: {
+          taskId: repo1Task.id,
+          status: repo1Task.status,
+          instruction: repo1Task.instruction,
+          createdAt: repo1Task.createdAt,
+          startedAt: repo1Task.startedAt,
+          completedAt: repo1Task.completedAt,
+          result: { message: "Task completed" },
+        },
+      };
+
+      // Mock repository.find to check for workingDirectory filter
+      mockRepository.find.mockImplementation((filter: any) => {
+        if (filter.workingDirectory === "/Users/test/repo1") {
+          return {
+            data: [repo1Task],
+            total: 1,
+            limit: 20,
+            offset: 0,
+          };
+        }
+        return {
+          data: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        };
+      });
+
+      mockRepository.toQueuedTask.mockReturnValue(mockQueuedTask1);
+
+      // Test filtering by repository
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/tasks?repository=/Users/test/repo1",
+        headers: {
+          "X-API-Key": testApiKey,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+
+      expect(body.tasks).toHaveLength(1);
+      expect(body.tasks[0].instruction).toBe("Task in repo1");
+      expect(body.tasks[0].workingDirectory).toBe("/Users/test/repo1");
+
+      // Verify that repository.find was called with the correct filter
+      expect(mockRepository.find).toHaveBeenCalledWith(
+        { workingDirectory: "/Users/test/repo1" },
+        { limit: 20, offset: 0 }
+      );
+    });
+
+    it("should filter tasks by both status and repository", async () => {
+      const taskId = uuidv4();
+      const workingDirectory = "/Users/test/repo1";
+
+      const mockRecord = {
+        id: taskId,
+        instruction: "Running task in repo1",
+        context: { workingDirectory },
+        options: {},
+        priority: 0,
+        status: TaskStatus.RUNNING,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        startedAt: new Date(),
+      };
+
+      const mockQueuedTask = {
+        id: taskId,
+        request: {
+          instruction: mockRecord.instruction,
+          context: mockRecord.context,
+          options: {},
+        },
+        status: mockRecord.status,
+        priority: 0,
+        addedAt: mockRecord.createdAt,
+        startedAt: mockRecord.startedAt,
+        result: {
+          taskId,
+          status: mockRecord.status,
+          instruction: mockRecord.instruction,
+          createdAt: mockRecord.createdAt,
+          startedAt: mockRecord.startedAt,
+        },
+      };
+
+      mockRepository.find.mockImplementation((filter: any) => {
+        if (filter.status === TaskStatus.RUNNING && filter.workingDirectory === workingDirectory) {
+          return {
+            data: [mockRecord],
+            total: 1,
+            limit: 20,
+            offset: 0,
+          };
+        }
+        return {
+          data: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        };
+      });
+
+      mockRepository.toQueuedTask.mockReturnValue(mockQueuedTask);
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/tasks?status=${TaskStatus.RUNNING}&repository=${workingDirectory}`,
+        headers: {
+          "X-API-Key": testApiKey,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+
+      expect(body.tasks).toHaveLength(1);
+      expect(body.tasks[0].status).toBe(TaskStatus.RUNNING);
+      expect(body.tasks[0].workingDirectory).toBe(workingDirectory);
+
+      // Verify that repository.find was called with both filters
+      expect(mockRepository.find).toHaveBeenCalledWith(
+        { 
+          status: TaskStatus.RUNNING,
+          workingDirectory: workingDirectory 
+        },
+        { limit: 20, offset: 0 }
+      );
+    });
   });
 
   describe("GET /api/tasks/:taskId", () => {
