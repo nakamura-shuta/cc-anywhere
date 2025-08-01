@@ -71,6 +71,11 @@ CLAUDE.md
 *.qr.txt
 tunnel-qr.txt
 
+# Runtime generated files
+backend/data/last-access-info.json
+backend/data/last-qr.txt
+backend/data/documents/
+
 # Test Repositories
 test-repo/
 test-repos/

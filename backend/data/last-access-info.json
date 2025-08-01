@@ -1,8 +1,0 @@
-{
-  "url": "https://62483432fce9.ngrok-free.app",
-  "type": "ngrok",
-  "webUIUrl": "https://62483432fce9.ngrok-free.app?auth_token=hello",
-  "qrAuthEnabled": true,
-  "qrAuthToken": true,
-  "timestamp": "2025-08-01T03:05:28.404Z"
-}

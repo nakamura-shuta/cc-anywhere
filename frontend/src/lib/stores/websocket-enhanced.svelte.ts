@@ -34,7 +34,7 @@ export class EnhancedWebSocketStore {
     maxReconnectAttempts: 5,
     heartbeatInterval: 30000,
     maxQueueSize: 100,
-    apiKey: import.meta.env.VITE_API_KEY || ''
+    apiKey: ''
   };
   
   // リアクティブ状態
@@ -179,7 +179,7 @@ export class EnhancedWebSocketStore {
   private authenticate(): void {
     // QR認証トークンを優先的に使用
     const authToken = authStore.authToken;
-    const apiKey = authToken || this.config.apiKey || import.meta.env.VITE_API_KEY || '';
+    const apiKey = authToken || this.config.apiKey || '';
     
     this.send({
       type: 'auth',
