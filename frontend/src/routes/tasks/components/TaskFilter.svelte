@@ -19,7 +19,7 @@
 	// リポジトリ一覧を取得
 	onMount(async () => {
 		try {
-			const repoList = await repositoryService.getRepositories();
+			const repoList = await repositoryService.list();
 			repositories = repoList.map(repo => repo.name);
 		} catch (error) {
 			console.error('Failed to load repositories:', error);
@@ -54,7 +54,7 @@
 	{#if repositories.length > 0 && onRepositoryChange}
 		<div class="flex items-center gap-2">
 			<span class="text-sm text-muted-foreground">リポジトリ:</span>
-			<Select.Root value={currentRepository || 'all'} onValueChange={(value) => onRepositoryChange(value === 'all' ? '' : value)}>
+			<Select.Root type="single" bind:value={currentRepository} onValueChange={(value: string) => onRepositoryChange(value === 'all' ? '' : value)}>
 				<Select.Trigger class="w-48">
 					<span data-slot="select-value">{currentRepository || "すべてのリポジトリ"}</span>
 				</Select.Trigger>

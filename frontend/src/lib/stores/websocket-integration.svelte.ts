@@ -1,6 +1,7 @@
 import { getWebSocketStore } from './websocket-enhanced.svelte';
 import { getGlobalMessageRouter } from './message-router.svelte';
 import { taskStore } from './task.svelte';
+import { scheduleStore } from './schedule.svelte';
 import { getConfig } from '$lib/config';
 
 /**
@@ -18,6 +19,9 @@ export function setupWebSocketIntegration() {
   
   // タスクストアのメッセージハンドリング
   setupTaskStoreHandlers();
+  
+  // スケジュールストアのメッセージハンドリング
+  setupScheduleStoreHandlers();
   
   // WebSocket自動接続（設定で有効な場合）
   if (config.features.enableWebSocket) {
@@ -65,6 +69,36 @@ function setupTaskStoreHandlers() {
   // レガシーイベントのサポート
   router.registerPattern('task:*', (msg) => {
     taskStore.handleWebSocketUpdate(msg);
+  });
+}
+
+/**
+ * スケジュールストアのメッセージハンドラー設定
+ */
+function setupScheduleStoreHandlers() {
+  const router = getGlobalMessageRouter();
+  
+  // スケジュールのCRUD操作
+  router.register('schedule.created', (msg) => {
+    scheduleStore.handleWebSocketUpdate(msg);
+  });
+  
+  router.register('schedule.updated', (msg) => {
+    scheduleStore.handleWebSocketUpdate(msg);
+  });
+  
+  router.register('schedule.deleted', (msg) => {
+    scheduleStore.handleWebSocketUpdate(msg);
+  });
+  
+  // スケジュール固有のイベント
+  router.register('schedule:update', (msg) => {
+    scheduleStore.handleWebSocketUpdate(msg);
+  });
+  
+  router.register('schedule:execution', (msg) => {
+    // スケジュール実行イベント
+    scheduleStore.handleCustomMessage?.(msg);
   });
 }
 

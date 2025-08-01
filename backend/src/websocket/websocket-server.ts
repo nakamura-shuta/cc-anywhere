@@ -25,6 +25,8 @@ import type {
   ToolProgressMessage,
   TaskStatisticsMessage,
   ClaudeResponseMessage,
+  ScheduleUpdateMessage,
+  ScheduleExecutionMessage,
 } from "./types.js";
 
 export class WebSocketServer {
@@ -438,6 +440,27 @@ export class WebSocketServer {
     };
 
     this.broadcastToTaskSubscribers(payload.taskId, message);
+  }
+
+  // Schedule-related broadcast methods
+  broadcastScheduleUpdate(payload: ScheduleUpdateMessage["payload"]): void {
+    const message: ScheduleUpdateMessage = {
+      type: "schedule:update",
+      payload,
+    };
+
+    // Broadcast to all authenticated clients since schedules are global
+    this.broadcastToAll(message);
+  }
+
+  broadcastScheduleExecution(payload: ScheduleExecutionMessage["payload"]): void {
+    const message: ScheduleExecutionMessage = {
+      type: "schedule:execution",
+      payload,
+    };
+
+    // Broadcast to all authenticated clients
+    this.broadcastToAll(message);
   }
 
   private broadcastToTaskSubscribers(taskId: string, message: WebSocketMessage): void {

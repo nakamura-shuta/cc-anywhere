@@ -372,7 +372,7 @@ describe("Task Routes", () => {
       // Verify that repository.find was called with the correct filter
       expect(mockRepository.find).toHaveBeenCalledWith(
         { workingDirectory: "/Users/test/repo1" },
-        { limit: 20, offset: 0 }
+        { limit: 20, offset: 0 },
       );
     });
 
@@ -448,11 +448,11 @@ describe("Task Routes", () => {
 
       // Verify that repository.find was called with both filters
       expect(mockRepository.find).toHaveBeenCalledWith(
-        { 
+        {
           status: TaskStatus.RUNNING,
-          workingDirectory: workingDirectory 
+          workingDirectory: workingDirectory,
         },
-        { limit: 20, offset: 0 }
+        { limit: 20, offset: 0 },
       );
     });
   });

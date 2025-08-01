@@ -1,7 +1,7 @@
 // タスク一覧ページのデータロード
 
 import type { PageLoad } from './$types';
-import { apiClient, ApiError } from '$lib/api/client';
+import { apiClient } from '$lib/api/client';
 import type { TaskResponse } from '$lib/types/api';
 import { error } from '@sveltejs/kit';
 import { browser } from '$app/environment';

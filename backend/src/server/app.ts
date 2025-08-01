@@ -50,17 +50,17 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   // 1. Set up worker mode and task queue
   const { taskQueue, workerManager } = await setupWorkerMode(app, workerMode);
 
-  // 2. Initialize shared services
-  const services = initializeServices();
+  // 2. Configure WebSocket server early so it can be passed to services
+  const wsServer = await configureWebSocket(app, taskQueue);
 
-  // 3. Decorate app with services
+  // 3. Initialize shared services with WebSocket server
+  const services = initializeServices(wsServer);
+
+  // 4. Decorate app with services
   decorateApp(app, { taskQueue, workerManager, ...services });
 
-  // 4. Set up scheduler with task queue integration
+  // 5. Set up scheduler with task queue integration
   setupScheduler(services.schedulerService, taskQueue);
-
-  // 5. Configure WebSocket server
-  const wsServer = await configureWebSocket(app, taskQueue);
 
   // 6. Register middleware (including authentication)
   await registerMiddleware(app);

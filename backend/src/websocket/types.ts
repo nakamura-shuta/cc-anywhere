@@ -220,6 +220,32 @@ export interface SuccessMessage extends WebSocketMessage {
   };
 }
 
+// Schedule-related messages
+export interface ScheduleUpdateMessage extends WebSocketMessage {
+  type: "schedule:update";
+  payload: {
+    scheduleId: string;
+    status: "active" | "inactive" | "completed" | "failed";
+    metadata?: {
+      lastExecutedAt?: Date;
+      nextExecuteAt?: Date;
+      executionCount?: number;
+    };
+    timestamp: string;
+  };
+}
+
+export interface ScheduleExecutionMessage extends WebSocketMessage {
+  type: "schedule:execution";
+  payload: {
+    scheduleId: string;
+    taskId: string;
+    status: "started" | "completed" | "failed";
+    error?: string;
+    timestamp: string;
+  };
+}
+
 // Extended WebSocket with authentication and subscriptions
 export interface AuthenticatedWebSocket extends WebSocket {
   id: string;

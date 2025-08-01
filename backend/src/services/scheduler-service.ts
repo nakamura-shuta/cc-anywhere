@@ -9,6 +9,7 @@ import type {
   ScheduleListResponse,
 } from "../types/scheduled-task.js";
 import type { TaskRequest } from "../claude/types.js";
+import type { WebSocketServer } from "../websocket/websocket-server.js";
 
 export type ExecuteHandler = (
   taskRequest: TaskRequest,
@@ -20,8 +21,10 @@ export class SchedulerService {
   private cronJobs: Map<string, CronJob> = new Map();
   private onExecute?: ExecuteHandler;
   private running = false;
+  private wsServer?: WebSocketServer;
 
-  constructor() {
+  constructor(wsServer?: WebSocketServer) {
+    this.wsServer = wsServer;
     logger.info("SchedulerService initialized");
   }
 
@@ -317,6 +320,14 @@ export class SchedulerService {
     let status: "success" | "failure" = "success";
     let error: string | undefined;
 
+    // Broadcast execution start
+    this.wsServer?.broadcastScheduleExecution({
+      scheduleId,
+      taskId: "", // Task ID not yet available
+      status: "started",
+      timestamp: executedAt.toISOString(),
+    });
+
     try {
       if (this.onExecute) {
         const result = await this.onExecute(schedule.taskRequest, scheduleId);
@@ -361,6 +372,28 @@ export class SchedulerService {
     }
 
     this.schedules.set(scheduleId, updatedSchedule);
+
+    // Broadcast execution completion
+    this.wsServer?.broadcastScheduleExecution({
+      scheduleId,
+      taskId: taskId || "",
+      status: status === "success" ? "completed" : "failed",
+      error,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Broadcast schedule update
+    this.wsServer?.broadcastScheduleUpdate({
+      scheduleId,
+      status: updatedSchedule.status,
+      metadata: {
+        lastExecutedAt: updatedSchedule.metadata.lastExecutedAt,
+        nextExecuteAt: updatedSchedule.metadata.nextExecuteAt,
+        executionCount: updatedSchedule.metadata.executionCount,
+      },
+      timestamp: new Date().toISOString(),
+    });
+
     logger.info("Scheduled task execution completed", {
       scheduleId,
       taskId,

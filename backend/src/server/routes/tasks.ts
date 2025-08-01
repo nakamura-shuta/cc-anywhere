@@ -97,7 +97,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       const filter: any = {};
       if (status) filter.status = status;
       if (repositoryFilter) filter.workingDirectory = repositoryFilter;
-      
+
       const result = repository.find(filter, { limit, offset });
 
       // Convert TaskRecords to TaskResponses

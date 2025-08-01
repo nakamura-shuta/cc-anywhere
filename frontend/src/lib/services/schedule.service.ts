@@ -2,7 +2,6 @@
 
 import { apiClient } from '$lib/api/client';
 import type { ScheduledTask, ScheduledTaskHistory, ScheduleListResponse } from '$lib/types/api';
-import { getApiKey } from '$lib/config/api';
 
 export const scheduleService = {
 	// スケジュール一覧の取得
@@ -40,17 +39,8 @@ export const scheduleService = {
 	// スケジュールの有効化/無効化
 	async toggle(id: string, enabled: boolean): Promise<ScheduledTask> {
 		const endpoint = enabled ? 'enable' : 'disable';
-		// ボディなしのPOSTリクエストを送信（Content-Typeヘッダーを除外）
-		const headers: HeadersInit = {};
-		const apiKey = getApiKey();
-		if (apiKey) {
-			headers['X-API-Key'] = apiKey;
-		}
-		
-		return apiClient.request<ScheduledTask>(`/api/schedules/${id}/${endpoint}`, {
-			method: 'POST',
-			headers
-		});
+		// 空のオブジェクトを送信（バックエンドがbodyを期待している可能性）
+		return apiClient.post<ScheduledTask>(`/api/schedules/${id}/${endpoint}`, {});
 	},
 
 	// スケジュールの削除
@@ -60,17 +50,8 @@ export const scheduleService = {
 
 	// スケジュールの即時実行
 	async runNow(id: string): Promise<void> {
-		// ボディなしのPOSTリクエストを送信（Content-Typeヘッダーを除外）
-		const headers: HeadersInit = {};
-		const apiKey = getApiKey();
-		if (apiKey) {
-			headers['X-API-Key'] = apiKey;
-		}
-		
-		return apiClient.request(`/api/schedules/${id}/run`, {
-			method: 'POST',
-			headers
-		});
+		// 空のオブジェクトを送信（バックエンドがbodyを期待している可能性）
+		return apiClient.post(`/api/schedules/${id}/run`, {});
 	},
 
 	// スケジュール履歴の取得

@@ -11,7 +11,21 @@ export function setupScheduler(schedulerService: SchedulerService, taskQueue: Ta
   // Set up scheduler execution handler
   schedulerService.setOnExecuteHandler(async (taskRequest, scheduleId) => {
     logger.info("Executing scheduled task", { scheduleId });
-    const taskId = taskQueue.add(taskRequest, 0);
+
+    // Ensure scheduled tasks have proper permissions for automation
+    const enhancedTaskRequest = {
+      ...taskRequest,
+      options: {
+        ...taskRequest.options,
+        sdk: {
+          ...taskRequest.options?.sdk,
+          // Use bypassPermissions for scheduled tasks to allow all operations
+          permissionMode: "bypassPermissions" as const,
+        },
+      },
+    };
+
+    const taskId = taskQueue.add(enhancedTaskRequest, 0);
     return { taskId };
   });
 }

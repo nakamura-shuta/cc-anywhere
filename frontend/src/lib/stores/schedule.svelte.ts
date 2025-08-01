@@ -1,6 +1,6 @@
 import { createEntityStore } from './factory.svelte';
 import { scheduleEntityService } from '$lib/services/schedule-entity.service';
-import type { ScheduledTask } from '$lib/types/api';
+import type { ScheduledTask, ScheduledTaskHistory } from '$lib/types/api';
 
 /**
  * スケジュールストア
@@ -55,6 +55,61 @@ class ScheduleStore extends createEntityStore<ScheduledTask>('schedule', schedul
   // ステータスでフィルタリング
   filterByStatus(status: 'active' | 'inactive' | 'completed' | 'failed'): ScheduledTask[] {
     return this.items.filter(schedule => schedule.status === status);
+  }
+  
+  // カスタムWebSocketメッセージハンドリング
+  handleCustomMessage(message: { type: string; payload: any }): void {
+    const { type, payload } = message;
+    
+    switch (type) {
+      case 'schedule:update':
+        // スケジュールの更新
+        if (payload.scheduleId) {
+          const schedule = this.findById(payload.scheduleId);
+          if (schedule) {
+            const updates: Partial<ScheduledTask> = {
+              status: payload.status,
+              metadata: {
+                ...schedule.metadata,
+                ...payload.metadata
+              }
+            };
+            this.updateLocal(payload.scheduleId, updates);
+          }
+        }
+        break;
+        
+      case 'schedule:execution':
+        // スケジュール実行通知
+        if (payload.scheduleId) {
+          const schedule = this.findById(payload.scheduleId);
+          if (schedule) {
+            // 実行履歴を更新
+            const newHistory: ScheduledTaskHistory = {
+              executedAt: payload.timestamp,
+              taskId: payload.taskId,
+              status: payload.status === 'completed' ? 'success' as const : 'failure' as const,
+              error: payload.error
+            };
+            
+            const updates: Partial<ScheduledTask> = {
+              history: [...(schedule.history || []), newHistory].slice(-100) // 最新100件を保持
+            };
+            
+            // 実行完了時はメタデータも更新
+            if (payload.status === 'completed' || payload.status === 'failed') {
+              updates.metadata = {
+                ...schedule.metadata,
+                lastExecutedAt: payload.timestamp,
+                executionCount: (schedule.metadata?.executionCount || 0) + 1
+              };
+            }
+            
+            this.updateLocal(payload.scheduleId, updates);
+          }
+        }
+        break;
+    }
   }
 }
 

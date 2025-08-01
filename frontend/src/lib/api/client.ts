@@ -1,6 +1,6 @@
 // APIクライアント - Fetch APIのラッパー
 
-import { getConfig } from '$lib/config';
+import { getConfig, getApiBaseUrl } from '$lib/config';
 import { getApiHeaders } from '$lib/config/api';
 import { authStore } from '$lib/stores/auth.svelte';
 
@@ -34,16 +34,9 @@ export class ApiClient {
 	private baseUrl: string;
 
 	constructor(baseUrl?: string) {
-		const config = getConfig();
 		// 動的にbaseUrlを決定（ngrok/cloudflare対応）
 		if (!baseUrl) {
-			if (typeof window !== 'undefined') {
-				// ブラウザ環境では現在のオリジンを使用
-				this.baseUrl = window.location.origin;
-			} else {
-				// SSR時はconfigのデフォルト値を使用
-				this.baseUrl = config.api.baseUrl;
-			}
+			this.baseUrl = getApiBaseUrl();
 		} else {
 			this.baseUrl = baseUrl;
 		}
