@@ -62,8 +62,6 @@ export interface WorktreeConfig {
   baseDirectory: string;
   /** 自動クリーンアップを有効にするか */
   autoCleanup: boolean;
-  /** クリーンアップ遅延時間（ミリ秒） */
-  cleanupDelay: number;
   /** worktree名のプレフィックス */
   worktreePrefix: string;
 }

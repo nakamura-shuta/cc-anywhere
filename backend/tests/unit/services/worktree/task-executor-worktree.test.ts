@@ -184,7 +184,7 @@ describe("TaskExecutor Worktree Integration", () => {
       expect(mockWorktreeManager.removeWorktree).toHaveBeenCalledWith(
         "cc-anywhere-task-123",
         expect.objectContaining({
-          force: false,
+          force: true,
           saveUncommitted: true,
         }),
       );

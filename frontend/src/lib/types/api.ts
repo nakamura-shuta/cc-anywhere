@@ -52,6 +52,19 @@ export interface ClaudeCodeSDKOptions {
 	verbose?: boolean;
 }
 
+// Worktreeオプション
+export interface WorktreeOptions {
+	enabled: boolean;
+	baseBranch?: string;
+	branchName?: string;
+	keepAfterCompletion?: boolean;
+	autoCommit?: boolean;
+	commitMessage?: string;
+	autoMerge?: boolean;
+	mergeStrategy?: "merge" | "rebase" | "squash";
+	targetBranch?: string;
+}
+
 // タスクリクエスト
 export interface TaskRequest {
 	instruction: string;
@@ -61,6 +74,8 @@ export interface TaskRequest {
 		async?: boolean;
 		retry?: RetryOptions;
 		sdk?: ClaudeCodeSDKOptions;
+		useWorktree?: boolean;
+		worktree?: WorktreeOptions;
 	};
 }
 

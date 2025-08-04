@@ -50,7 +50,6 @@ export class TaskExecutorImpl implements TaskExecutor {
         maxWorktrees: config.worktree.maxWorktrees,
         baseDirectory: config.worktree.basePath,
         autoCleanup: config.worktree.autoCleanup,
-        cleanupDelay: config.worktree.cleanupDelay,
         worktreePrefix: config.worktree.prefix,
       };
       this.worktreeManager = new WorktreeManager(worktreeConfig);
@@ -735,42 +734,17 @@ export class TaskExecutorImpl implements TaskExecutor {
       return;
     }
 
-    // Schedule cleanup with delay
-    const cleanupDelay = config.worktree?.cleanupDelay || 0;
+    // Clean up worktree immediately
+    if (onProgress) {
+      await onProgress({
+        type: "log",
+        message: "Worktreeをクリーンアップ中...",
+      });
+    }
 
-    if (cleanupDelay > 0) {
-      // Schedule for later
-      setTimeout(() => {
-        void (async () => {
-          try {
-            await this.worktreeManager!.removeWorktree(worktree.id, {
-              force: false,
-              saveUncommitted: true,
-            });
-            logger.info("Worktree cleaned up", { worktreeId: worktree.id });
-          } catch (error) {
-            logger.error("Failed to cleanup worktree", { error, worktreeId: worktree.id });
-          }
-        })();
-      }, cleanupDelay);
-
-      if (onProgress) {
-        await onProgress({
-          type: "log",
-          message: `Worktreeのクリーンアップを${cleanupDelay / 1000}秒後に予定しました`,
-        });
-      }
-    } else {
-      // Clean up immediately
-      if (onProgress) {
-        await onProgress({
-          type: "log",
-          message: "Worktreeをクリーンアップ中...",
-        });
-      }
-
+    try {
       await this.worktreeManager.removeWorktree(worktree.id, {
-        force: false,
+        force: true, // 未追跡・変更ファイルがあっても強制削除
         saveUncommitted: true,
       });
 
@@ -780,6 +754,11 @@ export class TaskExecutorImpl implements TaskExecutor {
           message: "Worktreeのクリーンアップが完了しました",
         });
       }
+
+      logger.info("Worktree cleaned up", { worktreeId: worktree.id });
+    } catch (error) {
+      logger.error("Failed to cleanup worktree", { error, worktreeId: worktree.id });
+      // エラーが発生しても処理を継続
     }
   }
 

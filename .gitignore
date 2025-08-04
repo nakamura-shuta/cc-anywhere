@@ -80,3 +80,7 @@ backend/data/documents/
 test-repo/
 test-repos/
 .repos/
+
+
+# Serena
+.serena/

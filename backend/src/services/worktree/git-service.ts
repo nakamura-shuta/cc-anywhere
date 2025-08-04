@@ -1,5 +1,6 @@
 import type { SimpleGitOptions } from "simple-git";
 import simpleGit from "simple-git";
+import * as path from "path";
 import type { GitOperationResult, GitStatus } from "./types";
 import { WorktreeError, WorktreeErrorCode } from "./types";
 import { logger } from "../../utils/logger";
@@ -136,6 +137,8 @@ export class GitService {
     worktreePath: string,
     force = false,
   ): Promise<GitOperationResult> {
+    let targetPath = worktreePath;
+
     try {
       const git = simpleGit(repositoryPath);
       const args = ["worktree", "remove"];
@@ -144,17 +147,55 @@ export class GitService {
         args.push("--force");
       }
 
-      args.push(worktreePath);
-      await git.raw(args);
+      // Git worktree removeは絶対パスまたはworktree名を受け付ける
+      // まず、worktreeリストから該当するworktreeを探す
+      try {
+        const worktrees = await this.listWorktrees(repositoryPath);
+        const matchingWorktree = worktrees.find((w) => w.path === worktreePath);
+
+        if (matchingWorktree) {
+          // worktreeが見つかった場合は、そのパスを使用
+          targetPath = matchingWorktree.path;
+        } else if (path.isAbsolute(worktreePath)) {
+          // worktreeが見つからず、絶対パスの場合は相対パスに変換
+          targetPath = path.relative(repositoryPath, worktreePath);
+        }
+      } catch (listError) {
+        logger.warn("Failed to list worktrees, using original path", { error: listError });
+      }
+
+      args.push(targetPath);
+
+      logger.info("GitService: Executing git worktree remove", {
+        repositoryPath,
+        worktreePath,
+        targetPath,
+        args,
+      });
+
+      const output = await git.raw(args);
+
+      logger.info("GitService: git worktree remove completed", {
+        output,
+        worktreePath,
+      });
 
       return {
         success: true,
         output: `Worktree removed: ${worktreePath}`,
       };
     } catch (error) {
+      logger.error("GitService: git worktree remove failed", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        repositoryPath,
+        worktreePath,
+        targetPath,
+      });
+
       return {
         success: false,
-        error: String(error),
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }

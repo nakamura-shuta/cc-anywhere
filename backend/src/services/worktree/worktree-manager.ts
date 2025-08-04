@@ -162,10 +162,18 @@ export class WorktreeManager {
       }
 
       // Worktree削除
+      this.logger.logWarning(
+        "WORKTREE_DELETE",
+        `Attempting to remove worktree: ${worktreePath} from ${repository}`,
+      );
       const result = await this.gitService.removeWorktree(repository, worktreePath, options?.force);
 
       if (!result.success) {
         this.logger.logOperationError("WORKTREE_DELETE", result.error || "Unknown error");
+        this.logger.logOperationError(
+          "WORKTREE_DELETE",
+          `Failed to remove worktree: ${worktreePath}, error: ${result.error}`,
+        );
         return false;
       }
 

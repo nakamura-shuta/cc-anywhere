@@ -7,6 +7,8 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Select from '$lib/components/ui/select';
+	import { Switch } from '$lib/components/ui/switch';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { taskStore } from '$lib/stores/api.svelte';
 	import { taskService } from '$lib/services/task.service';
 	import { ArrowLeft, Send, MessageSquare } from 'lucide-svelte';
@@ -22,6 +24,10 @@
 	let timeout = $state(300000);
 	let useAsync = $state(true);
 	let permissionMode = $state<string>('allow');
+	
+	// Worktree設定
+	let useWorktree = $state(false);
+	let keepWorktreeAfterCompletion = $state(false);
 	
 	// 権限モードの選択肢
 	const permissionModes = [
@@ -99,7 +105,15 @@
 					permissionMode: Array.isArray(permissionMode) ? permissionMode[0] : permissionMode as 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan',
 					// SDK Continueモードの場合、continueFromTaskIdを設定
 					...(isSdkContinueMode && continueFromTaskId ? { continueFromTaskId } : {})
-				}
+				},
+				// Worktree設定
+				useWorktree,
+				...(useWorktree ? {
+					worktree: {
+						enabled: true,
+						keepAfterCompletion: keepWorktreeAfterCompletion
+					}
+				} : {})
 			}
 		};
 		
@@ -213,6 +227,40 @@
 					</Select.Root>
 				</div>
 
+				<!-- Worktree設定 -->
+				<div class="space-y-4 border-t pt-4">
+					<div class="flex items-center justify-between">
+						<div class="space-y-0.5">
+							<Label for="useWorktree" class="text-base">Git Worktree機能を使用</Label>
+							<p class="text-sm text-muted-foreground">
+								独立したWorktreeで作業を実行します
+							</p>
+						</div>
+						<Switch
+							id="useWorktree"
+							bind:checked={useWorktree}
+						/>
+					</div>
+					
+					{#if useWorktree}
+						<div class="ml-4 space-y-4">
+							<div class="flex items-start space-x-3">
+								<Checkbox
+									id="keepWorktree"
+									bind:checked={keepWorktreeAfterCompletion}
+								/>
+								<div class="space-y-0.5">
+									<Label for="keepWorktree" class="text-sm font-normal cursor-pointer">
+										タスク完了後もWorktreeを保持
+									</Label>
+									<p class="text-xs text-muted-foreground">
+										Worktreeを自動削除せずに残します
+									</p>
+								</div>
+							</div>
+						</div>
+					{/if}
+				</div>
 
 				<div class="flex flex-col sm:flex-row gap-2 pt-4">
 					<Button type="submit" disabled={submitting} class="gap-2 flex-1 sm:flex-initial">

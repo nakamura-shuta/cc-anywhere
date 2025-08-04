@@ -156,6 +156,7 @@ export interface TaskResponse {
     };
     todos?: TodoItem[];
   };
+  options?: TaskRequest["options"];
 }
 
 /**

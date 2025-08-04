@@ -133,6 +133,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           todos: queuedTask.result?.todos,
           continuedFrom: record.continuedFrom || undefined,
           sdkSessionId: record.sdkSessionId,
+          options: queuedTask.request.options || undefined,
         };
 
         return taskResponse;
@@ -307,6 +308,28 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                   },
                   additionalProperties: false,
                 },
+                useWorktree: {
+                  type: "boolean",
+                  description: "Enable Git worktree for isolated execution",
+                },
+                worktree: {
+                  type: "object",
+                  properties: {
+                    enabled: { type: "boolean" },
+                    baseBranch: { type: "string" },
+                    branchName: { type: "string" },
+                    keepAfterCompletion: { type: "boolean" },
+                    autoCommit: { type: "boolean" },
+                    commitMessage: { type: "string" },
+                    autoMerge: { type: "boolean" },
+                    mergeStrategy: {
+                      type: "string",
+                      enum: ["merge", "rebase", "squash"],
+                    },
+                    targetBranch: { type: "string" },
+                  },
+                  additionalProperties: false,
+                },
               },
             },
           },
@@ -457,6 +480,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
             allowedTools: updatedTask.request.options?.allowedTools,
             workingDirectory: updatedTask.request.context?.workingDirectory,
             sdkSessionId: updatedRecord?.sdkSessionId,
+            options: updatedTask.request.options || undefined,
           });
         }
 
@@ -527,6 +551,10 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         progressData: record.progressData || undefined,
         sdkSessionId: record.sdkSessionId,
         conversationHistory: record.conversationHistory || undefined,
+        options: {
+          ...(queuedTask.request.options || {}),
+          // SDK情報やworktree情報を含む
+        },
       };
 
       void reply.send(task);

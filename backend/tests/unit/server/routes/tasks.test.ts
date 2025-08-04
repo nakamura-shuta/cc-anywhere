@@ -298,17 +298,17 @@ describe("Task Routes", () => {
         startedAt: new Date(),
       };
 
-      const repo2Task = {
-        id: uuidv4(),
-        instruction: "Task in repo2",
-        context: { workingDirectory: "/Users/test/repo2" },
-        options: {},
-        priority: 0,
-        status: TaskStatus.RUNNING,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        startedAt: new Date(),
-      };
+      // const repo2Task = {
+      //   id: uuidv4(),
+      //   instruction: "Task in repo2",
+      //   context: { workingDirectory: "/Users/test/repo2" },
+      //   options: {},
+      //   priority: 0,
+      //   status: TaskStatus.RUNNING,
+      //   createdAt: new Date(),
+      //   updatedAt: new Date(),
+      //   startedAt: new Date(),
+      // };
 
       const mockQueuedTask1 = {
         id: repo1Task.id,
@@ -583,6 +583,86 @@ describe("Task Routes", () => {
       expect(body.sdkSessionId).toBe(sdkSessionId);
       expect(body.taskId).toBe(taskId);
     });
+
+    it("should return task with worktree options", async () => {
+      const taskId = uuidv4();
+      const workingDirectory = "/Users/test/project/my-repo";
+      const worktreeOptions = {
+        enabled: true,
+        baseBranch: "main",
+        keepAfterCompletion: true,
+      };
+
+      const mockRecord = {
+        id: taskId,
+        instruction: "Test task with worktree",
+        context: { workingDirectory },
+        options: {
+          useWorktree: true,
+          worktree: worktreeOptions,
+        },
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completedAt: new Date(),
+        startedAt: new Date(),
+      };
+
+      const mockQueuedTask = {
+        id: taskId,
+        request: {
+          instruction: "Test task with worktree",
+          context: { workingDirectory },
+          options: {
+            useWorktree: true,
+            worktree: worktreeOptions,
+          },
+        },
+        status: TaskStatus.COMPLETED,
+        priority: 0,
+        addedAt: mockRecord.createdAt,
+        startedAt: mockRecord.startedAt,
+        completedAt: mockRecord.completedAt,
+        result: {
+          taskId,
+          status: TaskStatus.COMPLETED,
+          instruction: "Test task with worktree",
+          createdAt: mockRecord.createdAt,
+          startedAt: mockRecord.startedAt,
+          completedAt: mockRecord.completedAt,
+          result: { message: "Task completed" },
+        },
+      };
+
+      mockRepository.getById.mockReturnValue(mockRecord);
+      mockRepository.toQueuedTask.mockReturnValue(mockQueuedTask);
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/tasks/${taskId}`,
+        headers: {
+          "X-API-Key": testApiKey,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toMatchObject({
+        taskId,
+        status: TaskStatus.COMPLETED,
+        instruction: "Test task with worktree",
+        workingDirectory,
+        options: {
+          useWorktree: true,
+          worktree: worktreeOptions,
+        },
+      });
+
+      // Ensure worktree options are explicitly included
+      expect(body.options.useWorktree).toBe(true);
+      expect(body.options.worktree).toEqual(worktreeOptions);
+    });
   });
 
   describe("POST /api/tasks", () => {
@@ -633,6 +713,77 @@ describe("Task Routes", () => {
 
       // Ensure workingDirectory is explicitly included
       expect(body.workingDirectory).toBe(workingDirectory);
+    });
+
+    it("should create task with worktree options", async () => {
+      const taskId = uuidv4();
+      const workingDirectory = "/Users/test/project/my-repo";
+      const worktreeOptions = {
+        enabled: true,
+        baseBranch: "main",
+        keepAfterCompletion: true,
+      };
+
+      const mockQueuedTask = {
+        id: taskId,
+        request: {
+          instruction: "Test task with worktree",
+          context: { workingDirectory },
+          options: {
+            useWorktree: true,
+            worktree: worktreeOptions,
+          },
+        },
+        status: TaskStatus.PENDING,
+        priority: 0,
+        addedAt: new Date(),
+      };
+
+      // Get the mocked queue instance
+      const mockQueue = app.queue as any;
+      mockQueue.add = vi.fn().mockReturnValue(taskId);
+      mockQueue.get = vi.fn().mockReturnValue(mockQueuedTask);
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/tasks",
+        headers: {
+          "X-API-Key": testApiKey,
+          "Content-Type": "application/json",
+        },
+        payload: {
+          instruction: "Test task with worktree",
+          context: { workingDirectory },
+          options: {
+            async: true,
+            useWorktree: true,
+            worktree: worktreeOptions,
+          },
+        },
+      });
+
+      expect(response.statusCode).toBe(202);
+      const body = JSON.parse(response.body);
+      expect(body).toMatchObject({
+        taskId,
+        status: TaskStatus.PENDING,
+        instruction: "Test task with worktree",
+        workingDirectory,
+      });
+
+      // Verify worktree options were passed to the queue
+      expect(mockQueue.add).toHaveBeenCalledWith(
+        expect.objectContaining({
+          instruction: "Test task with worktree",
+          context: { workingDirectory },
+          options: expect.objectContaining({
+            async: true,
+            useWorktree: true,
+            worktree: worktreeOptions,
+          }),
+        }),
+        0,
+      );
     });
 
     it("should return sdkSessionId for synchronous task", async () => {
