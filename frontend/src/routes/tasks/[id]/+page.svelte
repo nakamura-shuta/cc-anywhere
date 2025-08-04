@@ -387,8 +387,6 @@
 				{#if ws.connected}
 					<div class="flex items-center gap-2 text-sm text-muted-foreground">
 						<div class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-						<span class="hidden sm:inline">リアルタイム更新中</span>
-						<span class="sm:hidden">接続中</span>
 					</div>
 				{/if}
 				<Button 

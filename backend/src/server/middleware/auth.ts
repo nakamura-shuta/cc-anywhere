@@ -2,11 +2,6 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../../config";
 
 export async function checkApiKey(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  // Skip API key auth if QR auth is enabled
-  if (config.qrAuth?.enabled) {
-    return;
-  }
-
   // Skip auth if not enabled
   if (!config.auth.enabled) {
     return;
@@ -14,7 +9,7 @@ export async function checkApiKey(request: FastifyRequest, reply: FastifyReply):
 
   // Get API key from header or query parameter
   const headerKey = request.headers["x-api-key"] as string;
-  const queryKey = (request.query as Record<string, string>)?.apiKey;
+  const queryKey = (request.query as Record<string, string>)?.api_key;
   const providedKey = headerKey || queryKey;
 
   if (!providedKey) {

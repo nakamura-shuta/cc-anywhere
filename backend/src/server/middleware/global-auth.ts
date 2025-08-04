@@ -1,37 +1,40 @@
 import type { FastifyPluginAsync, FastifyRequest } from "fastify";
-import { config } from "../../config/index.js";
-import { logger } from "../../utils/logger.js";
+import { config } from "../../config";
+import { logger } from "../../utils/logger";
 
 // 認証不要なパス
 const PUBLIC_PATHS = ["/health", "/api/auth/verify", "/api/auth/status"];
 
 // パスが認証不要かチェック
-export function isPublicPath(path: string): boolean {
+function isPublicPath(path: string): boolean {
   return PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
 }
 
 // トークンを取得
-export function extractToken(request: FastifyRequest): string | undefined {
+function extractToken(request: FastifyRequest): string | undefined {
   // ヘッダーから取得
-  const headerToken = request.headers["x-auth-token"] as string;
+  const headerToken = request.headers["x-api-key"] as string;
+
   if (headerToken) return headerToken;
 
   // クエリパラメータから取得
-  const queryToken = (request.query as any)?.auth_token;
+  const query = request.query as Record<string, string>;
+  const queryToken = query?.api_key;
+
   if (queryToken) return queryToken;
 
   return undefined;
 }
 
-export const qrAuthMiddleware: FastifyPluginAsync = async (fastify) => {
-  // 認証検証エンドポイント (グローバルに登録)
+export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
+  // 認証検証エンドポイント
   fastify.get("/api/auth/verify", async (request, reply) => {
-    if (!config.qrAuth.enabled) {
-      return reply.send({ valid: true, message: "QR auth is disabled" });
+    if (!config.auth.enabled) {
+      return reply.send({ valid: true, message: "Auth is disabled" });
     }
 
     const token = extractToken(request);
-    const valid = token === config.qrAuth.token;
+    const valid = token === config.auth.apiKey;
 
     return reply.send({
       valid,
@@ -42,15 +45,16 @@ export const qrAuthMiddleware: FastifyPluginAsync = async (fastify) => {
   // 認証状態確認エンドポイント
   fastify.get("/api/auth/status", async (_request, reply) => {
     return reply.send({
-      enabled: config.qrAuth.enabled,
-      requiresAuth: config.qrAuth.enabled && !!config.qrAuth.token,
+      enabled: config.auth.enabled,
+      requiresAuth: config.auth.enabled && !!config.auth.apiKey,
+      qrEnabled: config.qrAuth.enabled, // QRコード表示機能の状態
     });
   });
 
   // 認証チェックフック
   fastify.addHook("onRequest", async (request, reply) => {
-    // QR認証が無効な場合はスキップ
-    if (!config.qrAuth.enabled || !config.qrAuth.token) {
+    // 認証が無効な場合はスキップ
+    if (!config.auth.enabled || !config.auth.apiKey) {
       return;
     }
 
@@ -67,7 +71,7 @@ export const qrAuthMiddleware: FastifyPluginAsync = async (fastify) => {
     // トークン検証
     const token = extractToken(request);
 
-    if (token !== config.qrAuth.token) {
+    if (token !== config.auth.apiKey) {
       logger.warn("Unauthorized access attempt", {
         path: request.url,
         method: request.method,
@@ -85,8 +89,9 @@ export const qrAuthMiddleware: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  logger.info("QR authentication middleware initialized", {
-    enabled: config.qrAuth?.enabled ?? false,
-    hasToken: !!config.qrAuth?.token,
+  logger.info("Global authentication middleware initialized", {
+    enabled: config.auth?.enabled ?? false,
+    hasToken: !!config.auth?.apiKey,
+    qrEnabled: config.qrAuth?.enabled ?? false,
   });
 };

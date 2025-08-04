@@ -68,7 +68,6 @@ const envSchema = z.object({
     .string()
     .default("false")
     .transform((v) => v === "true"),
-  QR_AUTH_TOKEN: z.string().optional(),
   QR_AUTH_SESSION_DURATION: z.string().default("86400000").transform(Number),
 });
 
@@ -151,7 +150,6 @@ export const config = {
   forceExecutionMode: env.FORCE_EXECUTION_MODE,
   qrAuth: {
     enabled: env.QR_AUTH_ENABLED,
-    token: env.QR_AUTH_TOKEN,
     sessionDuration: env.QR_AUTH_SESSION_DURATION,
   },
 } as const;

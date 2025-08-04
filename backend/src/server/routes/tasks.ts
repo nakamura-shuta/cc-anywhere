@@ -11,6 +11,7 @@ import {
   TaskCancellationError,
 } from "../../utils/task-errors.js";
 import { ConversationFormatter } from "../../utils/conversation-formatter.js";
+import type { TaskFilter } from "../../db/types.js";
 
 // eslint-disable-next-line @typescript-eslint/require-await
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
@@ -94,14 +95,61 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       const { status, repository: repositoryFilter, limit = 20, offset = 0 } = request.query;
 
       // Get tasks from database
-      const filter: any = {};
-      if (status) filter.status = status;
-      if (repositoryFilter) filter.workingDirectory = repositoryFilter;
+      const filter: TaskFilter = {};
+      if (status) {
+        filter.status = status;
+      }
 
-      const result = repository.find(filter, { limit, offset });
+      // Use partial matching for repository filter
+      let tasks = [];
+      let total = 0;
+
+      if (repositoryFilter) {
+        // Get all tasks first for repository filtering
+        const allResult = repository.find(filter, { limit: 1000, offset: 0 });
+
+        logger.debug("Repository filter - before filtering:", {
+          repositoryFilter,
+          allTasksCount: allResult.data.length,
+        });
+
+        // Filter by repository name in workingDirectory
+        const filteredTasks = allResult.data.filter((task) => {
+          const queuedTask = repository.toQueuedTask(task);
+          const workingDir = queuedTask.request.context?.workingDirectory || "";
+          const matches = workingDir.toLowerCase().includes(repositoryFilter.toLowerCase());
+
+          if (matches) {
+            logger.debug("Task matches repository filter:", {
+              taskId: task.id,
+              workingDir,
+              repositoryFilter,
+            });
+          }
+
+          return matches;
+        });
+
+        // Apply pagination to filtered results
+        total = filteredTasks.length;
+        tasks = filteredTasks.slice(offset, offset + limit);
+
+        logger.debug("Repository filter applied:", {
+          repositoryFilter,
+          allTasksCount: allResult.data.length,
+          filteredCount: filteredTasks.length,
+          pageSize: limit,
+          offset,
+          returnedCount: tasks.length,
+        });
+      } else {
+        const result = repository.find(filter, { limit, offset });
+        tasks = result.data;
+        total = result.total;
+      }
 
       // Convert TaskRecords to TaskResponses
-      const tasks = result.data.map((record) => {
+      const taskResponses = tasks.map((record) => {
         const queuedTask = repository.toQueuedTask(record);
 
         logger.debug("Task record context:", {
@@ -140,18 +188,18 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       });
 
       const response = {
-        tasks,
-        total: result.total,
-        limit: result.limit,
-        offset: result.offset,
+        tasks: taskResponses,
+        total,
+        limit,
+        offset,
       };
 
       logger.debug("Final API response:", {
-        taskCount: tasks.length,
-        firstTask: tasks[0]
+        taskCount: taskResponses.length,
+        firstTask: taskResponses[0]
           ? {
-              taskId: tasks[0].taskId,
-              workingDirectory: tasks[0].workingDirectory,
+              taskId: taskResponses[0].taskId,
+              workingDirectory: taskResponses[0].workingDirectory,
             }
           : null,
       });

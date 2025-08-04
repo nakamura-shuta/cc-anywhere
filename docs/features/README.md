@@ -238,20 +238,20 @@ curl -X POST http://localhost:5000/api/batch/tasks \
 
 ### 設定
 ```env
-QR_AUTH_ENABLED=true
-QR_AUTH_TOKEN=hello
+API_KEY=hello
+QR_AUTH_ENABLED=true  # QRコード表示機能を有効化
 ```
 
 ### アクセス方法
 1. `./scripts/start-clamshell.sh`を実行
 2. QRコードをスキャン
-3. URLに`?auth_token=hello`が自動付与
+3. URLに`?api_key=hello`が自動付与
 
 ### APIアクセス
 ```bash
 # ヘッダー
-curl -H "X-Auth-Token: hello" http://your-url/api/tasks
+curl -H "X-API-Key: hello" http://your-url/api/tasks
 
 # クエリパラメータ
-curl http://your-url/api/tasks?auth_token=hello
+curl http://your-url/api/tasks?api_key=hello
 ```

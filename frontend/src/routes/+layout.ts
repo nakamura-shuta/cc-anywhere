@@ -19,11 +19,11 @@ export const load: LayoutLoad = async ({ url }) => {
 	// ブラウザ環境でのみ認証チェック
 	if (!browser) return {};
 	
-	// URLパラメータから認証トークンを取得（トップページでも処理するため先に取得）
-	const token = url.searchParams.get('auth_token');
+	// URLパラメータから認証トークンを取得（api_keyパラメータに統一）
+	const token = url.searchParams.get('api_key');
 	
 	// 認証エラーページは認証チェックをスキップ
-	// トップページはauth_tokenがない場合のみスキップ
+	// トップページはapi_keyがない場合のみスキップ
 	if (url.pathname === '/auth/error' || (url.pathname === '/' && !token)) {
 		return {};
 	}
@@ -43,7 +43,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		if (success) {
 			// 認証成功後、URLからトークンを削除してリダイレクト
 			const cleanUrl = new URL(url);
-			cleanUrl.searchParams.delete('auth_token');
+			cleanUrl.searchParams.delete('api_key');
 			// 認証情報を確実に保存するために少し待つ
 			await new Promise(resolve => setTimeout(resolve, 100));
 			throw redirect(307, cleanUrl.pathname + cleanUrl.search);
@@ -70,7 +70,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		// URLパラメータを保持してリダイレクト
 		const errorUrl = new URL('/auth/error', url.origin);
 		if (token) {
-			errorUrl.searchParams.set('auth_token', token);
+			errorUrl.searchParams.set('api_key', token);
 		}
 		throw redirect(307, errorUrl.toString());
 	}

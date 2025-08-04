@@ -333,22 +333,12 @@ describe("Task Routes", () => {
         },
       };
 
-      // Mock repository.find to check for workingDirectory filter
-      mockRepository.find.mockImplementation((filter: any) => {
-        if (filter.workingDirectory === "/Users/test/repo1") {
-          return {
-            data: [repo1Task],
-            total: 1,
-            limit: 20,
-            offset: 0,
-          };
-        }
-        return {
-          data: [],
-          total: 0,
-          limit: 20,
-          offset: 0,
-        };
+      // Mock repository.find to return all tasks (repository filter is applied after)
+      mockRepository.find.mockReturnValue({
+        data: [repo1Task],
+        total: 1,
+        limit: 1000,
+        offset: 0,
       });
 
       mockRepository.toQueuedTask.mockReturnValue(mockQueuedTask1);
@@ -356,7 +346,7 @@ describe("Task Routes", () => {
       // Test filtering by repository
       const response = await app.inject({
         method: "GET",
-        url: "/api/tasks?repository=/Users/test/repo1",
+        url: "/api/tasks?repository=repo1",
         headers: {
           "X-API-Key": testApiKey,
         },
@@ -369,11 +359,8 @@ describe("Task Routes", () => {
       expect(body.tasks[0].instruction).toBe("Task in repo1");
       expect(body.tasks[0].workingDirectory).toBe("/Users/test/repo1");
 
-      // Verify that repository.find was called with the correct filter
-      expect(mockRepository.find).toHaveBeenCalledWith(
-        { workingDirectory: "/Users/test/repo1" },
-        { limit: 20, offset: 0 },
-      );
+      // Verify that repository.find was called to get all tasks
+      expect(mockRepository.find).toHaveBeenCalledWith({}, { limit: 1000, offset: 0 });
     });
 
     it("should filter tasks by both status and repository", async () => {
@@ -413,18 +400,18 @@ describe("Task Routes", () => {
       };
 
       mockRepository.find.mockImplementation((filter: any) => {
-        if (filter.status === TaskStatus.RUNNING && filter.workingDirectory === workingDirectory) {
+        if (filter.status === TaskStatus.RUNNING) {
           return {
             data: [mockRecord],
             total: 1,
-            limit: 20,
+            limit: 1000,
             offset: 0,
           };
         }
         return {
           data: [],
           total: 0,
-          limit: 20,
+          limit: 1000,
           offset: 0,
         };
       });
@@ -433,7 +420,7 @@ describe("Task Routes", () => {
 
       const response = await app.inject({
         method: "GET",
-        url: `/api/tasks?status=${TaskStatus.RUNNING}&repository=${workingDirectory}`,
+        url: `/api/tasks?status=${TaskStatus.RUNNING}&repository=repo1`,
         headers: {
           "X-API-Key": testApiKey,
         },
@@ -446,14 +433,150 @@ describe("Task Routes", () => {
       expect(body.tasks[0].status).toBe(TaskStatus.RUNNING);
       expect(body.tasks[0].workingDirectory).toBe(workingDirectory);
 
-      // Verify that repository.find was called with both filters
+      // Verify that repository.find was called with status filter only
       expect(mockRepository.find).toHaveBeenCalledWith(
         {
           status: TaskStatus.RUNNING,
-          workingDirectory: workingDirectory,
         },
-        { limit: 20, offset: 0 },
+        { limit: 1000, offset: 0 },
       );
+    });
+
+    it("should return empty result when filtering by non-existent repository", async () => {
+      const existingTask = {
+        id: uuidv4(),
+        instruction: "Task in test repo",
+        context: { workingDirectory: "/Users/test/test-repo" },
+        options: {},
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completedAt: new Date(),
+        startedAt: new Date(),
+      };
+
+      const mockQueuedTask = {
+        id: existingTask.id,
+        request: {
+          instruction: existingTask.instruction,
+          context: existingTask.context,
+          options: {},
+        },
+        status: existingTask.status,
+        priority: 0,
+        addedAt: existingTask.createdAt,
+        startedAt: existingTask.startedAt,
+        completedAt: existingTask.completedAt,
+      };
+
+      // Return the existing task
+      mockRepository.find.mockReturnValue({
+        data: [existingTask],
+        total: 1,
+        limit: 1000,
+        offset: 0,
+      });
+
+      mockRepository.toQueuedTask.mockReturnValue(mockQueuedTask);
+
+      // Filter by non-existent repository
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/tasks?repository=rust-asm",
+        headers: {
+          "X-API-Key": testApiKey,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+
+      // Should return empty results, not the existing task
+      expect(body.tasks).toHaveLength(0);
+      expect(body.total).toBe(0);
+    });
+
+    it("should use partial matching for repository filter", async () => {
+      const task1 = {
+        id: uuidv4(),
+        instruction: "Task 1",
+        context: { workingDirectory: "/Users/test/my-awesome-repo" },
+        options: {},
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completedAt: new Date(),
+        startedAt: new Date(),
+      };
+
+      const task2 = {
+        id: uuidv4(),
+        instruction: "Task 2",
+        context: { workingDirectory: "/projects/awesome-project" },
+        options: {},
+        priority: 0,
+        status: TaskStatus.COMPLETED,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completedAt: new Date(),
+        startedAt: new Date(),
+      };
+
+      const mockQueuedTask1 = {
+        id: task1.id,
+        request: {
+          instruction: task1.instruction,
+          context: task1.context,
+          options: {},
+        },
+        status: task1.status,
+        priority: 0,
+        addedAt: task1.createdAt,
+        startedAt: task1.startedAt,
+        completedAt: task1.completedAt,
+      };
+
+      const mockQueuedTask2 = {
+        id: task2.id,
+        request: {
+          instruction: task2.instruction,
+          context: task2.context,
+          options: {},
+        },
+        status: task2.status,
+        priority: 0,
+        addedAt: task2.createdAt,
+        startedAt: task2.startedAt,
+        completedAt: task2.completedAt,
+      };
+
+      mockRepository.find.mockReturnValue({
+        data: [task1, task2],
+        total: 2,
+        limit: 1000,
+        offset: 0,
+      });
+
+      mockRepository.toQueuedTask
+        .mockReturnValueOnce(mockQueuedTask1)
+        .mockReturnValueOnce(mockQueuedTask2);
+
+      // Search for "awesome" - should match both tasks
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/tasks?repository=awesome",
+        headers: {
+          "X-API-Key": testApiKey,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+
+      expect(body.tasks).toHaveLength(2);
+      expect(body.total).toBe(2);
     });
   });
 

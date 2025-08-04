@@ -182,11 +182,11 @@ class AuthStore {
   token = $state<string | null>(null);
   
   async authenticate(token: string) {
-    const response = await fetch(`/api/auth/verify?auth_token=${token}`);
+    const response = await fetch(`/api/auth/verify?api_key=${token}`);
     if (response.ok) {
       this.token = token;
       this.authenticated = true;
-      localStorage.setItem('auth_token', token);
+      localStorage.setItem('cc-anywhere-api-key', token);
     }
   }
 }

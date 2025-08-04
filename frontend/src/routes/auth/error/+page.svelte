@@ -10,7 +10,7 @@
 	async function retryAuth() {
 		retrying = true;
 		const url = new URL(window.location.href);
-		const token = url.searchParams.get('auth_token');
+		const token = url.searchParams.get('api_key');
 		
 		if (token) {
 			const success = await authStore.authenticate(token);

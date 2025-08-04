@@ -65,39 +65,7 @@ export async function createApp(opts: AppOptions = {}): Promise<FastifyInstance>
   // 6. Register middleware (including authentication)
   await registerMiddleware(app);
 
-  // 6.5. Apply QR auth globally to override plugin encapsulation
-  if (config.qrAuth?.enabled && config.qrAuth?.token) {
-    const { extractToken, isPublicPath } = await import("./middleware/qr-auth");
-
-    app.addHook("onRequest", async (request, reply) => {
-      // Skip public paths
-      if (isPublicPath(request.url)) return;
-
-      // Skip non-API routes (static files, SPA routes, WebSocket)
-      if (!request.url.startsWith("/api/") || request.headers.upgrade === "websocket") {
-        return;
-      }
-
-      // Extract and validate token
-      const token = extractToken(request);
-      if (token !== config.qrAuth.token) {
-        logger.warn("Unauthorized access attempt", {
-          path: request.url,
-          method: request.method,
-          ip: request.ip,
-          hasToken: !!token,
-        });
-
-        return reply.status(401).send({
-          error: {
-            message: "Unauthorized: Invalid or missing authentication token",
-            statusCode: 401,
-            code: "UNAUTHORIZED",
-          },
-        });
-      }
-    });
-  }
+  // Authentication is now handled by global auth middleware
 
   // 7. Register routes after middleware
   await registerRoutes(app, workerMode);

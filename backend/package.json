@@ -16,7 +16,6 @@
     "test": "echo '\\n❌ Error: Use specific test commands instead of watch mode\\n\\n✅ Available commands:\\n  - npm run test:unit       : Run unit tests once\\n  - npm run test:integration: Run integration tests once\\n  - npm run test:watch      : Run tests in watch mode (if needed)\\n' && exit 1",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
-    "test:auth": "QR_AUTH_ENABLED=true QR_AUTH_TOKEN=test-auth-token-12345 API_KEY= CLAUDE_API_KEY=test-claude-api-key-for-testing vitest run tests/auth/qr-auth.test.ts --config vitest.config.auth.ts",
     "test:no-auth": "vitest run tests/auth/no-auth.test.ts",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts",

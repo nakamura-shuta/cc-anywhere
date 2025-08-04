@@ -7,13 +7,14 @@
 	import { goto } from '$app/navigation';
 	import { ArrowLeft, RefreshCw, GitBranch, List } from 'lucide-svelte';
 	import TaskTree from '$lib/components/task-tree.svelte';
+	import type { TaskResponse } from '$lib/types/api';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
 	
 	// ルートタスク（親タスクを持たないタスク）を抽出
 	let rootTasks = $derived(
-		data.tasks.filter(task => !task.continuedFrom && !task.parentTaskId)
+		data.tasks.filter((task: TaskResponse) => !task.continuedFrom && !task.parentTaskId)
 	);
 	
 	// リフレッシュ

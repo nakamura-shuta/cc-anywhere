@@ -1,8 +1,8 @@
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 
-const AUTH_TOKEN_KEY = 'cc-anywhere-auth-token';
-const AUTH_TOKEN_EXPIRY_KEY = 'cc-anywhere-auth-expiry';
+const AUTH_TOKEN_KEY = 'cc-anywhere-api-key';
+const AUTH_TOKEN_EXPIRY_KEY = 'cc-anywhere-api-key-expiry';
 
 class AuthStore {
 	private authenticated = $state(false);
@@ -75,7 +75,8 @@ class AuthStore {
 	
 	async authenticate(token: string): Promise<boolean> {
 		try {
-			const response = await fetch(`/api/auth/verify?auth_token=${token}`);
+			// api_keyパラメータを使用
+			const response = await fetch(`/api/auth/verify?api_key=${token}`);
 			
 			if (!response.ok) {
 				throw new Error('Authentication failed');
@@ -116,7 +117,7 @@ class AuthStore {
 	
 	getAuthHeaders(): Record<string, string> {
 		if (this.token) {
-			return { 'X-Auth-Token': this.token };
+			return { 'X-API-Key': this.token };
 		}
 		return {};
 	}

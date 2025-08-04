@@ -4,7 +4,7 @@ import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
 import { errorHandlerPlugin } from "../plugins/error-handler";
 import { registerStaticPlugin } from "../plugins/static";
-import { qrAuthMiddleware } from "../middleware/qr-auth";
+import { globalAuthMiddleware } from "../middleware/global-auth";
 import { config } from "../../config";
 
 /**
@@ -42,8 +42,8 @@ export async function registerMiddleware(app: FastifyInstance): Promise<void> {
   // Register static file serving for Web UI (before auth to bypass authentication)
   await app.register(registerStaticPlugin);
 
-  // Register QR authentication middleware
-  await app.register(qrAuthMiddleware);
+  // Register global authentication middleware
+  await app.register(globalAuthMiddleware);
 
   // Register custom plugins
   await app.register(errorHandlerPlugin);

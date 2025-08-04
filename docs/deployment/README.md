@@ -158,14 +158,15 @@ CLOUDFLARE_TUNNEL_TOKEN=your-token
 
 ## 🔒 セキュリティ
 
-### QR認証
+### 認証設定
 
 ```env
-QR_AUTH_ENABLED=true
-QR_AUTH_TOKEN=your-secret-token
-```
+# API認証（必須）
+API_KEY=your-secret-token
 
-### APIキー認証
+# QRコード表示（オプション）
+QR_AUTH_ENABLED=true
+```
 
 ```env
 API_KEY=your-api-key

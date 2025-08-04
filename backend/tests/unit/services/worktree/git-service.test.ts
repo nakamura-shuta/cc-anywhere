@@ -253,7 +253,7 @@ branch refs/heads/feature/task-123
     it.skip("worktree一覧を取得できる", async () => {
       // モックをクリア
       mockGit.raw.mockClear();
-      
+
       // listWorktreesの呼び出しをモック
       const mockPorcelainOutput = `worktree /repos/test
 HEAD abcd1234
@@ -264,9 +264,8 @@ HEAD efgh5678
 branch refs/heads/feature/task-123
 
 `;
-      
+
       mockGit.raw.mockResolvedValue(mockPorcelainOutput);
-      
 
       const result = await gitService.listWorktrees("/repos/test");
 

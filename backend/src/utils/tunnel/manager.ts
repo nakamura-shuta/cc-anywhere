@@ -60,8 +60,7 @@ class TunnelManager {
   private displayAccessInfo(tunnelUrl: string, tunnelType: "ngrok" | "cloudflare"): void {
     const apiKey = config.auth.apiKey;
     const showQRCode = config.tunnel.showQRCode;
-    const qrAuthToken = config.qrAuth.token;
-    const qrAuthEnabled = config.qrAuth.enabled;
+    const qrEnabled = config.qrAuth.enabled;
 
     console.log("\n========================================");
     console.log(`🌐 External Access Information (${tunnelType})`);
@@ -69,33 +68,22 @@ class TunnelManager {
     console.log(`\n📡 ${tunnelType === "cloudflare" ? "Cloudflare" : "ngrok"} URL: ${tunnelUrl}`);
     console.log(`🔒 API Key: ${apiKey || "Not set (authentication disabled)"}`);
 
-    if (qrAuthEnabled) {
-      console.log(`🔐 QR Auth: Enabled${qrAuthToken ? " (token set)" : " (token not set)"}`);
+    if (qrEnabled && showQRCode) {
+      console.log(`📱 QR Code Display: Enabled`);
     }
 
-    // URLにQR認証トークンを付与
+    // URLに認証トークンを付与
     let webUIUrl = tunnelUrl;
     if (apiKey) {
-      webUIUrl = `${tunnelUrl}/?apiKey=${apiKey}`;
+      webUIUrl = `${tunnelUrl}/?api_key=${apiKey}`;
     }
 
-    // QR認証が有効な場合はトークンを付与
-    if (qrAuthEnabled && qrAuthToken) {
-      const separator = webUIUrl.includes("?") ? "&" : "?";
-      webUIUrl = `${webUIUrl}${separator}auth_token=${qrAuthToken}`;
-    }
-
-    if (apiKey || (qrAuthEnabled && qrAuthToken)) {
+    if (apiKey) {
       console.log("\n🌍 Web UI Access:");
       console.log(`   ${webUIUrl}`);
 
       console.log("\n📱 API Access:");
-      if (apiKey) {
-        console.log(`   curl -H "X-API-Key: ${apiKey}" ${tunnelUrl}/api/tasks`);
-      }
-      if (qrAuthEnabled && qrAuthToken) {
-        console.log(`   curl -H "X-Auth-Token: ${qrAuthToken}" ${tunnelUrl}/api/tasks`);
-      }
+      console.log(`   curl -H "X-API-Key: ${apiKey}" ${tunnelUrl}/api/tasks`);
 
       // QRコード表示
       if (showQRCode) {
@@ -114,7 +102,6 @@ class TunnelManager {
     } else {
       console.log("\n⚠️  Warning: API authentication is disabled!");
       console.log("   Set API_KEY in .env to enable authentication");
-      console.log("   Set QR_AUTH_TOKEN and QR_AUTH_ENABLED=true for QR authentication");
 
       console.log("\n🌍 Web UI Access:");
       console.log(`   ${tunnelUrl}/`);
@@ -146,8 +133,7 @@ class TunnelManager {
       type: tunnelType,
       apiKey,
       webUIUrl,
-      qrAuthEnabled,
-      qrAuthToken: qrAuthEnabled ? !!qrAuthToken : undefined,
+      qrEnabled,
       timestamp: new Date(),
     });
   }

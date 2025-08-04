@@ -26,12 +26,8 @@ class TaskListStoreMigrated {
   // 初期化（既存のインターフェースを維持）
   async initialize(initialTasks: TaskResponse[]) {
     // 初期データをセット
-    if (initialTasks && initialTasks.length > 0) {
-      taskStore.items = initialTasks;
-    } else {
-      // データがない場合はAPIから取得
-      await taskStore.load();
-    }
+    // 空の配列でも有効なデータとして扱う（フィルター結果が0件の場合があるため）
+    taskStore.items = initialTasks;
     
     // WebSocket接続は自動的に行われる（websocket-integration.svelte.tsで設定）
   }

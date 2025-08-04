@@ -34,8 +34,10 @@ cp .env.example .env
 # Claude API（必須）
 CLAUDE_API_KEY=sk-ant-api03-...
 
-# QR認証（外部アクセス用）
-QR_AUTH_TOKEN=hello
+# API認証（必須）
+API_KEY=hello
+
+# QRコード表示（オプション）
 QR_AUTH_ENABLED=true
 ```
 

@@ -13,12 +13,9 @@
 <div class="flex items-center gap-2 text-sm">
 	{#if isConnected}
 		<Wifi class="h-4 w-4 text-green-500" />
-		<span class="text-muted-foreground">接続済み</span>
 	{:else if isConnecting}
 		<Wifi class="h-4 w-4 text-yellow-500 animate-pulse" />
-		<span class="text-muted-foreground">接続中...</span>
 	{:else}
 		<WifiOff class="h-4 w-4 text-destructive" />
-		<span class="text-muted-foreground">未接続</span>
 	{/if}
 </div>

@@ -8,9 +8,10 @@
 	interface Props {
 		tasks: TaskResponse[];
 		onTaskClick: (taskId: string) => void;
+		currentRepository?: string;
 	}
 	
-	let { tasks, onTaskClick }: Props = $props();
+	let { tasks, onTaskClick, currentRepository = '' }: Props = $props();
 </script>
 
 <!-- デスクトップ用のテーブル表示 -->
@@ -40,7 +41,11 @@
 					{:else}
 						<Table.Row>
 							<Table.Cell colspan={4} class="text-center text-muted-foreground">
-								タスクがありません
+								{#if currentRepository}
+									リポジトリ「{currentRepository}」のタスクは見つかりませんでした
+								{:else}
+									タスクがありません
+								{/if}
 							</Table.Cell>
 						</Table.Row>
 					{/if}
@@ -67,7 +72,11 @@
 		{:else}
 			<Card.Root>
 				<Card.Content class="text-center text-muted-foreground py-8">
-					タスクがありません
+					{#if currentRepository}
+						リポジトリ「{currentRepository}」のタスクは見つかりませんでした
+					{:else}
+						タスクがありません
+					{/if}
 				</Card.Content>
 			</Card.Root>
 		{/if}

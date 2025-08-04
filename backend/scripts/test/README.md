@@ -42,7 +42,9 @@ Worktree機能の包括的なテストスイートを実行します。より詳
    - `ENABLE_WORKTREE=true`
    - `MAX_WORKTREES=5`（推奨）
    - `WORKTREE_AUTO_CLEANUP=true`（推奨）
-3. APIキーが設定されていること（デフォルト: "hoge"）
+3. 認証が設定されていること：
+   - `API_KEY`を設定（デフォルト: "hoge"）
+   - QRコード表示を有効にする場合: `QR_AUTH_ENABLED=true`を設定
 
 ## 環境変数
 

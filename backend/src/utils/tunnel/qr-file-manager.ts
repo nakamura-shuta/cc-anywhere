@@ -33,8 +33,7 @@ export class QRFileManager {
     type: string;
     apiKey?: string;
     webUIUrl?: string;
-    qrAuthEnabled?: boolean;
-    qrAuthToken?: boolean;
+    qrEnabled?: boolean;
     timestamp: Date;
   }): void {
     this.ensureDataDir();

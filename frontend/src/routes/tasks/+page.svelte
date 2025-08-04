@@ -128,7 +128,8 @@
 	<!-- タスク一覧 -->
 	<TaskList 
 		tasks={filteredTasks} 
-		onTaskClick={viewTask} 
+		onTaskClick={viewTask}
+		currentRepository={currentRepository}
 	/>
 
 	<!-- ページネーション -->

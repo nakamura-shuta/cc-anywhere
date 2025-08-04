@@ -181,9 +181,8 @@ export class EnhancedWebSocketStore {
    * 認証処理
    */
   private authenticate(): void {
-    // QR認証トークンを優先的に使用
-    const authToken = authStore.authToken;
-    const apiKey = authToken || this.config.apiKey || '';
+    // 認証トークンを使用
+    const apiKey = authStore.authToken || this.config.apiKey || '';
     
     this.send({
       type: 'auth',

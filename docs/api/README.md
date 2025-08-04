@@ -8,10 +8,10 @@ QR認証が有効な場合、すべてのAPIリクエストにトークンが必
 
 ```bash
 # ヘッダー
-X-Auth-Token: your-token
+X-API-Key: your-token
 
 # またはクエリパラメータ
-?auth_token=your-token
+?api_key=your-token
 ```
 
 ## 📡 エンドポイント

@@ -54,7 +54,7 @@
 	{#if repositories.length > 0 && onRepositoryChange}
 		<div class="flex items-center gap-2">
 			<span class="text-sm text-muted-foreground">リポジトリ:</span>
-			<Select.Root type="single" bind:value={currentRepository} onValueChange={(value: string) => onRepositoryChange(value === 'all' ? '' : value)}>
+			<Select.Root type="single" value={currentRepository || 'all'} onValueChange={(value: string) => onRepositoryChange(value === 'all' ? '' : value)}>
 				<Select.Trigger class="w-48">
 					<span data-slot="select-value">{currentRepository || "すべてのリポジトリ"}</span>
 				</Select.Trigger>

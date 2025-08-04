@@ -50,15 +50,15 @@ CLAUDE_API_KEY=sk-ant-api03-...  # 正しい形式か確認
 pm2 restart cc-anywhere-backend
 ```
 
-### QR認証エラー
+### 認証エラー
 
 ```bash
 # アクセスできない場合
 # .envファイルを確認
-QR_AUTH_ENABLED=true
-QR_AUTH_TOKEN=hello
+API_KEY=hello
+QR_AUTH_ENABLED=true  # QRコード表示（オプション）
 
-# URLに?auth_token=helloを付ける
+# URLに?api_key=helloを付ける
 ```
 
 ## 🌐 接続の問題
@@ -237,7 +237,6 @@ pm2 monit
 **Q: APIキーを忘れた**
 ```bash
 grep API_KEY .env
-grep QR_AUTH_TOKEN .env
 ```
 
 **Q: どのポートで動いているか分からない**
