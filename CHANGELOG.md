@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TODOリストのステータスが正しく表示されない問題を修正
 - ターン数表示が「5/3」のように最大値を超える問題を修正
 - タスク詳細を開き直した際に進捗情報が失われる問題を修正
+- **Worktree隔離性の修正**: Claude Code SDKのタスク実行時にworktreeディレクトリが作業ディレクトリとして正しく設定されるよう修正
+  - `path`モジュールのインポート漏れを修正
+  - ファイル操作がメインリポジトリに影響を与えないことを確認
 
 ### Changed
 - 完全に@anthropic-ai/claude-code SDKに移行し、@anthropic-ai/sdkを削除
@@ -21,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - テストのパフォーマンス最適化（beforeAll/afterAllの使用により実行時間を60秒から11秒に短縮）
 - デフォルトのmaxTurnsを3から50に変更
 - 進捗データ（progressData）をデータベースに永続化
+- **テスト環境の改善**: 統合テストでのAPI認証設定を修正
+  - `.env.test`にAPI_KEY設定を追加
+  - sdk-continue.test.tsのAPIキー取得方法を環境変数ベースに変更
 
 ### Added
 - Claude Code SDK 1.0.51の新機能をTODO.mdに追加

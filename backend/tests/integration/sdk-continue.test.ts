@@ -73,12 +73,11 @@ vi.mock("@anthropic-ai/claude-code", () => ({
 
 describe("SDK Continue Integration Tests", () => {
   let app: FastifyInstance;
-  const apiKey = "test-api-key";
+  const apiKey = process.env.API_KEY || "hello";
 
   beforeAll(async () => {
     app = await createApp({
       logger: false,
-      auth: { apiKey },
     });
     await app.ready();
   });

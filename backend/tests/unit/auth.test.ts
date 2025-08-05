@@ -37,7 +37,6 @@ describe("Unified Auth Middleware Logic", () => {
       expect(token).toBe("test-token");
     });
 
-
     it("api_keyクエリパラメータからトークンを取得できる", () => {
       const request = {
         headers: {},
@@ -47,7 +46,6 @@ describe("Unified Auth Middleware Logic", () => {
       const token = (request.query as any)?.api_key;
       expect(token).toBe("test-token");
     });
-
   });
 
   describe("パス判定", () => {

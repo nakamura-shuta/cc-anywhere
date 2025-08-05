@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { logger } from "../utils/logger";
 import { config } from "../config";
+import path from "path";
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { RetryHandler, type RetryHandlerOptions } from "../services/retry-handler";
@@ -198,7 +199,16 @@ export class TaskExecutorImpl implements TaskExecutor {
       });
 
       if (shouldUseWorktree && taskId && workingDirectory) {
-        logger.info("Worktree creation requested", { taskId, workingDirectory });
+        // Convert working directory to absolute path for worktree creation
+        const absoluteWorkingDirectory = path.isAbsolute(workingDirectory)
+          ? workingDirectory
+          : path.resolve(workingDirectory);
+
+        logger.info("Worktree creation requested", {
+          taskId,
+          workingDirectory,
+          absoluteWorkingDirectory,
+        });
 
         // Create worktree
         const worktreeOptions = this.getWorktreeOptions(processedTask);
@@ -209,7 +219,7 @@ export class TaskExecutorImpl implements TaskExecutor {
         });
         createdWorktree = await this.createWorktree(
           taskId,
-          workingDirectory,
+          absoluteWorkingDirectory,
           worktreeOptions,
           processedTask.options?.onProgress,
         );

@@ -33,18 +33,23 @@ export class WorktreeManager {
   async createWorktree(options: CreateWorktreeOptions): Promise<Worktree> {
     const { taskId, repositoryPath, baseBranch, branchName } = options;
 
+    // Convert relative repository path to absolute path
+    const absoluteRepositoryPath = path.isAbsolute(repositoryPath)
+      ? repositoryPath
+      : path.resolve(repositoryPath);
+
     // Gitリポジトリかチェック
-    const isGitRepo = await this.gitService.isGitRepository(repositoryPath);
+    const isGitRepo = await this.gitService.isGitRepository(absoluteRepositoryPath);
     if (!isGitRepo) {
       throw new WorktreeError(
-        `Not a git repository: ${repositoryPath}`,
+        `Not a git repository: ${absoluteRepositoryPath}`,
         WorktreeErrorCode.NOT_GIT_REPOSITORY,
-        { repositoryPath },
+        { repositoryPath: absoluteRepositoryPath },
       );
     }
 
     // 最大数チェック
-    const existingWorktrees = await this.gitService.listWorktrees(repositoryPath);
+    const existingWorktrees = await this.gitService.listWorktrees(absoluteRepositoryPath);
     const activeWorktrees = existingWorktrees.filter((w) =>
       w.path.includes(this.config.baseDirectory),
     );
@@ -59,12 +64,18 @@ export class WorktreeManager {
 
     // Worktree情報の生成
     const worktreeId = `${this.config.worktreePrefix}-${taskId}`;
-    const worktreePath = path.join(repositoryPath, this.config.baseDirectory, worktreeId);
+
+    // Calculate worktree path relative to the project root
+    // If baseDirectory is relative, make it relative to the repository root
+    const worktreePath = path.isAbsolute(this.config.baseDirectory)
+      ? path.join(this.config.baseDirectory, worktreeId)
+      : path.join(absoluteRepositoryPath, this.config.baseDirectory, worktreeId);
+
     const targetBranch = branchName || `${this.config.worktreePrefix}/${taskId}-${Date.now()}`;
 
     // ログ記録
     this.logger.logWorktreeCreation(taskId, worktreeId, {
-      repositoryPath,
+      repositoryPath: absoluteRepositoryPath,
       worktreePath,
       baseBranch: baseBranch || "current",
       targetBranch,
@@ -76,7 +87,7 @@ export class WorktreeManager {
 
       // Worktree作成
       const result = await this.gitService.createWorktree(
-        repositoryPath,
+        absoluteRepositoryPath,
         worktreePath,
         targetBranch,
         baseBranch,
@@ -97,7 +108,7 @@ export class WorktreeManager {
         path: worktreePath,
         branch: targetBranch,
         baseBranch,
-        repository: repositoryPath,
+        repository: absoluteRepositoryPath,
         createdAt: new Date(),
         status: "active",
       };
