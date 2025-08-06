@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- **README.md更新**: 認証機能に関する説明を現在の実装に合わせて修正
+  - QR認証機能の説明を削除（実際には存在しない）
+  - API認証の説明を詳細化
+  - 認証とセキュリティセクションを追加
+- **.env.example更新**: 環境変数の説明を正確に記載
+  - API_KEY認証の動作を正しく説明
+  - QR_AUTH_ENABLEDがQRコード表示機能であることを明記
+
 ### Fixed
 - タスク完了後に「まだ処理中です...」が表示される問題を修正
 - TODOリストのステータスが正しく表示されない問題を修正

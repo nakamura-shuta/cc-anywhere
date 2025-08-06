@@ -7,7 +7,7 @@ Claude Code SDKを使用してHTTP経由で指示を実行できるサーバー�
 - 🚀 **Claude Code SDK 1.0.64** - 最新版のSDKをHTTP API経由で利用（Anthropic API/Amazon Bedrock対応）
 - 📱 **レスポンシブWeb UI** - モバイル・デスクトップ対応の使いやすいインターフェース
 - 🔄 **リアルタイム更新** - WebSocketによるタスク状況のリアルタイム表示
-- 🔐 **QR認証** - モバイルからの簡単アクセス（環境変数で制御）
+- 🔐 **API認証** - APIキーによる安全なアクセス制御
 - ⏰ **スケジューラー** - Cron式による定期実行機能
 - 🎯 **柔軟な実行モード** - default, acceptEdits, bypassPermissions, plan
 - 📦 **バッチ実行** - 複数リポジトリへの一括タスク実行
@@ -58,16 +58,21 @@ AWS_REGION=us-east-1               # Bedrockが利用可能なリージョン
 ### オプション設定
 
 ```env
-# APIアクセス制御
-API_KEY=your-secret-api-key        # 設定するとAPI認証が有効化
+# API認証設定
+API_KEY=your-secret-api-key        # 設定するとすべてのAPIエンドポイントで認証が必要
+                                   # 未設定の場合は認証なしでアクセス可能
 
-# QR認証（モバイルアクセス用）
-QR_AUTH_ENABLED=true               # QR認証を有効化
-QR_AUTH_SECRET=your-qr-secret      # QR認証用シークレット
+# QRコード表示設定
+SHOW_QR_CODE=true                  # トンネルURL用のQRコード表示を有効化
+QR_AUTH_ENABLED=true               # QRコード表示機能の有効化（認証機能ではありません）
 
 # サーバー設定
 PORT=5000                          # ポート番号（デフォルト: 5000）
 NODE_ENV=production                # 実行環境
+
+# Git Worktree設定
+ENABLE_WORKTREE=true               # Git worktreeを使用した独立環境での実行
+WORKTREE_BASE_PATH=.worktrees     # Worktreeの保存先ディレクトリ
 
 # その他の設定は .env.example を参照
 ```
@@ -94,8 +99,10 @@ cp backend/config/repositories.json.example backend/config/repositories.json
 ### 3. APIから直接実行
 
 ```bash
+# API_KEYが設定されている場合
 curl -X POST http://localhost:5000/api/tasks \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
   -d '{
     "instruction": "package.jsonの依存関係を最新版に更新して",
     "repositoryName": "my-project"
@@ -126,7 +133,6 @@ curl -X POST http://localhost:5000/api/tasks \
 cc-anywhere/
 ├── backend/      # APIサーバー（TypeScript + Fastify）
 ├── frontend/     # Web UI（SvelteKit）
-├── shared/       # 共通型定義
 ├── docs/         # ドキュメント
 └── scripts/      # ビルド・管理スクリプト
 ```
@@ -144,13 +150,19 @@ npm run lint:fix          # 自動修正
 npm run type-check        # 型チェック
 ```
 
-### 高度な機能
+### その他機能
 
 - **バッチ実行** - 複数リポジトリへの一括タスク実行
-- **スケジューラー** - Cron式による定期実行（`/scheduler.html`から設定）
+- **スケジューラー** - Cron式による定期実行（`/scheduler`）
 - **Git Worktree** - 独立した作業環境でのタスク実行
-- **外部アクセス** - Cloudflare Tunnelによるリモートアクセス
-- **カスタムコマンド** - `/project:`や`/user:`プレフィックスによる拡張
+- **外部アクセス** - Cloudflare Tunnel/ngrokによるリモートアクセス
+- **カスタムコマンド** - `/project:`や`/user:`プレフィックスによるカスタムスラッシュコマンドの疑似実行
+
+### 認証とセキュリティ
+
+- **API認証**: `API_KEY`環境変数を設定すると、すべてのAPIエンドポイントで認証が必要になります
+  - HTTPヘッダー: `X-API-Key: your-api-key`
+- **QRコード表示**: トンネルURL用のQRコードを表示（`SHOW_QR_CODE=true`で有効化）
 
 ### 詳細ドキュメント
 
