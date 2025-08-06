@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Claude Code SDK更新**: v1.0.64 から v1.0.69 にアップデート
+
 ### Documentation
 - **README.md更新**: 認証機能に関する説明を現在の実装に合わせて修正
   - QR認証機能の説明を削除（実際には存在しない）
