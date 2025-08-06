@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - API_KEY認証の動作を正しく説明
   - QR_AUTH_ENABLEDがQRコード表示機能であることを明記
 
+### Removed
+- **未使用の環境変数を削除**:
+  - LOG_FORMAT - 実際にはコード内で使用されていない
+  - CLAUDE_CODE_WORKSPACE_DIR - 実際にはコード内で使用されていない
+  - CLAUDE_CODE_TIMEOUT - 実際にはコード内で使用されていない
+  - CLAUDE_CODE_MAX_TURNS - DEFAULT_MAX_TURNSに統合
+  - USE_CLAUDE_CODE_SDK - 常にClaude Code SDKを使用するため不要
+
 ### Fixed
 - タスク完了後に「まだ処理中です...」が表示される問題を修正
 - TODOリストのステータスが正しく表示されない問題を修正
