@@ -16,6 +16,7 @@
 	import DirectorySelector from '$lib/components/directory-selector.svelte';
 	import { onMount } from 'svelte';
 	import * as Alert from '$lib/components/ui/alert';
+	import { RepositoryExplorer } from '$lib/components/repository-explorer';
 	
 	// フォームの状態
 	let instruction = $state('');
@@ -51,6 +52,9 @@
 	let continueFromTaskId = $state<string>('');
 	let isSdkContinueMode = $state(false);
 	let previousTask = $state<any>(null);
+	
+	// リポジトリエクスプローラーの表示状態（初期状態で表示）
+	let showRepositoryExplorer = $state(true);
 	
 	// URLパラメータを取得
 	onMount(async () => {
@@ -186,6 +190,32 @@
 					}}
 					readonly={isSdkContinueMode}
 				/>
+				
+				<!-- リポジトリエクスプローラー -->
+				{#if showRepositoryExplorer}
+					<div class="border rounded-lg overflow-hidden">
+						<div class="p-3 bg-muted border-b">
+							<span class="text-sm font-medium">ファイルエクスプローラー</span>
+						</div>
+						<div class="h-[400px]">
+							{#if selectedDirectories.length === 0}
+								<div class="flex items-center justify-center h-full text-muted-foreground text-sm">
+									作業ディレクトリを選択すると、ファイルツリーが表示されます
+								</div>
+							{:else}
+								<RepositoryExplorer
+									repositories={selectedDirectories.map(path => ({
+										name: path.split('/').pop() || path,
+										path: path
+									}))}
+									position="side"
+									layout="horizontal"
+									showHeader={false}
+								/>
+							{/if}
+						</div>
+					</div>
+				{/if}
 
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div class="space-y-2">

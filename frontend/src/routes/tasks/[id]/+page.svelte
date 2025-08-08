@@ -12,6 +12,7 @@
 	import { Progress } from '$lib/components/ui/progress';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Separator } from '$lib/components/ui/separator';
+	import { RepositoryExplorer } from '$lib/components/repository-explorer';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -917,6 +918,35 @@
 				</Tabs>
 			</Card.Content>
 		</Card.Root>
+		
+		<!-- ファイルエクスプローラー -->
+		{#if currentTask?.context?.workingDirectory || currentTask?.workingDirectory}
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>ファイルエクスプローラー</Card.Title>
+					<Card.Description>
+						作業ディレクトリのファイル構造とコンテンツを表示
+					</Card.Description>
+				</Card.Header>
+				<Card.Content class="p-0">
+					<div class="h-[500px]">
+						<RepositoryExplorer
+							repositories={(() => {
+								const workingDir = currentTask.context?.workingDirectory || currentTask.workingDirectory;
+								if (!workingDir) return [];
+								return [{
+									name: workingDir.split('/').pop() || 'Working Directory',
+									path: workingDir
+								}];
+							})()}
+							position="side"
+							layout="horizontal"
+							showHeader={false}
+						/>
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{/if}
 		
 	</div>
 	{:else}

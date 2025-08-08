@@ -2,6 +2,30 @@
 
 Claude Code SDKを使用してHTTP経由で指示を実行できるサーバーアプリケーションです。
 
+## クイックスタート（5分で動作確認）
+
+```bash
+# 1. クローン
+git clone https://github.com/your-username/cc-anywhere
+cd cc-anywhere
+
+# 2. 依存関係インストール
+npm install
+
+# 3. 最低限の環境変数設定
+echo "CLAUDE_API_KEY=your-api-key-here" > .env
+
+# 4. 作業ディレクトリ設定（例：ホームディレクトリ）
+echo '[{"name":"Home","path":"'$HOME'"}]' > backend/config/repositories.json
+
+# 5. 起動
+npm run dev
+
+# ブラウザで http://localhost:4444 を開く
+```
+
+以上で動作確認できます。タスク作成画面で「Home」を選択し、簡単な指示（例：「READMEファイルを作成して」）を入力して実行してみてください。
+
 ## 主な機能
 
 - 🚀 **Claude Code SDK 1.0.64** - 最新版のSDKをHTTP API経由で利用（Anthropic API/Amazon Bedrock対応）

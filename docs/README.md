@@ -1,13 +1,11 @@
-# CC-Anywhere ドキュメント
+# CC-Anywhere
 
-CC-AnywhereはClaude Code SDKをHTTP経由で利用可能にするAPIサーバーです。
+Claude Code SDKをHTTP経由で利用可能にするAPIサーバー
 
-## 🚀 クイックスタート
+## クイックスタート
 
 ```bash
 # インストール
-git clone https://github.com/your-org/cc-anywhere.git
-cd cc-anywhere
 npm install
 
 # 設定
@@ -15,42 +13,15 @@ cp .env.example .env
 # .envでCLAUDE_API_KEYを設定
 
 # 起動
-npm run dev                    # 開発環境
-./scripts/start-production.sh  # 本番環境（PM2）
-./scripts/start-clamshell.sh   # クラムシェルモード（外部アクセス）
+npm run dev
 ```
 
 アクセス: http://localhost:5000
 
-## 📚 ドキュメント
+## 主な機能
 
-- [はじめに](./getting-started/) - インストール、設定、基本的な使い方
-- [API](./api/) - エンドポイント仕様と使用例
-- [機能](./features/) - 各機能の詳細ガイド
-- [アーキテクチャ](./architecture/overview.md) - システム設計と構成
-- [デプロイ](./deployment/) - 本番環境へのデプロイと運用
-- [フロントエンド](./frontend/) - Web UI開発ガイド
-- [開発](./development/) - 開発計画と技術仕様
-- [トラブルシューティング](./troubleshooting.md) - 問題解決
-- [変更履歴](./CHANGELOG.md) - バージョン履歴
-
-## 🔑 主な機能
-
-- **Claude Code SDK統合** - AI駆動のコード生成・編集
-- **非同期タスク実行** - 長時間タスクのサポート
-- **リアルタイム通信** - WebSocketでログストリーミング
-- **Git Worktree** - 独立した実行環境
-- **スケジューラー** - 定期実行とワンタイム実行
-- **外部アクセス** - ngrok/Cloudflareトンネル統合
-- **QR認証** - モバイルアクセス用認証
-
-## 🛠 技術スタック
-
-- **Backend**: TypeScript, Fastify, SQLite
-- **Frontend**: SvelteKit, Tailwind CSS
-- **AI**: Claude Code SDK, Claude API
-- **運用**: PM2, WebSocket, Winston
-
-## 📝 ライセンス
-
-MIT
+- Claude Code SDK統合
+- 非同期タスク実行
+- WebSocketリアルタイム通信
+- Git Worktree対応
+- スケジューラー
