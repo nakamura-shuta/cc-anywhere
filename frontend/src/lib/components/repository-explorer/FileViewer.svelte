@@ -101,7 +101,7 @@
 			
 			const style = document.createElement('link');
 			style.rel = 'stylesheet';
-			style.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css';
+			style.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css';
 			document.head.appendChild(style);
 		}
 	});
@@ -202,8 +202,8 @@
 					</div>
 				{/if}
 			{:else}
-				<div class="code-wrapper">
-					<pre class="line-numbers"><code 
+				<div class="code-container">
+					<pre><code 
 						bind:this={codeElement}
 						class="language-{content.language || 'text'}"
 					>{content.content}</code></pre>
@@ -222,7 +222,7 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		background: var(--color-bg-primary);
+		background: var(--color-bg-secondary);
 		border: 1px solid var(--color-border);
 		border-radius: 4px;
 		overflow: hidden;
@@ -290,7 +290,6 @@
 	.viewer-content {
 		flex: 1;
 		overflow: auto;
-		position: relative;
 	}
 	
 	.loading-state,
@@ -335,7 +334,7 @@
 		justify-content: center;
 		padding: 16px;
 		height: 100%;
-		background: var(--color-bg-pattern);
+		background: repeating-conic-gradient(#f0f0f0 0% 25%, transparent 0% 50%) 50% / 20px 20px;
 	}
 	
 	.image-preview img {
@@ -345,47 +344,54 @@
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	}
 	
-	.code-wrapper {
-		position: relative;
+	.code-container {
+		padding: 16px;
+		background: var(--color-bg-code);
+		border: 1px solid var(--color-border);
+		border-radius: 4px;
+	}
+	
+	.code-container pre {
+		margin: 0;
 		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 		font-size: 13px;
 		line-height: 1.5;
+		white-space: pre;
+		overflow-x: auto;
 	}
 	
-	.code-wrapper pre {
-		margin: 0;
-		padding: 16px;
-		overflow: auto;
-		background: var(--color-bg-code);
+	.code-container code {
+		color: var(--color-text-primary);
 	}
 	
-	.code-wrapper code {
-		display: block;
-		background: none;
-		font-family: inherit;
+	/* Prismテーマのオーバーライド */
+	.code-container :global(.token.comment),
+	.code-container :global(.token.prolog),
+	.code-container :global(.token.doctype),
+	.code-container :global(.token.cdata) {
+		color: #6b7280 !important;
 	}
 	
-	/* Line numbers styling */
-	.line-numbers {
-		counter-reset: line;
+	.code-container :global(.token.string),
+	.code-container :global(.token.attr-value) {
+		color: #059669 !important;
 	}
 	
-	.line-numbers code {
-		counter-increment: line;
-		position: relative;
-		padding-left: 3.5em;
+	.code-container :global(.token.keyword),
+	.code-container :global(.token.control),
+	.code-container :global(.token.directive),
+	.code-container :global(.token.unit) {
+		color: #7c3aed !important;
 	}
 	
-	.line-numbers code::before {
-		content: counter(line);
-		position: absolute;
-		left: 0;
-		width: 2.5em;
-		padding-right: 0.5em;
-		text-align: right;
-		color: var(--color-text-muted);
-		border-right: 1px solid var(--color-border);
-		user-select: none;
+	.code-container :global(.token.function),
+	.code-container :global(.token.class-name) {
+		color: #2563eb !important;
+	}
+	
+	.code-container :global(.token.operator),
+	.code-container :global(.token.punctuation) {
+		color: #374151 !important;
 	}
 	
 	:global(.spinner) {
@@ -398,30 +404,24 @@
 	}
 	
 	:global(:root) {
-		--color-bg-primary: #fff;
-		--color-bg-secondary: #f5f5f5;
-		--color-bg-code: #f8f8f8;
-		--color-bg-pattern: repeating-conic-gradient(#f0f0f0 0% 25%, transparent 0% 50%) 50% / 20px 20px;
-		--color-bg-hover: rgba(0, 0, 0, 0.05);
-		--color-border: #e0e0e0;
-		--color-text-primary: #333;
-		--color-text-secondary: #666;
-		--color-text-muted: #999;
-		--color-text-error: #d00;
+		--color-bg-secondary: #f9fafb;
+		--color-bg-code: #fcfcfc;
+		--color-bg-hover: rgba(0, 0, 0, 0.03);
+		--color-border: #d1d5db;
+		--color-text-primary: #111827;
+		--color-text-secondary: #4b5563;
+		--color-text-error: #dc2626;
 	}
 	
 	@media (prefers-color-scheme: dark) {
 		:global(:root) {
-			--color-bg-primary: #1e1e1e;
-			--color-bg-secondary: #252525;
-			--color-bg-code: #1a1a1a;
-			--color-bg-pattern: repeating-conic-gradient(#2a2a2a 0% 25%, transparent 0% 50%) 50% / 20px 20px;
+			--color-bg-secondary: #111827;
+			--color-bg-code: #1f2937;
 			--color-bg-hover: rgba(255, 255, 255, 0.05);
-			--color-border: #3a3a3a;
-			--color-text-primary: #ccc;
-			--color-text-secondary: #999;
-			--color-text-muted: #666;
-			--color-text-error: #f44;
+			--color-border: #374151;
+			--color-text-primary: #f3f4f6;
+			--color-text-secondary: #9ca3af;
+			--color-text-error: #ef4444;
 		}
 	}
 </style>

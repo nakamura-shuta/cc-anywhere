@@ -72,7 +72,7 @@
 			</div>
 
 			{#if selectedFile}
-				<div class="flex-1 min-w-0 overflow-hidden flex flex-col">
+				<div class="flex-1 min-w-0 overflow-hidden">
 					<FileViewer
 						repository={selectedFile.repository}
 						filePath={selectedFile.path}
