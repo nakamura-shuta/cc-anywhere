@@ -3,6 +3,7 @@ import { getGlobalMessageRouter } from './message-router.svelte';
 import { taskStore } from './task.svelte';
 import { scheduleStore } from './schedule.svelte';
 import { getConfig } from '$lib/config';
+import { fileChangeStore } from './file-changes.svelte';
 
 /**
  * WebSocketとストアの統合セットアップ
@@ -22,6 +23,9 @@ export function setupWebSocketIntegration() {
   
   // スケジュールストアのメッセージハンドリング
   setupScheduleStoreHandlers();
+  
+  // ファイル変更のメッセージハンドリング
+  setupFileChangeHandlers();
   
   // WebSocket自動接続（設定で有効な場合）
   if (config.features.enableWebSocket) {
@@ -99,6 +103,20 @@ function setupScheduleStoreHandlers() {
   router.register('schedule:execution', (msg) => {
     // スケジュール実行イベント
     scheduleStore.handleCustomMessage?.(msg);
+  });
+}
+
+/**
+ * ファイル変更通知のメッセージハンドラー設定
+ */
+function setupFileChangeHandlers() {
+  const router = getGlobalMessageRouter();
+  
+  // ファイル変更イベント
+  router.register('file-change', (msg) => {
+    if (msg.payload) {
+      fileChangeStore.addChange(msg.payload.path, msg.payload.operation);
+    }
   });
 }
 

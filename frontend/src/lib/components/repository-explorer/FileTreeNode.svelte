@@ -2,6 +2,7 @@
 	import type { TreeNode } from './types';
 	import FileTreeNode from './FileTreeNode.svelte';
 	import { ChevronRight, ChevronDown, File, Folder, FolderOpen } from 'lucide-svelte';
+	import { fileChangeStore } from '$lib/stores/file-changes.svelte';
 
 	interface Props {
 		node: TreeNode;
@@ -43,6 +44,37 @@
 
 	// Svelte 5では$derivedを使用
 	let isSelected = $derived(node.type === 'file' && selectedPath === node.path);
+	
+	// ファイル変更インジケーター
+	function getChangeIndicator(): string | null {
+		const change = fileChangeStore.getChange(node.path);
+		if (!change) return null;
+		
+		switch (change.operation) {
+			case 'add': return '+';
+			case 'change': return 'M';
+			case 'delete': return 'D';
+			case 'rename': return 'R';
+			default: return null;
+		}
+	}
+	
+	function getChangeClass(): string {
+		const change = fileChangeStore.getChange(node.path);
+		if (!change) return '';
+		
+		switch (change.operation) {
+			case 'add': return 'file-added';
+			case 'change': return 'file-modified';
+			case 'delete': return 'file-deleted';
+			case 'rename': return 'file-renamed';
+			default: return '';
+		}
+	}
+	
+	// リアクティブな変更インジケーター
+	let changeIndicator = $derived(getChangeIndicator());
+	let changeClass = $derived(getChangeClass());
 
 	function formatFileSize(bytes: number): string {
 		if (bytes === 0) return '0 B';
@@ -53,7 +85,7 @@
 	}
 </script>
 
-<div class="tree-node">
+<div class="tree-node {changeClass}">
 	<button
 		class="node-content"
 		class:selected={isSelected}
@@ -85,6 +117,12 @@
 				<IconComponent size={16} />
 			{/if}
 		</span>
+		
+		{#if changeIndicator}
+			<span class="change-indicator change-{changeIndicator.toLowerCase()}">
+				[{changeIndicator}]
+			</span>
+		{/if}
 		
 		<span class="name" title={node.path}>
 			{node.name}
@@ -165,6 +203,45 @@
 	
 	.children {
 		position: relative;
+	}
+	
+	/* 変更インジケーター */
+	.change-indicator {
+		display: inline-block;
+		margin-right: 6px;
+		font-weight: bold;
+		font-family: monospace;
+		font-size: 12px;
+	}
+	
+	.change-indicator.change-add { color: #22c55e; }
+	.change-indicator.change-m { color: #eab308; }
+	.change-indicator.change-d { color: #ef4444; }
+	.change-indicator.change-r { color: #3b82f6; }
+	
+	/* 変更されたファイル/ディレクトリの背景色 */
+	.tree-node.file-added {
+		animation: fadeIn 0.3s ease-in;
+		background-color: rgba(34, 197, 94, 0.05);
+	}
+	
+	.tree-node.file-modified {
+		background-color: rgba(234, 179, 8, 0.05);
+	}
+	
+	.tree-node.file-deleted {
+		opacity: 0.6;
+		text-decoration: line-through;
+		background-color: rgba(239, 68, 68, 0.05);
+	}
+	
+	.tree-node.file-renamed {
+		background-color: rgba(59, 130, 246, 0.05);
+	}
+	
+	@keyframes fadeIn {
+		from { opacity: 0; transform: translateX(-10px); }
+		to { opacity: 1; transform: translateX(0); }
 	}
 	
 	:global(:root) {

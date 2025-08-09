@@ -27,7 +27,9 @@ import type {
   ClaudeResponseMessage,
   ScheduleUpdateMessage,
   ScheduleExecutionMessage,
+  FileChangeMessage,
 } from "./types.js";
+import { fileWatcherService } from "../services/file-watcher.service.js";
 
 export class WebSocketServer {
   private clients: Map<string, AuthenticatedWebSocket> = new Map();
@@ -69,6 +71,11 @@ export class WebSocketServer {
 
     // Start heartbeat checker
     this.startHeartbeatChecker();
+
+    // Set up file watcher event listener
+    fileWatcherService.on('change', (event) => {
+      this.broadcastFileChange(event);
+    });
 
     logger.info("WebSocket server registered");
   }
@@ -443,6 +450,22 @@ export class WebSocketServer {
 
     // Broadcast to all authenticated clients
     this.broadcastToAll(message);
+  }
+
+  // File change broadcast method
+  broadcastFileChange(event: any): void {
+    const message: FileChangeMessage = {
+      type: "file-change",
+      payload: {
+        taskId: event.taskId,
+        operation: event.operation,
+        path: event.path,
+        timestamp: event.timestamp
+      },
+    };
+
+    // Broadcast to task subscribers
+    this.broadcastToTaskSubscribers(event.taskId, message);
   }
 
   private broadcastToTaskSubscribers(taskId: string, message: WebSocketMessage): void {

@@ -20,6 +20,7 @@ import type { Worktree, WorktreeConfig } from "../services/worktree/types";
 import { NotFoundError, TaskCancelledError, SystemError } from "../utils/errors";
 import { mapPermissionMode } from "./permission-mode-mapper";
 import type { ClaudeCodeClient } from "./claude-code-client";
+import { fileWatcherService } from "../services/file-watcher.service";
 
 /**
  * Task execution engine that handles Claude API interactions
@@ -238,6 +239,16 @@ export class TaskExecutorImpl implements TaskExecutor {
         };
       }
 
+      // Start file watching if working directory exists and taskId is provided
+      if (workingDirectory && taskId && config.env !== 'test') {
+        try {
+          await fileWatcherService.watchDirectory(taskId, workingDirectory);
+          logger.info(`Started file watching for task ${taskId} in ${workingDirectory}`);
+        } catch (error) {
+          logger.warn(`Failed to start file watching for task ${taskId}:`, error);
+        }
+      }
+
       // Build the prompt
       const prompt = this.buildPrompt(processedTask);
 
@@ -289,6 +300,16 @@ export class TaskExecutorImpl implements TaskExecutor {
               type: "log",
               message: `作業ディレクトリ: ${resolvedWorkingDirectory}`,
             });
+          }
+        }
+
+        // Start file watching
+        if (resolvedWorkingDirectory && taskId && config.env !== 'test') {
+          try {
+            await fileWatcherService.watchDirectory(taskId, resolvedWorkingDirectory);
+            logger.info(`Started file watching for task ${taskId} in ${resolvedWorkingDirectory}`);
+          } catch (error) {
+            logger.warn(`Failed to start file watching for task ${taskId}:`, error);
           }
         }
 
@@ -536,6 +557,16 @@ export class TaskExecutorImpl implements TaskExecutor {
         hasConversationHistory: !!result.conversationHistory,
       });
 
+      // Stop file watching
+      if (taskId && config.env !== 'test') {
+        try {
+          await fileWatcherService.stopWatching(taskId);
+          logger.info(`Stopped file watching for task ${taskId}`);
+        } catch (error) {
+          logger.warn(`Failed to stop file watching for task ${taskId}:`, error);
+        }
+      }
+
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -559,6 +590,16 @@ export class TaskExecutorImpl implements TaskExecutor {
           await this.cleanupWorktree(createdWorktree, task.options?.onProgress);
         } catch (cleanupError) {
           logger.error("Failed to cleanup worktree after error", { cleanupError });
+        }
+      }
+
+      // Stop file watching on error
+      if (taskId && config.env !== 'test') {
+        try {
+          await fileWatcherService.stopWatching(taskId);
+          logger.info(`Stopped file watching for task ${taskId} after error`);
+        } catch (stopError) {
+          logger.warn(`Failed to stop file watching for task ${taskId}:`, stopError);
         }
       }
 

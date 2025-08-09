@@ -246,6 +246,16 @@ export interface ScheduleExecutionMessage extends WebSocketMessage {
   };
 }
 
+export interface FileChangeMessage extends WebSocketMessage {
+  type: "file-change";
+  payload: {
+    taskId: string;
+    operation: 'add' | 'change' | 'delete' | 'rename';
+    path: string;
+    timestamp: number;
+  };
+}
+
 // Extended WebSocket with authentication and subscriptions
 export interface AuthenticatedWebSocket extends WebSocket {
   id: string;

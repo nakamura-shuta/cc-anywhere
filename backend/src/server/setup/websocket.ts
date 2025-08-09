@@ -4,6 +4,7 @@ import { WebSocketServer } from "../../websocket/websocket-server";
 import { config } from "../../config";
 import { logger } from "../../utils/logger";
 import { getTypedEventBus } from "../../events";
+import { fileWatcherService } from "../../services/file-watcher.service";
 
 /**
  * Configure WebSocket server and integrate with task queue
@@ -111,6 +112,31 @@ export async function configureWebSocket(
     }
   });
 
+  // Set up file change notification
+  fileWatcherService.on('change', (event) => {
+    wsServer.broadcastFileChange({
+      taskId: event.taskId,
+      operation: mapOperation(event.operation),
+      path: event.path,
+      timestamp: event.timestamp
+    });
+  });
+
   logger.info("WebSocket server initialized");
   return wsServer;
+}
+
+function mapOperation(op: string): 'add' | 'change' | 'delete' | 'rename' {
+  switch(op) {
+    case 'add':
+    case 'addDir':
+      return 'add';
+    case 'change':
+      return 'change';
+    case 'unlink':
+    case 'unlinkDir':
+      return 'delete';
+    default:
+      return 'change';
+  }
 }
