@@ -154,7 +154,8 @@ export function createEntityStore<T extends { id: string } | { taskId: string }>
       console.log(`[${name}Store] Item found at index:`, index);
       
       if (index !== -1) {
-        console.log(`[${name}Store] Current item:`, this.items[index]);
+        console.log(`[snapshot] [${name}Store] Current item:`, $state.snapshot(this.items[index]));
+        console.log(`[${name}Store] Current item:`, $state.snapshot(this.items[index]));
       }
       
       this.items = updateArray(
@@ -164,7 +165,8 @@ export function createEntityStore<T extends { id: string } | { taskId: string }>
       );
       
       if (index !== -1) {
-        console.log(`[${name}Store] Updated item:`, this.items[index]);
+        console.log(`[snapshot] [${name}Store] Updated item:`, $state.snapshot(this.items[index]));
+        console.log(`[${name}Store] Updated item:`, $state.snapshot(this.items[index]));
       }
     }
     

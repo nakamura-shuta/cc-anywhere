@@ -240,7 +240,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       }
 
       // Start file watching if working directory exists and taskId is provided
-      if (workingDirectory && taskId && config.env !== 'test') {
+      if (workingDirectory && taskId && config.env !== "test") {
         try {
           await fileWatcherService.watchDirectory(taskId, workingDirectory);
           logger.info(`Started file watching for task ${taskId} in ${workingDirectory}`);
@@ -304,7 +304,7 @@ export class TaskExecutorImpl implements TaskExecutor {
         }
 
         // Start file watching
-        if (resolvedWorkingDirectory && taskId && config.env !== 'test') {
+        if (resolvedWorkingDirectory && taskId && config.env !== "test") {
           try {
             await fileWatcherService.watchDirectory(taskId, resolvedWorkingDirectory);
             logger.info(`Started file watching for task ${taskId} in ${resolvedWorkingDirectory}`);
@@ -558,7 +558,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       });
 
       // Stop file watching
-      if (taskId && config.env !== 'test') {
+      if (taskId && config.env !== "test") {
         try {
           await fileWatcherService.stopWatching(taskId);
           logger.info(`Stopped file watching for task ${taskId}`);
@@ -594,7 +594,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       }
 
       // Stop file watching on error
-      if (taskId && config.env !== 'test') {
+      if (taskId && config.env !== "test") {
         try {
           await fileWatcherService.stopWatching(taskId);
           logger.info(`Stopped file watching for task ${taskId} after error`);

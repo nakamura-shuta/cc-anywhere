@@ -250,7 +250,7 @@ export interface FileChangeMessage extends WebSocketMessage {
   type: "file-change";
   payload: {
     taskId: string;
-    operation: 'add' | 'change' | 'delete' | 'rename';
+    operation: "add" | "change" | "delete" | "rename";
     path: string;
     timestamp: number;
   };

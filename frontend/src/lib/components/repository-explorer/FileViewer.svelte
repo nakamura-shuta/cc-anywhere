@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { FileContent } from './types';
 	import { repositoryExplorerService } from '$lib/services/repository-explorer.service';
-	import { onMount } from 'svelte';
-	import { Loader2, X, Download, Copy, Check } from 'lucide-svelte';
+	import { getRepositoryFileChangesStore } from '$lib/stores/repository-file-changes.svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { Loader2, X, Download, Copy, Check, RefreshCw } from 'lucide-svelte';
 	import '$lib/types/prism.d.ts';
 	
 	interface Props {
@@ -13,11 +14,16 @@
 
 	let { repository, filePath, onClose }: Props = $props();
 	
+	// ファイル変更通知ストア
+	const fileChangesStore = getRepositoryFileChangesStore();
+	let fileChangeCleanup: (() => void) | null = null;
+	
 	let content = $state<FileContent | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let copied = $state(false);
 	let codeElement = $state<HTMLElement>();
+	let hasFileChanged = $state(false);
 
 	// ファイル内容の取得
 	$effect(() => {
@@ -26,9 +32,43 @@
 		}
 	});
 
+	// ファイル変更通知の監視
+	$effect(() => {
+		if (repository && filePath) {
+			// 既存のリスナーをクリーンアップ
+			if (fileChangeCleanup) {
+				fileChangeCleanup();
+			}
+
+			// 新しいリスナーを設定
+			fileChangeCleanup = fileChangesStore.onRepositoryChange(repository, (event) => {
+				// 現在表示中のファイルが変更された場合
+				if (event.path === filePath && (event.type === 'changed' || event.type === 'removed')) {
+					console.log('Current file changed:', event);
+					hasFileChanged = true;
+					
+					if (event.type === 'removed') {
+						error = 'File has been removed';
+						content = null;
+					}
+				}
+			});
+		}
+		
+		// リポジトリの監視を開始
+		startWatchingRepository();
+	});
+
+	onDestroy(() => {
+		if (fileChangeCleanup) {
+			fileChangeCleanup();
+		}
+	});
+
 	async function loadFileContent() {
 		loading = true;
 		error = null;
+		hasFileChanged = false;
 		
 		try {
 			content = await repositoryExplorerService.getFileContent(repository, filePath);
@@ -38,6 +78,19 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	async function startWatchingRepository() {
+		try {
+			await repositoryExplorerService.startWatching(repository);
+			console.log('Started watching repository:', repository);
+		} catch (err) {
+			console.warn('Failed to start watching repository:', err);
+		}
+	}
+
+	function reloadFile() {
+		loadFileContent();
 	}
 
 	async function copyToClipboard() {
@@ -127,6 +180,16 @@
 			{/if}
 		</div>
 		<div class="viewer-actions">
+			{#if hasFileChanged}
+				<button 
+					class="action-button file-changed" 
+					onclick={reloadFile}
+					title="File has been changed. Click to reload"
+					type="button"
+				>
+					<RefreshCw size={16} />
+				</button>
+			{/if}
 			<button 
 				class="action-button" 
 				onclick={copyToClipboard}
@@ -285,6 +348,25 @@
 	.action-button:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+	
+	.action-button.file-changed {
+		background: #fbbf24;
+		color: #92400e;
+		animation: pulse 2s infinite;
+	}
+	
+	.action-button.file-changed:hover {
+		background: #f59e0b;
+	}
+	
+	@keyframes pulse {
+		0%, 100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.7;
+		}
 	}
 	
 	.viewer-content {

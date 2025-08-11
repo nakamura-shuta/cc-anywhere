@@ -73,7 +73,7 @@ export class WebSocketServer {
     this.startHeartbeatChecker();
 
     // Set up file watcher event listener
-    fileWatcherService.on('change', (event) => {
+    fileWatcherService.on("change", (event) => {
       this.broadcastFileChange(event);
     });
 
@@ -460,7 +460,7 @@ export class WebSocketServer {
         taskId: event.taskId,
         operation: event.operation,
         path: event.path,
-        timestamp: event.timestamp
+        timestamp: event.timestamp,
       },
     };
 

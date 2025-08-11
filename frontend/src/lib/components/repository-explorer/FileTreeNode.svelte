@@ -22,6 +22,13 @@
 
 	let expanded = $state(false);
 
+	// リポジトリが変更されたらfileChangeStoreに通知
+	$effect(() => {
+		if (repository) {
+			fileChangeStore.setRepository(repository);
+		}
+	});
+
 	function toggleExpanded() {
 		if (node.type === 'directory') {
 			expanded = !expanded;
@@ -45,8 +52,8 @@
 	// Svelte 5では$derivedを使用
 	let isSelected = $derived(node.type === 'file' && selectedPath === node.path);
 	
-	// ファイル変更インジケーター
-	function getChangeIndicator(): string | null {
+	// ファイル変更インジケーター（リアクティブ）
+	let changeIndicator = $derived((() => {
 		const change = fileChangeStore.getChange(node.path);
 		if (!change) return null;
 		
@@ -57,9 +64,9 @@
 			case 'rename': return 'R';
 			default: return null;
 		}
-	}
+	})());
 	
-	function getChangeClass(): string {
+	let changeClass = $derived((() => {
 		const change = fileChangeStore.getChange(node.path);
 		if (!change) return '';
 		
@@ -70,11 +77,7 @@
 			case 'rename': return 'file-renamed';
 			default: return '';
 		}
-	}
-	
-	// リアクティブな変更インジケーター
-	let changeIndicator = $derived(getChangeIndicator());
-	let changeClass = $derived(getChangeClass());
+	})());
 
 	function formatFileSize(bytes: number): string {
 		if (bytes === 0) return '0 B';
@@ -119,7 +122,7 @@
 		</span>
 		
 		{#if changeIndicator}
-			<span class="change-indicator change-{changeIndicator.toLowerCase()}">
+			<span class="change-indicator change-type-{changeIndicator === '+' ? 'add' : changeIndicator?.toLowerCase()}">
 				[{changeIndicator}]
 			</span>
 		{/if}
@@ -214,10 +217,32 @@
 		font-size: 12px;
 	}
 	
-	.change-indicator.change-add { color: #22c55e; }
-	.change-indicator.change-m { color: #eab308; }
-	.change-indicator.change-d { color: #ef4444; }
-	.change-indicator.change-r { color: #3b82f6; }
+	/* 変更インジケーターの基本スタイル */
+	.change-indicator {
+		font-weight: bold;
+		font-size: 12px;
+		margin-right: 4px;
+	}
+	
+	/* 追加されたファイル */
+	.change-indicator.change-type-add { 
+		color: #22c55e;
+	}
+	
+	/* 変更されたファイル */
+	.change-indicator.change-type-m { 
+		color: #eab308;
+	}
+	
+	/* 削除されたファイル */
+	.change-indicator.change-type-d { 
+		color: #ef4444;
+	}
+	
+	/* リネームされたファイル */
+	.change-indicator.change-type-r { 
+		color: #3b82f6;
+	}
 	
 	/* 変更されたファイル/ディレクトリの背景色 */
 	.tree-node.file-added {

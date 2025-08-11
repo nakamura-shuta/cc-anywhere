@@ -196,6 +196,7 @@ export class EnhancedWebSocketStore {
   private handleMessage(event: MessageEvent): void {
     try {
       const message: WebSocketMessage = JSON.parse(event.data);
+      console.log('[WebSocket] Received message:', message.type, message);
       
       // pongメッセージは無視
       if (message.type === 'pong') {

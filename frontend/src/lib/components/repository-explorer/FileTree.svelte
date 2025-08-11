@@ -2,6 +2,8 @@
 	import type { TreeNode } from './types';
 	import FileTreeNode from './FileTreeNode.svelte';
 	import { repositoryExplorerService } from '$lib/services/repository-explorer.service';
+	import { fileChangeStore } from '$lib/stores/file-changes.svelte';
+	import { getRepositoryFileChangesStore } from '$lib/stores/repository-file-changes.svelte';
 	import { Loader2, FolderOpen, AlertCircle, ChevronDown, ChevronRight } from 'lucide-svelte';
 
 	interface Props {
@@ -21,6 +23,9 @@
 	let errors = $state<Record<string, string>>({});
 	let expanded = $state<Record<string, boolean>>({});
 	let loadedRepositories = new Set<string>();
+	
+	// リポジトリファイル変更ストアを取得
+	const repositoryFileChangesStore = getRepositoryFileChangesStore();
 
 	// パスを短縮表示する関数
 	function formatPath(path: string): string {
@@ -62,6 +67,8 @@
 				expanded[repo.name] = false; // 新しく追加されたリポジトリは閉じた状態で開始
 				loadTree(repo.path, repo.name);
 				loadedRepositories.add(repo.name);
+				// リポジトリパスを登録
+				repositoryFileChangesStore.registerRepository(repo.path);
 			}
 		});
 		
@@ -76,6 +83,23 @@
 			}
 		});
 	});
+	
+	// リポジトリファイル変更を監視してツリーを自動更新
+	$effect(() => {
+		const cleanup = repositoryFileChangesStore.onAnyFileChange((event) => {
+			console.log('[FileTree] Repository file change detected:', event);
+			
+			// 変更があったリポジトリのツリーを再読み込み
+			const affectedRepo = repositories.find(r => r.path === event.repository);
+			if (affectedRepo && expanded[affectedRepo.name]) {
+				// 展開されているリポジトリのみ更新
+				console.log('[FileTree] Refreshing tree for repository:', affectedRepo.name);
+				loadTree(affectedRepo.path, affectedRepo.name);
+			}
+		});
+		
+		return cleanup;
+	});
 
 	async function loadTree(repositoryPath: string, repositoryName: string) {
 		loading[repositoryName] = true;
@@ -84,6 +108,15 @@
 		try {
 			const tree = await repositoryExplorerService.getTree(repositoryPath);
 			trees[repositoryName] = tree;
+			
+			// リポジトリの監視も開始
+			try {
+				await repositoryExplorerService.startWatching(repositoryPath);
+				console.log(`Started watching repository: ${repositoryName} at ${repositoryPath}`);
+			} catch (watchError) {
+				console.warn(`Failed to start watching repository ${repositoryName}:`, watchError);
+				// ツリー読み込みは成功したので、監視の失敗はワーニングに留める
+			}
 		} catch (error) {
 			console.error(`Failed to load tree for ${repositoryName}:`, error);
 			errors[repositoryName] = error instanceof Error ? error.message : 'Failed to load repository tree';
@@ -152,9 +185,9 @@
 										Retry
 									</button>
 								</div>
-							{:else if trees[repo.name] && trees[repo.name].children}
+							{:else if trees[repo.name]?.children}
 								<!-- ツリーの子ノードだけを表示（ルートディレクトリ名は除外） -->
-								{#each trees[repo.name].children as child}
+								{#each trees[repo.name].children || [] as child}
 									<FileTreeNode
 										node={child}
 										repository={repo.path}

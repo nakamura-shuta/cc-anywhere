@@ -66,16 +66,22 @@ export class RepositoryExplorerService {
    * リポジトリのパスを取得
    */
   async getRepositoryPath(repositoryName: string): Promise<string> {
+    logger.debug("Getting repository path", { repositoryName });
+
     // repositoryNameが絶対パスの場合は直接使用
     if (repositoryName.startsWith("/") || repositoryName.startsWith("~")) {
       const repoPath = repositoryName.startsWith("~")
         ? repositoryName.replace("~", process.env.HOME || "")
         : repositoryName;
 
+      logger.debug("Absolute path detected", { repositoryName, repoPath });
+
       if (!existsSync(repoPath)) {
+        logger.error("Repository path does not exist", { repositoryName, repoPath });
         throw new Error(`Path "${repoPath}" does not exist`);
       }
 
+      logger.debug("Repository path validated", { repositoryName, repoPath });
       return repoPath;
     }
 

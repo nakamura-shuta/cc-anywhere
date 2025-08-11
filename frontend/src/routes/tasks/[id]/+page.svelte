@@ -277,7 +277,7 @@
 			const taskState = taskStore.getTaskState(taskId);
 			if (taskState.data) {
 				currentTask = taskState.data;
-				console.log('[RefreshTask] Updated task:', currentTask);
+				console.log('[RefreshTask] Updated task:', $state.snapshot(currentTask));
 				console.log('[RefreshTask] Task result:', currentTask.result);
 			}
 			// logsはws.logsを使用するため、ここでは取得しない

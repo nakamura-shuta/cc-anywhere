@@ -113,12 +113,12 @@ export async function configureWebSocket(
   });
 
   // Set up file change notification
-  fileWatcherService.on('change', (event) => {
+  fileWatcherService.on("change", (event) => {
     wsServer.broadcastFileChange({
       taskId: event.taskId,
       operation: mapOperation(event.operation),
       path: event.path,
-      timestamp: event.timestamp
+      timestamp: event.timestamp,
     });
   });
 
@@ -126,17 +126,17 @@ export async function configureWebSocket(
   return wsServer;
 }
 
-function mapOperation(op: string): 'add' | 'change' | 'delete' | 'rename' {
-  switch(op) {
-    case 'add':
-    case 'addDir':
-      return 'add';
-    case 'change':
-      return 'change';
-    case 'unlink':
-    case 'unlinkDir':
-      return 'delete';
+function mapOperation(op: string): "add" | "change" | "delete" | "rename" {
+  switch (op) {
+    case "add":
+    case "addDir":
+      return "add";
+    case "change":
+      return "change";
+    case "unlink":
+    case "unlinkDir":
+      return "delete";
     default:
-      return 'change';
+      return "change";
   }
 }
