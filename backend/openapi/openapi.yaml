@@ -55,13 +55,13 @@ paths:
   /api/tasks:
     $ref: './paths/tasks.yaml#/~1api~1tasks'
   /api/tasks/{taskId}:
-    $ref: './paths/tasks.yaml#/~1api~1tasks~1{taskId}'
+    $ref: './paths/tasks.yaml#/~1api~1tasks~1%7BtaskId%7D'
   /api/tasks/{taskId}/logs:
-    $ref: './paths/tasks.yaml#/~1api~1tasks~1{taskId}~1logs'
+    $ref: './paths/tasks.yaml#/~1api~1tasks~1%7BtaskId%7D~1logs'
   /api/tasks/{taskId}/retry:
-    $ref: './paths/tasks.yaml#/~1api~1tasks~1{taskId}~1retry'
+    $ref: './paths/tasks.yaml#/~1api~1tasks~1%7BtaskId%7D~1retry'
   /api/tasks/{taskId}/continue:
-    $ref: './paths/tasks.yaml#/~1api~1tasks~1{taskId}~1continue'
+    $ref: './paths/tasks.yaml#/~1api~1tasks~1%7BtaskId%7D~1continue'
   
   # Repository Explorer
   /api/repositories:
@@ -79,13 +79,13 @@ paths:
   /api/batch/tasks:
     $ref: './paths/batch-tasks.yaml#/~1api~1batch~1tasks'
   /api/batch/tasks/{groupId}/status:
-    $ref: './paths/batch-tasks.yaml#/~1api~1batch~1tasks~1{groupId}~1status'
+    $ref: './paths/batch-tasks.yaml#/~1api~1batch~1tasks~1%7BgroupId%7D~1status'
   
   # Queue Management
   /api/queue/tasks:
     $ref: './paths/queue.yaml#/~1api~1queue~1tasks'
   /api/queue/tasks/{taskId}:
-    $ref: './paths/queue.yaml#/~1api~1queue~1tasks~1{taskId}'
+    $ref: './paths/queue.yaml#/~1api~1queue~1tasks~1%7BtaskId%7D'
   /api/queue/stats:
     $ref: './paths/queue.yaml#/~1api~1queue~1stats'
   /api/queue/concurrency:
@@ -95,7 +95,7 @@ paths:
   /api/presets:
     $ref: './paths/presets.yaml#/~1api~1presets'
   /api/presets/{id}:
-    $ref: './paths/presets.yaml#/~1api~1presets~1{id}'
+    $ref: './paths/presets.yaml#/~1api~1presets~1%7Bid%7D'
   
   # System
   /api/health:
