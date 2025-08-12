@@ -1,0 +1,1557 @@
+openapi: 3.1.0
+info:
+  title: CC-Anywhere API
+  description: Claude Code SDK HTTP Server API
+  version: 0.4.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.cc-anywhere.com
+    description: Production server
+
+tags:
+  - name: tasks
+    description: Task management operations
+  - name: health
+    description: System health endpoints
+  - name: batch
+    description: Batch task operations
+  - name: queue
+    description: Task queue management
+  - name: presets
+    description: Task presets management
+  - name: repositories
+    description: Repository explorer operations
+  - name: schedules
+    description: Task scheduling operations
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+          required:
+            - code
+            - message
+      required:
+        - error
+
+    Task:
+      type: object
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled]
+        instruction:
+          type: string
+        result:
+          type: object
+          nullable: true
+        error:
+          type: object
+          nullable: true
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        workingDirectory:
+          type: string
+          nullable: true
+      required:
+        - taskId
+        - status
+        - instruction
+        - createdAt
+
+    CreateTaskRequest:
+      type: object
+      properties:
+        instruction:
+          type: string
+          minLength: 1
+        context:
+          type: object
+          properties:
+            workingDirectory:
+              type: string
+            files:
+              type: array
+              items:
+                type: string
+        options:
+          type: object
+          properties:
+            timeout:
+              type: integer
+              minimum: 1000
+              maximum: 3600000
+            async:
+              type: boolean
+            allowedTools:
+              type: array
+              items:
+                type: string
+        continuationOptions:
+          type: object
+          properties:
+            taskId:
+              type: string
+              format: uuid
+      required:
+        - instruction
+
+    BatchTaskRequest:
+      type: object
+      properties:
+        instruction:
+          type: string
+          minLength: 1
+        repositories:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        options:
+          type: object
+          properties:
+            timeout:
+              type: integer
+            concurrency:
+              type: integer
+              minimum: 1
+              maximum: 10
+      required:
+        - instruction
+        - repositories
+
+    TaskPreset:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        settings:
+          type: object
+      required:
+        - id
+        - name
+        - settings
+
+    TreeNode:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        type:
+          type: string
+          enum: [file, directory]
+        size:
+          type: integer
+          nullable: true
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/TreeNode'
+          nullable: true
+      required:
+        - name
+        - path
+        - type
+
+    FileContent:
+      type: object
+      properties:
+        path:
+          type: string
+        content:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+        encoding:
+          type: string
+      required:
+        - path
+        - content
+        - mimeType
+        - size
+
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        taskRequest:
+          $ref: '#/components/schemas/CreateTaskRequest'
+        schedule:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [cron, interval, once]
+            cron:
+              type: string
+              nullable: true
+            interval:
+              type: integer
+              nullable: true
+            executeAt:
+              type: string
+              format: date-time
+              nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        metadata:
+          type: object
+          properties:
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+            executionCount:
+              type: integer
+            lastExecutedAt:
+              type: string
+              format: date-time
+              nullable: true
+            nextExecuteAt:
+              type: string
+              format: date-time
+              nullable: true
+      required:
+        - id
+        - name
+        - taskRequest
+        - schedule
+        - status
+        - metadata
+
+    CreateScheduleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        taskRequest:
+          $ref: '#/components/schemas/CreateTaskRequest'
+        schedule:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [cron, interval, once]
+            cron:
+              type: string
+              nullable: true
+            interval:
+              type: integer
+              nullable: true
+            executeAt:
+              type: string
+              format: date-time
+              nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+      required:
+        - name
+        - taskRequest
+        - schedule
+
+    UpdateScheduleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        taskRequest:
+          $ref: '#/components/schemas/CreateTaskRequest'
+        schedule:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [cron, interval, once]
+            cron:
+              type: string
+              nullable: true
+            interval:
+              type: integer
+              nullable: true
+            executeAt:
+              type: string
+              format: date-time
+              nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+
+    ScheduleExecutionHistory:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        taskId:
+          type: string
+        executedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [success, failure]
+        error:
+          type: string
+          nullable: true
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /api/health:
+    get:
+      tags:
+        - health
+      summary: Health check endpoint
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                required:
+                  - status
+                  - timestamp
+                  - version
+
+  /api/tasks:
+    get:
+      tags:
+        - tasks
+      summary: List all tasks
+      operationId: listTasks
+      parameters:
+        - name: status
+          in: query
+          description: Filter by task status
+          required: false
+          schema:
+            type: string
+            enum: [pending, running, completed, failed, cancelled]
+        - name: repository
+          in: query
+          description: Filter by repository
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of tasks to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of tasks to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Task list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                required:
+                  - tasks
+                  - total
+                  - limit
+                  - offset
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - tasks
+      summary: Create a new task
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/tasks/{taskId}:
+    get:
+      tags:
+        - tasks
+      summary: Get a specific task
+      operationId: getTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - tasks
+      summary: Cancel a task
+      operationId: cancelTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId:
+                    type: string
+                  status:
+                    type: string
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/tasks/{taskId}/logs:
+    get:
+      tags:
+        - tasks
+      summary: Get task logs
+      operationId: getTaskLogs
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task logs retrieved successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId:
+                    type: string
+                  logs:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/tasks/{taskId}/retry:
+    post:
+      tags:
+        - tasks
+      summary: Retry a failed task
+      operationId: retryTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Task retry initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/tasks/{taskId}/continue:
+    post:
+      tags:
+        - tasks
+      summary: Continue a task with new instructions
+      operationId: continueTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Task ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instruction:
+                  type: string
+                  minLength: 1
+              required:
+                - instruction
+      responses:
+        '201':
+          description: Task continuation initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/batch/tasks:
+    post:
+      tags:
+        - batch
+      summary: Create batch tasks
+      operationId: createBatchTasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchTaskRequest'
+      responses:
+        '201':
+          description: Batch tasks created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groupId:
+                    type: string
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  total:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/batch/tasks/{groupId}/status:
+    get:
+      tags:
+        - batch
+      summary: Get batch task status
+      operationId: getBatchTaskStatus
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: Batch group ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Batch status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groupId:
+                    type: string
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  summary:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      pending:
+                        type: integer
+                      running:
+                        type: integer
+                      completed:
+                        type: integer
+                      failed:
+                        type: integer
+                      cancelled:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/queue/tasks:
+    post:
+      tags:
+        - queue
+      summary: Add task to queue
+      operationId: addTaskToQueue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task added to queue successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId:
+                    type: string
+                  position:
+                    type: integer
+                  status:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    get:
+      tags:
+        - queue
+      summary: Get queued tasks
+      operationId: getQueuedTasks
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by status
+          schema:
+            type: string
+            enum: [pending, running, completed, failed, cancelled]
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of tasks to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          description: Number of tasks to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Queued tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/queue/tasks/{taskId}:
+    get:
+      tags:
+        - queue
+      summary: Get queued task details
+      operationId: getQueuedTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Queued task retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - queue
+      summary: Remove task from queue
+      operationId: removeTaskFromQueue
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: Task ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task removed from queue successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  taskId:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/queue/stats:
+    get:
+      tags:
+        - queue
+      summary: Get queue statistics
+      operationId: getQueueStats
+      responses:
+        '200':
+          description: Queue statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending:
+                    type: integer
+                  running:
+                    type: integer
+                  completed:
+                    type: integer
+                  failed:
+                    type: integer
+                  total:
+                    type: integer
+                  concurrency:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/queue/concurrency:
+    put:
+      tags:
+        - queue
+      summary: Update queue concurrency
+      operationId: updateQueueConcurrency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                concurrency:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+              required:
+                - concurrency
+      responses:
+        '200':
+          description: Queue concurrency updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  concurrency:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/presets:
+    get:
+      tags:
+        - presets
+      summary: List all presets
+      operationId: listPresets
+      responses:
+        '200':
+          description: Presets retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  presets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TaskPreset'
+                  userPresets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TaskPreset'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - presets
+      summary: Create a new preset
+      operationId: createPreset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+                settings:
+                  type: object
+              required:
+                - name
+                - settings
+      responses:
+        '201':
+          description: Preset created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPreset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/repositories/tree:
+    get:
+      tags:
+        - repositories
+      summary: Get repository directory tree
+      operationId: getRepositoryTree
+      parameters:
+        - name: repository
+          in: query
+          required: true
+          description: Repository name or path
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: false
+          description: Subdirectory path within repository
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repository tree retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreeNode'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/repositories/file:
+    get:
+      tags:
+        - repositories
+      summary: Get file content from repository
+      operationId: getRepositoryFile
+      parameters:
+        - name: repository
+          in: query
+          required: true
+          description: Repository name or path
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          description: File path within repository
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File content retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileContent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          description: Payload Too Large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/repositories/watch:
+    post:
+      tags:
+        - repositories
+      summary: Start watching a repository for changes
+      operationId: watchRepository
+      parameters:
+        - name: repository
+          in: query
+          required: true
+          description: Repository name or path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repository watch started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - repositories
+      summary: Stop watching a repository
+      operationId: unwatchRepository
+      parameters:
+        - name: repository
+          in: query
+          required: true
+          description: Repository name or path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repository watch stopped successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/repositories/watched:
+    get:
+      tags:
+        - repositories
+      summary: Get list of watched repositories
+      operationId: getWatchedRepositories
+      responses:
+        '200':
+          description: Watched repositories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repositories:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/presets/{id}:
+    get:
+      tags:
+        - presets
+      summary: Get a specific preset
+      operationId: getPreset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Preset ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Preset retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPreset'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - presets
+      summary: Update a preset
+      operationId: updatePreset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Preset ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+                settings:
+                  type: object
+      responses:
+        '200':
+          description: Preset updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPreset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - presets
+      summary: Delete a preset
+      operationId: deletePreset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Preset ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Preset deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/schedules:
+    post:
+      tags:
+        - schedules
+      summary: Create a new schedule
+      operationId: createSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScheduleRequest'
+      responses:
+        '201':
+          description: Schedule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    get:
+      tags:
+        - schedules
+      summary: List all schedules
+      operationId: listSchedules
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of schedules to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: offset
+          in: query
+          required: false
+          description: Number of schedules to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: status
+          in: query
+          required: false
+          description: Filter by schedule status
+          schema:
+            type: string
+            enum: [active, inactive]
+      responses:
+        '200':
+          description: Schedules retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schedules:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Schedule'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/schedules/{id}:
+    get:
+      tags:
+        - schedules
+      summary: Get a specific schedule
+      operationId: getSchedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Schedule ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Schedule retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - schedules
+      summary: Update a schedule
+      operationId: updateSchedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Schedule ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScheduleRequest'
+      responses:
+        '200':
+          description: Schedule updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - schedules
+      summary: Delete a schedule
+      operationId: deleteSchedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Schedule ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Schedule deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/schedules/{id}/enable:
+    post:
+      tags:
+        - schedules
+      summary: Enable a schedule
+      operationId: enableSchedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Schedule ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Schedule enabled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/schedules/{id}/disable:
+    post:
+      tags:
+        - schedules
+      summary: Disable a schedule
+      operationId: disableSchedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Schedule ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Schedule disabled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/schedules/{id}/history:
+    get:
+      tags:
+        - schedules
+      summary: Get schedule execution history
+      operationId: getScheduleHistory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Schedule ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Schedule history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScheduleExecutionHistory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
