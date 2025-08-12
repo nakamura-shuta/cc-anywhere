@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **OpenAPI/Swagger統合**: APIドキュメントの自動生成と対話的テスト機能
+  - OpenAPI 3.1.0仕様に基づいたAPIドキュメント（`/backend/openapi.yaml`）
+  - Swagger UIによる対話的APIドキュメント（`http://localhost:5000/api/docs`）
+  - 全APIエンドポイントのスキーマ定義
+  - APIキー認証の永続化機能
+  - Try it out機能による直接的なAPIテスト
+
 ### Changed
 - **Claude Code SDK更新**: v1.0.64 から v1.0.69 にアップデート
 
@@ -35,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Worktree隔離性の修正**: Claude Code SDKのタスク実行時にworktreeディレクトリが作業ディレクトリとして正しく設定されるよう修正
   - `path`モジュールのインポート漏れを修正
   - ファイル操作がメインリポジトリに影響を与えないことを確認
+- **フロントエンドlintエラー修正**: 未使用変数のlintエラーを修正（deleted-files.svelte.ts）
 
 ### Changed
 - 完全に@anthropic-ai/claude-code SDKに移行し、@anthropic-ai/sdkを削除

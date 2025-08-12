@@ -2,6 +2,29 @@
 
 CC-AnywhereのREST APIエンドポイントの完全なリファレンスです。
 
+## OpenAPI/Swagger ドキュメント
+
+APIの詳細仕様は、OpenAPI 3.1.0仕様として定義されており、Swagger UIで対話的に確認できます。
+
+### Swagger UIへのアクセス
+
+開発サーバー起動後、以下のURLでSwagger UIにアクセスできます：
+
+```
+http://localhost:5000/api/docs
+```
+
+### OpenAPI仕様ファイル
+
+OpenAPI仕様は `/backend/openapi.yaml` に定義されています。
+
+### 特徴
+
+- **対話的なドキュメント**: Swagger UIから直接APIをテストできます
+- **型定義**: すべてのリクエスト/レスポンスの型が明確に定義されています
+- **認証対応**: APIキー認証を設定してテストが可能です
+- **自動更新**: コードと同期した最新のAPI仕様を提供します
+
 ## 目次
 
 - [認証](#認証)
