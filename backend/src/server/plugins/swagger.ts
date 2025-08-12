@@ -1,16 +1,16 @@
 import fp from "fastify-plugin";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
+import type { FastifyInstance } from "fastify";
 import { readFileSync } from "fs";
 import { load } from "js-yaml";
 import { resolve } from "path";
-import type { FastifyInstance } from "fastify";
 
 export default fp(async function swaggerPlugin(fastify: FastifyInstance) {
-  // OpenAPI仕様ファイルのパスを解決 (プロジェクトルートから相対パス)
-  const openapiPath = resolve(process.cwd(), "openapi/openapi.yaml");
-
   try {
+    // OpenAPI仕様ファイルのパスを解決 (単一ファイル)
+    const openapiPath = resolve(process.cwd(), "openapi.yaml");
+
     // YAMLファイルを読み込んでパース
     const openapiContent = readFileSync(openapiPath, "utf8");
     const openapiDocument = load(openapiContent) as any;
@@ -32,6 +32,10 @@ export default fp(async function swaggerPlugin(fastify: FastifyInstance) {
         tryItOutEnabled: true,
         displayRequestDuration: true,
         filter: true,
+        persistAuthorization: true, // 認証情報を保持
+      },
+      initOAuth: {
+        // OAuth設定（将来的な拡張用）
       },
       staticCSP: true,
       transformStaticCSP: (header) => header,

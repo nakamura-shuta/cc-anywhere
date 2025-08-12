@@ -58,7 +58,7 @@ class DeletedFilesStore {
     const now = Date.now();
     const files: DeletedFile[] = [];
     
-    for (const [key, file] of this.deletedFiles.entries()) {
+    for (const [_key, file] of this.deletedFiles.entries()) {
       if (file.repository === repository && 
           (now - file.deletedAt) < this.maxRetentionTime) {
         files.push(file);
