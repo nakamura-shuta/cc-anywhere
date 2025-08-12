@@ -54,6 +54,11 @@
 	
 	// ファイル変更インジケーター（リアクティブ）
 	let changeIndicator = $derived((() => {
+		// ノード自体が削除されている場合
+		if (node.isDeleted) {
+			return 'D';
+		}
+		
 		const change = fileChangeStore.getChange(node.path);
 		if (!change) return null;
 		
@@ -67,6 +72,11 @@
 	})());
 	
 	let changeClass = $derived((() => {
+		// ノード自体が削除されている場合
+		if (node.isDeleted) {
+			return 'file-deleted-persistent';
+		}
+		
 		const change = fileChangeStore.getChange(node.path);
 		if (!change) return '';
 		
@@ -262,6 +272,22 @@
 	
 	.tree-node.file-renamed {
 		background-color: rgba(59, 130, 246, 0.05);
+	}
+	
+	/* 永続的に削除されたファイル（ツリーに残す） */
+	.tree-node.file-deleted-persistent {
+		background-color: rgba(239, 68, 68, 0.1);
+	}
+	
+	.tree-node.file-deleted-persistent .node-content {
+		color: #ef4444;
+		opacity: 0.8;
+		font-style: italic;
+	}
+	
+	.tree-node.file-deleted-persistent .name {
+		text-decoration: line-through;
+		text-decoration-color: #ef4444;
 	}
 	
 	@keyframes fadeIn {

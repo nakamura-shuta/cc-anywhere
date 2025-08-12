@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import * as chokidar from "chokidar";
 import { logger } from "../utils/logger.js";
 import { relative } from "path";
+import { fileCacheService } from "./file-cache.service.js";
 
 export interface FileChangeEvent {
   operation: "add" | "change" | "unlink" | "addDir" | "unlinkDir";
@@ -15,6 +16,7 @@ export interface RepositoryFileChangeEvent {
   repository: string;
   path: string;
   timestamp: number;
+  cachedContent?: string; // 削除されたファイルの内容
 }
 
 export interface FileWatchOptions {
@@ -79,8 +81,9 @@ export class FileWatcherService extends EventEmitter {
           /[/\\]Thumbs\.db$/, // Windows files
           /[/\\]\.vscode[/\\]/, // VSCode settings
           /[/\\]\.worktrees[/\\]/, // worktrees directory
+          /[/\\]data[/\\]/, // data directory (SQLite files)
         ],
-        ignoreInitial: true,
+        ignoreInitial: true, // 初期ファイルは追加イベントとして処理しない
         depth: 10,
         persistent: true,
         ...options,
@@ -89,7 +92,14 @@ export class FileWatcherService extends EventEmitter {
       const watcher = chokidar.watch(repositoryPath, defaultOptions);
 
       // ファイル追加
-      watcher.on("add", (filePath: string) => {
+      watcher.on("add", async (filePath: string) => {
+        try {
+          // 新しいファイルをキャッシュに追加
+          await fileCacheService.cacheFile(filePath);
+        } catch (error) {
+          logger.error("Failed to cache file on add", { filePath, error });
+        }
+
         const relativePath = relative(repositoryPath, filePath);
         const event: RepositoryFileChangeEvent = {
           type: "added",
@@ -103,7 +113,14 @@ export class FileWatcherService extends EventEmitter {
       });
 
       // ファイル変更
-      watcher.on("change", (filePath: string) => {
+      watcher.on("change", async (filePath: string) => {
+        try {
+          // キャッシュを更新
+          await fileCacheService.cacheFile(filePath);
+        } catch (error) {
+          logger.error("Failed to cache file on change", { filePath, error });
+        }
+
         const relativePath = relative(repositoryPath, filePath);
         const event: RepositoryFileChangeEvent = {
           type: "changed",
@@ -117,17 +134,25 @@ export class FileWatcherService extends EventEmitter {
       });
 
       // ファイル削除
-      watcher.on("unlink", (filePath: string) => {
+      watcher.on("unlink", async (filePath: string) => {
         const relativePath = relative(repositoryPath, filePath);
+
+        // キャッシュから削除されたファイルの内容を取得
+        const cachedFile = fileCacheService.getFile(filePath);
+
         const event: RepositoryFileChangeEvent = {
           type: "removed",
           repository: repositoryPath,
           path: relativePath,
           timestamp: Date.now(),
+          cachedContent: cachedFile?.content, // 削除前の内容を追加
         };
 
         logger.debug("Repository file removed", event);
         this.emit("repositoryFileChange", event);
+
+        // キャッシュから削除
+        fileCacheService.removeFile(filePath);
       });
 
       // ディレクトリ削除

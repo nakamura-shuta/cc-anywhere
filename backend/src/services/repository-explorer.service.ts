@@ -188,6 +188,7 @@ export class RepositoryExplorerService {
       throw new Error("Invalid path: Access denied");
     }
 
+    // ファイルが存在しない場合
     if (!existsSync(targetPath)) {
       throw new Error(`File not found: ${filePath}`);
     }

@@ -173,22 +173,22 @@ export const repositoryExplorerRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const { repository, path } = request.query;
+      const { repository, path: filePath } = request.query;
 
-      if (!path) {
+      if (!filePath) {
         return reply.status(400).send({ error: "File path is required" });
       }
 
       try {
-        logger.info("Getting file content", { repository, path });
+        logger.info("Getting file content", { repository, path: filePath });
 
-        const content = await repositoryExplorerService.getFileContent(repository, path);
+        const content = await repositoryExplorerService.getFileContent(repository, filePath);
 
         return reply.send(content);
       } catch (error) {
         logger.error("Failed to get file content", {
           repository,
-          path,
+          path: filePath,
           error: error instanceof Error ? error.message : String(error),
         });
 
@@ -258,7 +258,10 @@ export const repositoryExplorerRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         logger.info("Starting repository watch", { repository });
 
-        await fileWatcherService.watchRepository(repository);
+        // リポジトリパスを取得
+        const repoPath = await repositoryExplorerService.getRepositoryPath(repository);
+
+        await fileWatcherService.watchRepository(repoPath);
 
         return reply.send({
           success: true,

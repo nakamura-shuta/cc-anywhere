@@ -2,8 +2,9 @@
 	import type { FileContent } from './types';
 	import { repositoryExplorerService } from '$lib/services/repository-explorer.service';
 	import { getRepositoryFileChangesStore } from '$lib/stores/repository-file-changes.svelte';
+	import { getDeletedFilesStore } from '$lib/stores/deleted-files.svelte';
 	import { onMount, onDestroy } from 'svelte';
-	import { Loader2, X, Download, Copy, Check, RefreshCw } from 'lucide-svelte';
+	import { Loader2, X, Download, Copy, Check, RefreshCw, AlertTriangle } from 'lucide-svelte';
 	import '$lib/types/prism.d.ts';
 	
 	interface Props {
@@ -24,11 +25,13 @@
 	let copied = $state(false);
 	let codeElement = $state<HTMLElement>();
 	let hasFileChanged = $state(false);
+	let isDeletedFile = $state(false);
 
 	// ファイル内容の取得
 	$effect(() => {
 		if (repository && filePath) {
 			loadFileContent();
+			startWatchingRepository();
 		}
 	});
 
@@ -50,13 +53,11 @@
 					if (event.type === 'removed') {
 						error = 'File has been removed';
 						content = null;
+						isDeletedFile = true;
 					}
 				}
 			});
 		}
-		
-		// リポジトリの監視を開始
-		startWatchingRepository();
 	});
 
 	onDestroy(() => {
@@ -69,12 +70,34 @@
 		loading = true;
 		error = null;
 		hasFileChanged = false;
+		isDeletedFile = false;
 		
+		// まず削除されたファイルかチェック
+		const deletedFilesStore = getDeletedFilesStore();
+		const deletedFile = deletedFilesStore.getDeletedFile(repository, filePath);
+		
+		if (deletedFile) {
+			// 削除されたファイルとしてマーク
+			isDeletedFile = true;
+			content = null;
+			error = null;
+			loading = false;
+			return;
+		}
+		
+		// 通常のファイル内容を取得
 		try {
 			content = await repositoryExplorerService.getFileContent(repository, filePath);
 		} catch (err) {
 			console.error('Failed to load file content:', err);
 			error = err instanceof Error ? err.message : 'Failed to load file content';
+			
+			// ファイルが見つからない場合、削除された可能性がある
+			if (error?.includes('not found') || error?.includes('ENOENT')) {
+				isDeletedFile = true;
+				content = null;
+				error = null;
+			}
 		} finally {
 			loading = false;
 		}
@@ -90,6 +113,7 @@
 	}
 
 	function reloadFile() {
+		hasFileChanged = false;
 		loadFileContent();
 	}
 
@@ -172,15 +196,24 @@
 <div class="file-viewer">
 	<div class="viewer-header">
 		<div class="file-info">
-			<span class="file-path" title={filePath}>{filePath}</span>
+			<span class="file-path" title={filePath}>
+				{filePath}
+				{#if isDeletedFile}
+					<span class="deleted-badge">
+						<AlertTriangle size={14} />
+						Deleted
+					</span>
+				{/if}
+			</span>
 			{#if content}
 				<span class="file-meta">
-					{formatFileSize(content.size)} • {content.language || content.mimeType} • {formatDate(content.modifiedAt)}
+					{formatFileSize(content.size)} • {content.language || content.mimeType} • 
+					{isDeletedFile ? 'Deleted at: ' : ''}{formatDate(content.modifiedAt)}
 				</span>
 			{/if}
 		</div>
 		<div class="viewer-actions">
-			{#if hasFileChanged}
+			{#if hasFileChanged && !isDeletedFile}
 				<button 
 					class="action-button file-changed" 
 					onclick={reloadFile}
@@ -241,6 +274,12 @@
 				>
 					Retry
 				</button>
+			</div>
+		{:else if isDeletedFile}
+			<div class="deleted-file-state">
+				<AlertTriangle size={48} />
+				<h3>ファイルが削除されました</h3>
+				<p>このファイルは削除されたため、内容を表示できません。</p>
 			</div>
 		{:else if content}
 			{#if content.encoding === 'base64'}
@@ -314,6 +353,29 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	
+	.deleted-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		background-color: #fee2e2;
+		color: #ef4444;
+		padding: 2px 8px;
+		border-radius: 12px;
+		font-size: 12px;
+		font-weight: 600;
+		flex-shrink: 0;
+	}
+	
+	@media (prefers-color-scheme: dark) {
+		.deleted-badge {
+			background-color: rgba(239, 68, 68, 0.2);
+			color: #f87171;
+		}
 	}
 	
 	.file-meta {
@@ -377,7 +439,8 @@
 	.loading-state,
 	.error-state,
 	.empty-state,
-	.binary-preview {
+	.binary-preview,
+	.deleted-file-state {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -387,6 +450,22 @@
 		padding: 32px;
 		text-align: center;
 		color: var(--color-text-secondary);
+	}
+	
+	.deleted-file-state {
+		color: var(--color-text-warning);
+	}
+	
+	.deleted-file-state h3 {
+		margin: 0;
+		font-size: 18px;
+		font-weight: 600;
+		color: var(--color-text-primary);
+	}
+	
+	.deleted-file-state p {
+		margin: 0;
+		font-size: 14px;
 	}
 	
 	.error-state {
@@ -493,6 +572,9 @@
 		--color-text-primary: #111827;
 		--color-text-secondary: #4b5563;
 		--color-text-error: #dc2626;
+		--color-text-warning: #d97706;
+		--color-primary: #3b82f6;
+		--color-primary-dark: #2563eb;
 	}
 	
 	@media (prefers-color-scheme: dark) {
@@ -504,6 +586,9 @@
 			--color-text-primary: #f3f4f6;
 			--color-text-secondary: #9ca3af;
 			--color-text-error: #ef4444;
+			--color-text-warning: #f59e0b;
+			--color-primary: #60a5fa;
+			--color-primary-dark: #3b82f6;
 		}
 	}
 </style>

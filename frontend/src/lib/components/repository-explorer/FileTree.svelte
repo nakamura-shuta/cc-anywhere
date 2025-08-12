@@ -4,6 +4,7 @@
 	import { repositoryExplorerService } from '$lib/services/repository-explorer.service';
 	import { fileChangeStore } from '$lib/stores/file-changes.svelte';
 	import { getRepositoryFileChangesStore } from '$lib/stores/repository-file-changes.svelte';
+	import { getDeletedFilesStore } from '$lib/stores/deleted-files.svelte';
 	import { Loader2, FolderOpen, AlertCircle, ChevronDown, ChevronRight } from 'lucide-svelte';
 
 	interface Props {
@@ -107,7 +108,17 @@
 		
 		try {
 			const tree = await repositoryExplorerService.getTree(repositoryPath);
-			trees[repositoryName] = tree;
+			
+			// 削除されたファイルをツリーにマージ
+			const deletedFilesStore = getDeletedFilesStore();
+			const deletedFiles = deletedFilesStore.getDeletedFilesForRepository(repositoryPath);
+			
+			if (deletedFiles.length > 0) {
+				const mergedTree = mergeDeletedFilesIntoTree(tree, deletedFiles, repositoryPath);
+				trees[repositoryName] = mergedTree;
+			} else {
+				trees[repositoryName] = tree;
+			}
 			
 			// リポジトリの監視も開始
 			try {
@@ -122,6 +133,80 @@
 			errors[repositoryName] = error instanceof Error ? error.message : 'Failed to load repository tree';
 		} finally {
 			loading[repositoryName] = false;
+		}
+	}
+
+	/**
+	 * 削除されたファイルをツリー構造にマージ
+	 */
+	function mergeDeletedFilesIntoTree(
+		tree: TreeNode, 
+		deletedFiles: Array<any>,
+		repositoryPath: string
+	): TreeNode {
+		// ツリーのディープコピーを作成
+		const mergedTree = JSON.parse(JSON.stringify(tree));
+		
+		// 削除されたファイルをツリーに追加
+		for (const deletedFile of deletedFiles) {
+			const relativePath = deletedFile.path.startsWith(repositoryPath) 
+				? deletedFile.path.slice(repositoryPath.length + 1)
+				: deletedFile.path;
+				
+			addDeletedFileToTree(mergedTree, relativePath, deletedFile);
+		}
+		
+		return mergedTree;
+	}
+
+	/**
+	 * 削除されたファイルをツリーの適切な位置に追加
+	 */
+	function addDeletedFileToTree(node: TreeNode, path: string, deletedFile: any): void {
+		const parts = path.split('/');
+		
+		if (parts.length === 1) {
+			// 現在のディレクトリに削除ファイルを追加
+			if (!node.children) {
+				node.children = [];
+			}
+			
+			// 既に存在するかチェック
+			const existing = node.children.find(child => child.name === parts[0]);
+			if (!existing) {
+				node.children.push({
+					name: parts[0],
+					path: deletedFile.path,
+					type: deletedFile.type,
+					size: deletedFile.size,
+					isDeleted: true // 削除フラグを追加
+				} as TreeNode & { isDeleted: boolean });
+			}
+		} else {
+			// サブディレクトリを探して再帰的に追加
+			const dirName = parts[0];
+			const remainingPath = parts.slice(1).join('/');
+			
+			if (!node.children) {
+				node.children = [];
+			}
+			
+			let targetDir = node.children.find(child => 
+				child.type === 'directory' && child.name === dirName
+			);
+			
+			if (!targetDir) {
+				// ディレクトリが存在しない場合は作成
+				targetDir = {
+					name: dirName,
+					path: node.path + '/' + dirName,
+					type: 'directory',
+					children: []
+				};
+				node.children.push(targetDir);
+			}
+			
+			addDeletedFileToTree(targetDir, remainingPath, deletedFile);
 		}
 	}
 

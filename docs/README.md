@@ -1,27 +1,8 @@
-# CC-Anywhere
+# CC-Anywhere ドキュメント
 
-Claude Code SDKをHTTP経由で利用可能にするAPIサーバー
+## 📚 ドキュメント構成
 
-## クイックスタート
+- **[メインドキュメント](../README.md)** - セットアップ、使用方法、機能一覧
+- **[APIリファレンス](./api/README.md)** - APIエンドポイント詳細
 
-```bash
-# インストール
-npm install
-
-# 設定
-cp .env.example .env
-# .envでCLAUDE_API_KEYを設定
-
-# 起動
-npm run dev
-```
-
-アクセス: http://localhost:5000
-
-## 主な機能
-
-- Claude Code SDK統合
-- 非同期タスク実行
-- WebSocketリアルタイム通信
-- Git Worktree対応
-- スケジューラー
+詳細については[メインのREADME.md](../README.md)をご参照ください。

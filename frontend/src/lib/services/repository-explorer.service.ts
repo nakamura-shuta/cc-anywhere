@@ -74,5 +74,6 @@ export const repositoryExplorerService = {
 	async getWatchedRepositories(): Promise<string[]> {
 		const response = await apiClient.get<{ repositories: string[] }>('/api/repositories/watched');
 		return response.repositories;
-	}
+	},
+
 };

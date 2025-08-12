@@ -28,7 +28,7 @@ npm run dev
 
 ## 主な機能
 
-- 🚀 **Claude Code SDK 1.0.64** - 最新版のSDKをHTTP API経由で利用（Anthropic API/Amazon Bedrock対応）
+- 🚀 **Claude Code SDK 1.0.69** - 最新版のSDKをHTTP API経由で利用（Anthropic API/Amazon Bedrock対応）
 - 📱 **レスポンシブWeb UI** - モバイル・デスクトップ対応の使いやすいインターフェース
 - 🔄 **リアルタイム更新** - WebSocketによるタスク状況のリアルタイム表示
 - 🔐 **API認証** - APIキーによる安全なアクセス制御
@@ -36,6 +36,7 @@ npm run dev
 - 🎯 **柔軟な実行モード** - default, acceptEdits, bypassPermissions, plan
 - 📦 **バッチ実行** - 複数リポジトリへの一括タスク実行
 - 🌿 **Git Worktree対応** - 独立した作業環境でのタスク実行
+- 📂 **リポジトリエクスプローラー** - ファイルツリー表示とリアルタイム変更通知
 
 ## セットアップ
 
@@ -43,6 +44,7 @@ npm run dev
 
 - Node.js 20以上
 - npm 10以上
+- pm2（プロセス管理用、`npm install -g pm2` でインストール）
 - Claude API キー（[Anthropic Console](https://console.anthropic.com/)で取得）またはAmazon Bedrock（AWS認証情報）
 
 ### インストール手順
@@ -148,6 +150,144 @@ curl -X POST http://localhost:5000/api/tasks \
 # ログ確認
 ./backend/scripts/pm2-manager.sh logs
 ```
+
+## リモートアクセス設定
+
+ローカルで動作しているCC-Anywhereをインターネット経由でアクセス可能にする方法です。
+
+### ngrokを使用する方法
+
+ngrokは開発環境で手軽にトンネルを作成できるツールです。
+
+#### 1. ngrokのインストール
+
+```bash
+# macOS (Homebrew)
+brew install ngrok
+
+# Linux
+curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list && sudo apt update && sudo apt install ngrok
+
+# または https://ngrok.com/download から直接ダウンロード
+```
+
+#### 2. ngrokアカウントの設定（初回のみ）
+
+```bash
+# https://dashboard.ngrok.com/signup でアカウント作成
+# Authtokenを取得して設定
+ngrok config add-authtoken YOUR_AUTH_TOKEN
+```
+
+#### 3. トンネル起動
+
+```bash
+# CC-Anywhereを起動
+npm run dev
+
+# 別ターミナルでngrokトンネルを起動
+ngrok http 5000
+
+# 表示されたURL（https://xxxxx.ngrok.io）でアクセス可能
+```
+
+#### 4. 環境変数で自動起動（オプション）
+
+```env
+# .envファイルに追加
+ENABLE_NGROK=true
+NGROK_AUTH_TOKEN=your_auth_token  # 設定済みの場合は不要
+SHOW_QR_CODE=true                  # QRコード表示
+```
+
+### Cloudflare Tunnelを使用する方法
+
+Cloudflare Tunnelは本番環境向けの安定したトンネルサービスです。
+
+#### 1. cloudflaredのインストール
+
+```bash
+# macOS (Homebrew)
+brew install cloudflared
+
+# Linux (Debian/Ubuntu)
+wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared-linux-amd64.deb
+
+# その他: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/
+```
+
+#### 2. Cloudflareアカウントでログイン
+
+```bash
+cloudflared tunnel login
+# ブラウザが開き、Cloudflareアカウントでログイン
+```
+
+#### 3. トンネル作成と設定
+
+```bash
+# トンネル作成
+cloudflared tunnel create cc-anywhere
+
+# 設定ファイル作成
+cat > ~/.cloudflared/config.yml << EOF
+tunnel: cc-anywhere
+credentials-file: ~/.cloudflared/TUNNEL_ID.json
+
+ingress:
+  - hostname: cc-anywhere.yourdomain.com
+    service: http://localhost:5000
+  - service: http_status:404
+EOF
+
+# DNSレコード追加（yourdomain.comは実際のドメインに置き換え）
+cloudflared tunnel route dns cc-anywhere cc-anywhere.yourdomain.com
+```
+
+#### 4. トンネル起動
+
+```bash
+# CC-Anywhereを起動
+npm run dev
+
+# 別ターミナルでCloudflareトンネルを起動
+cloudflared tunnel run cc-anywhere
+
+# https://cc-anywhere.yourdomain.com でアクセス可能
+```
+
+#### 5. サービスとして実行（本番環境）
+
+```bash
+# サービスとしてインストール
+sudo cloudflared service install
+
+# 起動
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared
+```
+
+### セキュリティに関する注意事項
+
+リモートアクセスを設定する際は、必ず以下のセキュリティ対策を実施してください：
+
+1. **API認証を有効化**
+   ```env
+   API_KEY=strong-random-api-key-here  # 必ず設定
+   ```
+
+2. **HTTPSの使用**
+   - ngrok、Cloudflare Tunnelはどちらも自動的にHTTPS化されます
+
+3. **アクセス制限**
+   - Cloudflare Tunnelの場合、Cloudflare Access機能で追加の認証を設定可能
+   - ngrokの場合、有料プランでIP制限やBasic認証を設定可能
+
+4. **本番環境での推奨事項**
+   - Cloudflare Tunnelの使用を推奨（より安定・セキュア）
+   - 定期的なAPI_KEYの更新
+   - アクセスログの監視
 
 ## 開発者向け情報
 

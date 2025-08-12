@@ -1,5 +1,6 @@
 import { getWebSocketStore } from './websocket-enhanced.svelte';
 import type { WebSocketMessage } from './websocket-enhanced.svelte';
+import { getDeletedFilesStore } from './deleted-files.svelte';
 
 export interface RepositoryFileChangeEvent {
   type: 'added' | 'changed' | 'removed';
@@ -131,8 +132,21 @@ export class RepositoryFileChangesStore {
   /**
    * ファイル変更イベントを処理
    */
-  private handleFileChange(event: RepositoryFileChangeEvent): void {
+  private handleFileChange(event: RepositoryFileChangeEvent & { cachedContent?: string }): void {
     console.log('[RepositoryFileChanges] File change event received:', event);
+
+    // 削除イベントの場合、削除ファイルストアに記録
+    if (event.type === 'removed') {
+      const deletedFilesStore = getDeletedFilesStore();
+      const fileName = event.path.split('/').pop() || event.path;
+      deletedFilesStore.addDeletedFile({
+        path: event.path,
+        name: fileName,
+        repository: event.repository,
+        type: 'file', // TODO: ディレクトリの判定を追加
+        content: event.cachedContent // 削除前の内容を保存
+      });
+    }
 
     // 最新のイベントを更新
     this.latestChange = event;

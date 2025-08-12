@@ -5,6 +5,7 @@ export interface TreeNode {
   size?: number;
   modifiedAt?: string;
   children?: TreeNode[];
+  isDeleted?: boolean; // 削除されたファイル/ディレクトリを示すフラグ
 }
 
 export interface FileContent {
