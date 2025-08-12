@@ -21,6 +21,12 @@ tags:
     description: Task management operations
   - name: repositories
     description: Repository explorer operations
+  - name: batch
+    description: Batch task operations for multiple repositories
+  - name: queue
+    description: Task queue management operations
+  - name: presets
+    description: Preset management operations
   - name: system
     description: System health and metrics
 
@@ -45,30 +51,54 @@ security:
   - ApiKeyAuth: []
 
 paths:
+  # Task Management
+  /api/tasks:
+    $ref: './paths/tasks.yaml#/~1api~1tasks'
+  /api/tasks/{taskId}:
+    $ref: './paths/tasks.yaml#/~1api~1tasks~1{taskId}'
+  /api/tasks/{taskId}/logs:
+    $ref: './paths/tasks.yaml#/~1api~1tasks~1{taskId}~1logs'
+  /api/tasks/{taskId}/retry:
+    $ref: './paths/tasks.yaml#/~1api~1tasks~1{taskId}~1retry'
+  /api/tasks/{taskId}/continue:
+    $ref: './paths/tasks.yaml#/~1api~1tasks~1{taskId}~1continue'
+  
+  # Repository Explorer
+  /api/repositories:
+    $ref: './paths/repositories.yaml#/~1api~1repositories'
+  /api/repositories/tree:
+    $ref: './paths/repositories.yaml#/~1api~1repositories~1tree'
+  /api/repositories/file:
+    $ref: './paths/repositories.yaml#/~1api~1repositories~1file'
+  /api/repositories/watch:
+    $ref: './paths/repositories.yaml#/~1api~1repositories~1watch'
+  /api/repositories/watched:
+    $ref: './paths/repositories.yaml#/~1api~1repositories~1watched'
+  
+  # Batch Tasks
+  /api/batch/tasks:
+    $ref: './paths/batch-tasks.yaml#/~1api~1batch~1tasks'
+  /api/batch/tasks/{groupId}/status:
+    $ref: './paths/batch-tasks.yaml#/~1api~1batch~1tasks~1{groupId}~1status'
+  
+  # Queue Management
+  /api/queue/tasks:
+    $ref: './paths/queue.yaml#/~1api~1queue~1tasks'
+  /api/queue/tasks/{taskId}:
+    $ref: './paths/queue.yaml#/~1api~1queue~1tasks~1{taskId}'
+  /api/queue/stats:
+    $ref: './paths/queue.yaml#/~1api~1queue~1stats'
+  /api/queue/concurrency:
+    $ref: './paths/queue.yaml#/~1api~1queue~1concurrency'
+  
+  # Presets
+  /api/presets:
+    $ref: './paths/presets.yaml#/~1api~1presets'
+  /api/presets/{id}:
+    $ref: './paths/presets.yaml#/~1api~1presets~1{id}'
+  
+  # System
   /api/health:
-    get:
-      tags:
-        - system
-      summary: Health check endpoint
-      operationId: getHealth
-      security: []  # No authentication required for health check
-      responses:
-        '200':
-          description: Service is healthy
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [healthy]
-                  timestamp:
-                    type: string
-                    format: date-time
-                  version:
-                    type: string
-                required:
-                  - status
-                  - timestamp
-                  - version
+    $ref: './paths/system.yaml#/~1api~1health'
+  /api/metrics:
+    $ref: './paths/system.yaml#/~1api~1metrics'

@@ -1,0 +1,85 @@
+/api/health:
+  get:
+    tags:
+      - system
+    summary: Health check endpoint
+    operationId: getHealth
+    security: []  # No authentication required
+    responses:
+      '200':
+        description: Service is healthy
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [healthy]
+                timestamp:
+                  type: string
+                  format: date-time
+                version:
+                  type: string
+              required:
+                - status
+                - timestamp
+                - version
+
+/api/metrics:
+  get:
+    tags:
+      - system
+    summary: Get system metrics
+    operationId: getMetrics
+    responses:
+      '200':
+        description: Metrics retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tasks:
+                  type: object
+                  properties:
+                    total:
+                      type: integer
+                    pending:
+                      type: integer
+                    running:
+                      type: integer
+                    completed:
+                      type: integer
+                    failed:
+                      type: integer
+                queue:
+                  type: object
+                  properties:
+                    size:
+                      type: integer
+                    concurrency:
+                      type: integer
+                    paused:
+                      type: boolean
+                system:
+                  type: object
+                  properties:
+                    uptime:
+                      type: integer
+                    memory:
+                      type: object
+                      properties:
+                        used:
+                          type: integer
+                        total:
+                          type: integer
+                    cpu:
+                      type: object
+                      properties:
+                        usage:
+                          type: number
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'

@@ -1,0 +1,87 @@
+/api/batch/tasks:
+  post:
+    tags:
+      - batch
+    summary: Create tasks for multiple repositories
+    operationId: createBatchTasks
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/BatchTaskRequest'
+    responses:
+      '201':
+        description: Batch tasks created successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/BatchTaskResponse'
+      '400':
+        $ref: '../components/responses/index.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/batch/tasks/{groupId}/status:
+  get:
+    tags:
+      - batch
+    summary: Get batch task group status
+    operationId: getBatchTaskStatus
+    parameters:
+      - name: groupId
+        in: path
+        required: true
+        description: Batch task group ID
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Batch task status retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                groupId:
+                  type: string
+                tasks:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      taskId:
+                        type: string
+                      repository:
+                        type: string
+                      status:
+                        $ref: '../components/schemas/index.yaml#/TaskStatus'
+                      result:
+                        type: object
+                        nullable: true
+                      error:
+                        type: object
+                        nullable: true
+                summary:
+                  type: object
+                  properties:
+                    total:
+                      type: integer
+                    pending:
+                      type: integer
+                    running:
+                      type: integer
+                    completed:
+                      type: integer
+                    failed:
+                      type: integer
+                    cancelled:
+                      type: integer
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'

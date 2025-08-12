@@ -1,0 +1,193 @@
+/api/queue/tasks:
+  post:
+    tags:
+      - queue
+    summary: Add task to queue
+    operationId: addTaskToQueue
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/CreateTaskRequest'
+    responses:
+      '201':
+        description: Task added to queue successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/QueuedTask'
+      '400':
+        $ref: '../components/responses/index.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+  get:
+    tags:
+      - queue
+    summary: Get queued tasks
+    operationId: getQueuedTasks
+    parameters:
+      - name: status
+        in: query
+        required: false
+        description: Filter by status
+        schema:
+          $ref: '../components/schemas/index.yaml#/TaskStatus'
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of tasks to return
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        required: false
+        description: Number of tasks to skip
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+    responses:
+      '200':
+        description: Queued tasks retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tasks:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/index.yaml#/QueuedTask'
+                total:
+                  type: integer
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/queue/tasks/{taskId}:
+  get:
+    tags:
+      - queue
+    summary: Get queued task details
+    operationId: getQueuedTask
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Queued task retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/QueuedTask'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+  delete:
+    tags:
+      - queue
+    summary: Remove task from queue
+    operationId: removeTaskFromQueue
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Task removed from queue successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                taskId:
+                  type: string
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/queue/stats:
+  get:
+    tags:
+      - queue
+    summary: Get queue statistics
+    operationId: getQueueStats
+    responses:
+      '200':
+        description: Queue statistics retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/QueueStats'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/queue/concurrency:
+  put:
+    tags:
+      - queue
+    summary: Update queue concurrency
+    operationId: updateQueueConcurrency
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              concurrency:
+                type: integer
+                minimum: 1
+                maximum: 100
+            required:
+              - concurrency
+    responses:
+      '200':
+        description: Queue concurrency updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                concurrency:
+                  type: integer
+      '400':
+        $ref: '../components/responses/index.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'

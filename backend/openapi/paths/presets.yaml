@@ -1,0 +1,168 @@
+/api/presets:
+  get:
+    tags:
+      - presets
+    summary: List all presets
+    operationId: listPresets
+    responses:
+      '200':
+        description: Presets retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                presets:
+                  type: array
+                  items:
+                    $ref: '../components/schemas/index.yaml#/Preset'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+  post:
+    tags:
+      - presets
+    summary: Create a new preset
+    operationId: createPreset
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              instruction:
+                type: string
+              context:
+                type: object
+              options:
+                type: object
+              tags:
+                type: array
+                items:
+                  type: string
+            required:
+              - name
+              - instruction
+    responses:
+      '201':
+        description: Preset created successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/Preset'
+      '400':
+        $ref: '../components/responses/index.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/presets/{id}:
+  get:
+    tags:
+      - presets
+    summary: Get a specific preset
+    operationId: getPreset
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Preset ID
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Preset retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/Preset'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+  put:
+    tags:
+      - presets
+    summary: Update a preset
+    operationId: updatePreset
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Preset ID
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+              instruction:
+                type: string
+              context:
+                type: object
+              options:
+                type: object
+              tags:
+                type: array
+                items:
+                  type: string
+    responses:
+      '200':
+        description: Preset updated successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/Preset'
+      '400':
+        $ref: '../components/responses/index.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+  delete:
+    tags:
+      - presets
+    summary: Delete a preset
+    operationId: deletePreset
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Preset ID
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Preset deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                id:
+                  type: string
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'

@@ -1,0 +1,244 @@
+/api/tasks:
+  get:
+    tags:
+      - tasks
+    summary: List all tasks
+    operationId: listTasks
+    parameters:
+      - name: status
+        in: query
+        description: Filter by task status
+        required: false
+        schema:
+          $ref: '../components/schemas/index.yaml#/TaskStatus'
+      - name: repository
+        in: query
+        description: Filter by repository (partial match)
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Maximum number of tasks to return
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        description: Number of tasks to skip
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+    responses:
+      '200':
+        description: Task list retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/TaskListResponse'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+  post:
+    tags:
+      - tasks
+    summary: Create a new task
+    operationId: createTask
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/index.yaml#/CreateTaskRequest'
+    responses:
+      '201':
+        description: Task created successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/Task'
+      '400':
+        $ref: '../components/responses/index.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/tasks/{taskId}:
+  get:
+    tags:
+      - tasks
+    summary: Get a specific task
+    operationId: getTask
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Task retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/Task'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+  delete:
+    tags:
+      - tasks
+    summary: Cancel a task
+    operationId: cancelTask
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Task cancelled successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                taskId:
+                  type: string
+                status:
+                  type: string
+                message:
+                  type: string
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/tasks/{taskId}/logs:
+  get:
+    tags:
+      - tasks
+    summary: Get task logs
+    operationId: getTaskLogs
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Task logs retrieved successfully
+        content:
+          text/plain:
+            schema:
+              type: string
+          application/json:
+            schema:
+              type: object
+              properties:
+                taskId:
+                  type: string
+                logs:
+                  type: array
+                  items:
+                    type: string
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/tasks/{taskId}/retry:
+  post:
+    tags:
+      - tasks
+    summary: Retry a failed task
+    operationId: retryTask
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Task retry initiated successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/Task'
+      '400':
+        $ref: '../components/responses/index.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
+
+/api/tasks/{taskId}/continue:
+  post:
+    tags:
+      - tasks
+    summary: Continue a task from where it left off
+    operationId: continueTask
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              instruction:
+                type: string
+                description: New instruction to continue with
+            required:
+              - instruction
+    responses:
+      '200':
+        description: Task continuation initiated successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/index.yaml#/Task'
+      '400':
+        $ref: '../components/responses/index.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/index.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses/index.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses/index.yaml#/InternalServerError'
