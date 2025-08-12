@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: CC-Anywhere API
+  description: Claude Code SDK HTTP Server API
+  version: 0.4.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.cc-anywhere.com
+    description: Production server
+
+tags:
+  - name: tasks
+    description: Task management operations
+  - name: repositories
+    description: Repository explorer operations
+  - name: system
+    description: System health and metrics
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+
+  schemas:
+    $ref: './components/schemas/index.yaml'
+  
+  parameters:
+    $ref: './components/parameters/index.yaml'
+  
+  responses:
+    $ref: './components/responses/index.yaml'
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /api/health:
+    get:
+      tags:
+        - system
+      summary: Health check endpoint
+      operationId: getHealth
+      security: []  # No authentication required for health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                required:
+                  - status
+                  - timestamp
+                  - version

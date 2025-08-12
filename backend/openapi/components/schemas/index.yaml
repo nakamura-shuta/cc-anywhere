@@ -1,0 +1,104 @@
+Error:
+  type: object
+  properties:
+    error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+      required:
+        - code
+        - message
+  required:
+    - error
+
+Task:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      type: string
+      enum: [pending, running, completed, failed, cancelled]
+    instruction:
+      type: string
+    result:
+      type: string
+      nullable: true
+    error:
+      type: string
+      nullable: true
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    completedAt:
+      type: string
+      format: date-time
+      nullable: true
+  required:
+    - id
+    - status
+    - instruction
+    - createdAt
+    - updatedAt
+
+CreateTaskRequest:
+  type: object
+  properties:
+    instruction:
+      type: string
+      minLength: 1
+    context:
+      type: object
+      properties:
+        workingDirectory:
+          type: string
+        files:
+          type: array
+          items:
+            type: string
+    options:
+      type: object
+      properties:
+        timeout:
+          type: integer
+          minimum: 1000
+          maximum: 3600000
+        async:
+          type: boolean
+  required:
+    - instruction
+
+FileNode:
+  type: object
+  properties:
+    name:
+      type: string
+    path:
+      type: string
+    type:
+      type: string
+      enum: [file, directory]
+    size:
+      type: integer
+      nullable: true
+    mimeType:
+      type: string
+      nullable: true
+    children:
+      type: array
+      items:
+        $ref: '#/FileNode'
+      nullable: true
+  required:
+    - name
+    - path
+    - type

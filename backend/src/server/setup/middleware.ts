@@ -4,6 +4,7 @@ import helmet from "@fastify/helmet";
 import sensible from "@fastify/sensible";
 import { errorHandlerPlugin } from "../plugins/error-handler";
 import { registerStaticPlugin } from "../plugins/static";
+import swaggerPlugin from "../plugins/swagger";
 import { globalAuthMiddleware } from "../middleware/global-auth";
 import { config } from "../../config";
 
@@ -41,6 +42,9 @@ export async function registerMiddleware(app: FastifyInstance): Promise<void> {
 
   // Register static file serving for Web UI (before auth to bypass authentication)
   await app.register(registerStaticPlugin);
+
+  // Register OpenAPI documentation (before auth to bypass authentication for docs)
+  await app.register(swaggerPlugin);
 
   // Register global authentication middleware
   await app.register(globalAuthMiddleware);
