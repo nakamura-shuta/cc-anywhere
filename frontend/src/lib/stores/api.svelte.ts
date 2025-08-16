@@ -100,7 +100,7 @@ export class TaskStore {
 	async cancelTask(taskId: string) {
 		const state = this.getTaskState(taskId);
 		await state.execute(
-			this.client.post<TaskResponse>(`/api/tasks/${taskId}/cancel`)
+			this.client.delete<TaskResponse>(`/api/tasks/${taskId}`)
 		);
 		
 		// キャンセル成功時、ステータスを更新
