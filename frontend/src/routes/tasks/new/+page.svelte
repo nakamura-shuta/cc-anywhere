@@ -11,7 +11,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { taskStore } from '$lib/stores/api.svelte';
 	import { taskService } from '$lib/services/task.service';
-	import { ArrowLeft, Send, MessageSquare } from 'lucide-svelte';
+	import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import type { TaskRequest } from '$lib/types/api';
 	import DirectorySelector from '$lib/components/directory-selector.svelte';
 	import { onMount } from 'svelte';
@@ -56,6 +56,9 @@
 	// リポジトリエクスプローラーの表示状態（初期状態で表示）
 	let showRepositoryExplorer = $state(true);
 	
+	// 詳細設定の表示/非表示（SDK Continueモードではデフォルトで非表示）
+	let showAdvancedSettings = $state(false);
+	
 	// URLパラメータを取得
 	onMount(async () => {
 		const searchParams = new URLSearchParams($page.url.searchParams);
@@ -72,6 +75,17 @@
 				} else if (previousTask.context?.workingDirectory) {
 					selectedDirectories = [previousTask.context.workingDirectory];
 				}
+				
+				// 前のタスクの設定を引き継ぐ
+				if (previousTask.options) {
+					maxTurns = previousTask.options.sdk?.maxTurns || maxTurns;
+					timeout = previousTask.options.timeout || timeout;
+					permissionMode = previousTask.options.sdk?.permissionMode || permissionMode;
+					useWorktree = previousTask.options.useWorktree || false;
+				}
+				
+				// SDK Continueモードでは詳細設定をデフォルトで非表示
+				showAdvancedSettings = false;
 			} catch (error) {
 				console.error('Failed to load previous task:', error);
 				// 前のタスクが取得できなくても続行
@@ -143,18 +157,18 @@
 			<span class="sm:hidden">戻る</span>
 		</Button>
 		<h1 class="text-2xl lg:text-3xl font-bold">
-			{isSdkContinueMode ? 'SDK Continue - 会話を継続' : '新規タスク作成'}
+			{isSdkContinueMode ? '会話を継続' : '新規タスク作成'}
 		</h1>
 	</div>
 
 	{#if isSdkContinueMode && previousTask}
 		<Alert.Root class="mb-6">
 			<MessageSquare class="h-4 w-4" />
-			<Alert.Title>SDK Continueモード</Alert.Title>
+			<Alert.Title>継続セッション</Alert.Title>
 			<Alert.Description>
-				<p class="mb-2">前回の会話の文脈を保持して継続します。</p>
+				<p class="mb-2">前回の会話セッションを継続します。文脈と設定が保持されます。</p>
 				<div class="mt-2 p-2 bg-muted rounded text-sm">
-					<p class="font-medium mb-1">前回のタスク:</p>
+					<p class="font-medium mb-1">前回の指示:</p>
 					<p class="text-muted-foreground">{previousTask.instruction}</p>
 				</div>
 			</Alert.Description>
@@ -217,32 +231,51 @@
 					</div>
 				{/if}
 
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div class="space-y-2">
-						<Label for="maxTurns">最大ターン数</Label>
-						<Input
-							id="maxTurns"
-							type="number"
-							bind:value={maxTurns}
-							min={1}
-							max={100}
-						/>
+				{#if isSdkContinueMode}
+					<div class="border-t pt-4">
+						<Button
+							type="button"
+							variant="ghost"
+							class="w-full justify-between p-2 hover:bg-muted/50"
+							onclick={() => showAdvancedSettings = !showAdvancedSettings}
+						>
+							<span class="font-medium">詳細設定</span>
+							{#if showAdvancedSettings}
+								<ChevronUp class="h-4 w-4" />
+							{:else}
+								<ChevronDown class="h-4 w-4" />
+							{/if}
+						</Button>
+					</div>
+				{/if}
+
+				<div class="{isSdkContinueMode && !showAdvancedSettings ? 'hidden' : ''} space-y-6">
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div class="space-y-2">
+							<Label for="maxTurns">最大ターン数</Label>
+							<Input
+								id="maxTurns"
+								type="number"
+								bind:value={maxTurns}
+								min={1}
+								max={100}
+							/>
+						</div>
+
+						<div class="space-y-2">
+							<Label for="timeout">タイムアウト (ms)</Label>
+							<Input
+								id="timeout"
+								type="number"
+								bind:value={timeout}
+								min={1000}
+								step={1000}
+							/>
+						</div>
 					</div>
 
 					<div class="space-y-2">
-						<Label for="timeout">タイムアウト (ms)</Label>
-						<Input
-							id="timeout"
-							type="number"
-							bind:value={timeout}
-							min={1000}
-							step={1000}
-						/>
-					</div>
-				</div>
-
-				<div class="space-y-2">
-					<Label for="permissionMode">権限モード</Label>
+						<Label for="permissionMode">権限モード</Label>
 					<Select.Root type="single" bind:value={permissionMode}>
 						<Select.Trigger id="permissionMode">
 							{selectedPermissionLabel}
@@ -257,39 +290,40 @@
 					</Select.Root>
 				</div>
 
-				<!-- Worktree設定 -->
-				<div class="space-y-4 border-t pt-4">
-					<div class="flex items-center justify-between">
-						<div class="space-y-0.5">
-							<Label for="useWorktree" class="text-base">Git Worktree機能を使用</Label>
-							<p class="text-sm text-muted-foreground">
-								独立したWorktreeで作業を実行します
-							</p>
+					<!-- Worktree設定 -->
+					<div class="space-y-4 border-t pt-4">
+						<div class="flex items-center justify-between">
+							<div class="space-y-0.5">
+								<Label for="useWorktree" class="text-base">Git Worktree機能を使用</Label>
+								<p class="text-sm text-muted-foreground">
+									独立したWorktreeで作業を実行します
+								</p>
+							</div>
+							<Switch
+								id="useWorktree"
+								bind:checked={useWorktree}
+							/>
 						</div>
-						<Switch
-							id="useWorktree"
-							bind:checked={useWorktree}
-						/>
-					</div>
-					
-					{#if useWorktree}
-						<div class="ml-4 space-y-4">
-							<div class="flex items-start space-x-3">
-								<Checkbox
-									id="keepWorktree"
-									bind:checked={keepWorktreeAfterCompletion}
-								/>
-								<div class="space-y-0.5">
-									<Label for="keepWorktree" class="text-sm font-normal cursor-pointer">
-										タスク完了後もWorktreeを保持
-									</Label>
-									<p class="text-xs text-muted-foreground">
-										Worktreeを自動削除せずに残します
-									</p>
+						
+						{#if useWorktree}
+							<div class="ml-4 space-y-4">
+								<div class="flex items-start space-x-3">
+									<Checkbox
+										id="keepWorktree"
+										bind:checked={keepWorktreeAfterCompletion}
+									/>
+									<div class="space-y-0.5">
+										<Label for="keepWorktree" class="text-sm font-normal cursor-pointer">
+											タスク完了後もWorktreeを保持
+										</Label>
+										<p class="text-xs text-muted-foreground">
+											Worktreeを自動削除せずに残します
+										</p>
+									</div>
 								</div>
 							</div>
-						</div>
-					{/if}
+						{/if}
+					</div>
 				</div>
 
 				<div class="flex flex-col sm:flex-row gap-2 pt-4">

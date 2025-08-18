@@ -4,11 +4,11 @@ CC-AnywhereのREST APIエンドポイントの完全なリファレンスです�
 
 ## OpenAPI/Swagger ドキュメント
 
-APIの詳細仕様は、OpenAPI 3.1.0仕様として定義されており、Swagger UIで対話的に確認できます。
+APIの詳細仕様は、OpenAPI 3.1.0仕様として定義されており、Scalar UIで対話的に確認できます。
 
-### Swagger UIへのアクセス
+### Scalar UIへのアクセス
 
-開発サーバー起動後、以下のURLでSwagger UIにアクセスできます：
+開発サーバー起動後、以下のURLでScalar UIにアクセスできます：
 
 ```
 http://localhost:5000/api/docs
@@ -16,14 +16,19 @@ http://localhost:5000/api/docs
 
 ### OpenAPI仕様ファイル
 
-OpenAPI仕様は `/backend/openapi.yaml` に定義されています。
+OpenAPI仕様は以下のファイルに定義されています：
+- メイン定義: `/backend/src/server/openapi/index.ts`
+- スキーマ定義: `/backend/src/server/openapi/schemas.ts`
+- JSON出力: `http://localhost:5000/api/openapi.json`
 
 ### 特徴
 
-- **対話的なドキュメント**: Swagger UIから直接APIをテストできます
+- **対話的なドキュメント**: Scalar UIから直接APIをテストできます
+- **モダンなUI**: Scalar UIによる使いやすいインターフェース
 - **型定義**: すべてのリクエスト/レスポンスの型が明確に定義されています
 - **認証対応**: APIキー認証を設定してテストが可能です
 - **自動更新**: コードと同期した最新のAPI仕様を提供します
+- **JSON Pointer参照**: 共通スキーマ定義による効率的な仕様管理
 
 ## 目次
 
@@ -234,24 +239,6 @@ data: {"type":"status","timestamp":"2024-01-15T10:00:30.000Z","status":"complete
 }
 ```
 
-### POST /api/tasks/:taskId/continue
-タスクを継続実行
-
-**パスパラメータ:**
-- `taskId`: タスクID
-
-**リクエストボディ:**
-```json
-{
-  "additionalInstruction": "追加の指示内容",
-  "options": {
-    "timeout": 300000,
-    "sdk": {
-      "maxTurns": 20
-    }
-  }
-}
-```
 
 ## バッチタスク
 
@@ -1159,6 +1146,16 @@ print(f"Task status: {status['status']}")
 ```
 
 ## 変更履歴
+
+### v1.1.0 (2025-08-12)
+- OpenAPI/Swagger統合
+  - Scalar UIによるAPIドキュメント表示
+  - OpenAPI 3.1.0仕様の完全実装
+  - JSON Pointer参照による効率的なスキーマ管理
+- リポジトリエクスプローラー機能強化
+  - ファイルツリー表示API
+  - ファイル内容取得API
+  - ファイル監視API
 
 ### v1.0.0 (2024-01-15)
 - 初回リリース

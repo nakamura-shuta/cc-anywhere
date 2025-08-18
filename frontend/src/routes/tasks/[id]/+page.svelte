@@ -500,21 +500,21 @@
 							<h4 class="text-sm font-semibold">継続オプション</h4>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								{#if currentTask.sdkSessionId}
-									<!-- SDK Continue オプション -->
+									<!-- 会話を継続 -->
 									<div class="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
 										<div class="space-y-3">
 											<div class="flex items-center gap-2">
 												<MessageSquare class="h-5 w-5 text-primary" />
 												<h5 class="font-medium">会話を継続</h5>
-												<Badge variant="default" class="text-xs">推奨</Badge>
+												<Badge variant="success" class="text-xs">利用可能</Badge>
 											</div>
 											<p class="text-sm text-muted-foreground">
-												前回の会話の文脈を保持して続行します
+												前回の会話セッションを継続して作業します
 											</p>
 											<ul class="text-xs text-muted-foreground space-y-1">
-												<li>✅ 30分以内の追加作業</li>
-												<li>✅ 同じトピックの継続</li>
-												<li>✅ 文脈が必要な作業</li>
+												<li>✅ 文脈を保持した追加作業</li>
+												<li>✅ 修正や改善の実施</li>
+												<li>✅ 効率的なトークン使用</li>
 											</ul>
 											<Button 
 												variant="default" 
@@ -522,7 +522,7 @@
 												class="w-full gap-2"
 											>
 												<MessageSquare class="h-4 w-4" />
-												SDK Continueで続行
+												継続する
 											</Button>
 										</div>
 									</div>
@@ -548,35 +548,6 @@
 										</div>
 									</div>
 								{/if}
-								
-								<!-- 継続タスク オプション -->
-								<div class="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-									<div class="space-y-3">
-										<div class="flex items-center gap-2">
-											<RefreshCw class="h-5 w-5 text-primary" />
-											<h5 class="font-medium">結果を基に新規タスク</h5>
-											{#if !currentTask.sdkSessionId || getTaskAge() > 30 * 60 * 1000}
-												<Badge variant="default" class="text-xs">推奨</Badge>
-											{/if}
-										</div>
-										<p class="text-sm text-muted-foreground">
-											前回の結果を参考に新しいタスクを開始します
-										</p>
-										<ul class="text-xs text-muted-foreground space-y-1">
-											<li>✅ 時間経過後の作業</li>
-											<li>✅ 異なる種類の作業</li>
-											<li>✅ 新しい文脈での作業</li>
-										</ul>
-										<Button 
-											variant="outline" 
-											onclick={() => { if (currentTask) window.location.href = `/tasks/${currentTask.taskId}/continue`; }}
-											class="w-full gap-2"
-										>
-											<RefreshCw class="h-4 w-4" />
-											継続タスクを作成
-										</Button>
-									</div>
-								</div>
 							</div>
 						</div>
 					</div>

@@ -643,47 +643,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/tasks/{taskId}/continue:
-    post:
-      tags:
-        - tasks
-      summary: Continue a task with new instructions
-      operationId: continueTask
-      parameters:
-        - name: taskId
-          in: path
-          required: true
-          description: Task ID
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                instruction:
-                  type: string
-                  minLength: 1
-              required:
-                - instruction
-      responses:
-        '201':
-          description: Task continuation initiated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
 
   /api/batch/tasks:
     post:

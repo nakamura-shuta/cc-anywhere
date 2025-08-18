@@ -45,11 +45,6 @@ export class TaskService implements EntityService<TaskResponse> {
     return response;
   }
   
-  async continue(id: string, data: TaskRequest): Promise<TaskResponse> {
-    const response = await apiClient.post<TaskResponse>(`/api/tasks/${id}/continue`, data);
-    return response;
-  }
-  
   async getLogs(id: string): Promise<string[]> {
     const response = await apiClient.get<{ taskId: string; logs: string[] }>(`/api/tasks/${id}/logs`);
     return response.logs || [];
