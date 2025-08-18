@@ -7,16 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-08-18
+
 ### Added
+- **SDK 1.0.82新機能の調査と実装計画**
+  - Request Cancellation Support: 既に実装済み（AbortController使用）
+  - additionalDirectories Option: 実装計画を策定、優先度高で実装予定
+  - Improved Slash Command Processing: 独自実装との統合計画を策定
 - **OpenAPI/Swagger統合**: APIドキュメントの自動生成と対話的テスト機能
   - OpenAPI 3.1.0仕様に基づいたAPIドキュメント（`/backend/openapi.yaml`）
-  - Swagger UIによる対話的APIドキュメント（`http://localhost:5000/api/docs`）
+  - Scalar UIによる対話的APIドキュメント（`http://localhost:5000/api/docs`）
   - 全APIエンドポイントのスキーマ定義
   - APIキー認証の永続化機能
   - Try it out機能による直接的なAPIテスト
 
 ### Changed
-- **Claude Code SDK更新**: v1.0.64 から v1.0.69 にアップデート
+- **Claude Code SDK更新**: v1.0.69 から v1.0.83 にアップデート
+- **SDK Continue機能への完全一本化**
+  - 継続タスク機能を削除し、SDK Continue機能に統合
+  - UIの簡素化と使いやすさの向上
+  - 詳細設定を折りたたみ式UIに変更（SDK Continueモード時）
+  - 前タスクの設定を自動的に引き継ぐよう改善
+
+### Removed
+- **継続タスク機能の削除**
+  - `/api/tasks/:taskId/continue` エンドポイントを削除
+  - 継続タスク作成UIを削除（`/tasks/[id]/continue/`）
+  - ConversationFormatterクラスを削除（不要になったため）
+  - 関連テストファイルを削除
+
+### Fixed
+- **タスクキャンセルボタンの修正**: APIエンドポイントの不一致を修正
+  - フロントエンドが正しいエンドポイント（`DELETE /api/tasks/:taskId`）を呼ぶよう修正
+- **30分タイムアウトの確認**: 既存のタイムアウト設定が正しく動作することを確認
 
 ### Documentation
 - **README.md更新**: 認証機能に関する説明を現在の実装に合わせて修正
