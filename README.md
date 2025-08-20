@@ -204,70 +204,70 @@ SHOW_QR_CODE=true                  # QRコード表示
 
 ### Cloudflare Tunnelを使用する方法
 
-Cloudflare Tunnelは本番環境向けの安定したトンネルサービスです。
+Cloudflare Tunnelは本番環境向けの安定したトンネルサービスです。CC-Anywhereには自動セットアップスクリプトが用意されています。
 
-#### 1. cloudflaredのインストール
+#### 簡単セットアップ（推奨）
 
 ```bash
-# macOS (Homebrew)
-brew install cloudflared
+# 自動セットアップスクリプトを実行
+./scripts/setup-cloudflare-tunnel.sh
 
-# Linux (Debian/Ubuntu)
-wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-sudo dpkg -i cloudflared-linux-amd64.deb
-
-# その他: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/
+# 以下の情報を入力:
+# - Cloudflare Email
+# - Cloudflare API Key（Global API Key）
+# - Cloudflare Account ID
+# - トンネル名（任意）
+# - ドメイン設定（オプション）
 ```
 
-#### 2. Cloudflareアカウントでログイン
+このスクリプトが自動的に:
+- ✅ Cloudflareトンネルを作成
+- ✅ 認証トークンを生成
+- ✅ `.env`ファイルに設定を保存
+- ✅ DNSレコードを設定（オプション）
+
+#### 起動方法
 
 ```bash
-cloudflared tunnel login
-# ブラウザが開き、Cloudflareアカウントでログイン
-```
+# 自動セットアップ完了後、サーバーを起動するだけ
+./scripts/start-clamshell.sh
 
-#### 3. トンネル作成と設定
-
-```bash
-# トンネル作成
-cloudflared tunnel create cc-anywhere
-
-# 設定ファイル作成
-cat > ~/.cloudflared/config.yml << EOF
-tunnel: cc-anywhere
-credentials-file: ~/.cloudflared/TUNNEL_ID.json
-
-ingress:
-  - hostname: cc-anywhere.yourdomain.com
-    service: http://localhost:5000
-  - service: http_status:404
-EOF
-
-# DNSレコード追加（yourdomain.comは実際のドメインに置き換え）
-cloudflared tunnel route dns cc-anywhere cc-anywhere.yourdomain.com
-```
-
-#### 4. トンネル起動
-
-```bash
-# CC-Anywhereを起動
+# または開発環境で
 npm run dev
 
-# 別ターミナルでCloudflareトンネルを起動
-cloudflared tunnel run cc-anywhere
-
-# https://cc-anywhere.yourdomain.com でアクセス可能
+# トンネルは自動的に起動され、URLが表示されます
 ```
 
-#### 5. サービスとして実行（本番環境）
+#### 手動セットアップ（上級者向け）
 
+手動でセットアップしたい場合は、以下の手順を実行:
+
+1. **cloudflaredのインストール**
 ```bash
-# サービスとしてインストール
-sudo cloudflared service install
+# macOS
+brew install cloudflared
 
-# 起動
-sudo systemctl start cloudflared
-sudo systemctl enable cloudflared
+# Linux
+wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared-linux-amd64.deb
+```
+
+2. **Cloudflareでトンネルを作成**
+```bash
+cloudflared tunnel login
+cloudflared tunnel create cc-anywhere
+```
+
+3. **`.env`に設定を追加**
+```env
+TUNNEL_TYPE=cloudflare
+CLOUDFLARE_TUNNEL_TOKEN=<生成されたトークン>
+CLOUDFLARE_TUNNEL_NAME=cc-anywhere
+```
+
+4. **起動**
+```bash
+npm run dev  # トンネルは自動的に起動
 ```
 
 ### セキュリティに関する注意事項
