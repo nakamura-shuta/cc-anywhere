@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **CLIセッション継続機能**: Claude Code SDK v1.0.83のセッション継続機能をサポート
+  - `sdkSessionId`を使用した会話の継続が可能に
+  - 前回のセッションコンテキストを引き継いで新しいタスクを作成
+  - APIレスポンスに`sdkSessionId`フィールドを追加
+  - 統合テストを追加して動作を検証
+
+### Changed
+- **Claude Code SDK更新**: v1.0.83の最新機能に対応
+  - `options.resume`パラメータによるセッション継続のサポート
+
 ## [0.5.0] - 2025-08-18
 
 ### Added

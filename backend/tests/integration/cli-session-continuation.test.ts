@@ -23,7 +23,7 @@ vi.mock("@anthropic-ai/claude-code", () => ({
         content: [
           {
             type: "text",
-            text: params.options?.resume 
+            text: params.options?.resume
               ? `前回の質問は「hello?」でした。その後「このリポジトリの概要教えてください。」という質問をいただきました。`
               : "新しいセッションを開始しました。",
           },
@@ -153,7 +153,7 @@ describe("CLI Session Continuation", () => {
       expect(response.statusCode).toBe(201);
       const body = response.json<TaskResponse>();
       expect(body.taskId).toBeDefined();
-      
+
       // SDKセッションIDが保存されることを確認
       if (body.sdkSessionId) {
         expect(body.sdkSessionId).toBeDefined();

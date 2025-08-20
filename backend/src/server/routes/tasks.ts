@@ -775,5 +775,4 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       }
     },
   );
-
 };

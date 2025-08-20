@@ -28,7 +28,7 @@ npm run dev
 
 ## 主な機能
 
-- 🚀 **Claude Code SDK 1.0.69** - 最新版のSDKをHTTP API経由で利用（Anthropic API/Amazon Bedrock対応）
+- 🚀 **Claude Code SDK 1.0.83** - 最新版のSDKをHTTP API経由で利用（Anthropic API/Amazon Bedrock対応）
 - 📱 **レスポンシブWeb UI** - モバイル・デスクトップ対応の使いやすいインターフェース
 - 🔄 **リアルタイム更新** - WebSocketによるタスク状況のリアルタイム表示
 - 🔐 **API認証** - APIキーによる安全なアクセス制御
@@ -38,6 +38,7 @@ npm run dev
 - 🌿 **Git Worktree対応** - 独立した作業環境でのタスク実行
 - 📂 **リポジトリエクスプローラー** - ファイルツリー表示とリアルタイム変更通知
 - 📚 **OpenAPI/Swagger** - 対話的APIドキュメント（http://localhost:5000/api/docs）
+- 💬 **セッション継続** - sdkSessionIdを使用した会話の継続が可能
 
 ## セットアップ
 
