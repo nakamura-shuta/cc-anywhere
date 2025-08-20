@@ -129,6 +129,39 @@ components:
               type: array
               items:
                 type: string
+            sdk:
+              type: object
+              description: Claude Code SDK specific options
+              properties:
+                maxTurns:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  description: Maximum conversation turns
+                resumeSession:
+                  type: string
+                  description: Claude Code CLI session ID to resume
+                  example: "69647d9d-d1a3-4924-8dc2-e9c558007a4b"
+                continueFromTaskId:
+                  type: string
+                  description: Continue from a previous task using its SDK session ID
+                permissionMode:
+                  type: string
+                  enum: [ask, allow, deny, acceptEdits, bypassPermissions, plan]
+                  description: Permission mode for tool execution
+                systemPrompt:
+                  type: string
+                  description: Custom system prompt
+                allowedTools:
+                  type: array
+                  items:
+                    type: string
+                  description: List of allowed tools for SDK
+                disallowedTools:
+                  type: array
+                  items:
+                    type: string
+                  description: List of disallowed tools for SDK
         continuationOptions:
           type: object
           properties:

@@ -53,6 +53,9 @@
 	let isSdkContinueMode = $state(false);
 	let previousTask = $state<any>(null);
 	
+	// CLIセッション継続モード
+	let resumeSessionId = $state<string>('');
+	
 	// リポジトリエクスプローラーの表示状態（初期状態で表示）
 	let showRepositoryExplorer = $state(true);
 	
@@ -107,6 +110,12 @@
 			return;
 		}
 		
+		// CLIセッションID使用時は単一リポジトリのみ許可
+		if (resumeSessionId && selectedDirectories.length > 1) {
+			alert('CLIセッションIDを指定する場合は、単一のリポジトリのみ選択可能です');
+			return;
+		}
+		
 		submitting = true;
 		
 		const request: TaskRequest = {
@@ -122,7 +131,9 @@
 					maxTurns,
 					permissionMode: Array.isArray(permissionMode) ? permissionMode[0] : permissionMode as 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan',
 					// SDK Continueモードの場合、continueFromTaskIdを設定
-					...(isSdkContinueMode && continueFromTaskId ? { continueFromTaskId } : {})
+					...(isSdkContinueMode && continueFromTaskId ? { continueFromTaskId } : {}),
+					// CLIセッション継続モードの場合、resumeSessionを設定
+					...(resumeSessionId ? { resumeSession: resumeSessionId } : {})
 				},
 				// Worktree設定
 				useWorktree,
@@ -200,10 +211,32 @@
 				<DirectorySelector 
 					bind:selectedDirectories={selectedDirectories}
 					onSelectionChange={(selected) => {
-						selectedDirectories = selected;
+						// CLIセッションID使用時は最初の1つのみ選択
+						if (resumeSessionId && selected.length > 1) {
+							selectedDirectories = [selected[0]];
+							alert('CLIセッションIDを使用する場合は、単一のリポジトリのみ選択可能です');
+						} else {
+							selectedDirectories = selected;
+						}
 					}}
 					readonly={isSdkContinueMode}
 				/>
+				
+				<!-- CLIセッションID入力 -->
+				<div class="space-y-2">
+					<Label for="resumeSessionId">CLIセッションID (オプション)</Label>
+					<Input
+						id="resumeSessionId"
+						type="text"
+						bind:value={resumeSessionId}
+						placeholder="例: 69647d9d-d1a3-4924-8dc2-e9c558007a4b"
+						class="font-mono text-sm"
+					/>
+					<p class="text-xs text-muted-foreground">
+						Claude Code CLIで開始したセッションを継続する場合に入力してください。
+						セッションIDを指定する場合は、単一のリポジトリのみ選択可能です。
+					</p>
+				</div>
 				
 				<!-- リポジトリエクスプローラー -->
 				{#if showRepositoryExplorer}
