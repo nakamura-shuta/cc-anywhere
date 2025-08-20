@@ -162,12 +162,10 @@ brew install ngrok  # macOS
 # https://dashboard.ngrok.com/signup でアカウント作成後
 ngrok config add-authtoken YOUR_AUTH_TOKEN
 
-# 3. .envに設定を追加
-echo "ENABLE_NGROK=true" >> .env
-
-# 4. 起動（トンネルも自動起動）
-npm run dev
-# URLとQRコードが表示されます
+# 3. 起動スクリプトを実行
+./scripts/start-clamshell.sh
+# メニューから「1) ngrok」を選択
+# URLとQRコードが自動的に表示されます
 ```
 
 ### Cloudflare Tunnel（本番環境向け）
@@ -184,8 +182,9 @@ npm run dev
 # - Account ID
 # - 独自ドメイン（オプション）
 
-# セットアップ完了後、起動
-npm run dev
+# セットアップ完了後、起動スクリプトを実行
+./scripts/start-clamshell.sh
+# メニューから「2) Cloudflare Tunnel」を選択
 # 固定URLが表示されます
 ```
 
