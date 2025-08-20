@@ -2,7 +2,7 @@
 
 Claude Codeをどこからでも使えるようにするサーバーアプリケーションです。
 
-## 何ができるか
+## 特徴
 
 CC-Anywhereは、Claude Code SDKをHTTP API経由で利用できるようにするサーバーです。ローカルのコードベースに対してAIが自動的にコード生成・編集・テスト実行などを行います。
 
@@ -19,21 +19,22 @@ CC-Anywhereは、Claude Code SDKをHTTP API経由で利用できるようにす�
 - リアルタイムで実行状況を確認
 - 複数のリポジトリを管理
 - インターネット経由でのリモートアクセス（ngrok/Cloudflare Tunnel）
+- CLIからセッションを継続して作業可能
 
-## クイックスタート
+## Quick Start
 
-### 3分で始める
 
 ```bash
 # クローンして移動
-git clone https://github.com/your-username/cc-anywhere
+git clone https://github.com/nakamura-shuta/cc-anywhere
 cd cc-anywhere
 
 # セットアップ（依存関係インストール）
 npm install
 
-# Claude APIキーを設定
-echo "CLAUDE_API_KEY=your-api-key-here" > .env
+# 環境変数ファイルをコピーして編集
+cp .env.example .env
+# .envファイルを編集してCLAUDE_API_KEYを設定
 
 # 起動
 npm run dev
