@@ -60,13 +60,12 @@ npm run dev
 - スケジューラー: Cron式による定期実行
 - バッチ実行: 複数リポジトリへの一括タスク実行
 - Git Worktree: 独立した作業環境での安全な実行
-- セッション継続: 前回の会話コンテキストを引き継いで実行
-- OpenAPI/Swagger: 対話的APIドキュメント（/api/docs）
+- セッション継続: 前回の会話コンテキストを引き継いで実行(CLIのセッションも指定可能)
 
 ## 必要な環境
 
-- Node.js 20以上
-- npm 10以上
+- Node.js v20〜
+- npm 10〜
 - Claude API キー（[Anthropic Console](https://console.anthropic.com/)で取得）
 
 ## セットアップ
@@ -74,7 +73,7 @@ npm run dev
 ### 開発環境
 
 ```bash
-git clone https://github.com/your-username/cc-anywhere
+git clone https://github.com/nakamura-shuta/cc-anywhere
 cd cc-anywhere
 npm install
 cp .env.example .env
