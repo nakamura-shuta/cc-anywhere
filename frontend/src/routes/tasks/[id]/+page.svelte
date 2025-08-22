@@ -433,6 +433,38 @@
 						</Button>
 					</div>
 				{/if}
+				{#if currentTask.sdkSessionId}
+					<div>
+						<p class="text-sm text-muted-foreground">セッションID（CLIで使用可能）</p>
+						<div class="flex items-center gap-2">
+							<code class="px-2 py-1 bg-muted rounded font-mono text-xs">{currentTask.sdkSessionId}</code>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="h-7 px-2"
+								onclick={() => {
+									if (currentTask?.sdkSessionId) {
+										navigator.clipboard.writeText(currentTask.sdkSessionId);
+										// 簡易的なフィードバック（実際はトーストなどを使うべき）
+										const btn = event?.currentTarget;
+										if (btn) {
+											const originalText = btn.textContent;
+											btn.textContent = 'コピー済み';
+											setTimeout(() => {
+												btn.textContent = originalText;
+											}, 2000);
+										}
+									}
+								}}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+							</Button>
+						</div>
+						<p class="text-xs text-muted-foreground mt-1">
+							CLIで <code class="px-1 py-0.5 bg-muted rounded">claude code continue --session-id {currentTask.sdkSessionId}</code> を実行して継続
+						</p>
+					</div>
+				{/if}
 				<div>
 					<p class="text-sm text-muted-foreground mb-2">指示内容</p>
 					<div class="bg-muted/50 rounded-lg p-4 max-h-64 overflow-y-auto">
@@ -522,8 +554,14 @@
 												class="w-full gap-2"
 											>
 												<MessageSquare class="h-4 w-4" />
-												継続する
+												Web UIで継続する
 											</Button>
+											<div class="pt-2 border-t">
+												<p class="text-xs text-muted-foreground mb-1">CLIからも継続可能:</p>
+												<code class="text-xs bg-muted px-2 py-1 rounded block overflow-x-auto">
+													claude code continue --session-id {currentTask.sdkSessionId}
+												</code>
+											</div>
 										</div>
 									</div>
 								{:else}
