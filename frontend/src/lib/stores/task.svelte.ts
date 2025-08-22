@@ -91,7 +91,19 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
     try {
       this.loading = true;
       this.error = null;
-      const newTask = await taskService.continue(taskId, { instruction });
+      // taskService.continue is removed, using create with continueFromTaskId instead
+      const previousTask = this.items.find(t => t.taskId === taskId);
+      const newTask = await taskService.create({
+        instruction,
+        context: previousTask?.context,
+        options: {
+          ...previousTask?.options,
+          sdk: {
+            ...previousTask?.options?.sdk,
+            continueFromTaskId: taskId
+          }
+        }
+      });
       this.items = [newTask, ...this.items];
       return newTask;
     } catch (err) {

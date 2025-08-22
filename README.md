@@ -60,7 +60,7 @@ npm run dev
 - スケジューラー: Cron式による定期実行
 - バッチ実行: 複数リポジトリへの一括タスク実行
 - Git Worktree: 独立した作業環境での安全な実行
-- セッション継続: 前回の会話コンテキストを引き継いで実行(CLIのセッションも指定可能)
+- セッション継続: Claude Code SDK/CLIとの双方向セッション継続に対応
 
 ## 必要な環境
 
@@ -143,6 +143,49 @@ curl -X POST http://localhost:5000/api/tasks \
 ```bash
 cp backend/config/repositories.json.example backend/config/repositories.json
 # repositories.jsonを編集
+```
+
+### セッション継続機能
+
+CC-AnywhereはClaude Code SDK v1.0.83のセッション継続機能をサポートしており、CLIとSDK間で会話コンテキストを引き継ぐことができます。
+
+#### SDK → CLI（セッションIDを使った継続）
+
+1. CC-Anywhereでタスクを実行
+2. タスク詳細画面に表示される`sdkSessionId`をコピー
+3. CLIで以下のコマンドを実行：
+```bash
+claude --resume <セッションID> "続きの指示"
+```
+
+#### CLI → SDK（resumeSessionオプション）
+
+1. Claude Code CLIでセッションIDを確認
+2. CC-AnywhereのAPI呼び出し時に`resumeSession`パラメータを指定：
+```json
+{
+  "instruction": "続きの作業",
+  "options": {
+    "sdk": {
+      "resumeSession": "CLIのセッションID"
+    }
+  }
+}
+```
+
+#### SDK → SDK（前タスクから継続）
+
+1. 前のタスクの`taskId`を確認
+2. 新規タスク作成時に`continueFromTaskId`を指定：
+```json
+{
+  "instruction": "続きの作業",
+  "options": {
+    "sdk": {
+      "continueFromTaskId": "前のタスクID"
+    }
+  }
+}
 ```
 
 ## リモートアクセス設定

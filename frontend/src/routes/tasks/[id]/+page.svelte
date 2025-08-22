@@ -446,7 +446,7 @@
 									if (currentTask?.sdkSessionId) {
 										navigator.clipboard.writeText(currentTask.sdkSessionId);
 										// 簡易的なフィードバック（実際はトーストなどを使うべき）
-										const btn = event?.currentTarget;
+										const btn = event?.currentTarget as HTMLElement;
 										if (btn) {
 											const originalText = btn.textContent;
 											btn.textContent = 'コピー済み';
@@ -461,7 +461,7 @@
 							</Button>
 						</div>
 						<p class="text-xs text-muted-foreground mt-1">
-							CLIで <code class="px-1 py-0.5 bg-muted rounded">claude code continue --session-id {currentTask.sdkSessionId}</code> を実行して継続
+							CLIで <code class="px-1 py-0.5 bg-muted rounded">claude --resume {currentTask.sdkSessionId} "次の指示"</code> を実行して継続
 						</p>
 					</div>
 				{/if}
@@ -538,7 +538,7 @@
 											<div class="flex items-center gap-2">
 												<MessageSquare class="h-5 w-5 text-primary" />
 												<h5 class="font-medium">会話を継続</h5>
-												<Badge variant="success" class="text-xs">利用可能</Badge>
+												<Badge variant="default" class="text-xs">利用可能</Badge>
 											</div>
 											<p class="text-sm text-muted-foreground">
 												前回の会話セッションを継続して作業します
