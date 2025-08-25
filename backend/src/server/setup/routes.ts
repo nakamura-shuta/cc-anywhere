@@ -12,6 +12,7 @@ import { scheduleRoutes } from "../routes/schedules";
 import { sessionRoutes } from "../routes/sessions";
 import { settingsRoutes } from "../routes/settings";
 import { repositoryExplorerRoutes } from "../routes/repository-explorer";
+import taskGroupsRoute from "../routes/task-groups";
 
 /**
  * Register all API routes for the application
@@ -35,6 +36,7 @@ export async function registerRoutes(
   await app.register(sessionRoutes);
   await app.register(settingsRoutes);
   await app.register(repositoryExplorerRoutes, { prefix: "/api" });
+  await app.register(taskGroupsRoute, { prefix: "/api/task-groups" });
 
   // Register worker routes only in managed mode
   if (workerMode === "managed") {
