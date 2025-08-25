@@ -1,6 +1,7 @@
 import { type SDKMessage } from "@anthropic-ai/claude-code";
 import { logger } from "../utils/logger";
 import { config } from "../config";
+import { messageTracker } from "./types/message-tracking";
 import { TaskTracker } from "../services/task-tracker";
 import type { ToolUsageDetail, TaskProgressInfo } from "../types/enhanced-logging";
 import { LogLevel } from "../types/enhanced-logging";
@@ -44,6 +45,7 @@ export class ClaudeCodeClient {
   async executeTask(
     prompt: string,
     options: ClaudeCodeOptions = {},
+    taskId?: string,
   ): Promise<{
     messages: SDKMessage[];
     success: boolean;
@@ -56,6 +58,10 @@ export class ClaudeCodeClient {
     const tracker = new TaskTracker();
     const startTime = Date.now();
     let sessionId: string | undefined;
+
+    // Generate taskId if not provided (for UUID tracking)
+    const effectiveTaskId =
+      taskId || `task-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     // Tool tracking for duration calculation (タスクごとに独立)
     const toolStartTimes: Map<string, number> = new Map();
@@ -123,6 +129,18 @@ export class ClaudeCodeClient {
           type: message.type,
           message: JSON.stringify(message),
         });
+
+        // UUID tracking (SDK 1.0.86+)
+        if ("uuid" in message) {
+          const tracked = messageTracker.track(effectiveTaskId, message);
+          if (tracked) {
+            logger.debug("Message tracked with UUID", {
+              uuid: tracked.uuid,
+              type: tracked.type,
+              taskId: effectiveTaskId,
+            });
+          }
+        }
 
         // Extract session ID if available
         if (!sessionId && (message as any).session_id) {
@@ -353,9 +371,30 @@ export class ClaudeCodeClient {
         level: LogLevel.SUCCESS,
       });
 
+      // UUID tracking statistics
+      const trackingStats = messageTracker.getTaskStats(effectiveTaskId);
+      logger.info("Message tracking statistics", {
+        taskId: effectiveTaskId,
+        ...trackingStats,
+      });
+
       return { messages, success: true, tracker, sessionId };
     } catch (error) {
-      logger.error("Task execution failed", { error, prompt });
+      // Get message context for error
+      const errorContext = {
+        taskId: effectiveTaskId,
+        messageStats: messageTracker.getTaskStats(effectiveTaskId),
+        lastMessages: messageTracker
+          .getByTaskId(effectiveTaskId)
+          .slice(-3)
+          .map((m) => ({
+            uuid: m.uuid,
+            type: m.type,
+            timestamp: m.timestamp,
+          })),
+      };
+
+      logger.error("Task execution failed", { error, prompt, errorContext });
 
       tracker.recordError(error instanceof Error ? error.message : String(error));
       tracker.recordProgress({
@@ -372,6 +411,23 @@ export class ClaudeCodeClient {
         sessionId,
       };
     }
+  }
+
+  /**
+   * Clear message tracking data for a specific task
+   * @param taskId Task ID to clear
+   */
+  clearTaskMessages(taskId: string): void {
+    messageTracker.clearTask(taskId);
+    logger.debug("Cleared message tracking for task", { taskId });
+  }
+
+  /**
+   * Get message tracking statistics for a task
+   * @param taskId Task ID to get stats for
+   */
+  getTaskMessageStats(taskId: string): ReturnType<typeof messageTracker.getTaskStats> {
+    return messageTracker.getTaskStats(taskId);
   }
 
   formatMessagesAsString(messages: SDKMessage[]): string {

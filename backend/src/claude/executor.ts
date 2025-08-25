@@ -382,25 +382,29 @@ export class TaskExecutorImpl implements TaskExecutor {
         });
 
         // Claude Code SDKの実行
-        sdkResult = await this.codeClient.executeTask(prompt, {
-          maxTurns: sdkOptions.maxTurns,
-          cwd: resolvedWorkingDirectory,
-          abortController,
-          allowedTools: sdkOptions.allowedTools,
-          disallowedTools: sdkOptions.disallowedTools,
-          systemPrompt: sdkOptions.systemPrompt,
-          permissionMode: mapPermissionMode(sdkOptions.permissionMode),
-          executable: sdkOptions.executable,
-          executableArgs: sdkOptions.executableArgs,
-          mcpConfig: sdkOptions.mcpConfig,
-          continueSession: sdkOptions.continueSession,
-          resumeSession: sdkOptions.resumeSession,
-          outputFormat: sdkOptions.outputFormat,
-          verbose: sdkOptions.verbose,
-          onProgress: enhancedOnProgress,
-          enableWebSearch: sdkOptions.enableWebSearch,
-          webSearchConfig: sdkOptions.webSearchConfig,
-        });
+        sdkResult = await this.codeClient.executeTask(
+          prompt,
+          {
+            maxTurns: sdkOptions.maxTurns,
+            cwd: resolvedWorkingDirectory,
+            abortController,
+            allowedTools: sdkOptions.allowedTools,
+            disallowedTools: sdkOptions.disallowedTools,
+            systemPrompt: sdkOptions.systemPrompt,
+            permissionMode: mapPermissionMode(sdkOptions.permissionMode),
+            executable: sdkOptions.executable,
+            executableArgs: sdkOptions.executableArgs,
+            mcpConfig: sdkOptions.mcpConfig,
+            continueSession: sdkOptions.continueSession,
+            resumeSession: sdkOptions.resumeSession,
+            outputFormat: sdkOptions.outputFormat,
+            verbose: sdkOptions.verbose,
+            onProgress: enhancedOnProgress,
+            enableWebSearch: sdkOptions.enableWebSearch,
+            webSearchConfig: sdkOptions.webSearchConfig,
+          },
+          taskId,
+        );
 
         if (!sdkResult.success) {
           throw sdkResult.error || new Error("Task execution failed");

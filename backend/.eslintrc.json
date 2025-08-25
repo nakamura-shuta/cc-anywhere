@@ -2,14 +2,12 @@
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": 2022,
-    "sourceType": "module",
-    "project": ["./tsconfig.json", "./tsconfig.test.json"]
+    "sourceType": "module"
   },
   "plugins": ["@typescript-eslint", "prettier"],
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:@typescript-eslint/recommended-requiring-type-checking",
     "prettier"
   ],
   "rules": {
@@ -19,17 +17,6 @@
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/consistent-type-imports": "error",
-    "@typescript-eslint/no-unsafe-assignment": "off",
-    "@typescript-eslint/no-unsafe-member-access": "off",
-    "@typescript-eslint/no-unsafe-argument": "off",
-    "@typescript-eslint/no-unsafe-call": "off",
-    "@typescript-eslint/no-unsafe-return": "off",
-    "@typescript-eslint/require-await": "off",
-    "@typescript-eslint/await-thenable": "off",
-    "@typescript-eslint/restrict-template-expressions": "off",
-    "@typescript-eslint/no-unsafe-enum-comparison": "off",
-    "@typescript-eslint/no-misused-promises": "off",
-    "@typescript-eslint/unbound-method": "off",
     "@typescript-eslint/ban-ts-comment": ["error", {
       "ts-ignore": "allow-with-description",
       "minimumDescriptionLength": 3
@@ -46,14 +33,7 @@
       "files": ["tests/**/*.ts"],
       "rules": {
         "@typescript-eslint/no-explicit-any": "off",
-        "@typescript-eslint/no-unsafe-assignment": "off",
-        "@typescript-eslint/no-unsafe-argument": "off",
-        "@typescript-eslint/no-unsafe-member-access": "off",
-        "@typescript-eslint/no-unsafe-call": "off",
-        "@typescript-eslint/no-unsafe-return": "off",
-        "@typescript-eslint/require-await": "off",
         "@typescript-eslint/no-var-requires": "off",
-        "@typescript-eslint/await-thenable": "off",
         "require-yield": "off"
       }
     }

@@ -45,7 +45,7 @@ npm run dev
 ## 主な機能
 
 **基本機能**
-- Claude Code SDK 1.0.83（最新版）をHTTP API経由で利用
+- Claude Code SDK 1.0.88（最新版）をHTTP API経由で利用
 - Web UIとREST APIの両方から操作可能
 - WebSocketによるリアルタイムログ表示
 - 複数リポジトリの管理と切り替え
@@ -245,6 +245,7 @@ ngrok config add-authtoken YOUR_AUTH_TOKEN
 - **スケジューラー**: Cron式による定期実行
 - **バッチ実行**: 複数リポジトリへの一括タスク実行
 - **Git Worktree**: 安全な独立環境での実行
+- **UUID メッセージトラッキング**: SDK 1.0.86+の機能を活用した重複排除とエラー追跡
 - **API ドキュメント**: http://localhost:5000/api/docs でOpenAPIドキュメント
 
 ## 開発者向け

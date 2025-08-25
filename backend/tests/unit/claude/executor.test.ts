@@ -79,6 +79,7 @@ describe("TaskExecutor", () => {
         expect.objectContaining({
           cwd: "/project",
         }),
+        undefined, // taskId parameter (not provided in this test)
       );
     });
 
@@ -152,6 +153,7 @@ describe("TaskExecutor", () => {
             maxResults: 5,
           },
         }),
+        undefined, // taskId parameter (not provided in this test)
       );
     });
   });
