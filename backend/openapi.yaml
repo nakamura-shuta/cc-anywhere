@@ -31,6 +31,8 @@ tags:
     description: Repository explorer operations
   - name: schedules
     description: Task scheduling operations
+  - name: task-groups
+    description: Task group execution with dependency management
 
 components:
   securitySchemes:
@@ -394,6 +396,161 @@ components:
         error:
           type: string
           nullable: true
+
+    TaskGroupTask:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        instruction:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - instruction
+
+    TaskGroupExecutionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskGroupTask'
+          minItems: 1
+          maxItems: 50
+        execution:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum: [sequential, parallel, mixed]
+            continueSession:
+              type: boolean
+              enum: [true]
+              description: Always true - all tasks in a group share the same session
+            continueOnError:
+              type: boolean
+              default: false
+            timeout:
+              type: integer
+              minimum: 1000
+              maximum: 600000
+            permissionMode:
+              type: string
+              enum: [default, acceptEdits, bypassPermissions, plan, ask, allow, deny]
+              default: bypassPermissions
+              description: Permission mode for Claude Code SDK execution
+          required:
+            - mode
+            - continueSession
+        context:
+          type: object
+          properties:
+            workingDirectory:
+              type: string
+            repositoryPath:
+              type: string
+          nullable: true
+      required:
+        - name
+        - tasks
+        - execution
+
+    TaskGroupExecutionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        groupId:
+          type: string
+        message:
+          type: string
+        totalTasks:
+          type: integer
+        executionPlan:
+          type: array
+          items:
+            type: object
+            properties:
+              tasks:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskGroupTask'
+              parallel:
+                type: boolean
+      required:
+        - success
+        - groupId
+        - message
+        - totalTasks
+        - executionPlan
+
+    TaskGroupStatus:
+      type: object
+      properties:
+        groupId:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled]
+        sessionId:
+          type: string
+          nullable: true
+        completedTasks:
+          type: integer
+        totalTasks:
+          type: integer
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              status:
+                type: string
+                enum: [pending, running, completed, failed]
+              error:
+                type: string
+                nullable: true
+              startedAt:
+                type: string
+                format: date-time
+                nullable: true
+              completedAt:
+                type: string
+                format: date-time
+                nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - groupId
+        - status
+        - completedTasks
+        - totalTasks
+        - progress
+        - tasks
+        - startedAt
 
   responses:
     BadRequest:
@@ -1545,5 +1702,127 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/task-groups/execute:
+    post:
+      tags:
+        - task-groups
+      summary: Execute a task group with dependency management
+      operationId: executeTaskGroup
+      description: |
+        Execute multiple tasks with dependency management and session continuity.
+        Tasks can run sequentially, in parallel, or in a mixed mode based on dependencies.
+        All tasks in a group share the same session for context continuity.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskGroupExecutionRequest'
+      responses:
+        '200':
+          description: Task group execution started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskGroupExecutionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/task-groups/{groupId}/status:
+    get:
+      tags:
+        - task-groups
+      summary: Get task group execution status
+      operationId: getTaskGroupStatus
+      description: Get the current status and progress of a task group execution
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: Task group ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task group status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskGroupStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/task-groups/{groupId}:
+    delete:
+      tags:
+        - task-groups
+      summary: Cancel task group execution
+      operationId: cancelTaskGroup
+      description: Cancel a running task group execution
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          description: Task group ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task group cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/task-groups/cleanup:
+    post:
+      tags:
+        - task-groups
+      summary: Cleanup completed task groups
+      operationId: cleanupTaskGroups
+      description: Remove completed task groups from memory
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Task groups cleaned up successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'

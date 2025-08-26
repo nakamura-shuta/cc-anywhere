@@ -373,12 +373,9 @@ export class TaskExecutorImpl implements TaskExecutor {
         };
 
         // Log SDK options for debugging
-        logger.info("Executing Claude Code SDK with options", {
+        logger.debug("Executing Claude Code SDK with options", {
           taskId,
-          hasResumeSession: !!sdkOptions.resumeSession,
-          resumeSession: sdkOptions.resumeSession,
-          continueSession: sdkOptions.continueSession,
-          continueFromTaskId: sdkOptions.continueFromTaskId,
+          permissionMode: sdkOptions.permissionMode,
         });
 
         // Claude Code SDKの実行
@@ -410,11 +407,8 @@ export class TaskExecutorImpl implements TaskExecutor {
           throw sdkResult.error || new Error("Task execution failed");
         }
 
-        logger.info("SDK execution result", {
+        logger.debug("SDK execution result", {
           success: sdkResult.success,
-          hasMessages: !!sdkResult.messages,
-          messageCount: sdkResult.messages?.length || 0,
-          hasSessionId: !!sdkResult.sessionId,
           sessionId: sdkResult.sessionId,
           taskId,
         });
@@ -437,11 +431,6 @@ export class TaskExecutorImpl implements TaskExecutor {
 
         // Store SDK messages for conversation history
         sdkMessages = sdkResult.messages || [];
-        logger.info("SDK messages collected", {
-          messageCount: sdkMessages.length,
-          hasMessages: sdkMessages.length > 0,
-          taskId,
-        });
 
         // Process result based on output format
         const processedResult = this.processClaudeCodeResult(sdkResult, sdkOptions.outputFormat);
@@ -450,19 +439,6 @@ export class TaskExecutorImpl implements TaskExecutor {
           sdkOptions.outputFormat === "json"
             ? processedResult.output
             : this.codeClient.formatMessagesAsString(sdkResult.messages);
-
-        // デバッグ: outputの内容を確認
-        logger.info("Executor output details", {
-          taskId,
-          outputType: typeof output,
-          outputLength: typeof output === "string" ? output.length : JSON.stringify(output).length,
-          outputSample:
-            typeof output === "string"
-              ? output.substring(0, 200)
-              : JSON.stringify(output).substring(0, 200),
-          messageCount: sdkResult.messages?.length || 0,
-          outputFormat: sdkOptions.outputFormat,
-        });
 
         logs.push(`Received ${sdkResult.messages.length} messages from Claude Code`);
       } catch (error) {
@@ -518,20 +494,6 @@ export class TaskExecutorImpl implements TaskExecutor {
       // Get todos from tracker if available
       const todos = sdkResult?.tracker ? sdkResult.tracker.getTodos() : undefined;
 
-      if (todos && todos.length > 0) {
-        logger.info("TODOs found in result", {
-          taskId,
-          todosCount: todos.length,
-          todos: todos,
-        });
-      } else {
-        logger.info("No TODOs found in result", {
-          taskId,
-          hasTracker: !!sdkResult?.tracker,
-          trackerTodos: sdkResult?.tracker ? "empty" : "no tracker",
-        });
-      }
-
       const result = {
         success: true,
         output,
@@ -542,30 +504,16 @@ export class TaskExecutorImpl implements TaskExecutor {
         sdkSessionId: sdkResult?.sessionId,
       };
 
-      // デバッグ: 最終的なresultオブジェクトを確認
-      logger.info("Final result object", {
-        taskId,
-        resultKeys: Object.keys(result),
-        outputType: typeof result.output,
-        outputSample:
-          typeof result.output === "string"
-            ? result.output.substring(0, 200)
-            : JSON.stringify(result.output).substring(0, 200),
-      });
-
-      logger.info("Task execution completed successfully", {
+      logger.debug("Task execution completed", {
         taskId,
         duration: result.duration,
-        todosCount: result.todos?.length || 0,
-        logsCount: result.logs?.length || 0,
-        hasConversationHistory: !!result.conversationHistory,
       });
 
       // Stop file watching
       if (taskId && config.env !== "test") {
         try {
           await fileWatcherService.stopWatching(taskId);
-          logger.info(`Stopped file watching for task ${taskId}`);
+          logger.debug(`Stopped file watching for task ${taskId}`);
         } catch (error) {
           logger.warn(`Failed to stop file watching for task ${taskId}:`, error);
         }
@@ -601,7 +549,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       if (taskId && config.env !== "test") {
         try {
           await fileWatcherService.stopWatching(taskId);
-          logger.info(`Stopped file watching for task ${taskId} after error`);
+          logger.debug(`Stopped file watching for task ${taskId} after error`);
         } catch (stopError) {
           logger.warn(`Failed to stop file watching for task ${taskId}:`, stopError);
         }

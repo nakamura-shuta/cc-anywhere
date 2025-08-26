@@ -28,6 +28,11 @@ import type {
   ScheduleUpdateMessage,
   ScheduleExecutionMessage,
   FileChangeMessage,
+  TaskGroupCreatedMessage,
+  TaskGroupStatusMessage,
+  TaskGroupProgressMessage,
+  TaskGroupTaskCompletedMessage,
+  TaskGroupLogMessage,
 } from "./types.js";
 import { fileWatcherService } from "../services/file-watcher.service.js";
 
@@ -452,6 +457,60 @@ export class WebSocketServer {
     this.broadcastToAll(message);
   }
 
+  // Task Group broadcast methods
+  broadcastTaskGroupCreated(payload: TaskGroupCreatedMessage["payload"]): void {
+    const message: TaskGroupCreatedMessage = {
+      type: "task-group:created",
+      payload,
+    };
+
+    // Broadcast to all authenticated clients since task groups are global
+    this.broadcastToAll(message);
+  }
+
+  broadcastTaskGroupStatus(payload: TaskGroupStatusMessage["payload"]): void {
+    const message: TaskGroupStatusMessage = {
+      type: "task-group:status",
+      payload,
+    };
+
+    this.broadcastToAll(message);
+  }
+
+  broadcastTaskGroupProgress(payload: TaskGroupProgressMessage["payload"]): void {
+    const message: TaskGroupProgressMessage = {
+      type: "task-group:progress",
+      payload,
+    };
+
+    this.broadcastToAll(message);
+  }
+
+  broadcastTaskGroupTaskCompleted(payload: TaskGroupTaskCompletedMessage["payload"]): void {
+    const message: TaskGroupTaskCompletedMessage = {
+      type: "task-group:task-completed",
+      payload,
+    };
+
+    this.broadcastToAll(message);
+  }
+
+  broadcastTaskGroupLog(payload: TaskGroupLogMessage["payload"]): void {
+    const message: TaskGroupLogMessage = {
+      type: "task-group:log",
+      payload,
+    };
+
+    logger.debug("Broadcasting task-group:log message", {
+      groupId: payload.groupId,
+      taskId: payload.taskId,
+      logPreview: payload.log.substring(0, 100),
+      clientCount: Array.from(this.clients.values()).filter((c) => c.authenticated).length,
+    });
+
+    this.broadcastToAll(message);
+  }
+
   // File change broadcast method
   broadcastFileChange(event: any): void {
     const message: FileChangeMessage = {
@@ -546,6 +605,10 @@ export class WebSocketServer {
               break;
 
             case "task:log":
+              truncatedPayload = truncatePayloadField(truncatedPayload, "log", 20000);
+              break;
+
+            case "task-group:log":
               truncatedPayload = truncatePayloadField(truncatedPayload, "log", 20000);
               break;
 

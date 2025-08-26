@@ -1,6 +1,7 @@
 import { getWebSocketStore } from './websocket-enhanced.svelte';
 import { getGlobalMessageRouter } from './message-router.svelte';
 import { taskStore } from './task.svelte';
+import { taskGroupStore } from './task-group.svelte';
 import { scheduleStore } from './schedule.svelte';
 import { getConfig } from '$lib/config';
 import { fileChangeStore } from './file-changes.svelte';
@@ -21,6 +22,9 @@ export function setupWebSocketIntegration() {
   // タスクストアのメッセージハンドリング
   setupTaskStoreHandlers();
   
+  // タスクグループストアのメッセージハンドリング
+  setupTaskGroupStoreHandlers();
+  
   // スケジュールストアのメッセージハンドリング
   setupScheduleStoreHandlers();
   
@@ -40,6 +44,34 @@ export function setupWebSocketIntegration() {
       router.clear();
     }
   };
+}
+
+/**
+ * タスクグループストアのメッセージハンドラー設定
+ */
+function setupTaskGroupStoreHandlers() {
+  const router = getGlobalMessageRouter();
+  
+  // タスクグループのイベント
+  router.register('task-group:created', (msg) => {
+    taskGroupStore.handleWebSocketUpdate(msg);
+  });
+  
+  router.register('task-group:status', (msg) => {
+    taskGroupStore.handleWebSocketUpdate(msg);
+  });
+  
+  router.register('task-group:progress', (msg) => {
+    taskGroupStore.handleWebSocketUpdate(msg);
+  });
+  
+  router.register('task-group:task-completed', (msg) => {
+    taskGroupStore.handleWebSocketUpdate(msg);
+  });
+  
+  router.register('task-group:log', (msg) => {
+    taskGroupStore.handleWebSocketUpdate(msg);
+  });
 }
 
 /**

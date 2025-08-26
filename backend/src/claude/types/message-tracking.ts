@@ -60,7 +60,6 @@ export class MessageTracker {
 
     // 重複チェック
     if (this.duplicateCheck.has(uuid)) {
-      console.warn(`Duplicate message detected: ${uuid}`);
       return null;
     }
 

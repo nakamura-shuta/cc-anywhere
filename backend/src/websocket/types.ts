@@ -207,6 +207,63 @@ export interface ClaudeResponseMessage extends WebSocketMessage {
 
 import type { ErrorDetails } from "../utils/errors";
 
+// Task Group messages
+export interface TaskGroupCreatedMessage extends WebSocketMessage {
+  type: "task-group:created";
+  payload: {
+    groupId: string;
+    name: string;
+    totalTasks: number;
+    executionMode: string;
+    timestamp: string;
+  };
+}
+
+export interface TaskGroupStatusMessage extends WebSocketMessage {
+  type: "task-group:status";
+  payload: {
+    groupId: string;
+    status: string;
+    timestamp: string;
+  };
+}
+
+export interface TaskGroupProgressMessage extends WebSocketMessage {
+  type: "task-group:progress";
+  payload: {
+    groupId: string;
+    completedTasks: number;
+    totalTasks: number;
+    progress: number;
+    currentTask?: string;
+    timestamp: string;
+  };
+}
+
+export interface TaskGroupTaskCompletedMessage extends WebSocketMessage {
+  type: "task-group:task-completed";
+  payload: {
+    groupId: string;
+    taskId: string;
+    status: string;
+    error?: string;
+    completedAt: string;
+    timestamp: string;
+  };
+}
+
+export interface TaskGroupLogMessage extends WebSocketMessage {
+  type: "task-group:log";
+  payload: {
+    groupId: string;
+    taskId: string;
+    taskName: string;
+    log: string;
+    timestamp: string;
+    level?: "info" | "warning" | "error" | "debug";
+  };
+}
+
 export interface ErrorMessage extends WebSocketMessage {
   type: "error";
   payload: Pick<ErrorDetails, "message" | "code" | "details">;

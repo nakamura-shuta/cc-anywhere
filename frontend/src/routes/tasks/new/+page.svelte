@@ -17,6 +17,11 @@
 	import { onMount } from 'svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { RepositoryExplorer } from '$lib/components/repository-explorer';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import GroupTaskForm from '$lib/components/task-group/GroupTaskForm.svelte';
+	
+	// Task mode
+	let taskMode = $state<'single' | 'group'>('single');
 	
 	// フォームの状態
 	let instruction = $state('');
@@ -158,6 +163,44 @@
 			submitting = false;
 		}
 	}
+	
+	// Handle group task submission
+	async function handleGroupTaskSubmit(groupData: any) {
+		submitting = true;
+		
+		try {
+			// Add working directory if selected
+			if (selectedDirectories.length > 0) {
+				groupData.context = {
+					workingDirectory: selectedDirectories[0]
+				};
+			}
+			
+			const response = await fetch('/api/task-groups/execute', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-API-Key': localStorage.getItem('apiKey') || ''
+				},
+				body: JSON.stringify(groupData)
+			});
+			
+			const result = await response.json();
+			
+			if (response.ok && result.success) {
+				// Navigate to task group status page
+				// For now, navigate to regular tasks page
+				goto('/tasks');
+			} else {
+				alert(`タスクグループの作成に失敗しました: ${result.message || 'Unknown error'}`);
+			}
+		} catch (error) {
+			console.error('Failed to create task group:', error);
+			alert('タスクグループの作成に失敗しました');
+		} finally {
+			submitting = false;
+		}
+	}
 </script>
 
 <div class="max-w-2xl mx-auto">
@@ -186,7 +229,60 @@
 		</Alert.Root>
 	{/if}
 	
-	<Card.Root>
+	{#if !isSdkContinueMode}
+		<Tabs.Root bind:value={taskMode} class="mb-6">
+			<Tabs.List class="grid w-full grid-cols-2">
+				<Tabs.Trigger value="single">単一タスク</Tabs.Trigger>
+				<Tabs.Trigger value="group">グループタスク</Tabs.Trigger>
+			</Tabs.List>
+		</Tabs.Root>
+		
+		<!-- 共通の作業ディレクトリセレクター（グループタスクモード用） -->
+		{#if taskMode === 'group'}
+			<Card.Root class="mb-6">
+				<Card.Header>
+					<Card.Title>作業ディレクトリ</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					<DirectorySelector 
+						bind:selectedDirectories={selectedDirectories}
+						onSelectionChange={(selected) => {
+							selectedDirectories = selected.slice(0, 1); // グループタスクは単一ディレクトリのみ
+						}}
+					/>
+					
+					<!-- リポジトリエクスプローラー -->
+					{#if showRepositoryExplorer}
+						<div class="border rounded-lg overflow-hidden mt-4">
+							<div class="p-3 bg-muted border-b">
+								<span class="text-sm font-medium">ファイルエクスプローラー</span>
+							</div>
+							<div class="h-[400px]">
+								{#if selectedDirectories.length === 0}
+									<div class="flex items-center justify-center h-full text-muted-foreground text-sm">
+										作業ディレクトリを選択すると、ファイルツリーが表示されます
+									</div>
+								{:else}
+									<RepositoryExplorer
+										repositories={selectedDirectories.map(path => ({
+											name: path.split('/').pop() || path,
+											path: path
+										}))}
+										position="side"
+										layout="horizontal"
+										showHeader={false}
+									/>
+								{/if}
+							</div>
+						</div>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+		{/if}
+	{/if}
+	
+	{#if taskMode === 'single'}
+		<Card.Root>
 		<Card.Header>
 			<Card.Title>タスク設定</Card.Title>
 			<Card.Description>
@@ -371,6 +467,14 @@
 			</form>
 		</Card.Content>
 	</Card.Root>
+	{:else}
+		<!-- Group Task Form -->
+		<GroupTaskForm
+			onSubmit={handleGroupTaskSubmit}
+			workingDirectory={selectedDirectories[0]}
+			{submitting}
+		/>
+	{/if}
 </div>
 
 <style>

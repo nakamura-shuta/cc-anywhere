@@ -10,17 +10,18 @@ export interface Task {
   id: string;
   name: string;
   instruction: string;
-  dependencies?: string[];  // IDs of tasks this task depends on
+  dependencies?: string[]; // IDs of tasks this task depends on
 }
 
 /**
  * Execution configuration
  */
 export interface ExecutionConfig {
-  mode: 'sequential' | 'parallel' | 'mixed';
-  continueSession: true;  // Always true - all tasks in group share same session
-  continueOnError?: boolean;  // Continue even if a task fails
-  timeout?: number;  // Timeout per task in milliseconds
+  mode: "sequential" | "parallel" | "mixed";
+  continueSession: true; // Always true - all tasks in group share same session
+  continueOnError?: boolean; // Continue even if a task fails
+  timeout?: number; // Timeout per task in milliseconds
+  permissionMode?: "ask" | "allow" | "deny" | "acceptEdits" | "bypassPermissions" | "plan"; // Permission mode for Claude Code SDK
 }
 
 /**
@@ -38,18 +39,18 @@ export interface TaskGroup {
  */
 export interface ExecutionStage {
   tasks: Task[];
-  parallel: boolean;  // True if tasks in this stage run in parallel
+  parallel: boolean; // True if tasks in this stage run in parallel
 }
 
 /**
  * Task execution status
  */
-export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type TaskStatus = "pending" | "running" | "completed" | "failed";
 
 /**
  * Group execution status
  */
-export type GroupStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type GroupStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
 /**
  * Task group execution result
@@ -71,7 +72,8 @@ export interface TaskGroupResult {
   }>;
   startedAt: Date;
   completedAt?: Date;
-  progress: number;  // 0-100
+  progress: number; // 0-100
+  error?: string; // Overall error for the group
 }
 
 /**

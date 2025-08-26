@@ -97,11 +97,9 @@ export class ClaudeCodeClient {
       const finalDisallowedTools = options.disallowedTools || [];
 
       // Log the tools configuration
-      logger.info("Claude Code SDK tools configuration", {
+      logger.debug("Claude Code SDK tools configuration", {
         allowedTools: finalAllowedTools,
         disallowedTools: finalDisallowedTools,
-        hasTodoWriteInAllowed: finalAllowedTools?.includes("TodoWrite"),
-        hasTodoWriteInDisallowed: finalDisallowedTools.includes("TodoWrite"),
       });
 
       const queryOptions: QueryOptions = {
@@ -123,7 +121,12 @@ export class ClaudeCodeClient {
         },
       };
 
-      for await (const message of this.strategy.executeQuery(queryOptions)) {
+      logger.debug("Starting Claude Code SDK executeQuery", {
+        executionMode: this.getCurrentMode(),
+      });
+
+      const queryIterator = this.strategy.executeQuery(queryOptions);
+      for await (const message of queryIterator) {
         messages.push(message);
         logger.debug("Received SDK message", {
           type: message.type,
@@ -376,6 +379,12 @@ export class ClaudeCodeClient {
       logger.info("Message tracking statistics", {
         taskId: effectiveTaskId,
         ...trackingStats,
+      });
+
+      logger.debug("ClaudeCodeClient executeTask completed", {
+        taskId: effectiveTaskId,
+        messageCount: messages.length,
+        sessionId,
       });
 
       return { messages, success: true, tracker, sessionId };

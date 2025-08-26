@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import type { TaskQueueImpl } from "../../queue";
 import { WebSocketServer } from "../../websocket/websocket-server";
+import { setSharedWebSocketServer } from "../../websocket/shared-instance";
 import { config } from "../../config";
 import { logger } from "../../utils/logger";
 import { getTypedEventBus } from "../../events";
 import { fileWatcherService } from "../../services/file-watcher.service";
+import { taskGroupStore } from "../../services/task-group-store";
 
 /**
  * Configure WebSocket server and integrate with task queue
@@ -29,6 +31,9 @@ export async function configureWebSocket(
 
   await wsServer.register(app);
   app.decorate("wsServer", wsServer);
+
+  // Set the shared WebSocket server instance
+  setSharedWebSocketServer(wsServer);
 
   // Set up WebSocket integration with task queue
   taskQueue.onTaskComplete((task) => {
@@ -94,6 +99,9 @@ export async function configureWebSocket(
 
   // Set WebSocket server for log streaming
   taskQueue.setWebSocketServer(wsServer);
+
+  // Set WebSocket server for task group store
+  taskGroupStore.setWebSocketServer(wsServer);
 
   // Listen for task started events
   const eventBus = getTypedEventBus();

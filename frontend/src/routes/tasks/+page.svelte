@@ -1,12 +1,15 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button';
-	import { Plus, GitBranch } from 'lucide-svelte';
+	import { Plus, GitBranch, FolderTree } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import TaskList from './components/TaskList.svelte';
 	import TaskPagination from './components/TaskPagination.svelte';
 	import TaskFilter from './components/TaskFilter.svelte';
+	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+	import TaskGroupList from './components/TaskGroupList.svelte';
 	import { taskListStore } from './stores/task-list-migrated.svelte';
+	import { taskGroupStore } from '$lib/stores/task-group.svelte';
 	
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -15,14 +18,19 @@
 	let currentStatus = $state('all');
 	let currentRepository = $state('');
 	
+	// 現在のタブ
+	let activeTab = $state('single');
+	
 	// ストアの初期化
 	$effect(() => {
 		taskListStore.initialize(data.tasks || []);
 	});
 	
 	// コンポーネントのライフサイクル
-	onMount(() => {
+	onMount(async () => {
 		// WebSocketの初期化はストア内で行われる
+		// タスクグループストアの初期化
+		await taskGroupStore.init();
 	});
 	
 	onDestroy(() => {
@@ -37,6 +45,16 @@
 	// 新しいタスク画面へ
 	function goToNewTask() {
 		window.location.href = '/tasks/new';
+	}
+	
+	// タスクグループの詳細表示
+	function viewTaskGroup(groupId: string) {
+		taskGroupStore.fetchStatus(groupId);
+	}
+	
+	// タスクグループのキャンセル
+	async function cancelTaskGroup(groupId: string) {
+		await taskGroupStore.cancel(groupId);
 	}
 	
 	// ページ変更
@@ -100,8 +118,8 @@
 	<!-- ページヘッダー -->
 	<div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
 		<div>
-			<h2 class="text-2xl lg:text-3xl font-bold tracking-tight">タスク一覧</h2>
-			<p class="text-sm lg:text-base text-muted-foreground">実行中のタスクを管理</p>
+			<h2 class="text-2xl lg:text-3xl font-bold tracking-tight">タスク管理</h2>
+			<p class="text-sm lg:text-base text-muted-foreground">タスクとタスクグループを管理</p>
 		</div>
 		<div class="flex gap-2">
 			<Button variant="outline" onclick={() => window.location.href = '/tasks/tree'} class="flex-1 lg:flex-initial">
@@ -117,25 +135,65 @@
 		</div>
 	</div>
 
-	<!-- フィルター -->
-	<TaskFilter 
-		currentStatus={currentStatus}
-		onStatusChange={handleStatusChange}
-		currentRepository={currentRepository}
-		onRepositoryChange={handleRepositoryChange}
-	/>
+	<!-- タブ切り替え -->
+	<Tabs value={activeTab} onValueChange={(value) => activeTab = value}>
+		<TabsList class="grid w-full grid-cols-2 max-w-[400px]">
+			<TabsTrigger value="single" class="flex items-center gap-2">
+				<span>単一タスク</span>
+				{#if taskListStore.tasks.length > 0}
+					<span class="text-xs bg-primary/20 px-1.5 py-0.5 rounded-full">
+						{taskListStore.tasks.length}
+					</span>
+				{/if}
+			</TabsTrigger>
+			<TabsTrigger value="group" class="flex items-center gap-2">
+				<FolderTree class="h-4 w-4" />
+				<span>タスクグループ</span>
+				{#if taskGroupStore.groups.length > 0}
+					<span class="text-xs bg-primary/20 px-1.5 py-0.5 rounded-full">
+						{taskGroupStore.groups.length}
+					</span>
+				{/if}
+			</TabsTrigger>
+		</TabsList>
 
-	<!-- タスク一覧 -->
-	<TaskList 
-		tasks={filteredTasks} 
-		onTaskClick={viewTask}
-		currentRepository={currentRepository}
-	/>
+		<!-- 単一タスクタブ -->
+		<TabsContent value="single" class="space-y-4">
+			<!-- フィルター -->
+			<TaskFilter 
+				currentStatus={currentStatus}
+				onStatusChange={handleStatusChange}
+				currentRepository={currentRepository}
+				onRepositoryChange={handleRepositoryChange}
+			/>
 
-	<!-- ページネーション -->
-	<TaskPagination 
-		currentPage={data.pagination?.page || 1}
-		totalPages={data.pagination?.totalPages || 1}
-		onPageChange={handlePageChange}
-	/>
+			<!-- タスク一覧 -->
+			<TaskList 
+				tasks={filteredTasks} 
+				onTaskClick={viewTask}
+				currentRepository={currentRepository}
+			/>
+
+			<!-- ページネーション -->
+			<TaskPagination 
+				currentPage={data.pagination?.page || 1}
+				totalPages={data.pagination?.totalPages || 1}
+				onPageChange={handlePageChange}
+			/>
+		</TabsContent>
+
+		<!-- タスクグループタブ -->
+		<TabsContent value="group" class="space-y-4">
+			<!-- タスクグループ一覧 -->
+			<TaskGroupList 
+				groups={taskGroupStore.groups}
+				stats={taskGroupStore.stats}
+				loading={taskGroupStore.loading}
+				error={taskGroupStore.error}
+				onGroupClick={viewTaskGroup}
+				onGroupCancel={cancelTaskGroup}
+				selectedGroup={taskGroupStore.selectedGroup}
+			/>
+		</TabsContent>
+	</Tabs>
 </div>
