@@ -17,26 +17,11 @@ import type {
 import type { TaskRequest } from "../claude/types.js";
 import { getSharedWebSocketServer } from "../websocket/shared-instance.js";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
-
-/**
- * Progress message from Claude Code SDK
- */
-interface ProgressMessage {
-  type: string;
-  message?: string;
-  data?: any;
-  tool?: string;
-  input?: any;
-  output?: any;
-}
-
-/**
- * Formatted log message for WebSocket broadcast
- */
-interface FormattedLog {
-  message: string;
-  level: "info" | "warning" | "error" | "debug";
-}
+import {
+  ProgressFormatter,
+  type ProgressMessage,
+  type FormattedLog,
+} from "../utils/progress-formatter.js";
 
 /**
  * Executes task groups with dependency management and session continuity
@@ -47,127 +32,6 @@ export class TaskGroupExecutor {
 
   constructor() {
     this.executor = new TaskExecutorImpl();
-  }
-
-  /**
-   * Format progress messages from Claude Code SDK into readable logs
-   */
-  private formatProgressMessage(progress: ProgressMessage): FormattedLog | null {
-    let message = "";
-    let level: "info" | "warning" | "error" | "debug" = "info";
-
-    switch (progress.type) {
-      case "log":
-        message = progress.message || "";
-        break;
-
-      case "tool:start":
-        message = this.formatToolStartMessage(progress);
-        break;
-
-      case "tool:end":
-        message = this.formatToolEndMessage(progress);
-        break;
-
-      case "claude:response":
-        message = `💭 Claude: ${progress.message || ""}`;
-        break;
-
-      case "tool_usage":
-        message = this.formatLegacyToolUsage(progress);
-        break;
-
-      case "todo_update":
-        message = `📝 TODO: ${progress.message || ""}`;
-        break;
-
-      case "progress":
-        message = `⏳ ${progress.message || ""}`;
-        break;
-
-      case "summary":
-        message = progress.message || "";
-        level = "info";
-        break;
-
-      case "statistics":
-        message = `📊 ${progress.message || ""}`;
-        break;
-
-      default:
-        if (progress.message) {
-          message = progress.message;
-        }
-        break;
-    }
-
-    return message ? { message, level } : null;
-  }
-
-  /**
-   * Format tool start messages
-   */
-  private formatToolStartMessage(progress: ProgressMessage): string {
-    const toolName = progress.data?.tool || progress.tool || "unknown";
-    const input = progress.data?.input || progress.input || "";
-
-    switch (toolName) {
-      case "bash":
-        return `🔧 Executing command: ${typeof input === "object" ? input.command : input}`;
-      case "read":
-        return `📖 Reading file: ${typeof input === "object" ? input.file_path : input}`;
-      case "write":
-      case "edit":
-        return `✏️ ${toolName === "write" ? "Writing" : "Editing"} file: ${typeof input === "object" ? input.file_path : input}`;
-      case "search":
-      case "grep":
-        return `🔍 Searching for: ${typeof input === "object" ? input.pattern || input.query : input}`;
-      default:
-        return `🔧 Using tool: ${toolName}`;
-    }
-  }
-
-  /**
-   * Format tool end messages
-   */
-  private formatToolEndMessage(progress: ProgressMessage): string {
-    const toolName = progress.data?.tool || progress.tool || "unknown";
-    const output = progress.data?.output || progress.output;
-
-    if (toolName === "bash" && output) {
-      const lines = String(output).split("\n").slice(0, 3);
-      const preview = lines.join("\n");
-      const hasMore = String(output).split("\n").length > 3;
-      return `✓ Command output:\n${preview}${hasMore ? "\n..." : ""}`;
-    }
-    return `✓ Tool completed: ${toolName}`;
-  }
-
-  /**
-   * Format legacy tool usage messages
-   */
-  private formatLegacyToolUsage(progress: ProgressMessage): string {
-    const toolData = progress.data;
-    if (!toolData) {
-      return progress.message || "";
-    }
-
-    const toolStatus =
-      toolData.status === "success" ? "✓" : toolData.status === "failure" ? "✗" : "⚡";
-
-    if (toolData.tool === "bash") {
-      return `[Bash] ${toolStatus} ${toolData.command || ""}`;
-    } else if (toolData.tool === "read") {
-      return `[Read] ${toolStatus} ${toolData.filePath || ""}`;
-    } else if (toolData.tool === "write" || toolData.tool === "edit") {
-      return `[${toolData.tool}] ${toolStatus} ${toolData.filePath || ""}`;
-    } else {
-      let message = `[${toolData.tool}] ${toolStatus} ${toolData.status === "start" ? "開始" : toolData.status === "success" ? "成功" : "失敗"}`;
-      if (toolData.filePath) message += `: ${toolData.filePath}`;
-      else if (toolData.command) message += `: ${toolData.command}`;
-      else if (toolData.pattern) message += `: ${toolData.pattern}`;
-      return message;
-    }
   }
 
   /**
@@ -204,7 +68,7 @@ export class TaskGroupExecutor {
     wsServer: WebSocketServer | null | undefined,
   ): (progress: ProgressMessage) => Promise<void> {
     return async (progress: ProgressMessage) => {
-      const formattedLog = this.formatProgressMessage(progress);
+      const formattedLog = ProgressFormatter.formatProgressMessage(progress);
       if (formattedLog) {
         this.broadcastLog(wsServer, groupId, task.id, task.name, formattedLog);
       }

@@ -13,11 +13,13 @@
 	let { 
 		selectedDirectories = $bindable([]), 
 		onSelectionChange = () => {},
-		readonly = false 
+		readonly = false,
+		singleSelect = false
 	}: {
 		selectedDirectories?: string[];
 		onSelectionChange?: (selected: string[]) => void;
 		readonly?: boolean;
+		singleSelect?: boolean;
 	} = $props();
 
 	// State
@@ -51,17 +53,27 @@
 	function toggleDirectory(path: string) {
 		if (readonly) return;
 		
-		if (selectedDirectories.includes(path)) {
-			selectedDirectories = selectedDirectories.filter(p => p !== path);
+		if (singleSelect) {
+			// 単一選択モード：既に選択されている場合は解除、そうでなければその1つだけを選択
+			if (selectedDirectories.includes(path)) {
+				selectedDirectories = [];
+			} else {
+				selectedDirectories = [path];
+			}
 		} else {
-			selectedDirectories = [...selectedDirectories, path];
+			// 複数選択モード（デフォルト）
+			if (selectedDirectories.includes(path)) {
+				selectedDirectories = selectedDirectories.filter(p => p !== path);
+			} else {
+				selectedDirectories = [...selectedDirectories, path];
+			}
 		}
 		onSelectionChange(selectedDirectories);
 	}
 
 	// すべて選択/解除
 	function toggleAll() {
-		if (readonly) return;
+		if (readonly || singleSelect) return; // 単一選択モードでは無効
 		
 		if (isAllSelected) {
 			selectedDirectories = [];
@@ -83,6 +95,8 @@
 		<CardDescription>
 			{#if readonly}
 				SDK Continueモードでは前回のタスクと同じ作業ディレクトリを使用します
+			{:else if singleSelect}
+				タスクを実行する作業ディレクトリを1つ選択してください
 			{:else}
 				タスクを実行する作業ディレクトリを選択してください
 			{/if}
@@ -116,8 +130,8 @@
 		{:else}
 			<!-- ディレクトリ一覧 -->
 			<div class="space-y-4">
-				<!-- すべて選択 -->
-				{#if !readonly}
+				<!-- すべて選択 (単一選択モードでは非表示) -->
+				{#if !readonly && !singleSelect}
 					<div class="flex items-center space-x-2 pb-2 border-b">
 						<Checkbox
 							checked={isAllSelected}

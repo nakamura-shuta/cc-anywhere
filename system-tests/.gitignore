@@ -1,0 +1,21 @@
+# テスト結果
+test-results/
+playwright-report/
+playwright/.cache/
+
+# 環境変数
+.env
+.env.local
+
+# ログ
+*.log
+
+# 一時ファイル
+*.tmp
+.DS_Store
+
+# node_modules
+node_modules/
+
+# TypeScript
+*.tsbuildinfo

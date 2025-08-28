@@ -81,6 +81,14 @@ test-repo/
 test-repos/
 .repos/
 
+# Test generated files (防止のため)
+backend/*.txt
+backend/index.js
+backend/main.js
+backend/utils.js
+backend/file*.txt
+backend/package.json
+
 
 # Serena
 .serena/

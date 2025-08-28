@@ -1,6 +1,6 @@
 {
-  "name": "@cc-anywhere/backend",
-  "version": "0.1.0",
+  "name": "test-project",
+  "version": "1.0.0",
   "description": "HTTP server application for executing tasks via Claude Code SDK",
   "main": "dist/index.js",
   "scripts": {

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **システムテスト環境の構築**: E2EテストとAPIテストの包括的な環境を追加
+  - Playwrightベースのテスト環境（`/system-tests`）
+  - APIインテグレーションテスト（タスク実行、エラーハンドリング、認証）
+  - タスク実行結果検証テスト（ファイル作成、修正、エラー処理）
+  - タスクグループ実行検証テスト（順次・並列実行、依存関係）
+  - 11のテストケースすべてが正常に動作
 - **CLIセッション継続機能**: Claude Code SDK v1.0.83のセッション継続機能をサポート
   - `sdkSessionId`を使用した会話の継続が可能に
   - 前回のセッションコンテキストを引き継いで新しいタスクを作成
@@ -17,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Claude Code SDK更新**: v1.0.83の最新機能に対応
   - `options.resume`パラメータによるセッション継続のサポート
+
+### Fixed
+- **テスト生成ファイルの配置問題**: テスト時のファイル生成場所を修正
+  - タスクグループAPIでworkingDirectoryを正しくcontextレベルで処理
+  - backendディレクトリへの誤ったファイル生成を防止
+  - .gitignoreを更新してテストファイルを除外
 
 ## [0.5.0] - 2025-08-18
 

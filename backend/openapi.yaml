@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: CC-Anywhere API
   description: Claude Code SDK HTTP Server API
-  version: 0.4.0
+  version: 0.5.0
   contact:
     name: API Support
     email: support@example.com
@@ -97,6 +97,30 @@ components:
         workingDirectory:
           type: string
           nullable: true
+        sdkSessionId:
+          type: string
+          nullable: true
+          description: Claude Code SDK session ID for task continuation
+        continuedFrom:
+          type: string
+          nullable: true
+          description: Task ID this was continued from
+        todos:
+          type: array
+          nullable: true
+          items:
+            type: object
+          description: Todo list from Claude Code SDK
+        logs:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: Execution logs
+        options:
+          type: object
+          nullable: true
+          description: Task execution options
       required:
         - taskId
         - status
@@ -122,15 +146,72 @@ components:
           type: object
           properties:
             timeout:
-              type: integer
-              minimum: 1000
-              maximum: 3600000
+              oneOf:
+                - type: integer
+                  minimum: 1000
+                  maximum: 600000
+                  description: Total timeout in milliseconds
+                - type: object
+                  description: Detailed timeout configuration
+                  properties:
+                    total:
+                      type: integer
+                      minimum: 1000
+                      maximum: 600000
+                    setup:
+                      type: integer
+                      minimum: 100
+                      maximum: 300000
+                    execution:
+                      type: integer
+                      minimum: 1000
+                      maximum: 600000
+                    cleanup:
+                      type: integer
+                      minimum: 100
+                      maximum: 60000
+                    warningThreshold:
+                      type: number
+                      minimum: 0.1
+                      maximum: 1
+                    behavior:
+                      type: string
+                      enum: [hard, soft]
+              default: 300000
             async:
               type: boolean
+              default: false
+              description: Whether to execute the task asynchronously
             allowedTools:
               type: array
               items:
                 type: string
+            useWorktree:
+              type: boolean
+              description: Enable Git worktree for isolated execution
+            worktree:
+              type: object
+              description: Git worktree configuration
+              properties:
+                enabled:
+                  type: boolean
+                baseBranch:
+                  type: string
+                branchName:
+                  type: string
+                keepAfterCompletion:
+                  type: boolean
+                autoCommit:
+                  type: boolean
+                commitMessage:
+                  type: string
+                autoMerge:
+                  type: boolean
+                mergeStrategy:
+                  type: string
+                  enum: [merge, rebase, squash]
+                targetBranch:
+                  type: string
             sdk:
               type: object
               description: Claude Code SDK specific options
@@ -149,10 +230,11 @@ components:
                   description: Continue from a previous task using its SDK session ID
                 permissionMode:
                   type: string
-                  enum: [ask, allow, deny, acceptEdits, bypassPermissions, plan]
+                  enum: [ask, allow, deny, acceptEdits, bypassPermissions, plan, default]
                   description: Permission mode for tool execution
                 systemPrompt:
                   type: string
+                  maxLength: 10000
                   description: Custom system prompt
                 allowedTools:
                   type: array
@@ -164,6 +246,13 @@ components:
                   items:
                     type: string
                   description: List of disallowed tools for SDK
+                executable:
+                  type: string
+                  enum: [node, bun, deno]
+                  description: JavaScript execution environment
+                pathToClaudeCodeExecutable:
+                  type: string
+                  description: Path to Claude Code executable
         continuationOptions:
           type: object
           properties:
@@ -406,6 +495,10 @@ components:
           type: string
         instruction:
           type: string
+        workingDirectory:
+          type: string
+          nullable: true
+          description: Working directory for task execution
         dependencies:
           type: array
           items:
@@ -691,7 +784,13 @@ paths:
               $ref: '#/components/schemas/CreateTaskRequest'
       responses:
         '201':
-          description: Task created successfully
+          description: Task created successfully (synchronous execution)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '202':
+          description: Task accepted for asynchronous execution
           content:
             application/json:
               schema:
@@ -700,6 +799,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '408':
+          description: Request Timeout - Task execution timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/InternalServerError'
 

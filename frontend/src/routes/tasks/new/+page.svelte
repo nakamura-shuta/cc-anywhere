@@ -16,7 +16,6 @@
 	import DirectorySelector from '$lib/components/directory-selector.svelte';
 	import { onMount } from 'svelte';
 	import * as Alert from '$lib/components/ui/alert';
-	import { RepositoryExplorer } from '$lib/components/repository-explorer';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import GroupTaskForm from '$lib/components/task-group/GroupTaskForm.svelte';
 	
@@ -61,8 +60,6 @@
 	// CLIセッション継続モード
 	let resumeSessionId = $state<string>('');
 	
-	// リポジトリエクスプローラーの表示状態（初期状態で表示）
-	let showRepositoryExplorer = $state(true);
 	
 	// 詳細設定の表示/非表示（SDK Continueモードではデフォルトで非表示）
 	let showAdvancedSettings = $state(false);
@@ -246,36 +243,11 @@
 				<Card.Content>
 					<DirectorySelector 
 						bind:selectedDirectories={selectedDirectories}
+						singleSelect={true}
 						onSelectionChange={(selected) => {
-							selectedDirectories = selected.slice(0, 1); // グループタスクは単一ディレクトリのみ
+							selectedDirectories = selected;
 						}}
 					/>
-					
-					<!-- リポジトリエクスプローラー -->
-					{#if showRepositoryExplorer}
-						<div class="border rounded-lg overflow-hidden mt-4">
-							<div class="p-3 bg-muted border-b">
-								<span class="text-sm font-medium">ファイルエクスプローラー</span>
-							</div>
-							<div class="h-[400px]">
-								{#if selectedDirectories.length === 0}
-									<div class="flex items-center justify-center h-full text-muted-foreground text-sm">
-										作業ディレクトリを選択すると、ファイルツリーが表示されます
-									</div>
-								{:else}
-									<RepositoryExplorer
-										repositories={selectedDirectories.map(path => ({
-											name: path.split('/').pop() || path,
-											path: path
-										}))}
-										position="side"
-										layout="horizontal"
-										showHeader={false}
-									/>
-								{/if}
-							</div>
-						</div>
-					{/if}
 				</Card.Content>
 			</Card.Root>
 		{/if}
@@ -333,32 +305,6 @@
 						セッションIDを指定する場合は、単一のリポジトリのみ選択可能です。
 					</p>
 				</div>
-				
-				<!-- リポジトリエクスプローラー -->
-				{#if showRepositoryExplorer}
-					<div class="border rounded-lg overflow-hidden">
-						<div class="p-3 bg-muted border-b">
-							<span class="text-sm font-medium">ファイルエクスプローラー</span>
-						</div>
-						<div class="h-[400px]">
-							{#if selectedDirectories.length === 0}
-								<div class="flex items-center justify-center h-full text-muted-foreground text-sm">
-									作業ディレクトリを選択すると、ファイルツリーが表示されます
-								</div>
-							{:else}
-								<RepositoryExplorer
-									repositories={selectedDirectories.map(path => ({
-										name: path.split('/').pop() || path,
-										path: path
-									}))}
-									position="side"
-									layout="horizontal"
-									showHeader={false}
-								/>
-							{/if}
-						</div>
-					</div>
-				{/if}
 
 				{#if isSdkContinueMode}
 					<div class="border-t pt-4">

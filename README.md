@@ -251,9 +251,17 @@ ngrok config add-authtoken YOUR_AUTH_TOKEN
 ## 開発者向け
 
 ```bash
-# テスト
-npm run test:unit
-npm run test:integration
+# バックエンドテスト
+cd backend
+npm run test:unit        # ユニットテスト
+npm run test:integration # 統合テスト
+
+# システムテスト（E2E/API）
+cd system-tests
+npm test                 # 全テスト実行（11ケース）
+npm run test:api        # API基本テスト
+npm run test:verify     # 実行結果検証テスト
+npm run test:group      # グループ実行テスト
 
 # コード品質
 npm run lint
@@ -265,7 +273,14 @@ npm run type-check
 ./backend/scripts/pm2-manager.sh logs  # ログ確認
 ```
 
-詳細は[ドキュメント](docs/)を参照。
+### システムテスト
+
+`system-tests`ディレクトリには、Playwrightベースの包括的なテスト環境があります:
+- **APIテスト**: タスクの作成・実行、エラーハンドリング、認証
+- **実行検証テスト**: ファイル作成・修正の動作確認
+- **グループテスト**: 複数タスクの順次・並列実行、依存関係
+
+詳細は[システムテストREADME](system-tests/README.md)を参照。
 
 ## ライセンス
 
