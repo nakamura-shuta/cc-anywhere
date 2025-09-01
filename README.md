@@ -68,29 +68,53 @@ npm run dev
 - npm 10〜
 - Claude API キー（[Anthropic Console](https://console.anthropic.com/)で取得）
 
-## セットアップ
+## セットアップと起動方法
 
-### 開発環境
+### 初期セットアップ
 
 ```bash
 git clone https://github.com/nakamura-shuta/cc-anywhere
 cd cc-anywhere
 npm install
 cp .env.example .env
-# .envファイルを編集してCLAUDE_API_KEYを設定
-npm run dev
+# .envファイルを編集してCLAUDE_API_KEYを設定（必須）
 ```
 
-### 本番環境
+### 🚀 起動方法（用途別）
 
+#### 1️⃣ 通常の開発作業
 ```bash
-# pm2をインストール（未インストールの場合）
+./scripts/start-dev.sh
+# ホットリロード有効の開発サーバー
+# http://localhost:5000 でアクセス
+```
+
+#### 2️⃣ スマートフォンからアクセス
+```bash
+./scripts/start-clamshell.sh
+# → メニューから選択:
+#   1) ngrok - 一時的なURL（簡単）
+#   2) Cloudflare Tunnel - 固定URL（要設定）
+# QRコードが表示されるのでスマホでスキャン
+```
+
+#### 3️⃣ 本番環境（24時間稼働）
+```bash
+# 事前準備: PM2インストール
 npm install -g pm2
 
 # ビルドして起動
 ./scripts/build-all.sh
 ./scripts/start-production.sh
 ```
+
+#### 🛑 停止方法
+```bash
+./scripts/stop-all.sh
+# すべてのプロセスを安全に停止
+```
+
+詳しい使い分けは[スクリプト使い分けガイド](docs/scripts-overview.md)を参照。
 
 ## 環境変数の設定
 

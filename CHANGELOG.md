@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ドキュメント整備**: 起動スクリプトと環境変数のドキュメントを追加
+  - `docs/scripts-overview.md` - スクリプト使い分けガイド
+  - `docs/environment-variables.md` - 環境変数リファレンス
 - **システムテスト環境の構築**: E2EテストとAPIテストの包括的な環境を追加
   - Playwrightベースのテスト環境（`/system-tests`）
   - APIインテグレーションテスト（タスク実行、エラーハンドリング、認証）
@@ -21,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 統合テストを追加して動作を検証
 
 ### Changed
+- **環境変数の整理**: 未使用の環境変数を`.env.example`から削除
+  - `DATABASE_URL`（PostgreSQL用・未実装）を削除
+  - `REDIS_URL`（Redis用・未実装）を削除
+- **README.md改善**: 起動方法を用途別に整理し分かりやすく改善
 - **Claude Code SDK更新**: v1.0.83の最新機能に対応
   - `options.resume`パラメータによるセッション継続のサポート
 
