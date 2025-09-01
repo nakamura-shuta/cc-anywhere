@@ -17,6 +17,7 @@ import type {
 import type { TaskRequest } from "../claude/types.js";
 import { getSharedWebSocketServer } from "../websocket/shared-instance.js";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
+import { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
 import {
   ProgressFormatter,
   type ProgressMessage,
@@ -29,6 +30,7 @@ import {
 export class TaskGroupExecutor {
   private executor: TaskExecutorImpl;
   private activeGroups = new Map<string, TaskGroupResult>();
+  private broadcaster?: WebSocketBroadcaster;
 
   constructor() {
     this.executor = new TaskExecutorImpl();
@@ -49,8 +51,13 @@ export class TaskGroupExecutor {
       return;
     }
 
-    wsServer.broadcastTaskGroupLog({
-      groupId,
+    // Create broadcaster if not exists
+    if (!this.broadcaster) {
+      this.broadcaster = new WebSocketBroadcaster(wsServer);
+    }
+
+    // Use the new WebSocketBroadcaster
+    this.broadcaster.taskGroup(groupId, "task-group:log", {
       taskId,
       taskName,
       log: log.message,
@@ -169,14 +176,21 @@ export class TaskGroupExecutor {
             const taskResult = await this.executeTask(task, sessionId, result, group, context);
             if (taskResult?.sessionId) {
               sessionId = taskResult.sessionId;
+              // Update session ID in parent result object
+              result.sessionId = sessionId;
             }
           }
         }
 
         // Update progress after each stage
         result.progress = Math.round((result.completedTasks / result.totalTasks) * 100);
+        // Ensure session ID is propagated to result
+        if (sessionId) {
+          result.sessionId = sessionId;
+        }
         this.activeGroups.set(groupId, { ...result });
-        taskGroupStore.updateStatus(groupId, result.status);
+        // Don't call updateStatus here as it broadcasts with potentially stale data
+        // The status is already being broadcast by updateTaskProgress
       }
 
       // Mark as completed
@@ -185,6 +199,7 @@ export class TaskGroupExecutor {
       result.progress = 100;
       result.sessionId = sessionId;
 
+      taskGroupStore.updateSessionId(groupId, sessionId);
       taskGroupStore.updateStatus(groupId, "completed");
 
       logger.info("Task group execution completed successfully", {
@@ -241,12 +256,20 @@ export class TaskGroupExecutor {
       return null;
     }
 
+    // If we have a session ID, ensure it's updated in the store before status changes
+    if (sessionId && !groupResult.sessionId) {
+      groupResult.sessionId = sessionId;
+      taskGroupStore.updateSessionId(groupResult.groupId, sessionId);
+    }
+
     // Update task status to running
     const taskRecord = groupResult.tasks[taskIndex];
     if (taskRecord) {
       taskRecord.status = "running";
       taskRecord.startedAt = new Date();
+      // Update activeGroups first to ensure latest state is available
       this.activeGroups.set(groupResult.groupId, { ...groupResult });
+      // Then update task progress which will broadcast the latest state with current sessionId
       taskGroupStore.updateTaskProgress(groupResult.groupId, task.id, "running");
     }
 
@@ -319,6 +342,15 @@ export class TaskGroupExecutor {
         sessionId: result?.sdkSessionId,
       });
 
+      // Update session ID immediately after task completes, BEFORE updating task status
+      if (result.sdkSessionId) {
+        groupResult.sessionId = result.sdkSessionId;
+        // Update activeGroups to persist session ID
+        this.activeGroups.set(groupResult.groupId, { ...groupResult });
+        // Update store so that subsequent broadcasts have the correct session ID
+        taskGroupStore.updateSessionId(groupResult.groupId, result.sdkSessionId);
+      }
+
       // Update task status to completed
       const completedTaskRecord = groupResult.tasks[taskIndex];
       if (completedTaskRecord) {
@@ -326,6 +358,7 @@ export class TaskGroupExecutor {
         completedTaskRecord.completedAt = new Date();
         completedTaskRecord.result = result;
         groupResult.completedTasks++;
+        // Now updateTaskProgress will broadcast with the correct session ID
         taskGroupStore.updateTaskProgress(groupResult.groupId, task.id, "completed");
         taskGroupStore.updateTaskResult(groupResult.groupId, task.id, result);
       }

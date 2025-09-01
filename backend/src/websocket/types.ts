@@ -224,6 +224,15 @@ export interface TaskGroupStatusMessage extends WebSocketMessage {
   payload: {
     groupId: string;
     status: string;
+    sessionId?: string;
+    tasks?: Array<{
+      id: string;
+      name: string;
+      status: string;
+      error?: string;
+      startedAt?: Date;
+      completedAt?: Date;
+    }>;
     timestamp: string;
   };
 }

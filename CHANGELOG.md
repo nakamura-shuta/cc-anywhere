@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **タスクグループのリアルタイム更新**: WebSocket通信の問題を修正
+  - セッションIDがリアルタイムで正しく表示されるように修正
+  - タスクステータスが「pending」→「running」→「completed」と正しく遷移するように修正
+  - WebSocketブロードキャスターをリファクタリングして20以上のメソッドを統合
+  - フロントエンドのWebSocketハンドラーでセッションIDとタスク情報を正しく反映
+
 ### Added
 - **ドキュメント整備**: 起動スクリプトと環境変数のドキュメントを追加
   - `docs/scripts-overview.md` - スクリプト使い分けガイド

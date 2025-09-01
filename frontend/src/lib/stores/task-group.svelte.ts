@@ -187,20 +187,34 @@ class TaskGroupStore {
         break;
         
       case 'task-group:status':
-        // Update group status
+        // Update group status, sessionId, and tasks
         if (payload.groupId && payload.status) {
           const index = this.groups.findIndex(g => g.id === payload.groupId);
           if (index !== -1) {
             const oldStatus = this.groups[index].status;
             this.groups[index] = {
               ...this.groups[index],
-              status: payload.status
+              status: payload.status,
+              // Update sessionId if provided
+              ...(payload.sessionId && { sessionId: payload.sessionId })
             };
             
             // Update stats
             if (oldStatus !== payload.status) {
               this.updateStats(oldStatus, payload.status);
             }
+          }
+          
+          // Update selected group if it matches
+          if (this.selectedGroup && this.selectedGroup.groupId === payload.groupId) {
+            this.selectedGroup = {
+              ...this.selectedGroup,
+              status: payload.status,
+              // Update sessionId if provided
+              ...(payload.sessionId && { sessionId: payload.sessionId }),
+              // Update tasks if provided
+              ...(payload.tasks && { tasks: payload.tasks })
+            };
           }
         }
         break;

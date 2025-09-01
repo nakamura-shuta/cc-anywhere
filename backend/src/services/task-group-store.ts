@@ -98,6 +98,20 @@ export class TaskGroupStore extends EventEmitter {
   }
 
   /**
+   * Update session ID for task group
+   */
+  updateSessionId(groupId: string, sessionId: string | undefined): void {
+    const record = this.groups.get(groupId);
+    if (!record) return;
+
+    record.result.sessionId = sessionId;
+    record.updatedAt = new Date();
+
+    // Don't broadcast here - let updateTaskProgress handle the broadcasting
+    // to avoid duplicate messages with inconsistent state
+  }
+
+  /**
    * Update task progress
    */
   updateTaskProgress(
@@ -132,7 +146,7 @@ export class TaskGroupStore extends EventEmitter {
 
       this.emit("group:progress", record);
 
-      // Broadcast via WebSocket
+      // Broadcast via WebSocket with full task status information
       if (this.wsServer) {
         this.wsServer.broadcastTaskGroupProgress({
           groupId,
@@ -140,6 +154,15 @@ export class TaskGroupStore extends EventEmitter {
           totalTasks: record.group.tasks.length,
           progress: record.progress.percentage,
           currentTask: record.currentTask,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Also broadcast detailed status update with task information
+        this.wsServer.broadcastTaskGroupStatus({
+          groupId,
+          status: record.result.status,
+          sessionId: record.result.sessionId,
+          tasks: record.result.tasks,
           timestamp: new Date().toISOString(),
         });
       }

@@ -9,6 +9,7 @@ import { getSharedRepository } from "../db/shared-instance";
 import type { TaskRepositoryAdapter } from "../repositories/task-repository-adapter";
 import { RetryService } from "../services/retry-service";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
+import { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
 import { getTypedEventBus, type TypedEventBus } from "../events";
 
 export { TaskQueue };
@@ -21,6 +22,7 @@ export class TaskQueueImpl implements TaskQueue {
   private failedCount = 0;
   private repository: TaskRepositoryAdapter;
   private wsServer?: WebSocketServer;
+  private broadcaster?: WebSocketBroadcaster;
   private eventBus: TypedEventBus;
 
   // Legacy event handlers (deprecated - will be removed)
@@ -141,11 +143,10 @@ export class TaskQueueImpl implements TaskQueue {
       try {
         this.repository.updateStatus(task.id, TaskStatus.RUNNING);
       } catch (error) {
-        logger.error("Failed to update task status in database", { taskId: task.id, error });
+        logger.error("Failed to update task status in database", { error });
       }
 
       logger.info("Task execution started", {
-        taskId: task.id,
         instruction: task.request.instruction,
         currentAttempt: task.retryMetadata?.currentAttempt ?? 0,
       });
@@ -190,12 +191,10 @@ export class TaskQueueImpl implements TaskQueue {
                 switch (progress.type) {
                   case "log":
                     logger.debug("Sending progress log via WebSocket", {
-                      taskId: task.id,
                       message: progress.message,
                     });
                     logMessage = progress.message;
-                    this.wsServer?.broadcastTaskLog({
-                      taskId: task.id,
+                    this.broadcaster?.task(task.id, "task:log", {
                       log: progress.message,
                       timestamp,
                       level: "info",
@@ -216,8 +215,7 @@ export class TaskQueueImpl implements TaskQueue {
                       else if (progress.data.command) logMessage += `: ${progress.data.command}`;
                       else if (progress.data.pattern) logMessage += `: ${progress.data.pattern}`;
 
-                      this.wsServer?.broadcastToolUsage({
-                        taskId: task.id,
+                      this.broadcaster?.task(task.id, "task:tool_usage", {
                         tool: {
                           ...progress.data,
                           timestamp: progress.data.timestamp?.toISOString() || timestamp,
@@ -229,8 +227,7 @@ export class TaskQueueImpl implements TaskQueue {
                   case "progress":
                     if (progress.data) {
                       // プログレスメッセージはログに含めない（進捗バー表示用）
-                      this.wsServer?.broadcastTaskProgress({
-                        taskId: task.id,
+                      this.broadcaster?.task(task.id, "task:progress", {
                         progress: {
                           ...progress.data,
                           timestamp: progress.data.timestamp?.toISOString() || timestamp,
@@ -242,8 +239,7 @@ export class TaskQueueImpl implements TaskQueue {
                   case "summary":
                     if (progress.data) {
                       // サマリーメッセージもログに含めない（別UI表示用）
-                      this.wsServer?.broadcastTaskSummary({
-                        taskId: task.id,
+                      this.broadcaster?.task(task.id, "task:summary", {
                         summary: progress.data,
                       });
                     }
@@ -264,13 +260,12 @@ export class TaskQueueImpl implements TaskQueue {
                       try {
                         this.repository.updateProgressData(task.id, progressData);
                       } catch (error) {
-                        logger.error("Failed to update progress data", { taskId: task.id, error });
+                        logger.error("Failed to update progress data", { error });
                       }
 
                       // Broadcast todo update via WebSocket
                       if (this.wsServer) {
-                        this.wsServer.broadcastTodoUpdate({
-                          taskId: task.id,
+                        this.broadcaster?.task(task.id, "task:todo_update", {
                           todos: progress.data.todos,
                         });
                       } else {
@@ -278,7 +273,6 @@ export class TaskQueueImpl implements TaskQueue {
                       }
                     } else {
                       logger.warn("todo_update progress missing todos data", {
-                        taskId: task.id,
                         data: progress.data,
                       });
                     }
@@ -328,13 +322,11 @@ export class TaskQueueImpl implements TaskQueue {
                         this.repository.updateProgressData(task.id, progressData);
                       } catch (error) {
                         logger.error("Failed to update progress data", {
-                          taskId: task.id,
                           error,
                         });
                       }
 
-                      this.wsServer?.broadcastToolStart({
-                        taskId: task.id,
+                      this.broadcaster?.task(task.id, "task:tool:start", {
                         toolId: progress.data.toolId || `${progress.data.tool}-${Date.now()}`,
                         tool: progress.data.tool,
                         input: progress.data.input,
@@ -369,13 +361,11 @@ export class TaskQueueImpl implements TaskQueue {
                         this.repository.updateProgressData(task.id, progressData);
                       } catch (error) {
                         logger.error("Failed to update progress data", {
-                          taskId: task.id,
                           error,
                         });
                       }
 
-                      this.wsServer?.broadcastToolEnd({
-                        taskId: task.id,
+                      this.broadcaster?.task(task.id, "task:tool:end", {
                         toolId: progress.data.toolId,
                         tool: progress.data.tool,
                         output: progress.data.output,
@@ -413,11 +403,10 @@ export class TaskQueueImpl implements TaskQueue {
                       try {
                         this.repository.updateProgressData(task.id, progressData);
                       } catch (error) {
-                        logger.error("Failed to update progress data", { taskId: task.id, error });
+                        logger.error("Failed to update progress data", { error });
                       }
 
-                      this.wsServer?.broadcastClaudeResponse({
-                        taskId: task.id,
+                      this.broadcaster?.task(task.id, "task:claude_response", {
                         text: progress.message,
                         turnNumber: progress.data.turnNumber || 1,
                         maxTurns: progress.data.maxTurns,
@@ -462,11 +451,10 @@ export class TaskQueueImpl implements TaskQueue {
                       try {
                         this.repository.updateProgressData(task.id, progressData);
                       } catch (error) {
-                        logger.error("Failed to update progress data", { taskId: task.id, error });
+                        logger.error("Failed to update progress data", { error });
                       }
 
-                      this.wsServer?.broadcastTaskStatistics({
-                        taskId: task.id,
+                      this.broadcaster?.task(task.id, "task:statistics", {
                         statistics: progress.data,
                       });
                     }
@@ -476,14 +464,12 @@ export class TaskQueueImpl implements TaskQueue {
                     // Log any other type as a regular log message
                     if (progress.message) {
                       logger.info("Task progress", {
-                        taskId: task.id,
                         type: progress.type,
                         message: progress.message,
                       });
                       logMessage = progress.message;
                       // Also broadcast as a log message
-                      this.wsServer?.broadcastTaskLog({
-                        taskId: task.id,
+                      this.broadcaster?.task(task.id, "task:log", {
                         log: progress.message,
                         timestamp,
                       });
@@ -499,7 +485,7 @@ export class TaskQueueImpl implements TaskQueue {
                     try {
                       this.repository.updateProgressData(task.id, progressData);
                     } catch (error) {
-                      logger.error("Failed to update progress data", { taskId: task.id, error });
+                      logger.error("Failed to update progress data", { error });
                     }
                   }
                 }
@@ -513,7 +499,6 @@ export class TaskQueueImpl implements TaskQueue {
 
       // 最終的なprogressDataをログに記録（デバッグ用）
       logger.info("Final progressData before saving", {
-        taskId: task.id,
         logsCount: progressData.logs.length,
         toolExecutionsCount: progressData.toolExecutions.length,
         claudeResponsesCount: progressData.claudeResponses.length,
@@ -527,7 +512,6 @@ export class TaskQueueImpl implements TaskQueue {
         task.status = TaskStatus.COMPLETED;
 
         logger.info("Task completed successfully", {
-          taskId: task.id,
           instruction: task.request.instruction.substring(0, 100),
           duration: result.duration,
           todosCount: result.todos?.length || 0,
@@ -538,7 +522,6 @@ export class TaskQueueImpl implements TaskQueue {
 
         // デバッグ: resultの内容を確認
         logger.info("Task result details", {
-          taskId: task.id,
           resultType: typeof result.output,
           resultIsString: typeof result.output === "string",
           resultSample:
@@ -560,7 +543,6 @@ export class TaskQueueImpl implements TaskQueue {
           // Save final progress data
           this.repository.updateProgressData(task.id, progressData);
           logger.info("Final progress data saved", {
-            taskId: task.id,
             logsCount: progressData.logs.length,
             toolExecutionsCount: progressData.toolExecutions.length,
             claudeResponsesCount: progressData.claudeResponses.length,
@@ -570,7 +552,6 @@ export class TaskQueueImpl implements TaskQueue {
           if (result.conversationHistory) {
             this.repository.updateConversationHistory(task.id, result.conversationHistory);
             logger.info("Conversation history saved", {
-              taskId: task.id,
               messageCount: result.conversationHistory.length,
             });
           }
@@ -579,14 +560,13 @@ export class TaskQueueImpl implements TaskQueue {
           if (result.sdkSessionId) {
             this.repository.updateSdkSessionId(task.id, result.sdkSessionId);
             logger.info("SDK session ID saved", {
-              taskId: task.id,
               sdkSessionId: result.sdkSessionId,
             });
           }
 
-          logger.info("Task result updated in database", { taskId: task.id, status: task.status });
+          logger.info("Task result updated in database", { status: task.status });
         } catch (error) {
-          logger.error("Failed to update task result in database", { taskId: task.id, error });
+          logger.error("Failed to update task result in database", { error });
         }
 
         // Emit task completed event
@@ -607,7 +587,6 @@ export class TaskQueueImpl implements TaskQueue {
         });
 
         logger.info("Task completed successfully", {
-          taskId: task.id,
           duration: result.duration,
         });
       } else {
@@ -649,7 +628,6 @@ export class TaskQueueImpl implements TaskQueue {
             this.repository.resetTaskForRetry(task.id);
           } catch (dbError) {
             logger.error("Failed to update retry metadata in database", {
-              taskId: task.id,
               error: dbError,
             });
           }
@@ -707,13 +685,11 @@ export class TaskQueueImpl implements TaskQueue {
           if (result.conversationHistory) {
             this.repository.updateConversationHistory(task.id, result.conversationHistory);
             logger.info("Conversation history saved for failed task", {
-              taskId: task.id,
               messageCount: result.conversationHistory.length,
             });
           }
         } catch (dbError) {
           logger.error("Failed to update task status in database", {
-            taskId: task.id,
             error: dbError,
           });
         }
@@ -737,7 +713,6 @@ export class TaskQueueImpl implements TaskQueue {
         });
 
         logger.error("Task failed", {
-          taskId: task.id,
           error,
           retryAttempts: task.retryMetadata?.currentAttempt ?? 0,
           maxRetries: task.retryMetadata?.maxRetries ?? 0,
@@ -757,7 +732,6 @@ export class TaskQueueImpl implements TaskQueue {
           this.repository.updateStatus(task.id, TaskStatus.CANCELLED);
         } catch (dbError) {
           logger.error("Failed to update task status in database", {
-            taskId: task.id,
             error: dbError,
           });
         }
@@ -786,13 +760,11 @@ export class TaskQueueImpl implements TaskQueue {
         this.repository.updateStatus(task.id, TaskStatus.FAILED, task.error);
       } catch (dbError) {
         logger.error("Failed to update task status in database", {
-          taskId: task.id,
           error: dbError,
         });
       }
 
       logger.error("Unexpected error during task execution", {
-        taskId: task.id,
         error,
       });
 
@@ -948,6 +920,7 @@ export class TaskQueueImpl implements TaskQueue {
 
   setWebSocketServer(wsServer: WebSocketServer): void {
     this.wsServer = wsServer;
+    this.broadcaster = new WebSocketBroadcaster(wsServer);
   }
 
   // Additional utility methods
