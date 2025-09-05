@@ -11,6 +11,8 @@ export interface Task {
   name: string;
   instruction: string;
   dependencies?: string[]; // IDs of tasks this task depends on
+  context?: any; // Optional context for the task
+  options?: any; // Optional options for the task
 }
 
 /**
@@ -22,6 +24,7 @@ export interface ExecutionConfig {
   continueOnError?: boolean; // Continue even if a task fails
   timeout?: number; // Timeout per task in milliseconds
   permissionMode?: "ask" | "allow" | "deny" | "acceptEdits" | "bypassPermissions" | "plan"; // Permission mode for Claude Code SDK
+  maxParallel?: number; // Maximum number of parallel tasks
 }
 
 /**
@@ -30,6 +33,7 @@ export interface ExecutionConfig {
 export interface TaskGroup {
   id: string;
   name: string;
+  description?: string; // Optional description
   tasks: Task[];
   execution: ExecutionConfig;
 }

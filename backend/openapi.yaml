@@ -1931,3 +1931,163 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalServerError'
+
+  /api/task-groups/history:
+    get:
+      tags:
+        - task-groups
+      summary: Get task groups history from database
+      operationId: getTaskGroupsHistory
+      description: Retrieve historical task group execution records from database
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, running, completed, failed, cancelled]
+          description: Filter by status
+        - in: query
+          name: sessionId
+          schema:
+            type: string
+          description: Filter by session ID
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+          description: Maximum number of records to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          description: Number of records to skip
+      responses:
+        '200':
+          description: Task groups history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        executionMode:
+                          type: string
+                        status:
+                          type: string
+                        sessionId:
+                          type: string
+                        progressCompleted:
+                          type: integer
+                        progressTotal:
+                          type: integer
+                        progressPercentage:
+                          type: integer
+                        currentTask:
+                          type: string
+                        startedAt:
+                          type: string
+                        completedAt:
+                          type: string
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/task-groups/history/{groupId}:
+    get:
+      tags:
+        - task-groups
+      summary: Get detailed task group history with tasks
+      operationId: getTaskGroupHistoryById
+      description: Retrieve a specific task group execution record with all tasks from database
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: groupId
+          required: true
+          schema:
+            type: string
+          description: Task group ID
+      responses:
+        '200':
+          description: Task group history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  group:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      executionMode:
+                        type: string
+                      status:
+                        type: string
+                      sessionId:
+                        type: string
+                      progressCompleted:
+                        type: integer
+                      progressTotal:
+                        type: integer
+                      progressPercentage:
+                        type: integer
+                      currentTask:
+                        type: string
+                      startedAt:
+                        type: string
+                      completedAt:
+                        type: string
+                      tasks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            instruction:
+                              type: string
+                            status:
+                              type: string
+                            result:
+                              type: object
+                            error:
+                              type: string
+                            startedAt:
+                              type: string
+                            completedAt:
+                              type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Task group not found
+        '500':
+          $ref: '#/components/responses/InternalServerError'

@@ -42,6 +42,14 @@ vi.mock("../../../../src/db/shared-instance", () => ({
       }),
     }),
   })),
+  getDatabaseInstance: vi.fn().mockImplementation(() => ({
+    prepare: vi.fn().mockReturnValue({
+      run: vi.fn(),
+      get: vi.fn(),
+      all: vi.fn().mockReturnValue([]),
+    }),
+    transaction: vi.fn().mockImplementation((fn) => fn),
+  })),
   getSharedRepository: vi.fn().mockImplementation(() => ({
     find: vi.fn().mockReturnValue({ data: [], total: 0 }),
     findById: vi.fn(),

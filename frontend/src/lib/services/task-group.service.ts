@@ -1,5 +1,5 @@
 import { apiClient } from './api-client';
-import type { TaskGroupExecutionRequest, TaskGroupExecutionResponse, TaskGroupListResponse, TaskGroupStatusResponse } from '$lib/types/task-groups';
+import type { TaskGroupExecutionRequest, TaskGroupExecutionResponse, TaskGroupListResponse, TaskGroupStatusResponse, TaskGroupHistoryResponse } from '$lib/types/task-groups';
 
 class TaskGroupService {
   /**
@@ -36,6 +36,13 @@ class TaskGroupService {
    */
   async cleanup(): Promise<{ success: boolean; message: string }> {
     return apiClient.post('/api/task-groups/cleanup');
+  }
+
+  /**
+   * Get task group history with logs from database
+   */
+  async getHistory(groupId: string): Promise<TaskGroupHistoryResponse> {
+    return apiClient.get(`/api/task-groups/history/${groupId}`);
   }
 }
 

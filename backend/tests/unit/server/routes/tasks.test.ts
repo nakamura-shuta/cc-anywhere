@@ -9,6 +9,14 @@ vi.mock("../../../../src/db/shared-instance", () => ({
   getSharedDbProvider: vi.fn().mockImplementation(() => ({
     getDb: vi.fn(),
   })),
+  getDatabaseInstance: vi.fn().mockImplementation(() => ({
+    prepare: vi.fn().mockReturnValue({
+      run: vi.fn(),
+      get: vi.fn(),
+      all: vi.fn().mockReturnValue([]),
+    }),
+    transaction: vi.fn().mockImplementation((fn) => fn),
+  })),
   getSharedRepository: vi.fn(),
   getSharedBatchTaskRepository: vi.fn().mockReturnValue({}),
   getSharedWorktreeRepository: vi.fn().mockReturnValue({}),

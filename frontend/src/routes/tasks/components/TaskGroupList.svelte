@@ -19,8 +19,10 @@
 		Terminal,
 		Trash2
 	} from 'lucide-svelte';
-	import type { TaskGroupSummary, TaskGroupStats, TaskGroupStatusResponse } from '$lib/types/task-groups';
+	import type { TaskGroupSummary, TaskGroupStats, TaskGroupStatusResponse, TaskGroupLog } from '$lib/types/task-groups';
 	import { taskGroupStore } from '$lib/stores/task-group.svelte';
+	import { taskGroupService } from '$lib/services/task-group.service';
+	import { onMount } from 'svelte';
 	
 	interface Props {
 		groups: TaskGroupSummary[];
@@ -41,6 +43,10 @@
 		onGroupClick,
 		onGroupCancel
 	}: Props = $props();
+	
+	// Database logs for non-running groups
+	let databaseLogs = $state<TaskGroupLog[]>([]);
+	let loadingLogs = $state(false);
 	
 	// ステータスに応じたアイコンを取得
 	function getStatusIcon(status: string) {
@@ -120,11 +126,44 @@
 	}
 	
 	// 選択されたグループのログを取得
+	// 実行中ならWebSocketログ、それ以外ならデータベースログを使用
 	const selectedGroupLogs = $derived(
 		selectedGroup 
-			? taskGroupStore.getLogsForGroup(selectedGroup.groupId)
+			? (selectedGroup.status === 'running' 
+				? taskGroupStore.getLogsForGroup(selectedGroup.groupId)
+				: databaseLogs.map(log => ({
+					taskId: log.taskId,
+					taskName: log.taskName,
+					log: log.logMessage,
+					timestamp: log.timestamp,
+					level: log.logLevel
+				})))
 			: []
 	);
+	
+	// 選択されたグループが変更されたら、履歴からログを取得
+	$effect(() => {
+		if (selectedGroup && selectedGroup.status !== 'running') {
+			// 非実行中のグループはデータベースからログを取得
+			loadingLogs = true;
+			databaseLogs = [];
+			taskGroupService.getHistory(selectedGroup.groupId)
+				.then(history => {
+					databaseLogs = history.logs || [];
+				})
+				.catch(err => {
+					console.error('Failed to fetch task group logs:', err);
+					databaseLogs = [];
+				})
+				.finally(() => {
+					loadingLogs = false;
+				});
+		} else {
+			// 実行中のグループはWebSocketログを使用
+			databaseLogs = [];
+			loadingLogs = false;
+		}
+	});
 		
 	// ログレベルのスタイルを取得
 	function getLogLevelStyle(level?: string) {
@@ -356,7 +395,7 @@
 					</ScrollArea>
 				</CardContent>
 			</Card>
-		{:else if selectedGroup && selectedGroup.status === 'running'}
+		{:else if selectedGroup}
 			<Card class="mt-4">
 				<CardHeader>
 					<div class="flex items-center gap-2">
@@ -365,10 +404,21 @@
 					</div>
 				</CardHeader>
 				<CardContent>
-					<div class="flex items-center justify-center p-8 text-muted-foreground">
-						<Loader2 class="h-4 w-4 animate-spin mr-2" />
-						実行ログを待機中...
-					</div>
+					{#if loadingLogs}
+						<div class="flex items-center justify-center p-8 text-muted-foreground">
+							<Loader2 class="h-4 w-4 animate-spin mr-2" />
+							ログを取得中...
+						</div>
+					{:else if selectedGroup.status === 'running'}
+						<div class="flex items-center justify-center p-8 text-muted-foreground">
+							<Loader2 class="h-4 w-4 animate-spin mr-2" />
+							実行ログを待機中...
+						</div>
+					{:else}
+						<div class="flex items-center justify-center p-8 text-muted-foreground">
+							ログがありません
+						</div>
+					{/if}
 				</CardContent>
 			</Card>
 		{/if}

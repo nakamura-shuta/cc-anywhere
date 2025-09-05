@@ -122,11 +122,13 @@
 			<p class="text-sm lg:text-base text-muted-foreground">タスクとタスクグループを管理</p>
 		</div>
 		<div class="flex gap-2">
-			<Button variant="outline" onclick={() => window.location.href = '/tasks/tree'} class="flex-1 lg:flex-initial">
-				<GitBranch class="mr-2 h-4 w-4" />
-				<span class="hidden sm:inline">ツリー表示</span>
-				<span class="sm:hidden">ツリー</span>
-			</Button>
+			{#if activeTab === 'single'}
+				<Button variant="outline" onclick={() => window.location.href = '/tasks/tree'} class="flex-1 lg:flex-initial">
+					<GitBranch class="mr-2 h-4 w-4" />
+					<span class="hidden sm:inline">ツリー表示</span>
+					<span class="sm:hidden">ツリー</span>
+				</Button>
+			{/if}
 			<Button onclick={goToNewTask} class="flex-1 lg:flex-initial">
 				<Plus class="mr-2 h-4 w-4" />
 				<span class="hidden sm:inline">新しいタスク</span>

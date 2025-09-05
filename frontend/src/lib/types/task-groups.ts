@@ -94,3 +94,32 @@ export interface TaskGroupListResponse {
   groups: TaskGroupSummary[];
   stats: TaskGroupStats;
 }
+
+export interface TaskGroupLog {
+  taskId: string;
+  taskName: string;
+  logMessage: string;
+  logLevel?: 'info' | 'warning' | 'error' | 'debug';
+  timestamp: string;
+}
+
+export interface TaskGroupHistoryResponse {
+  id: string;
+  name: string;
+  status: GroupStatus;
+  sessionId?: string;
+  totalTasks: number;
+  completedTasks: number;
+  progress: number;
+  tasks: Array<{
+    id: string;
+    name: string;
+    status: TaskStatus;
+    error?: string;
+    startedAt?: string;
+    completedAt?: string;
+  }>;
+  startedAt: string;
+  completedAt?: string;
+  logs: TaskGroupLog[];
+}

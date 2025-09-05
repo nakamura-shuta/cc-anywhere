@@ -23,6 +23,9 @@ import {
   type ProgressMessage,
   type FormattedLog,
 } from "../utils/progress-formatter.js";
+import { TaskGroupHistoryRepository } from "../repositories/task-group-history-repository.js";
+import { getDatabaseInstance } from "../db/shared-instance.js";
+import type { TaskGroupLogRecord } from "../types/task-group-history.js";
 
 /**
  * Executes task groups with dependency management and session continuity
@@ -31,13 +34,16 @@ export class TaskGroupExecutor {
   private executor: TaskExecutorImpl;
   private activeGroups = new Map<string, TaskGroupResult>();
   private broadcaster?: WebSocketBroadcaster;
+  private historyRepository: TaskGroupHistoryRepository;
 
   constructor() {
     this.executor = new TaskExecutorImpl();
+    const db = getDatabaseInstance();
+    this.historyRepository = new TaskGroupHistoryRepository(db);
   }
 
   /**
-   * Broadcast log message via WebSocket
+   * Broadcast log message via WebSocket and save to database
    */
   private broadcastLog(
     wsServer: WebSocketServer | null | undefined,
@@ -46,6 +52,27 @@ export class TaskGroupExecutor {
     taskName: string,
     log: FormattedLog,
   ): void {
+    const timestamp = new Date();
+    
+    // Save log to database (non-blocking)
+    const logRecord: TaskGroupLogRecord = {
+      groupId,
+      taskId,
+      taskName,
+      logMessage: log.message,
+      logLevel: log.level,
+      timestamp,
+    };
+    
+    this.historyRepository.saveLog(logRecord).catch((error) => {
+      logger.error("Failed to save task group log to database", {
+        groupId,
+        taskId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+    
+    // Broadcast via WebSocket if available
     if (!wsServer) {
       logger.warn("WebSocket server not available for broadcasting", { groupId, taskId });
       return;
@@ -61,7 +88,7 @@ export class TaskGroupExecutor {
       taskId,
       taskName,
       log: log.message,
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp.toISOString(),
       level: log.level,
     });
   }

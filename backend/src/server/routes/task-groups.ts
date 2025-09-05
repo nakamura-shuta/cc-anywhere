@@ -268,7 +268,7 @@ const taskGroupsRoute: FastifyPluginAsync = async (fastify) => {
       }));
 
       // Get statistics
-      const stats = taskGroupStore.getStats();
+      const stats = await taskGroupStore.getStats();
 
       return {
         groups,
@@ -406,6 +406,271 @@ const taskGroupsRoute: FastifyPluginAsync = async (fastify) => {
         message: cancelled
           ? `Task group '${groupId}' cancelled successfully`
           : `Task group '${groupId}' not found or already completed`,
+      };
+    },
+  );
+
+  // Get task group history
+  fastify.get(
+    "/history",
+    {
+      schema: {
+        querystring: {
+          type: "object",
+          properties: {
+            status: {
+              type: "string",
+              enum: ["pending", "running", "completed", "failed", "cancelled"],
+            },
+            sessionId: { type: "string" },
+            startedAfter: { type: "string", format: "date-time" },
+            startedBefore: { type: "string", format: "date-time" },
+            limit: { type: "number", minimum: 1, maximum: 100, default: 50 },
+            offset: { type: "number", minimum: 0, default: 0 },
+          },
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              history: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    name: { type: "string" },
+                    description: { type: "string" },
+                    executionMode: {
+                      type: "string",
+                      enum: ["sequential", "parallel", "mixed"],
+                    },
+                    sessionId: { type: "string" },
+                    status: {
+                      type: "string",
+                      enum: ["pending", "running", "completed", "failed", "cancelled"],
+                    },
+                    error: { type: "string" },
+                    progressCompleted: { type: "number" },
+                    progressTotal: { type: "number" },
+                    progressPercentage: { type: "number" },
+                    currentTask: { type: "string" },
+                    startedAt: { type: "string", format: "date-time" },
+                    completedAt: { type: "string", format: "date-time" },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" },
+                  },
+                },
+              },
+              total: { type: "number" },
+              limit: { type: "number" },
+              offset: { type: "number" },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+    },
+    async (request) => {
+      const query = request.query as {
+        status?: string;
+        sessionId?: string;
+        startedAfter?: string;
+        startedBefore?: string;
+        limit?: number;
+        offset?: number;
+      };
+
+      const filter: any = {};
+
+      if (query.status) {
+        filter.status = query.status;
+      }
+
+      if (query.sessionId) {
+        filter.sessionId = query.sessionId;
+      }
+
+      if (query.startedAfter) {
+        filter.startedAfter = new Date(query.startedAfter);
+      }
+
+      if (query.startedBefore) {
+        filter.startedBefore = new Date(query.startedBefore);
+      }
+
+      filter.limit = query.limit || 50;
+      filter.offset = query.offset || 0;
+
+      const history = await taskGroupStore.getHistory(filter);
+
+      return {
+        history: history.map((record) => ({
+          id: record.id,
+          name: record.name,
+          description: record.description,
+          executionMode: record.executionMode,
+          sessionId: record.sessionId,
+          status: record.status,
+          error: record.error,
+          progressCompleted: record.progressCompleted,
+          progressTotal: record.progressTotal,
+          progressPercentage: record.progressPercentage,
+          currentTask: record.currentTask,
+          startedAt: record.startedAt.toISOString(),
+          completedAt: record.completedAt?.toISOString(),
+          createdAt: record.createdAt.toISOString(),
+          updatedAt: record.updatedAt.toISOString(),
+        })),
+        total: history.length,
+        limit: filter.limit,
+        offset: filter.offset,
+      };
+    },
+  );
+
+  // Get task group history by ID with tasks
+  fastify.get<{
+    Params: { groupId: string };
+  }>(
+    "/history/:groupId",
+    {
+      schema: {
+        params: {
+          type: "object",
+          properties: {
+            groupId: { type: "string", minLength: 1 },
+          },
+          required: ["groupId"],
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              description: { type: "string" },
+              executionMode: {
+                type: "string",
+                enum: ["sequential", "parallel", "mixed"],
+              },
+              sessionId: { type: "string" },
+              status: {
+                type: "string",
+                enum: ["pending", "running", "completed", "failed", "cancelled"],
+              },
+              error: { type: "string" },
+              progressCompleted: { type: "number" },
+              progressTotal: { type: "number" },
+              progressPercentage: { type: "number" },
+              currentTask: { type: "string" },
+              startedAt: { type: "string", format: "date-time" },
+              completedAt: { type: "string", format: "date-time" },
+              createdAt: { type: "string", format: "date-time" },
+              updatedAt: { type: "string", format: "date-time" },
+              tasks: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    name: { type: "string" },
+                    instruction: { type: "string" },
+                    dependencies: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                    status: {
+                      type: "string",
+                      enum: ["pending", "running", "completed", "failed", "cancelled"],
+                    },
+                    result: { type: "object" },
+                    error: { type: "string" },
+                    executionOrder: { type: "number" },
+                    startedAt: { type: "string", format: "date-time" },
+                    completedAt: { type: "string", format: "date-time" },
+                  },
+                },
+              },
+              logs: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    taskId: { type: "string" },
+                    taskName: { type: "string" },
+                    logMessage: { type: "string" },
+                    logLevel: { type: "string", enum: ["info", "warning", "error", "debug"] },
+                    timestamp: { type: "string", format: "date-time" },
+                  },
+                },
+              },
+            },
+            additionalProperties: false,
+          },
+          404: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
+              message: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { groupId } = request.params;
+
+      const record = await taskGroupStore.getHistoryById(groupId);
+
+      if (!record) {
+        reply.status(404);
+        return {
+          error: "NOT_FOUND",
+          message: `Task group '${groupId}' not found in history`,
+        };
+      }
+
+      // Get logs for the group
+      const logs = await taskGroupStore.getLogsForGroup(groupId);
+
+      return {
+        id: record.id,
+        name: record.name,
+        description: record.description,
+        executionMode: record.executionMode,
+        sessionId: record.sessionId,
+        status: record.status,
+        error: record.error,
+        progressCompleted: record.progressCompleted,
+        progressTotal: record.progressTotal,
+        progressPercentage: record.progressPercentage,
+        currentTask: record.currentTask,
+        startedAt: record.startedAt.toISOString(),
+        completedAt: record.completedAt?.toISOString(),
+        createdAt: record.createdAt.toISOString(),
+        updatedAt: record.updatedAt.toISOString(),
+        tasks: record.tasks.map((task) => ({
+          id: task.id,
+          name: task.name,
+          instruction: task.instruction,
+          dependencies: task.dependencies,
+          status: task.status,
+          result: task.result,
+          error: task.error,
+          executionOrder: task.executionOrder,
+          startedAt: task.startedAt?.toISOString(),
+          completedAt: task.completedAt?.toISOString(),
+        })),
+        logs: logs.map((log) => ({
+          taskId: log.taskId,
+          taskName: log.taskName,
+          logMessage: log.logMessage,
+          logLevel: log.logLevel,
+          timestamp: log.timestamp.toISOString(),
+        })),
       };
     },
   );

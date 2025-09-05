@@ -10,6 +10,7 @@ import { WorktreeRepositoryImpl } from "../repositories/worktree-repository";
 import { BatchTaskService } from "../services/batch-task-service";
 import { config } from "../config";
 import type { TaskQueueImpl } from "../queue/task-queue";
+import type { Database } from "better-sqlite3";
 
 // Singleton instances
 let dbProvider: DatabaseProvider | null = null;
@@ -66,6 +67,13 @@ export function getSharedBatchTaskService(queue: TaskQueueImpl): BatchTaskServic
     batchTaskService = new BatchTaskService(getSharedRepository(), queue);
   }
   return batchTaskService;
+}
+
+/**
+ * Get database instance
+ */
+export function getDatabaseInstance(): Database {
+  return getSharedDbProvider().getDb();
 }
 
 /**
