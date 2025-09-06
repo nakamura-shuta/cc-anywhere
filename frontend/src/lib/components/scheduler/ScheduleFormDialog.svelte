@@ -154,7 +154,10 @@
 				instruction: formData.instruction,
 				context: {},
 				options: {
-					timeout: formData.timeout * 1000 // 秒をミリ秒に変換
+					timeout: formData.timeout * 1000, // 秒をミリ秒に変換
+					sdk: {
+						continueSession: true // セッションを継続して実行
+					}
 				}
 			};
 			
