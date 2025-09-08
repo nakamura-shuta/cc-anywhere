@@ -63,6 +63,9 @@ export interface ClaudeCodeSDKOptions {
   continueFromTaskId?: string;
   outputFormat?: "text" | "json" | "stream-json";
 
+  // Session management for scheduled tasks
+  maxSessionExecutions?: number; // Reset session after N executions
+
   // Priority: Low
   verbose?: boolean;
   permissionPromptTool?: string;

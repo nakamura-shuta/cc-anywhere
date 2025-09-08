@@ -22,6 +22,7 @@ export class SchedulerService {
   private onExecute?: ExecuteHandler;
   private running = false;
   private wsServer?: WebSocketServer;
+  private sessionExecutionCounts: Map<string, number> = new Map();
 
   constructor(wsServer?: WebSocketServer) {
     this.wsServer = wsServer;
@@ -313,7 +314,17 @@ export class SchedulerService {
       return;
     }
 
-    logger.info("Executing scheduled task", { scheduleId, name: schedule.name });
+    // セッション実行回数を管理
+    const currentCount = this.sessionExecutionCounts.get(scheduleId) || 0;
+    const maxSessionExecutions = schedule.taskRequest.options?.sdk?.maxSessionExecutions || 100;
+    const shouldResetSession = currentCount >= maxSessionExecutions;
+
+    logger.info("Executing scheduled task", { 
+      scheduleId, 
+      name: schedule.name, 
+      sessionCount: currentCount,
+      willResetSession: shouldResetSession 
+    });
 
     const executedAt = new Date();
     let taskId: string | undefined;

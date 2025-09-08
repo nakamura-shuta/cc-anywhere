@@ -795,6 +795,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       verbose: sdkOptions?.verbose ?? false,
       permissionPromptTool: sdkOptions?.permissionPromptTool ?? "",
       pathToClaudeCodeExecutable: sdkOptions?.pathToClaudeCodeExecutable ?? "",
+      maxSessionExecutions: sdkOptions?.maxSessionExecutions ?? 100,
       enableWebSearch: sdkOptions?.enableWebSearch ?? false,
       webSearchConfig: sdkOptions?.webSearchConfig ?? {},
     };

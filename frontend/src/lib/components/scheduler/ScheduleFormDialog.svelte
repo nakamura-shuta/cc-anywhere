@@ -100,7 +100,9 @@
 				cronExpression: '0 0 * * *',
 				executeAt: '',
 				timezone: 'Asia/Tokyo',
-				timeout: 300
+				timeout: 300,
+				continueSession: true,
+				maxSessionExecutions: 100
 			};
 		}
 	});
@@ -383,6 +385,48 @@
 						min="1"
 						max="3600"
 					/>
+					<p class="text-xs text-muted-foreground">
+						タスクの最大実行時間（デフォルト: 300秒）
+					</p>
+				</div>
+				
+				<!-- セッション管理設定 -->
+				<div class="space-y-4 border-t pt-4">
+					<h4 class="text-sm font-medium">セッション管理</h4>
+					
+					<div class="flex items-center space-x-2">
+						<input
+							type="checkbox"
+							id="continueSession"
+							bind:checked={formData.continueSession}
+							class="h-4 w-4"
+						/>
+						<Label for="continueSession">前回のセッションを継続する</Label>
+					</div>
+					
+					{#if formData.continueSession && formData.scheduleType === 'cron'}
+						<div class="space-y-2 mt-4">
+							<Label for="maxSessionExecutions">セッションリセット間隔（実行回数）</Label>
+							<Input
+								id="maxSessionExecutions"
+								type="number"
+								bind:value={formData.maxSessionExecutions}
+								min="1"
+								max="10000"
+								placeholder="100"
+							/>
+							<p class="text-xs text-muted-foreground">
+								指定回数実行後にセッションをリセットして、メモリを解放します。
+								例：毎分実行の場合、100回 = 約1時間40分ごとにリセット
+							</p>
+						</div>
+					{/if}
+					
+					{#if !formData.continueSession}
+						<p class="text-xs text-muted-foreground mt-2">
+							毎回新しいセッションで実行されます。前回の実行内容は引き継がれません。
+						</p>
+					{/if}
 				</div>
 			</div>
 			
