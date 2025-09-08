@@ -21,7 +21,7 @@
 	)}
 	{...restProps}
 >
-	<RadioGroupPrimitive.ItemIndicator class="flex items-center justify-center">
+	<span class="flex items-center justify-center">
 		<Circle class="h-2.5 w-2.5 fill-current text-primary-foreground" />
-	</RadioGroupPrimitive.ItemIndicator>
+	</span>
 </RadioGroupPrimitive.Item>
