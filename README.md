@@ -45,7 +45,7 @@ npm run dev
 ## 主な機能
 
 **基本機能**
-- Claude Code SDK 2.0.1（最新版）をHTTP API経由で利用
+- Claude Agent SDK 0.1.1（@anthropic-ai/claude-agent-sdk）をHTTP API経由で利用
 - Web UIとREST APIの両方から操作可能
 - WebSocketによるリアルタイムログ表示
 - 複数リポジトリの管理と切り替え

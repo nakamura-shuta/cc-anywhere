@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Claude Agent SDKへの移行** (2025-09-30)
+  - パッケージを`@anthropic-ai/claude-code@2.0.1`から`@anthropic-ai/claude-agent-sdk@0.1.1`に移行
+  - Anthropic公式のSDK名称変更に対応（Claude Code SDK → Claude Agent SDK）
+  - 既存機能との完全な互換性を維持（全526ユニットテスト、27統合テストが成功）
+  - Breaking Changes対応済み：システムプロンプトと設定の明示的な指定が必要
+  - ドキュメントとREADMEを更新
 - **Claude Code SDK 2.0.1へのメジャーアップグレード** (2025-01-30)
   - 安定版の最新メジャーバージョンに更新
   - 新パッケージ`@anthropic-ai/claude-agent-sdk`はまだ0.1.xのため、現行の`@anthropic-ai/claude-code@2.0.1`を採用
