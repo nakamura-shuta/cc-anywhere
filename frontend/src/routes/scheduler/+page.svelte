@@ -22,10 +22,12 @@
 	
 	// スケジュールの有効/無効を切り替え
 	async function handleToggleSchedule(id: string, currentStatus: string) {
+		console.log('[SchedulerPage] Toggle clicked:', { id, currentStatus });
 		const success = await scheduleListStore.toggleSchedule(id, currentStatus);
+		console.log('[SchedulerPage] Toggle result:', { success, error: scheduleListStore.error });
 		if (success) {
-			const newStatus = currentStatus === 'active' ? false : true;
-			toast.success(`スケジュールを${newStatus ? '有効' : '無効'}にしました`);
+			const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+			toast.success(`スケジュールを${newStatus === 'active' ? '有効' : '無効'}にしました`);
 		} else {
 			toast.error(scheduleListStore.error || 'スケジュールの更新に失敗しました');
 		}

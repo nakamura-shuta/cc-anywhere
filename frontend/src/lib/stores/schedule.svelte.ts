@@ -19,15 +19,27 @@ class ScheduleStore extends createEntityStore<ScheduledTask>('schedule', schedul
   // スケジュール固有のメソッド
   async toggle(id: string): Promise<void> {
     const schedule = this.items.find(s => s.id === id);
-    if (!schedule) return;
-    
+    if (!schedule) {
+      console.warn('[ScheduleStore] Schedule not found:', id);
+      return;
+    }
+
+    console.log('[ScheduleStore] Toggling schedule:', {
+      id,
+      currentStatus: schedule.status,
+      willEnable: schedule.status !== 'active'
+    });
+
     try {
       const updated = await scheduleEntityService.toggle(
-        id, 
+        id,
         schedule.status !== 'active'
       );
+      console.log('[ScheduleStore] Toggle response:', updated);
       this.updateLocal(id, updated);
+      console.log('[ScheduleStore] Schedule toggled successfully');
     } catch (error) {
+      console.error('[ScheduleStore] Toggle failed:', error);
       this.error = error instanceof Error ? error : new Error('Failed to toggle schedule');
       throw error;
     }
