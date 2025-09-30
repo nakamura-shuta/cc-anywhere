@@ -62,6 +62,13 @@ vi.mock("../../../../src/db/shared-instance", () => ({
     createBatchTasks: vi.fn(),
     getBatchTaskStatus: vi.fn(),
   })),
+  getSharedScheduleRepository: vi.fn().mockImplementation(() => ({
+    findAll: vi.fn().mockResolvedValue([]),
+    findById: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  })),
 }));
 
 // Mock config

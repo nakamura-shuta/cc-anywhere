@@ -7,9 +7,12 @@ import type {
   ScheduledTaskHistory,
   ScheduleListOptions,
   ScheduleListResponse,
+  ScheduleFilter,
+  PersistentScheduledTaskHistory,
 } from "../types/scheduled-task.js";
 import type { TaskRequest } from "../claude/types.js";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
+import type { ScheduleRepository } from "../repositories/schedule-repository.js";
 
 export type ExecuteHandler = (
   taskRequest: TaskRequest,
@@ -22,17 +25,18 @@ export class SchedulerService {
   private onExecute?: ExecuteHandler;
   private running = false;
   private wsServer?: WebSocketServer;
-  private sessionExecutionCounts: Map<string, number> = new Map();
+  private repository?: ScheduleRepository;
 
-  constructor(wsServer?: WebSocketServer) {
+  constructor(wsServer?: WebSocketServer, repository?: ScheduleRepository) {
     this.wsServer = wsServer;
-    logger.info("SchedulerService initialized");
+    this.repository = repository;
+    logger.info("SchedulerService initialized", { withPersistence: !!repository });
   }
 
   /**
    * Create a new schedule
    */
-  createSchedule(schedule: Omit<ScheduledTask, "id" | "history">): ScheduledTask {
+  async createSchedule(schedule: Omit<ScheduledTask, "id" | "history">): Promise<ScheduledTask> {
     // Validate cron expression if type is cron
     if (schedule.schedule.type === "cron") {
       if (!schedule.schedule.expression) {
@@ -66,6 +70,12 @@ export class SchedulerService {
       },
     };
 
+    // Persist to database if repository is available
+    if (this.repository) {
+      await this.repository.create(newSchedule);
+      logger.debug("Schedule persisted to database", { id });
+    }
+
     this.schedules.set(id, newSchedule);
 
     // Start cron job if service is running and schedule is active
@@ -85,12 +95,39 @@ export class SchedulerService {
   }
 
   /**
+   * Get schedule by ID (async version with database fallback)
+   */
+  async getScheduleAsync(id: string): Promise<ScheduledTask | undefined> {
+    // First check in-memory cache
+    const cachedSchedule = this.schedules.get(id);
+    if (cachedSchedule) {
+      return cachedSchedule;
+    }
+
+    // Fallback to database if repository is available
+    if (this.repository) {
+      try {
+        const schedule = await this.repository.findById(id);
+        if (schedule) {
+          schedule.history = await this.loadScheduleHistory(id);
+          this.schedules.set(id, schedule); // Cache for future access
+          return schedule;
+        }
+      } catch (error) {
+        logger.error("Failed to load schedule from database", { id, error });
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
    * Update schedule
    */
-  updateSchedule(
+  async updateSchedule(
     id: string,
     updates: Partial<Omit<ScheduledTask, "id" | "history">>,
-  ): ScheduledTask | undefined {
+  ): Promise<ScheduledTask | undefined> {
     const schedule = this.schedules.get(id);
     if (!schedule) {
       return undefined;
@@ -116,6 +153,12 @@ export class SchedulerService {
       updated.metadata.nextExecuteAt = this.calculateNextExecuteTime(updated.schedule);
     }
 
+    // Persist to database if repository is available
+    if (this.repository) {
+      await this.repository.update(id, updated);
+      logger.debug("Schedule update persisted to database", { id });
+    }
+
     this.schedules.set(id, updated);
 
     // Restart job if active and running
@@ -130,7 +173,7 @@ export class SchedulerService {
   /**
    * Delete schedule
    */
-  deleteSchedule(id: string): boolean {
+  async deleteSchedule(id: string): Promise<boolean> {
     const schedule = this.schedules.get(id);
     if (!schedule) {
       return false;
@@ -138,6 +181,13 @@ export class SchedulerService {
 
     this.stopScheduleJob(id);
     this.schedules.delete(id);
+
+    // Delete from database if repository is available
+    if (this.repository) {
+      await this.repository.delete(id);
+      logger.debug("Schedule deleted from database", { id });
+    }
+
     logger.info("Schedule deleted", { id });
     return true;
   }
@@ -145,7 +195,32 @@ export class SchedulerService {
   /**
    * List schedules with pagination
    */
-  listSchedules(options: ScheduleListOptions = {}): ScheduleListResponse {
+  async listSchedules(options: ScheduleListOptions = {}): Promise<ScheduleListResponse> {
+    // Use repository for listing if available, otherwise fallback to in-memory
+    if (this.repository) {
+      const filter: ScheduleFilter = {
+        status: options.status,
+        limit: options.limit || 10,
+        offset: options.offset || 0,
+      };
+      const schedules = await this.repository.findWithFilter(filter);
+
+      // Load history for each schedule
+      for (const schedule of schedules) {
+        schedule.history = await this.loadScheduleHistory(schedule.id);
+      }
+
+      // Get total count
+      const totalFilter: ScheduleFilter = { status: options.status };
+      const allSchedules = await this.repository.findWithFilter(totalFilter);
+
+      return {
+        schedules,
+        total: allSchedules.length,
+      };
+    }
+
+    // Fallback to in-memory
     const { limit = 10, offset = 0, status } = options;
 
     let schedules = Array.from(this.schedules.values());
@@ -170,23 +245,22 @@ export class SchedulerService {
   /**
    * Enable schedule
    */
-  enableSchedule(id: string): ScheduledTask | undefined {
+  async enableSchedule(id: string): Promise<ScheduledTask | undefined> {
     return this.updateSchedule(id, { status: "active" });
   }
 
   /**
    * Disable schedule
    */
-  disableSchedule(id: string): ScheduledTask | undefined {
+  async disableSchedule(id: string): Promise<ScheduledTask | undefined> {
     return this.updateSchedule(id, { status: "inactive" });
   }
 
   /**
    * Get execution history for a schedule
    */
-  getHistory(scheduleId: string): ScheduledTaskHistory[] {
-    const schedule = this.schedules.get(scheduleId);
-    return schedule?.history || [];
+  async getHistory(scheduleId: string): Promise<ScheduledTaskHistory[]> {
+    return this.loadScheduleHistory(scheduleId);
   }
 
   /**
@@ -199,13 +273,18 @@ export class SchedulerService {
   /**
    * Start the scheduler service
    */
-  start(): void {
+  async start(): Promise<void> {
     if (this.running) {
       return;
     }
 
     this.running = true;
     logger.info("SchedulerService started");
+
+    // Load schedules from database if repository is available
+    if (this.repository) {
+      await this.loadPersistedSchedules();
+    }
 
     // Start all active schedules
     for (const schedule of this.schedules.values()) {
@@ -314,16 +393,36 @@ export class SchedulerService {
       return;
     }
 
-    // セッション実行回数を管理
-    const currentCount = this.sessionExecutionCounts.get(scheduleId) || 0;
+    // セッション実行回数を管理 - データベースから取得
+    let currentCount = 0;
+    if (this.repository) {
+      try {
+        const sessionState = await this.repository.getSessionState(scheduleId);
+        currentCount = sessionState.executionCount;
+      } catch (error) {
+        logger.error("Failed to get session state", { scheduleId, error });
+      }
+    }
+
     const maxSessionExecutions = schedule.taskRequest.options?.sdk?.maxSessionExecutions || 100;
     const shouldResetSession = currentCount >= maxSessionExecutions;
 
-    logger.info("Executing scheduled task", { 
-      scheduleId, 
-      name: schedule.name, 
+    // セッションリセットの場合はカウントをリセット
+    if (shouldResetSession && this.repository) {
+      try {
+        await this.repository.resetExecutionCount(scheduleId);
+        logger.info(`Session reset for schedule ${scheduleId} after ${currentCount} executions`);
+        currentCount = 0; // リセット後は0からスタート
+      } catch (error) {
+        logger.error("Failed to reset session execution count", { scheduleId, error });
+      }
+    }
+
+    logger.info("Executing scheduled task", {
+      scheduleId,
+      name: schedule.name,
       sessionCount: currentCount,
-      willResetSession: shouldResetSession 
+      willResetSession: shouldResetSession,
     });
 
     const executedAt = new Date();
@@ -373,6 +472,19 @@ export class SchedulerService {
     };
     updatedSchedule.history = [...schedule.history, historyEntry].slice(-100); // Keep last 100
 
+    // Persist history entry to database
+    await this.persistHistoryEntry(scheduleId, historyEntry);
+
+    // Update session state in database
+    if (this.repository) {
+      try {
+        await this.repository.incrementExecutionCount(scheduleId);
+        logger.debug("Session execution count incremented", { scheduleId });
+      } catch (error) {
+        logger.error("Failed to update session execution count", { scheduleId, error });
+      }
+    }
+
     // For one-time schedules, mark as completed
     if (schedule.schedule.type === "once") {
       updatedSchedule.status = status === "success" ? "completed" : "failed";
@@ -380,6 +492,16 @@ export class SchedulerService {
     } else {
       // Calculate next execution time for cron schedules
       updatedSchedule.metadata.nextExecuteAt = this.calculateNextExecuteTime(schedule.schedule);
+    }
+
+    // Persist schedule updates to database
+    if (this.repository) {
+      try {
+        await this.repository.update(scheduleId, updatedSchedule);
+        logger.debug("Schedule state persisted after execution", { scheduleId });
+      } catch (error) {
+        logger.error("Failed to persist schedule state", { scheduleId, error });
+      }
     }
 
     this.schedules.set(scheduleId, updatedSchedule);
@@ -411,5 +533,79 @@ export class SchedulerService {
       status,
       executionCount: updatedSchedule.metadata.executionCount,
     });
+  }
+
+  /**
+   * Load persisted schedules from database
+   */
+  private async loadPersistedSchedules(): Promise<void> {
+    if (!this.repository) {
+      return;
+    }
+
+    try {
+      const schedules = await this.repository.findWithFilter({});
+      logger.info(`Loading ${schedules.length} persisted schedules`);
+
+      for (const schedule of schedules) {
+        // Load history for the schedule
+        schedule.history = await this.loadScheduleHistory(schedule.id);
+        this.schedules.set(schedule.id, schedule);
+        logger.debug("Loaded persisted schedule", { id: schedule.id, name: schedule.name });
+      }
+
+      logger.info("Persisted schedules loaded successfully");
+    } catch (error) {
+      logger.error("Failed to load persisted schedules", { error });
+    }
+  }
+
+  /**
+   * Load history for a specific schedule
+   */
+  private async loadScheduleHistory(scheduleId: string): Promise<ScheduledTaskHistory[]> {
+    if (!this.repository) {
+      const schedule = this.schedules.get(scheduleId);
+      return schedule?.history || [];
+    }
+
+    try {
+      const persistentHistory = await this.repository.getHistory(scheduleId);
+      return persistentHistory.map((entry) => ({
+        executedAt: entry.executedAt,
+        taskId: entry.taskId,
+        status: entry.status,
+        error: entry.error,
+      }));
+    } catch (error) {
+      logger.error("Failed to load schedule history", { scheduleId, error });
+      return [];
+    }
+  }
+
+  /**
+   * Persist history entry to database
+   */
+  private async persistHistoryEntry(
+    scheduleId: string,
+    history: ScheduledTaskHistory,
+  ): Promise<void> {
+    if (!this.repository) {
+      return;
+    }
+
+    try {
+      const entry: Omit<PersistentScheduledTaskHistory, "id" | "createdAt"> = {
+        scheduleId,
+        executedAt: history.executedAt,
+        taskId: history.taskId,
+        status: history.status,
+        error: history.error,
+      };
+      await this.repository.addHistory(entry);
+      logger.debug("History entry persisted", { scheduleId, taskId: history.taskId });
+    } catch (error) {
+      logger.error("Failed to persist history entry", { scheduleId, error });
+    }
   }
 }

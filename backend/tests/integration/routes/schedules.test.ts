@@ -113,9 +113,15 @@ describe("Schedule routes", () => {
 
   describe("GET /api/schedules", () => {
     beforeEach(async () => {
+      // Clear existing schedules
+      const existing = await schedulerService.listSchedules({ limit: 100 });
+      for (const schedule of existing.schedules) {
+        await schedulerService.deleteSchedule(schedule.id);
+      }
+
       // Create test schedules
       for (let i = 0; i < 15; i++) {
-        schedulerService.createSchedule({
+        await schedulerService.createSchedule({
           name: `Schedule ${i}`,
           taskRequest: { instruction: "test" },
           schedule: { type: "cron", expression: "0 * * * *" },
@@ -157,7 +163,7 @@ describe("Schedule routes", () => {
 
   describe("GET /api/schedules/:id", () => {
     it("should get schedule by id", async () => {
-      const schedule = schedulerService.createSchedule({
+      const schedule = await schedulerService.createSchedule({
         name: "Test schedule",
         taskRequest: { instruction: "test" },
         schedule: { type: "cron", expression: "0 * * * *" },
@@ -194,7 +200,7 @@ describe("Schedule routes", () => {
 
   describe("PUT /api/schedules/:id", () => {
     it("should update schedule", async () => {
-      const schedule = schedulerService.createSchedule({
+      const schedule = await schedulerService.createSchedule({
         name: "Original name",
         taskRequest: { instruction: "test" },
         schedule: { type: "cron", expression: "0 * * * *" },
@@ -225,7 +231,7 @@ describe("Schedule routes", () => {
 
   describe("DELETE /api/schedules/:id", () => {
     it("should delete schedule", async () => {
-      const schedule = schedulerService.createSchedule({
+      const schedule = await schedulerService.createSchedule({
         name: "To be deleted",
         taskRequest: { instruction: "test" },
         schedule: { type: "cron", expression: "0 * * * *" },
@@ -257,7 +263,7 @@ describe("Schedule routes", () => {
 
   describe("POST /api/schedules/:id/enable", () => {
     it("should enable schedule", async () => {
-      const schedule = schedulerService.createSchedule({
+      const schedule = await schedulerService.createSchedule({
         name: "Test",
         taskRequest: { instruction: "test" },
         schedule: { type: "cron", expression: "0 * * * *" },
@@ -283,7 +289,7 @@ describe("Schedule routes", () => {
 
   describe("POST /api/schedules/:id/disable", () => {
     it("should disable schedule", async () => {
-      const schedule = schedulerService.createSchedule({
+      const schedule = await schedulerService.createSchedule({
         name: "Test",
         taskRequest: { instruction: "test" },
         schedule: { type: "cron", expression: "0 * * * *" },
@@ -309,7 +315,7 @@ describe("Schedule routes", () => {
 
   describe("GET /api/schedules/:id/history", () => {
     it("should get execution history", async () => {
-      const schedule = schedulerService.createSchedule({
+      const schedule = await schedulerService.createSchedule({
         name: "Test",
         taskRequest: { instruction: "test" },
         schedule: { type: "cron", expression: "0 * * * *" },

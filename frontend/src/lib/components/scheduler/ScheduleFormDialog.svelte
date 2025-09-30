@@ -27,7 +27,9 @@
 		cronExpression: '0 0 * * *', // デフォルト: 毎日0時
 		executeAt: getDefaultExecuteAt(), // デフォルト: 1時間後
 		timezone: 'Asia/Tokyo',
-		timeout: 300
+		timeout: 300,
+		continueSession: true,
+		maxSessionExecutions: 100
 	});
 	
 	// デフォルトの実行日時を取得（現在時刻の1時間後）

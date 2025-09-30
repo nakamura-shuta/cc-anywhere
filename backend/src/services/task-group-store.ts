@@ -50,7 +50,7 @@ export class TaskGroupStore extends EventEmitter {
       // Load recent task groups (last 24 hours) from database
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-      
+
       const recentGroups = await this.historyRepository.findWithFilter({
         startedAfter: oneDayAgo,
         limit: 100,

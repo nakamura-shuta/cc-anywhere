@@ -1,4 +1,8 @@
-import { getSharedDbProvider, getSharedRepository } from "../../db/shared-instance";
+import {
+  getSharedDbProvider,
+  getSharedRepository,
+  getSharedScheduleRepository,
+} from "../../db/shared-instance";
 import { SchedulerService } from "../../services/scheduler-service";
 import type { WebSocketServer } from "../../websocket/websocket-server";
 
@@ -11,6 +15,7 @@ export function initializeServices(wsServer?: WebSocketServer) {
   return {
     dbProvider: getSharedDbProvider(),
     repository: getSharedRepository(),
-    schedulerService: new SchedulerService(wsServer),
+    scheduleRepository: getSharedScheduleRepository(),
+    schedulerService: new SchedulerService(wsServer, getSharedScheduleRepository()),
   };
 }

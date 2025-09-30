@@ -47,7 +47,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
         executeAt: schedule.executeAt ? new Date(schedule.executeAt) : undefined,
       };
 
-      const newSchedule = schedulerService.createSchedule({
+      const newSchedule = await schedulerService.createSchedule({
         name,
         description,
         taskRequest,
@@ -84,7 +84,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Querystring: ScheduleListQuery }>("/api/schedules", async (request) => {
     const { limit = 10, offset = 0, status } = request.query;
 
-    const response = schedulerService.listSchedules({
+    const response = await schedulerService.listSchedules({
       limit: Math.min(limit, 100), // Cap at 100
       offset,
       status,
@@ -100,7 +100,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: ScheduleParams }>("/api/schedules/:id", async (request) => {
     const { id } = request.params;
 
-    const schedule = schedulerService.getSchedule(id);
+    const schedule = await schedulerService.getScheduleAsync(id);
     if (!schedule) {
       throw new ScheduleNotFoundError(id);
     }
@@ -115,7 +115,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
       const { id } = request.params;
       const updates = request.body;
 
-      const updated = schedulerService.updateSchedule(id, updates);
+      const updated = await schedulerService.updateSchedule(id, updates);
       if (!updated) {
         throw new ScheduleNotFoundError(id);
       }
@@ -129,7 +129,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.delete<{ Params: ScheduleParams }>("/api/schedules/:id", async (request, reply) => {
     const { id } = request.params;
 
-    const deleted = schedulerService.deleteSchedule(id);
+    const deleted = await schedulerService.deleteSchedule(id);
     if (!deleted) {
       throw new ScheduleNotFoundError(id);
     }
@@ -142,7 +142,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Params: ScheduleParams }>("/api/schedules/:id/enable", async (request) => {
     const { id } = request.params;
 
-    const updated = schedulerService.enableSchedule(id);
+    const updated = await schedulerService.enableSchedule(id);
     if (!updated) {
       throw new ScheduleNotFoundError(id);
     }
@@ -155,7 +155,7 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Params: ScheduleParams }>("/api/schedules/:id/disable", async (request) => {
     const { id } = request.params;
 
-    const updated = schedulerService.disableSchedule(id);
+    const updated = await schedulerService.disableSchedule(id);
     if (!updated) {
       throw new ScheduleNotFoundError(id);
     }
@@ -169,12 +169,12 @@ export async function scheduleRoutes(fastify: FastifyInstance): Promise<void> {
     const { id } = request.params;
 
     // Verify schedule exists
-    const schedule = schedulerService.getSchedule(id);
+    const schedule = await schedulerService.getScheduleAsync(id);
     if (!schedule) {
       throw new ScheduleNotFoundError(id);
     }
 
-    const history = schedulerService.getHistory(id);
+    const history = await schedulerService.getHistory(id);
     return history;
   });
 }

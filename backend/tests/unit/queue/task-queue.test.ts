@@ -29,6 +29,13 @@ vi.mock("../../../src/db/shared-instance", () => ({
     getPendingTasks: vi.fn().mockReturnValue([]),
   })),
   getSharedDbProvider: vi.fn(),
+  getSharedScheduleRepository: vi.fn().mockImplementation(() => ({
+    findAll: vi.fn().mockResolvedValue([]),
+    findById: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  })),
   getTypedEventBus: vi.fn().mockImplementation(() => ({
     emit: vi.fn().mockResolvedValue(undefined),
     on: vi.fn(),

@@ -1,8 +1,21 @@
 openapi: 3.1.0
 info:
   title: CC-Anywhere API
-  description: Claude Code SDK HTTP Server API
-  version: 0.5.0
+  description: |
+    HTTP Server API for executing tasks via Claude Code SDK (v2.0.1).
+
+    This API provides comprehensive task management, scheduling, batch processing,
+    and repository exploration capabilities powered by Anthropic's Claude AI.
+
+    Key Features:
+    - Task execution with Claude Code SDK integration
+    - Scheduled task execution (cron and one-time)
+    - Batch task processing across multiple repositories
+    - Task group execution with dependency management
+    - Repository explorer with file content retrieval
+    - Real-time task status monitoring via WebSocket
+    - Task queue management with configurable concurrency
+  version: 1.0.0
   contact:
     name: API Support
     email: support@example.com
@@ -363,20 +376,24 @@ components:
           properties:
             type:
               type: string
-              enum: [cron, interval, once]
-            cron:
+              enum: [cron, once]
+            expression:
               type: string
               nullable: true
-            interval:
-              type: integer
-              nullable: true
+              description: Cron expression (required for cron type)
             executeAt:
               type: string
               format: date-time
               nullable: true
+              description: Execution time (required for once type)
+            timezone:
+              type: string
+              default: 'Asia/Tokyo'
+          required:
+            - type
         status:
           type: string
-          enum: [active, inactive]
+          enum: [active, inactive, completed, failed]
         metadata:
           type: object
           properties:
@@ -386,8 +403,6 @@ components:
             updatedAt:
               type: string
               format: date-time
-            executionCount:
-              type: integer
             lastExecutedAt:
               type: string
               format: date-time
@@ -396,6 +411,17 @@ components:
               type: string
               format: date-time
               nullable: true
+            executionCount:
+              type: integer
+              minimum: 0
+          required:
+            - createdAt
+            - updatedAt
+            - executionCount
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleExecutionHistory'
       required:
         - id
         - name
@@ -403,6 +429,7 @@ components:
         - schedule
         - status
         - metadata
+        - history
 
     CreateScheduleRequest:
       type: object
@@ -419,25 +446,50 @@ components:
           properties:
             type:
               type: string
-              enum: [cron, interval, once]
-            cron:
+              enum: [cron, once]
+            expression:
               type: string
               nullable: true
-            interval:
-              type: integer
-              nullable: true
+              description: Cron expression (required for cron type)
             executeAt:
               type: string
               format: date-time
               nullable: true
+              description: Execution time (required for once type)
+            timezone:
+              type: string
+              default: 'Asia/Tokyo'
+          required:
+            - type
         status:
           type: string
           enum: [active, inactive]
-          default: active
+          default: 'active'
       required:
         - name
         - taskRequest
         - schedule
+
+    ScheduleSessionState:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+          format: uuid
+        executionCount:
+          type: integer
+          minimum: 0
+        lastSessionReset:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - scheduleId
+        - executionCount
+        - updatedAt
 
     UpdateScheduleRequest:
       type: object

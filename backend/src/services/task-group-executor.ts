@@ -53,7 +53,7 @@ export class TaskGroupExecutor {
     log: FormattedLog,
   ): void {
     const timestamp = new Date();
-    
+
     // Save log to database (non-blocking)
     const logRecord: TaskGroupLogRecord = {
       groupId,
@@ -63,7 +63,7 @@ export class TaskGroupExecutor {
       logLevel: log.level,
       timestamp,
     };
-    
+
     this.historyRepository.saveLog(logRecord).catch((error) => {
       logger.error("Failed to save task group log to database", {
         groupId,
@@ -71,7 +71,7 @@ export class TaskGroupExecutor {
         error: error instanceof Error ? error.message : String(error),
       });
     });
-    
+
     // Broadcast via WebSocket if available
     if (!wsServer) {
       logger.warn("WebSocket server not available for broadcasting", { groupId, taskId });

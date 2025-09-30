@@ -39,3 +39,32 @@ export interface ScheduleListResponse {
   schedules: ScheduledTask[];
   total: number;
 }
+
+// データベース永続化用の型
+
+export interface ScheduleSessionState {
+  scheduleId: string;
+  executionCount: number;
+  lastSessionReset?: Date;
+  updatedAt: Date;
+}
+
+export interface PersistentScheduledTaskHistory {
+  id: number;
+  scheduleId: string;
+  executedAt: Date;
+  taskId: string;
+  status: "success" | "failure";
+  error?: string;
+  createdAt: Date;
+}
+
+// Repository用のフィルター型
+export interface ScheduleFilter {
+  status?: ScheduledTask["status"];
+  scheduleType?: "cron" | "once";
+  createdAfter?: Date;
+  createdBefore?: Date;
+  limit?: number;
+  offset?: number;
+}

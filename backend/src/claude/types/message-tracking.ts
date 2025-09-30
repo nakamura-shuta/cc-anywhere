@@ -19,7 +19,7 @@ export interface TrackedMessage {
   sessionId: string;
 
   // メッセージタイプ
-  type: "system" | "user" | "assistant" | "result";
+  type: "system" | "user" | "assistant" | "result" | "stream_event";
 
   // メッセージ内容
   content: unknown;

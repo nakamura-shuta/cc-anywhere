@@ -296,14 +296,14 @@ export class TaskGroupHistoryRepository extends BaseRepository<TaskGroupHistoryR
       INSERT INTO task_group_logs (group_id, task_id, task_name, log_message, log_level, timestamp)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    
+
     stmt.run(
       log.groupId,
       log.taskId,
       log.taskName,
       log.logMessage,
       log.logLevel || "info",
-      log.timestamp.toISOString()
+      log.timestamp.toISOString(),
     );
   }
 
@@ -316,9 +316,9 @@ export class TaskGroupHistoryRepository extends BaseRepository<TaskGroupHistoryR
       WHERE group_id = ? 
       ORDER BY timestamp ASC
     `);
-    
+
     const rows = stmt.all(groupId);
-    
+
     return rows.map((row: any) => ({
       id: row.id,
       groupId: row.group_id,
