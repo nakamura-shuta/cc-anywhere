@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ConversationFormatter } from "../../../src/utils/conversation-formatter";
-import type { SDKMessage } from "@anthropic-ai/claude-code";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
 describe("ConversationFormatter", () => {
   describe("extractConversationFromMessages", () => {

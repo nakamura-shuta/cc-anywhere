@@ -1,5 +1,5 @@
-import type { SDKMessage } from "@anthropic-ai/claude-code";
-import { query } from "@anthropic-ai/claude-code";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 import type {
   ClaudeCodeStrategy,
   ExecutionMode,

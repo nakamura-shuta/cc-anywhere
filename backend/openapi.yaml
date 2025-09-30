@@ -2,13 +2,13 @@ openapi: 3.1.0
 info:
   title: CC-Anywhere API
   description: |
-    HTTP Server API for executing tasks via Claude Code SDK (v2.0.1).
+    HTTP Server API for executing tasks via Claude Agent SDK (v0.1.1).
 
     This API provides comprehensive task management, scheduling, batch processing,
     and repository exploration capabilities powered by Anthropic's Claude AI.
 
     Key Features:
-    - Task execution with Claude Code SDK integration
+    - Task execution with Claude Agent SDK integration
     - Scheduled task execution (cron and one-time)
     - Batch task processing across multiple repositories
     - Task group execution with dependency management

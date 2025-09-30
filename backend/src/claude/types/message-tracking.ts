@@ -3,7 +3,7 @@
  * Claude Code SDK 1.0.86+ のUUID機能を活用したメッセージトラッキング
  */
 
-import type { SDKMessage } from "@anthropic-ai/claude-code";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
 /**
  * UUID付きメッセージエンティティ

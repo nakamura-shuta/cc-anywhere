@@ -1,8 +1,8 @@
-import type { SDKMessage } from "@anthropic-ai/claude-code";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
 /**
  * Query options for Claude Code SDK
- * This matches the expected structure from @anthropic-ai/claude-code
+ * This matches the expected structure from @anthropic-ai/claude-agent-sdk
  */
 export interface QueryOptions {
   prompt: string;

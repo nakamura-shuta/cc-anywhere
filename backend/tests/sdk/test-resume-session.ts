@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { query } from "@anthropic-ai/claude-code";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 // import * as fs from "fs";
 // import * as path from "path";
 // import { fileURLToPath } from "url";

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { BedrockStrategy } from "../../../../src/claude/strategies/bedrock-strategy";
 import { BedrockRegionError, BedrockAuthError } from "../../../../src/claude/errors";
-import { query } from "@anthropic-ai/claude-code";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 
 // Mock the Claude Code SDK
-vi.mock("@anthropic-ai/claude-code", () => ({
+vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: vi.fn(),
 }));
 

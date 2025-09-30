@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ClaudeCodeClient } from "../../../src/claude/claude-code-client";
-import { query, type SDKMessage } from "@anthropic-ai/claude-code";
+import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
-vi.mock("@anthropic-ai/claude-code");
+vi.mock("@anthropic-ai/claude-agent-sdk");
 
 describe("ClaudeCodeClient", () => {
   let client: ClaudeCodeClient;

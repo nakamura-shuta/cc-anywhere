@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { query } from "@anthropic-ai/claude-code";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 
 // 色付きログ出力
 const log = {

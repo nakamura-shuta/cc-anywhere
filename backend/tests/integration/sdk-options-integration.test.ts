@@ -3,7 +3,7 @@ import { TaskExecutorImpl } from "../../src/claude/executor.js";
 import type { TaskRequest } from "../../src/claude/types.js";
 
 // Mock Claude Code SDK
-vi.mock("@anthropic-ai/claude-code", () => ({
+vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: vi.fn().mockImplementation(async function* () {
     yield {
       type: "assistant",

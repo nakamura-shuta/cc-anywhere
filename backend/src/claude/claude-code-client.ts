@@ -1,4 +1,4 @@
-import { type SDKMessage } from "@anthropic-ai/claude-code";
+import { type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { messageTracker } from "./types/message-tracking";

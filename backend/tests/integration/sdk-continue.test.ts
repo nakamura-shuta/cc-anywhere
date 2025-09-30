@@ -5,7 +5,7 @@ import { TaskStatus } from "../../src/claude/types";
 import { v4 as uuidv4 } from "uuid";
 
 // Mock Claude Code SDK
-vi.mock("@anthropic-ai/claude-code", () => ({
+vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: vi.fn().mockImplementation(async function* (params: any) {
     console.log("Mock query called with params:", JSON.stringify(params, null, 2));
 
