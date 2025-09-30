@@ -13,14 +13,21 @@
 
 ## 🟡 高優先度
 
+### Claude Agent SDK新機能対応
+- **カスタムスラッシュコマンド対応** - SDKのslash command機能を活用
+  - 参考: https://docs.claude.com/en/api/agent-sdk/slash-commands
+  - 独自コマンドの登録と実行
+  - コマンドのヘルプ表示
+- **サブエージェント対応** - マルチエージェントワークフローの実装
+  - 参考: https://docs.claude.com/en/api/agent-sdk/subagents
+  - 動的なサブエージェント追加（--agentsフラグ相当）
+  - エージェント間の連携・タスク分担
+- additionalDirectories実装 - マルチプロジェクト/モノレポ対応
+
 ### タスクグループUI実装
 - フロントエンドに複数タスク作成UI追加 - ユーザビリティ向上のため
 - タスクグループのプリセット保存機能 - 頻繁な操作の効率化
 - 実行履歴表示機能 - 過去の実行結果の確認
-
-### SDK新機能対応
-- additionalDirectories実装 - マルチプロジェクト/モノレポ対応
-- Slash Command処理の改善 - SDKとの統合最適化
 
 ### モバイル最適化
 - Android Chrome環境の最適化 - モバイルユーザビリティ向上
@@ -57,6 +64,7 @@
 
 ## ✅ 完了済み
 
+- **Claude Agent SDKへの移行** - @anthropic-ai/claude-agent-sdk@0.1.1に移行（2025-09-30）
 - **Claude Code SDK 2.0.1対応** - 最新版へのメジャーアップグレード（2025-01-30）
 - **スケジューラーバグ修正** - 有効/無効切り替え機能の修正（2025-01-30）
 - **OpenAPI仕様更新** - v1.0.0、SDK情報更新（2025-01-30）
