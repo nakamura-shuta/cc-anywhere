@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Claude Code SDK 2.0.1へのメジャーアップグレード** (2025-01-30)
+  - 安定版の最新メジャーバージョンに更新
+  - 新パッケージ`@anthropic-ai/claude-agent-sdk`はまだ0.1.xのため、現行の`@anthropic-ai/claude-code@2.0.1`を採用
+  - 既存機能との互換性を完全に維持
+- **OpenAPI仕様の更新** (2025-01-30)
+  - APIバージョンを1.0.0に更新
+  - Claude Code SDK 2.0.1の情報を明記
+  - API説明を充実化（主要機能リストを追加）
+
 ### Fixed
+- **スケジューラーの有効/無効切り替え機能のバグ修正** (2025-01-30)
+  - `ScheduleRepository.serializeEntity`メソッドに`override`キーワードを追加
+  - metadataの二重JSON化問題を解決（BaseRepositoryのメソッドと重複実行されていた）
+  - Date型チェックを強化してデータベース更新エラーを防止
+  - トーストメッセージの表示ロジックを修正（boolean → string）
+  - デバッグログを追加して問題診断を容易化
 - **タスクグループのリアルタイム更新**: WebSocket通信の問題を修正
   - セッションIDがリアルタイムで正しく表示されるように修正
   - タスクステータスが「pending」→「running」→「completed」と正しく遷移するように修正

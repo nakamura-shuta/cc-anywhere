@@ -50,18 +50,22 @@ export class ScheduleRepository extends BaseRepository<ScheduledTask, string> {
     if (entity.status !== undefined) data.status = entity.status;
     if (entity.metadata !== undefined) {
       data.metadata = JSON.stringify({
-        createdAt: entity.metadata.createdAt instanceof Date
-          ? entity.metadata.createdAt.toISOString()
-          : entity.metadata.createdAt,
-        updatedAt: entity.metadata.updatedAt instanceof Date
-          ? entity.metadata.updatedAt.toISOString()
-          : entity.metadata.updatedAt,
-        lastExecutedAt: entity.metadata.lastExecutedAt instanceof Date
-          ? entity.metadata.lastExecutedAt.toISOString()
-          : entity.metadata.lastExecutedAt,
-        nextExecuteAt: entity.metadata.nextExecuteAt instanceof Date
-          ? entity.metadata.nextExecuteAt.toISOString()
-          : entity.metadata.nextExecuteAt,
+        createdAt:
+          entity.metadata.createdAt instanceof Date
+            ? entity.metadata.createdAt.toISOString()
+            : entity.metadata.createdAt,
+        updatedAt:
+          entity.metadata.updatedAt instanceof Date
+            ? entity.metadata.updatedAt.toISOString()
+            : entity.metadata.updatedAt,
+        lastExecutedAt:
+          entity.metadata.lastExecutedAt instanceof Date
+            ? entity.metadata.lastExecutedAt.toISOString()
+            : entity.metadata.lastExecutedAt,
+        nextExecuteAt:
+          entity.metadata.nextExecuteAt instanceof Date
+            ? entity.metadata.nextExecuteAt.toISOString()
+            : entity.metadata.nextExecuteAt,
         executionCount: entity.metadata.executionCount,
       });
     }
