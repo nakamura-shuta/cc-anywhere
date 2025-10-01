@@ -14,7 +14,6 @@ import { resolve } from "path";
 import { RetryHandler, type RetryHandlerOptions } from "../services/retry-handler";
 import { TimeoutManager } from "../services/timeout-manager";
 import { TimeoutPhase, TimeoutError, type TimeoutOptions } from "../types/timeout";
-import { InstructionProcessor } from "../services/slash-commands/instruction-processor";
 import { WorktreeManager } from "../services/worktree/worktree-manager";
 import type { Worktree, WorktreeConfig } from "../services/worktree/types";
 import { NotFoundError, TaskCancelledError, SystemError } from "../utils/errors";
@@ -36,15 +35,11 @@ export class TaskExecutorImpl implements TaskExecutor {
   private codeClient: ClaudeCodeClient;
   private runningTasks: Map<string, AbortController> = new Map();
   private retryHandler: RetryHandler;
-  private instructionProcessor?: InstructionProcessor;
   private worktreeManager?: WorktreeManager;
 
   constructor() {
     this.codeClient = getSharedClaudeClient();
     this.retryHandler = new RetryHandler();
-
-    // Initialize instruction processor
-    this.instructionProcessor = new InstructionProcessor();
 
     // Initialize worktree manager if enabled
     if (config.worktree?.enabled) {
@@ -160,43 +155,47 @@ export class TaskExecutorImpl implements TaskExecutor {
     let createdWorktree: Worktree | null = null;
 
     try {
-      // Process slash commands if enabled
-      let processedTask = task;
+      // TODO: スラッシュコマンド機能について (2025-10-01調査結果)
+      //
+      // Agent SDK 0.1.1ではスラッシュコマンド機能が実用レベルで動作しないことが判明。
+      //
+      // 【調査結果】
+      // - プロジェクトローカル(.claude/commands/)のコマンドが認識されない
+      // - グローバル(~/.claude/commands/)のコマンドも動作しない
+      // - Agent SDK直接テストでも同様の問題を確認
+      // - Claudeが出力せず即座に終了 (output_tokens: 0, duration: ~26ms)
+      //
+      // 【試行した修正】
+      // - コマンドファイル形式の修正 (allowed_tools → allowed-tools)
+      // - permissionMode を "bypassPermissions" に変更 (L757)
+      // - 複数のコマンド記述パターンを試行
+      //
+      // 【現状の対処】
+      // スラッシュコマンドの代わりに通常のタスクとして実行する方針。
+      // 例: "Run: cd /path && ./command --list-indexes"
+      //
+      // 【将来対応】
+      // Agent SDKの将来バージョンでスラッシュコマンド機能が改善された場合、
+      // この実装を再評価し、ネイティブ機能の利用を検討する。
+      //
+      // 詳細: .work/sandbox/slash-command-investigation-result.md
+      //
+      // Agent SDK handles slash commands automatically (/project:, /user:)
+      // No preprocessing needed - pass instruction directly to SDK
       logger.info("Task processing started", {
-        hasInstructionProcessor: !!this.instructionProcessor,
+        instruction: task.instruction,
         originalOptions: task.options,
       });
-      if (this.instructionProcessor) {
-        const processed = await this.instructionProcessor.process(task.instruction, task.context);
-        processedTask = {
-          ...task,
-          instruction: processed.instruction,
-          context: { ...task.context, ...processed.context },
-          options: task.options, // Preserve options including worktree settings
-        };
-
-        // Log if a command was processed
-        if (processed.metadata?.originalCommand) {
-          const commandInfo =
-            processed.metadata.commandName || processed.metadata.ignoredCommand || "unknown";
-          logs.push(`Processed slash command: ${commandInfo}`);
-          logger.info("Slash command processed", {
-            command: commandInfo,
-            original: processed.metadata.originalCommand,
-            reason: processed.metadata.reason,
-          });
-        }
-      }
 
       // Handle worktree creation if enabled
-      let workingDirectory = processedTask.context?.workingDirectory;
-      const shouldUseWorktree = this.shouldUseWorktree(processedTask);
+      let workingDirectory = task.context?.workingDirectory;
+      const shouldUseWorktree = this.shouldUseWorktree(task);
 
       logger.info("Worktree evaluation", {
         shouldUseWorktree,
-        processedTaskOptions: processedTask.options,
-        worktreeOptions: processedTask.options?.worktree,
-        useWorktree: processedTask.options?.useWorktree,
+        taskOptions: task.options,
+        worktreeOptions: task.options?.worktree,
+        useWorktree: task.options?.useWorktree,
       });
 
       if (shouldUseWorktree && taskId && workingDirectory) {
@@ -212,28 +211,28 @@ export class TaskExecutorImpl implements TaskExecutor {
         });
 
         // Create worktree
-        const worktreeOptions = this.getWorktreeOptions(processedTask);
+        const worktreeOptions = this.getWorktreeOptions(task);
         logger.info("Creating worktree with options", {
           taskId,
           worktreeOptions,
-          processedTaskOptions: processedTask.options,
+          taskOptions: task.options,
         });
         createdWorktree = await this.createWorktree(
           taskId,
           absoluteWorkingDirectory,
           worktreeOptions,
-          processedTask.options?.onProgress,
+          task.options?.onProgress,
         );
 
         // Update working directory to worktree path
         workingDirectory = createdWorktree.path;
         logs.push(`Created worktree: ${createdWorktree.id} at ${createdWorktree.path}`);
 
-        // Update processedTask context with new working directory
-        processedTask = {
-          ...processedTask,
+        // Update task context with new working directory
+        task = {
+          ...task,
           context: {
-            ...processedTask.context,
+            ...task.context,
             workingDirectory,
           },
         };
@@ -250,7 +249,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       }
 
       // Build the prompt
-      const prompt = this.buildPrompt(processedTask);
+      const prompt = this.buildPrompt(task);
 
       let output: unknown;
 
@@ -271,17 +270,17 @@ export class TaskExecutorImpl implements TaskExecutor {
         logs.push(`Execution mode: ${executionMode} (Model: ${modelName})`);
 
         // Notify progress: Starting task
-        if (processedTask.options?.onProgress) {
-          await processedTask.options.onProgress({
+        if (task.options?.onProgress) {
+          await task.options.onProgress({
             type: "log",
             message: `タスク実行を開始します... (${executionMode}モード)`,
           });
         }
 
         // Validate and set working directory if specified
-        // Note: If worktree was created, processedTask.context.workingDirectory is already updated
-        const resolvedWorkingDirectory = processedTask.context?.workingDirectory
-          ? resolve(processedTask.context.workingDirectory)
+        // Note: If worktree was created, task.context.workingDirectory is already updated
+        const resolvedWorkingDirectory = task.context?.workingDirectory
+          ? resolve(task.context.workingDirectory)
           : undefined;
 
         if (resolvedWorkingDirectory) {
@@ -295,8 +294,8 @@ export class TaskExecutorImpl implements TaskExecutor {
           logs.push(`Working directory: ${resolvedWorkingDirectory}`);
           logger.info("Using working directory", { cwd: resolvedWorkingDirectory });
 
-          if (processedTask.options?.onProgress) {
-            await processedTask.options.onProgress({
+          if (task.options?.onProgress) {
+            await task.options.onProgress({
               type: "log",
               message: `作業ディレクトリ: ${resolvedWorkingDirectory}`,
             });
@@ -317,15 +316,15 @@ export class TaskExecutorImpl implements TaskExecutor {
         timeoutManager.transitionToPhase(TimeoutPhase.EXECUTION);
 
         // Notify progress: Execution phase
-        if (processedTask.options?.onProgress) {
-          await processedTask.options.onProgress({
+        if (task.options?.onProgress) {
+          await task.options.onProgress({
             type: "log",
             message: "Claude Codeを実行中...",
           });
         }
 
         // SDKオプションの取得とマージ
-        const sdkOptions = this.mergeSDKOptions(processedTask.options?.sdk, processedTask.options);
+        const sdkOptions = this.mergeSDKOptions(task.options?.sdk, task.options);
 
         // SDKオプションの検証
         this.validateSDKOptions(sdkOptions);
@@ -337,7 +336,7 @@ export class TaskExecutorImpl implements TaskExecutor {
           data?: any;
         }) => {
           // 元のコールバックにプログレスを転送（タイプを維持）
-          if (processedTask.options?.onProgress) {
+          if (task.options?.onProgress) {
             // 構造化されたイベントタイプはそのまま転送
             if (
               progress.type === "todo_update" ||
@@ -349,10 +348,10 @@ export class TaskExecutorImpl implements TaskExecutor {
               progress.type === "claude:response" ||
               progress.type === "statistics"
             ) {
-              await processedTask.options.onProgress(progress);
+              await task.options.onProgress(progress);
             } else {
               // その他は通常のログメッセージとして処理
-              await processedTask.options.onProgress({
+              await task.options.onProgress({
                 type: "log",
                 message: progress.message,
               });
@@ -418,8 +417,8 @@ export class TaskExecutorImpl implements TaskExecutor {
           const summary = sdkResult.tracker.generateSummary(sdkResult.success, output);
 
           // Send summary via progress callback
-          if (processedTask.options?.onProgress) {
-            await processedTask.options.onProgress({
+          if (task.options?.onProgress) {
+            await task.options.onProgress({
               type: "summary",
               message: `タスク完了: ${summary.highlights.join(" / ")}`,
             });
@@ -479,15 +478,15 @@ export class TaskExecutorImpl implements TaskExecutor {
 
       // Clean up worktree if needed
       if (createdWorktree) {
-        const shouldCleanup = this.shouldCleanupWorktree(processedTask);
+        const shouldCleanup = this.shouldCleanupWorktree(task);
         logger.info("Worktree cleanup decision", {
           worktreeId: createdWorktree.id,
           shouldCleanup,
-          keepAfterCompletion: processedTask.options?.worktree?.keepAfterCompletion,
+          keepAfterCompletion: task.options?.worktree?.keepAfterCompletion,
         });
 
         if (shouldCleanup) {
-          await this.cleanupWorktree(createdWorktree, processedTask.options?.onProgress);
+          await this.cleanupWorktree(createdWorktree, task.options?.onProgress);
         }
       }
 

@@ -14,10 +14,12 @@
 ## 🟡 高優先度
 
 ### Claude Agent SDK新機能対応
-- **カスタムスラッシュコマンド対応** - SDKのslash command機能を活用
-  - 参考: https://docs.claude.com/en/api/agent-sdk/slash-commands
-  - 独自コマンドの登録と実行
-  - コマンドのヘルプ表示
+- **スラッシュコマンド機能の再評価** - Agent SDK将来バージョンでの改善待ち
+  - 現状: SDK 0.1.1ではプロジェクトローカル/グローバル共に動作せず
+  - 調査結果: backend/src/claude/executor.ts:158-181のTODOコメント参照
+  - 詳細ドキュメント: .work/sandbox/slash-command-investigation-result.md
+  - 対処: 通常のタスク指示として実行（例: "Run: cd /path && ./command"）
+  - 将来対応: Agent SDKバージョンアップ時に再テスト・実装検討
 - **サブエージェント対応** - マルチエージェントワークフローの実装
   - 参考: https://docs.claude.com/en/api/agent-sdk/subagents
   - 動的なサブエージェント追加（--agentsフラグ相当）
@@ -64,6 +66,10 @@
 
 ## ✅ 完了済み
 
+- **カスタムスラッシュコマンド対応** - Agent SDK標準機能に統合（2025-10-01）
+  - 独自実装（InstructionProcessor等）を削除し、Agent SDKネイティブ機能に統合
+  - `/project:`および`/user:`プレフィックスによるコマンド実行をサポート
+  - 1,375行のコード削減、統合テスト追加
 - **Claude Agent SDKへの移行** - @anthropic-ai/claude-agent-sdk@0.1.1に移行（2025-09-30）
 - **Claude Code SDK 2.0.1対応** - 最新版へのメジャーアップグレード（2025-01-30）
 - **スケジューラーバグ修正** - 有効/無効切り替え機能の修正（2025-01-30）
