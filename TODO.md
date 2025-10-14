@@ -13,6 +13,15 @@
 
 ## 🟡 高優先度
 
+### Codex対応機能
+- **AI実行エンジンの選択機能** - Claude CodeとCodexの選択可能化
+  - タスク実行API (`/api/tasks`) にエンジン選択パラメータ追加
+  - フロントエンドUIにエンジン選択ドロップダウン実装
+  - Codex APIクライアント実装 (Claude Agent SDK同様の抽象化)
+  - エンジン固有の設定・プロンプト最適化
+  - 実行履歴にエンジン情報を記録
+  - 参考: OpenAI Codex API - https://platform.openai.com/docs/guides/code
+
 ### Claude Agent SDK新機能対応
 - **スラッシュコマンド機能の再評価** - Agent SDK将来バージョンでの改善待ち
   - 現状: SDK 0.1.1ではプロジェクトローカル/グローバル共に動作せず
