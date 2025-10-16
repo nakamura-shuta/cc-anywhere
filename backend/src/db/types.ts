@@ -1,4 +1,5 @@
 import type { TaskStatus } from "../claude/types";
+import type { ExecutorType, ExecutorMetadata } from "../agents/types.js";
 
 export interface TaskRecord {
   id: string;
@@ -27,6 +28,9 @@ export interface TaskRecord {
   continuedFrom?: string; // Parent task ID for continuation
   // Claude Code SDK session
   sdkSessionId?: string; // Claude Code SDK session ID for continue functionality
+  // Executor information
+  executor?: ExecutorType; // Which agent executor was used
+  executorMetadata?: ExecutorMetadata; // Executor-specific metadata
   // Progress data
   progressData?: {
     currentTurn?: number;
@@ -74,6 +78,7 @@ export interface TaskFilter {
   search?: string;
   groupId?: string;
   repositoryName?: string;
+  executor?: ExecutorType; // Filter by executor type
 }
 
 export interface PaginationOptions {

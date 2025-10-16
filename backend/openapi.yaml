@@ -2,13 +2,14 @@ openapi: 3.1.0
 info:
   title: CC-Anywhere API
   description: |
-    HTTP Server API for executing tasks via Claude Agent SDK (v0.1.1).
+    HTTP Server API for executing tasks via multiple Agent SDKs.
 
     This API provides comprehensive task management, scheduling, batch processing,
-    and repository exploration capabilities powered by Anthropic's Claude AI.
+    and repository exploration capabilities powered by AI agents.
 
     Key Features:
-    - Task execution with Claude Agent SDK integration
+    - Multi-executor support (Claude Agent SDK, OpenAI Codex SDK)
+    - Task execution with pluggable executor architecture
     - Scheduled task execution (cron and one-time)
     - Batch task processing across multiple repositories
     - Task group execution with dependency management
@@ -46,6 +47,8 @@ tags:
     description: Task scheduling operations
   - name: task-groups
     description: Task group execution with dependency management
+  - name: executors
+    description: Executor management and information
 
 components:
   securitySchemes:
@@ -118,6 +121,15 @@ components:
           type: string
           nullable: true
           description: Task ID this was continued from
+        executor:
+          type: string
+          enum: [claude, codex]
+          nullable: true
+          description: Executor type used for this task (defaults to claude)
+        executorMetadata:
+          type: object
+          nullable: true
+          description: Executor-specific metadata
         todos:
           type: array
           nullable: true
@@ -195,6 +207,10 @@ components:
               type: boolean
               default: false
               description: Whether to execute the task asynchronously
+            executor:
+              type: string
+              enum: [claude, codex]
+              description: Executor type to use for task execution (defaults to claude)
             allowedTools:
               type: array
               items:
@@ -697,6 +713,34 @@ components:
         - tasks
         - startedAt
 
+    ExecutorInfo:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [claude, codex]
+          description: Executor type identifier
+        available:
+          type: boolean
+          description: Whether this executor is currently available
+        description:
+          type: string
+          description: Human-readable description of the executor
+      required:
+        - type
+        - available
+        - description
+
+    ListExecutorsResponse:
+      type: object
+      properties:
+        executors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutorInfo'
+      required:
+        - executors
+
   responses:
     BadRequest:
       description: Bad Request
@@ -757,6 +801,35 @@ paths:
                   - status
                   - timestamp
                   - version
+
+  /api/executors:
+    get:
+      tags:
+        - executors
+      summary: List available executors
+      operationId: listExecutors
+      description: |
+        Returns information about all available executor types.
+        Each executor provides a different Agent SDK implementation.
+      responses:
+        '200':
+          description: List of available executors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListExecutorsResponse'
+              example:
+                executors:
+                  - type: claude
+                    available: true
+                    description: "Claude Agent SDK - Official Anthropic agent framework"
+                  - type: codex
+                    available: false
+                    description: "OpenAI Codex SDK - AI coding assistant"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /api/tasks:
     get:

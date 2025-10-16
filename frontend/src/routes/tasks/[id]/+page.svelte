@@ -56,6 +56,26 @@
 	
 	// タブ切り替え時のデバッグ
 	
+	// Executorアイコンパスを取得
+	function getExecutorIcon(executor: string | undefined): string {
+		const type = executor || 'claude';
+		return type === 'claude' ? '/claude.png' : type === 'codex' ? '/codex.png' : '/claude.png';
+	}
+
+	// Executorラベルを取得
+	function getExecutorLabel(executor: string | undefined): string {
+		if (!executor) return 'Claude';
+		return executor === 'claude' ? 'Claude' : executor === 'codex' ? 'Codex' : executor;
+	}
+
+	// Executor色を取得
+	function getExecutorColor(executor: string | undefined): string {
+		const type = executor || 'claude';
+		return type === 'claude' ? 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-400'
+		     : type === 'codex' ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-400'
+		     : 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-950 dark:border-gray-800 dark:text-gray-400';
+	}
+
 	// ツールのアイコンを取得
 	function getToolIcon(toolName: string) {
 		switch (toolName) {
@@ -495,6 +515,17 @@
 						</div>
 					</div>
 				{/if}
+				<div>
+					<p class="text-sm text-muted-foreground mb-2">Executor</p>
+					<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border {getExecutorColor(currentTask.executor || currentTask.options?.executor)}">
+						<img
+							src={getExecutorIcon(currentTask.executor || currentTask.options?.executor)}
+							alt={getExecutorLabel(currentTask.executor || currentTask.options?.executor)}
+							class="w-5 h-5"
+						/>
+						<span class="font-medium">{getExecutorLabel(currentTask.executor || currentTask.options?.executor)}</span>
+					</div>
+				</div>
 				<div>
 					<p class="text-sm text-muted-foreground">作成日時</p>
 					<p class="text-sm">{formatDate(currentTask.createdAt, 'full')}</p>

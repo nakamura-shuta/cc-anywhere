@@ -4,6 +4,7 @@ import type { TaskRequest } from "../claude/types";
 import { TaskStatus } from "../claude/types";
 import type { QueuedTask, QueueOptions, QueueStats, TaskQueue } from "./types";
 import { TaskExecutorImpl } from "../claude/executor";
+import type { CodexTaskExecutorAdapter } from "../agents/codex-task-executor-adapter.js";
 import { logger } from "../utils/logger";
 import { getSharedRepository } from "../db/shared-instance";
 import type { TaskRepositoryAdapter } from "../repositories/task-repository-adapter";
@@ -18,6 +19,7 @@ export class TaskQueueImpl implements TaskQueue {
   private queue: PQueue;
   private tasks: Map<string, QueuedTask> = new Map();
   private executor: TaskExecutorImpl;
+  private codexExecutor: CodexTaskExecutorAdapter | null = null;
   private completedCount = 0;
   private failedCount = 0;
   private repository: TaskRepositoryAdapter;
@@ -50,6 +52,7 @@ export class TaskQueueImpl implements TaskQueue {
     this.queue = new PQueue(queueOptions);
 
     this.executor = new TaskExecutorImpl();
+    // codexExecutor will be lazy-loaded when needed
     // Use shared repository instance
     this.repository = getSharedRepository();
     this.eventBus = getTypedEventBus(); // Initialize event bus
@@ -61,6 +64,20 @@ export class TaskQueueImpl implements TaskQueue {
       concurrency: this.queue.concurrency,
       autoStart: options.autoStart !== false,
     });
+  }
+
+  /**
+   * Lazy-load Codex executor only when needed
+   */
+  private async getCodexExecutor(): Promise<CodexTaskExecutorAdapter> {
+    if (!this.codexExecutor) {
+      logger.debug("Lazy-loading Codex executor");
+      const { CodexTaskExecutorAdapter } = await import(
+        "../agents/codex-task-executor-adapter.js"
+      );
+      this.codexExecutor = new CodexTaskExecutorAdapter();
+    }
+    return this.codexExecutor;
   }
 
   add(
@@ -494,8 +511,19 @@ export class TaskQueueImpl implements TaskQueue {
         },
       };
 
+      // Select executor based on options (lazy-load codex if needed)
+      const executor =
+        task.request.options?.executor === "codex"
+          ? await this.getCodexExecutor()
+          : this.executor;
+
+      logger.info("Executing task with selected executor", {
+        taskId: task.id,
+        executorType: task.request.options?.executor || "claude",
+      });
+
       // Execute the task with taskId for cancellation support
-      const result = await this.executor.execute(requestWithProgress, task.id, task.retryMetadata);
+      const result = await executor.execute(requestWithProgress, task.id, task.retryMetadata);
 
       // 最終的なprogressDataをログに記録（デバッグ用）
       logger.info("Final progressData before saving", {
@@ -883,9 +911,13 @@ export class TaskQueueImpl implements TaskQueue {
       return false;
     }
 
-    // If task is running, cancel it through the executor
+    // If task is running, cancel it through the appropriate executor
     if (task.status === TaskStatus.RUNNING) {
-      await this.executor.cancel(taskId);
+      const executor =
+        task.request.options?.executor === "codex"
+          ? await this.getCodexExecutor()
+          : this.executor;
+      await executor.cancel(taskId);
     }
 
     // Update task status

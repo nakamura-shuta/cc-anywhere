@@ -12,16 +12,17 @@
 	import { taskStore } from '$lib/stores/api.svelte';
 	import { taskService } from '$lib/services/task.service';
 	import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-svelte';
-	import type { TaskRequest } from '$lib/types/api';
+	import type { TaskRequest, ExecutorType } from '$lib/types/api';
 	import DirectorySelector from '$lib/components/directory-selector.svelte';
+	import ExecutorSelector from '$lib/components/executor-selector.svelte';
 	import { onMount } from 'svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import GroupTaskForm from '$lib/components/task-group/GroupTaskForm.svelte';
-	
+
 	// Task mode
 	let taskMode = $state<'single' | 'group'>('single');
-	
+
 	// フォームの状態
 	let instruction = $state('');
 	let selectedDirectories = $state<string[]>([]);
@@ -29,7 +30,8 @@
 	let timeout = $state(300000);
 	let useAsync = $state(true);
 	let permissionMode = $state<string>('allow');
-	
+	let selectedExecutor = $state<ExecutorType | undefined>(undefined);
+
 	// Worktree設定
 	let useWorktree = $state(false);
 	let keepWorktreeAfterCompletion = $state(false);
@@ -129,6 +131,7 @@
 			options: {
 				timeout,
 				async: useAsync,
+				executor: selectedExecutor,
 				sdk: {
 					maxTurns,
 					permissionMode: Array.isArray(permissionMode) ? permissionMode[0] : permissionMode as 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan',
@@ -364,6 +367,14 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
+
+					<!-- Executor選択 -->
+					<div class="space-y-2">
+						<ExecutorSelector
+							bind:value={selectedExecutor}
+							showLabel={true}
+						/>
+					</div>
 
 					<!-- Worktree設定 -->
 					<div class="space-y-4 border-t pt-4">

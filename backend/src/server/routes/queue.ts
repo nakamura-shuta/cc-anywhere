@@ -17,6 +17,7 @@ const addToQueueSchema = z.object({
     .object({
       timeout: z.number().positive().optional(),
       allowedTools: z.array(z.string()).optional(),
+      executor: z.enum(["claude", "codex"]).optional(),
     })
     .optional(),
   priority: z.number().default(0),

@@ -82,6 +82,7 @@ export interface TaskRequest {
   options?: {
     timeout?: number | TimeoutOptions;
     async?: boolean;
+    executor?: "claude" | "codex"; // Executor type selection
     allowedTools?: string[]; // 後方互換性のため残す
     retry?: RetryOptions; // Retry options
     onProgress?: (progress: { type: string; message: string }) => void | Promise<void>; // Progress callback
