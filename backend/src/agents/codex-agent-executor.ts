@@ -16,23 +16,22 @@ import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
 
-type CodexSdkModule = typeof import("@openai/codex-sdk");
+/**
+ * Lazy-load Codex SDK module
+ * tsx v4.20+ supports ESM dynamic import natively
+ */
+interface CodexModule {
+  Codex: typeof Codex;
+}
 
-const loadCodexModule = (() => {
-  const importFn = Function(
-    "specifier",
-    "return import(specifier);",
-  ) as (specifier: string) => Promise<CodexSdkModule>;
+let codexModulePromise: Promise<CodexModule> | null = null;
 
-  let modulePromise: Promise<CodexSdkModule> | null = null;
-
-  return async () => {
-    if (!modulePromise) {
-      modulePromise = importFn("@openai/codex-sdk");
-    }
-    return modulePromise;
-  };
-})();
+async function loadCodexModule(): Promise<CodexModule> {
+  if (!codexModulePromise) {
+    codexModulePromise = import("@openai/codex-sdk") as Promise<CodexModule>;
+  }
+  return codexModulePromise;
+}
 
 /**
  * Codex SDK executor implementation

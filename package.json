@@ -30,7 +30,8 @@
     "check": "npm run check --workspaces --if-present"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "typescript": "5.9"
   },
   "dependencies": {
     "@openai/codex-sdk": "^0.46.0",
