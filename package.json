@@ -30,6 +30,7 @@
     "check": "npm run check --workspaces --if-present"
   },
   "devDependencies": {
+    "@swc/core-darwin-arm64": "^1.13.20",
     "concurrently": "^8.2.2",
     "typescript": "5.9"
   },

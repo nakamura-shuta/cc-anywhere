@@ -7,10 +7,11 @@
 
 import type { TaskRequest, ClaudeExecutionResult, TaskResponse } from "../claude/types.js";
 import type { AgentTaskRequest, AgentExecutionEvent } from "./types.js";
+import type { CodexAgentExecutor as CodexAgentExecutorType } from "./codex-agent-executor.js";
 import { logger } from "../utils/logger.js";
 
 // Type-only import to avoid loading Codex SDK at startup
-type CodexAgentExecutor = import("./codex-agent-executor.js").CodexAgentExecutor;
+type CodexAgentExecutor = CodexAgentExecutorType;
 
 export class CodexTaskExecutorAdapter {
   private codexExecutor: CodexAgentExecutor | null = null;

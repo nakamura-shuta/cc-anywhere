@@ -26,13 +26,21 @@
   - [x] データベーススキーマ設計完了
   - [x] API仕様確定
   - 設計ドキュメント: `.work/codex/phase1-*.md`
-- **Phase 2: 実装** - 🔄 次のステップ（見積: 8日間）
-  - [ ] Phase 1.1: インターフェイス定義実装（1日）
-  - [ ] Phase 1.2: CodexAgentExecutor実装（2日）
-  - [ ] Phase 1.3: ClaudeAgentExecutor実装（2日）
-  - [ ] Phase 1.4: 統合とテスト（2日）
-  - [ ] Phase 1.5: フロントエンド対応（1日）
+- **Phase 2: 実装** - ✅ 完了（2025-10-16）
+  - [x] Phase 1.1: インターフェイス定義実装（1日）
+  - [x] Phase 1.2: CodexAgentExecutor実装（2日）
+  - [x] Phase 1.3: ClaudeAgentExecutor実装（2日）
+  - [x] Phase 1.4: 統合とテスト（2日）
+  - [x] Phase 1.5: フロントエンド対応（1日）
   - 詳細: `.work/codex/phase1-summary.md`
+- **既知の問題**
+  - [ ] Codexタスク実行時のParameterが作用していないケースがある
+    - 調査が必要: どのパラメータが影響を受けているか特定
+    - 影響範囲: タスク実行オプションの一部が無視される可能性
+  - [ ] WebSocketによるレスポンスの受信ができていない
+    - 症状: リアルタイムイベントストリームが正しく配信されない
+    - 優先度: 高（ユーザー体験に直接影響）
+    - 調査範囲: backend/src/agents/codex-agent-executor.ts のイベント変換ロジック
 
 ### Claude Agent SDK新機能対応
 - **スラッシュコマンド機能の再評価** - Agent SDK将来バージョンでの改善待ち

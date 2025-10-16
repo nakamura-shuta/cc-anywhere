@@ -72,9 +72,7 @@ export class TaskQueueImpl implements TaskQueue {
   private async getCodexExecutor(): Promise<CodexTaskExecutorAdapter> {
     if (!this.codexExecutor) {
       logger.debug("Lazy-loading Codex executor");
-      const { CodexTaskExecutorAdapter } = await import(
-        "../agents/codex-task-executor-adapter.js"
-      );
+      const { CodexTaskExecutorAdapter } = await import("../agents/codex-task-executor-adapter.js");
       this.codexExecutor = new CodexTaskExecutorAdapter();
     }
     return this.codexExecutor;
@@ -513,9 +511,7 @@ export class TaskQueueImpl implements TaskQueue {
 
       // Select executor based on options (lazy-load codex if needed)
       const executor =
-        task.request.options?.executor === "codex"
-          ? await this.getCodexExecutor()
-          : this.executor;
+        task.request.options?.executor === "codex" ? await this.getCodexExecutor() : this.executor;
 
       logger.info("Executing task with selected executor", {
         taskId: task.id,
@@ -914,9 +910,7 @@ export class TaskQueueImpl implements TaskQueue {
     // If task is running, cancel it through the appropriate executor
     if (task.status === TaskStatus.RUNNING) {
       const executor =
-        task.request.options?.executor === "codex"
-          ? await this.getCodexExecutor()
-          : this.executor;
+        task.request.options?.executor === "codex" ? await this.getCodexExecutor() : this.executor;
       await executor.cancel(taskId);
     }
 
