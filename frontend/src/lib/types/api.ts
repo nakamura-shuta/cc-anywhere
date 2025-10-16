@@ -36,6 +36,9 @@ export interface TaskContext {
 	[key: string]: unknown;
 }
 
+// Executor type
+export type ExecutorType = "claude" | "codex";
+
 // Claude Code SDKオプション
 export interface ClaudeCodeSDKOptions {
 	maxTurns?: number;
@@ -76,6 +79,7 @@ export interface TaskRequest {
 		sdk?: ClaudeCodeSDKOptions;
 		useWorktree?: boolean;
 		worktree?: WorktreeOptions;
+		executor?: ExecutorType;
 	};
 }
 
@@ -101,9 +105,12 @@ export interface TaskResponse {
 	parentTaskId?: string;
 	duration?: number;
 	sdkSessionId?: string; // Claude Code SDK session ID
+	executor?: ExecutorType; // Executor type used for this task
+	executorMetadata?: Record<string, any>; // Executor-specific metadata
 	options?: {
 		permissionMode?: string;
 		timeout?: number;
+		executor?: ExecutorType;
 		[key: string]: any;
 	};
 	// 進捗データ（統計情報を含む）
@@ -379,4 +386,16 @@ export interface ListSessionsResponse {
 	sessions: Session[];
 	total: number;
 	hasMore: boolean;
+}
+
+// Executor情報
+export interface ExecutorInfo {
+	type: ExecutorType;
+	available: boolean;
+	description: string;
+}
+
+// Executors一覧レスポンス
+export interface ListExecutorsResponse {
+	executors: ExecutorInfo[];
 }

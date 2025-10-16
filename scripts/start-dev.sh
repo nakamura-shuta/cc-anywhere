@@ -84,13 +84,17 @@ if command -v tmux &> /dev/null; then
     # 新しいセッションを作成
     tmux new-session -d -s $SESSION_NAME -n backend
     
-    # バックエンドを起動
+    # バックエンドを起動（明示的にNode.jsパス設定）
+    NODE_PATH=$(which node)
     tmux send-keys -t $SESSION_NAME:backend "cd $BACKEND_DIR" C-m
+    tmux send-keys -t $SESSION_NAME:backend "export PATH=\"$(dirname $NODE_PATH):\$PATH\"" C-m
+    tmux send-keys -t $SESSION_NAME:backend "node --version" C-m
     tmux send-keys -t $SESSION_NAME:backend "npm run dev" C-m
     
-    # フロントエンド用の新しいウィンドウを作成
+    # フロントエンド用の新しいウィンドウを作成（明示的にNode.jsパス設定）
     tmux new-window -t $SESSION_NAME -n frontend
     tmux send-keys -t $SESSION_NAME:frontend "cd $FRONTEND_DIR" C-m
+    tmux send-keys -t $SESSION_NAME:frontend "export PATH=\"$(dirname $NODE_PATH):\$PATH\"" C-m
     tmux send-keys -t $SESSION_NAME:frontend "npm run dev" C-m
     
     # ログ用の新しいウィンドウを作成

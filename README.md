@@ -15,6 +15,7 @@ CC-Anywhereは、Claude Code SDKをHTTP API経由で利用できるようにす�
 - 定期的なメンテナンスタスク（スケジューラー機能）
 
 **特徴:**
+- **マルチExecutor対応**: Claude Agent SDK、OpenAI Codex SDK（予定）から選択可能
 - Web UIとAPIの両方から利用可能
 - リアルタイムで実行状況を確認
 - 複数のリポジトリを管理
@@ -45,7 +46,10 @@ npm run dev
 ## 主な機能
 
 **基本機能**
-- Claude Agent SDK 0.1.1（@anthropic-ai/claude-agent-sdk）をHTTP API経由で利用
+- マルチExecutorアーキテクチャ
+  - Claude Agent SDK 0.1.1（デフォルト）
+  - OpenAI Codex SDK（今後対応予定）
+  - タスク実行時にExecutorを選択可能
 - Web UIとREST APIの両方から操作可能
 - WebSocketによるリアルタイムログ表示
 - 複数リポジトリの管理と切り替え
@@ -305,6 +309,47 @@ npm run type-check
 - **グループテスト**: 複数タスクの順次・並列実行、依存関係
 
 詳細は[システムテストREADME](system-tests/README.md)を参照。
+
+## マルチExecutor対応
+
+CC-Anywhereは複数のAgent SDKをサポートし、タスク実行時に最適なExecutorを選択できます。
+
+### 利用可能なExecutor
+
+- **Claude Agent SDK**: Anthropic公式のエージェントフレームワーク（デフォルト）
+- **OpenAI Codex SDK**: OpenAIのコーディングアシスタント（今後対応予定）
+
+### Web UIでの使用方法
+
+1. 「新規タスク作成」ページを開く
+2. 「Executor」セレクターから使用するExecutorを選択
+3. その他の設定を入力してタスクを作成
+
+### API経由での使用方法
+
+```bash
+curl -X POST http://localhost:5000/api/queue/tasks \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "instruction": "Create a README file",
+    "context": {
+      "workingDirectory": "/path/to/repo"
+    },
+    "options": {
+      "executor": "claude"
+    }
+  }'
+```
+
+利用可能なExecutorを確認：
+
+```bash
+curl -X GET http://localhost:5000/api/executors \
+  -H "X-API-Key: your-api-key"
+```
+
+詳細は[マルチExecutor対応ドキュメント](docs/multi-executor-support.md)を参照してください。
 
 ## ライセンス
 

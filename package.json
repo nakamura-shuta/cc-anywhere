@@ -31,5 +31,10 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@openai/codex-sdk": "^0.46.0",
+    "execa": "^9.6.0",
+    "nanoid": "^5.1.6"
   }
 }

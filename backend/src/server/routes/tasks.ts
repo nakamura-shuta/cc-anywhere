@@ -79,6 +79,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                     allowedTools: { type: "array", nullable: true, items: { type: "string" } },
                     continuedFrom: { type: "string", nullable: true },
                     sdkSessionId: { type: "string", nullable: true },
+                    options: { nullable: true, additionalProperties: true },
                   },
                 },
               },
@@ -406,6 +407,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
               retryMetadata: { nullable: true, additionalProperties: true },
               allowedTools: { type: "array", nullable: true, items: { type: "string" } },
               sdkSessionId: { type: "string", nullable: true },
+              options: { nullable: true, additionalProperties: true },
             },
           },
           202: {

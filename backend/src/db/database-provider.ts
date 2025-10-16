@@ -196,7 +196,21 @@ export class DatabaseProvider {
         // Column may already exist
       }
 
-      // Create indexes for sessions
+      // Add executor column to tasks table if not exists (Multi-Agent SDK support)
+      try {
+        this.db.exec(`ALTER TABLE tasks ADD COLUMN executor TEXT DEFAULT 'claude'`);
+      } catch (error) {
+        // Column may already exist
+      }
+
+      // Add executor_metadata column to tasks table if not exists (Multi-Agent SDK support)
+      try {
+        this.db.exec(`ALTER TABLE tasks ADD COLUMN executor_metadata TEXT`);
+      } catch (error) {
+        // Column may already exist
+      }
+
+      // Create indexes for sessions and executor
       this.db.exec(`
         CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
         CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
@@ -204,6 +218,7 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_id ON conversation_turns(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_has_conversation ON tasks(id) WHERE conversation_history IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_tasks_executor ON tasks(executor);
       `);
 
       // Create task_groups table

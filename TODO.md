@@ -14,13 +14,25 @@
 ## 🟡 高優先度
 
 ### Codex対応機能
-- **AI実行エンジンの選択機能** - Claude CodeとCodexの選択可能化
-  - タスク実行API (`/api/tasks`) にエンジン選択パラメータ追加
-  - フロントエンドUIにエンジン選択ドロップダウン実装
-  - Codex APIクライアント実装 (Claude Agent SDK同様の抽象化)
-  - エンジン固有の設定・プロンプト最適化
-  - 実行履歴にエンジン情報を記録
-  - 参考: OpenAI Codex API - https://platform.openai.com/docs/guides/code
+- **Phase 0: SDK動作検証** - ✅ 完了（2025-10-14）
+  - Codex SDK基本動作検証完了
+  - ストリーミングモード動作確認
+  - ファイル操作テスト成功
+  - Phase 0検証レポート作成: `.work/codex/codex-sdk-verification-report.md`
+  - Go判定（確定）: ストリーミングモードで全機能利用可能
+- **Phase 1: 設計とアーキテクチャ** - ✅ 完了（2025-10-14）
+  - [x] IAgentExecutorインターフェイス設計完了
+  - [x] リファクタリング計画策定完了
+  - [x] データベーススキーマ設計完了
+  - [x] API仕様確定
+  - 設計ドキュメント: `.work/codex/phase1-*.md`
+- **Phase 2: 実装** - 🔄 次のステップ（見積: 8日間）
+  - [ ] Phase 1.1: インターフェイス定義実装（1日）
+  - [ ] Phase 1.2: CodexAgentExecutor実装（2日）
+  - [ ] Phase 1.3: ClaudeAgentExecutor実装（2日）
+  - [ ] Phase 1.4: 統合とテスト（2日）
+  - [ ] Phase 1.5: フロントエンド対応（1日）
+  - 詳細: `.work/codex/phase1-summary.md`
 
 ### Claude Agent SDK新機能対応
 - **スラッシュコマンド機能の再評価** - Agent SDK将来バージョンでの改善待ち
