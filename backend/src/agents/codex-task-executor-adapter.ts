@@ -92,6 +92,11 @@ export class CodexTaskExecutorAdapter {
       for await (const event of iterable) {
         events.push(event);
 
+        // Send progress event to WebSocket if onProgress is provided
+        if (originalOnProgress) {
+          await this.handleProgressEvent(event, originalOnProgress);
+        }
+
         // Collect data from events
         switch (event.type) {
           case "agent:progress":
@@ -160,6 +165,16 @@ export class CodexTaskExecutorAdapter {
   ): Promise<void> {
     try {
       switch (event.type) {
+        case "agent:start":
+          await onProgress({
+            type: "progress",
+            message: "Task started",
+            data: {
+              status: "started",
+              executor: event.executor,
+            },
+          });
+          break;
         case "agent:progress":
           await onProgress({
             type: "log",
@@ -209,6 +224,30 @@ export class CodexTaskExecutorAdapter {
               totalTurns: event.totalTurns,
               totalToolCalls: event.totalToolCalls,
               toolStats: event.toolStats,
+              tokenUsage: event.tokenUsage,
+            },
+          });
+          break;
+        case "agent:completed":
+          await onProgress({
+            type: "summary",
+            message: "Task completed",
+            data: {
+              output: event.output,
+              duration: event.duration,
+              sessionId: event.sessionId,
+              conversationHistory: event.conversationHistory,
+              todos: event.todos,
+            },
+          });
+          break;
+        case "agent:failed":
+          await onProgress({
+            type: "log",
+            message: `Task failed: ${event.error.message}`,
+            data: {
+              error: event.error.message,
+              level: "error",
             },
           });
           break;

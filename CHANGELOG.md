@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Codexファイル変更検知WebSocket対応** (2025-10-22)
+  - TaskQueueでFileWatcherServiceを自動起動するように修正
+  - WebSocketブロードキャストリスナーを`setWebSocketServer()`で登録
+  - Codex executorでファイル変更がブラウザのファイルエクスプローラーにリアルタイム表示されるように改善
+  - ファイル変更インジケーター（[+], [M], [D], [R]）がCodexタスクでも正常に動作
+  - 修正ファイル: backend/src/queue/task-queue.ts
+
 ### Changed
 - **Claude Agent SDKへの移行** (2025-09-30)
   - パッケージを`@anthropic-ai/claude-code@2.0.1`から`@anthropic-ai/claude-agent-sdk@0.1.1`に移行

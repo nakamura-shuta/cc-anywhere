@@ -70,6 +70,12 @@ const envSchema = z.object({
     .default("false")
     .transform((v) => v === "true"),
   QR_AUTH_SESSION_DURATION: z.string().default("86400000").transform(Number),
+  // Task Queue メモリ管理設定
+  TASK_RETENTION_TIME_MS: z.string().default("300000").transform(Number), // 5分
+  TASK_CLEANUP_ENABLED: z
+    .string()
+    .default("true")
+    .transform((v) => v === "true"),
 });
 
 // Parse and validate environment variables
@@ -106,6 +112,8 @@ export const config = {
   },
   queue: {
     concurrency: env.QUEUE_CONCURRENCY,
+    taskRetentionTime: env.TASK_RETENTION_TIME_MS,
+    cleanupEnabled: env.TASK_CLEANUP_ENABLED,
   },
   database: {
     path: env.DB_PATH,

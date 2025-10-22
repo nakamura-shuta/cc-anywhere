@@ -28,6 +28,9 @@ export interface QueueOptions {
   interval?: number;
   intervalCap?: number;
   autoStart?: boolean;
+  // Memory management options
+  taskRetentionTime?: number; // Time in ms to retain completed tasks in memory
+  cleanupEnabled?: boolean; // Enable automatic cleanup of completed tasks
 }
 
 // Queue statistics

@@ -11,8 +11,9 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { taskStore } from '$lib/stores/api.svelte';
 	import { taskService } from '$lib/services/task.service';
-	import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-svelte';
-	import type { TaskRequest, ExecutorType } from '$lib/types/api';
+	import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp, AlertCircle } from 'lucide-svelte';
+	import type { TaskRequest, ExecutorType, ExecutorInfo, ExecutorCapabilities } from '$lib/types/api';
+	import * as Badge from '$lib/components/ui/badge';
 	import DirectorySelector from '$lib/components/directory-selector.svelte';
 	import ExecutorSelector from '$lib/components/executor-selector.svelte';
 	import { onMount } from 'svelte';
@@ -22,6 +23,17 @@
 
 	// Task mode
 	let taskMode = $state<'single' | 'group'>('single');
+
+	// Executor情報
+	let executors = $state<ExecutorInfo[]>([]);
+	let selectedExecutorCapabilities = $derived.by(() => {
+		if (!selectedExecutor) return undefined;
+		return executors.find(e => e.type === selectedExecutor)?.capabilities;
+	});
+
+	// パラメータサポートチェック
+	let isMaxTurnsSupported = $derived(selectedExecutorCapabilities?.maxTurnsLimit ?? true);
+	let isPermissionModeSupported = $derived(selectedExecutorCapabilities?.permissionModes ?? true);
 
 	// フォームの状態
 	let instruction = $state('');
@@ -68,6 +80,23 @@
 	
 	// URLパラメータを取得
 	onMount(async () => {
+		// Executors情報を取得
+		try {
+			const apiKey = localStorage.getItem('cc-anywhere-api-key');
+			const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+			if (apiKey) {
+				headers['X-API-Key'] = apiKey;
+			}
+
+			const response = await fetch('/api/executors', { headers });
+			if (response.ok) {
+				const data = await response.json();
+				executors = data.executors || [];
+			}
+		} catch (error) {
+			console.error('Failed to load executors:', error);
+		}
+
 		const searchParams = new URLSearchParams($page.url.searchParams);
 		continueFromTaskId = searchParams.get('continueFromTaskId') || '';
 		isSdkContinueMode = searchParams.get('mode') === 'sdk-continue';
@@ -266,6 +295,14 @@
 		</Card.Header>
 		<Card.Content>
 			<form onsubmit={handleSubmit} class="space-y-6">
+				<!-- Executor選択 -->
+				<div class="space-y-2">
+					<ExecutorSelector
+						bind:value={selectedExecutor}
+						showLabel={true}
+					/>
+				</div>
+
 				<div class="space-y-2">
 					<Label for="instruction" class="required">指示内容</Label>
 					<Textarea
@@ -330,14 +367,26 @@
 				<div class="{isSdkContinueMode && !showAdvancedSettings ? 'hidden' : ''} space-y-6">
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 						<div class="space-y-2">
-							<Label for="maxTurns">最大ターン数</Label>
+							<div class="flex items-center gap-2">
+								<Label for="maxTurns">最大ターン数</Label>
+								{#if !isMaxTurnsSupported}
+									<Badge.Badge variant="outline" class="text-xs">未サポート</Badge.Badge>
+								{/if}
+							</div>
 							<Input
 								id="maxTurns"
 								type="number"
 								bind:value={maxTurns}
 								min={1}
 								max={100}
+								disabled={!isMaxTurnsSupported}
+								class={!isMaxTurnsSupported ? 'opacity-50 cursor-not-allowed' : ''}
 							/>
+							{#if !isMaxTurnsSupported && selectedExecutor}
+								<p class="text-xs text-muted-foreground">
+									{selectedExecutor} では最大ターン数制限はサポートされていません
+								</p>
+							{/if}
 						</div>
 
 						<div class="space-y-2">
@@ -353,27 +402,29 @@
 					</div>
 
 					<div class="space-y-2">
-						<Label for="permissionMode">権限モード</Label>
-					<Select.Root type="single" bind:value={permissionMode}>
-						<Select.Trigger id="permissionMode">
-							{selectedPermissionLabel}
-						</Select.Trigger>
-						<Select.Content>
-							{#each permissionModes as mode}
-								<Select.Item value={mode.value} label={mode.label}>
-									{mode.label}
-								</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-
-					<!-- Executor選択 -->
-					<div class="space-y-2">
-						<ExecutorSelector
-							bind:value={selectedExecutor}
-							showLabel={true}
-						/>
+						<div class="flex items-center gap-2">
+							<Label for="permissionMode">権限モード</Label>
+							{#if !isPermissionModeSupported}
+								<Badge.Badge variant="outline" class="text-xs">未サポート</Badge.Badge>
+							{/if}
+						</div>
+						<Select.Root type="single" bind:value={permissionMode} disabled={!isPermissionModeSupported}>
+							<Select.Trigger id="permissionMode" class={!isPermissionModeSupported ? 'opacity-50 cursor-not-allowed' : ''}>
+								{selectedPermissionLabel}
+							</Select.Trigger>
+							<Select.Content>
+								{#each permissionModes as mode}
+									<Select.Item value={mode.value} label={mode.label}>
+										{mode.label}
+									</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						{#if !isPermissionModeSupported && selectedExecutor}
+							<p class="text-xs text-muted-foreground">
+								{selectedExecutor} では権限モード設定はサポートされていません
+							</p>
+						{/if}
 					</div>
 
 					<!-- Worktree設定 -->

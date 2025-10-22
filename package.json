@@ -30,8 +30,10 @@
     "check": "npm run check --workspaces --if-present"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@swc/core-darwin-arm64": "^1.13.20",
     "concurrently": "^8.2.2",
+    "playwright": "^1.56.1",
     "typescript": "5.9"
   },
   "dependencies": {

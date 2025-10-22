@@ -429,6 +429,17 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       // Handle continueFromTaskId option
       let taskRequest = request.body;
 
+      // Set default workingDirectory if not provided
+      if (!taskRequest.context?.workingDirectory) {
+        taskRequest = {
+          ...taskRequest,
+          context: {
+            ...taskRequest.context,
+            workingDirectory: process.cwd(),
+          },
+        };
+      }
+
       if (request.body.options?.sdk?.continueFromTaskId) {
         const previousTaskId = request.body.options.sdk.continueFromTaskId;
         const previousTask = repository.getById(previousTaskId);

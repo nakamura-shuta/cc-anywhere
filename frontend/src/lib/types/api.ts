@@ -388,11 +388,43 @@ export interface ListSessionsResponse {
 	hasMore: boolean;
 }
 
+// Executor機能フラグ
+export interface ExecutorCapabilities {
+	// セッション管理
+	sessionContinuation: boolean;
+	sessionResume: boolean;
+	crossRepositorySession: boolean;
+
+	// ターン制御
+	maxTurnsLimit: boolean;
+
+	// ツール制御
+	toolFiltering: boolean;
+
+	// 権限制御
+	permissionModes: boolean;
+
+	// プロンプト制御
+	customSystemPrompt: boolean;
+
+	// 出力制御
+	outputFormatting: boolean;
+	verboseMode: boolean;
+
+	// サンドボックス
+	sandboxControl: boolean;
+
+	// その他
+	modelSelection: boolean;
+	webSearch: boolean;
+}
+
 // Executor情報
 export interface ExecutorInfo {
 	type: ExecutorType;
 	available: boolean;
 	description: string;
+	capabilities?: ExecutorCapabilities;
 }
 
 // Executors一覧レスポンス

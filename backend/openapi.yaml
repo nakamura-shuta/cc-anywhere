@@ -713,6 +713,60 @@ components:
         - tasks
         - startedAt
 
+    ExecutorCapabilities:
+      type: object
+      description: Capabilities and feature support for an executor
+      properties:
+        sessionContinuation:
+          type: boolean
+          description: Support for continuing sessions within the same repository
+        sessionResume:
+          type: boolean
+          description: Support for resuming previous sessions by session ID
+        crossRepositorySession:
+          type: boolean
+          description: Support for sharing sessions across different repositories
+        maxTurnsLimit:
+          type: boolean
+          description: Support for limiting maximum conversation turns
+        toolFiltering:
+          type: boolean
+          description: Support for allowedTools/disallowedTools filtering
+        permissionModes:
+          type: boolean
+          description: Support for permission modes (ask, allow, deny, etc.)
+        customSystemPrompt:
+          type: boolean
+          description: Support for custom system prompts
+        outputFormatting:
+          type: boolean
+          description: Support for output format options (text, json, stream-json)
+        verboseMode:
+          type: boolean
+          description: Support for verbose logging mode
+        sandboxControl:
+          type: boolean
+          description: Support for sandbox mode control (enabled/disabled/auto)
+        modelSelection:
+          type: boolean
+          description: Support for selecting different AI models
+        webSearch:
+          type: boolean
+          description: Support for web search capabilities
+      required:
+        - sessionContinuation
+        - sessionResume
+        - crossRepositorySession
+        - maxTurnsLimit
+        - toolFiltering
+        - permissionModes
+        - customSystemPrompt
+        - outputFormatting
+        - verboseMode
+        - sandboxControl
+        - modelSelection
+        - webSearch
+
     ExecutorInfo:
       type: object
       properties:
@@ -726,10 +780,14 @@ components:
         description:
           type: string
           description: Human-readable description of the executor
+        capabilities:
+          $ref: '#/components/schemas/ExecutorCapabilities'
+          description: Feature capabilities supported by this executor
       required:
         - type
         - available
         - description
+        - capabilities
 
     ListExecutorsResponse:
       type: object
@@ -823,9 +881,35 @@ paths:
                   - type: claude
                     available: true
                     description: "Claude Agent SDK - Official Anthropic agent framework"
+                    capabilities:
+                      sessionContinuation: true
+                      sessionResume: true
+                      crossRepositorySession: true
+                      maxTurnsLimit: true
+                      toolFiltering: true
+                      permissionModes: true
+                      customSystemPrompt: true
+                      outputFormatting: true
+                      verboseMode: true
+                      sandboxControl: false
+                      modelSelection: false
+                      webSearch: true
                   - type: codex
                     available: false
                     description: "OpenAI Codex SDK - AI coding assistant"
+                    capabilities:
+                      sessionContinuation: false
+                      sessionResume: true
+                      crossRepositorySession: false
+                      maxTurnsLimit: false
+                      toolFiltering: false
+                      permissionModes: false
+                      customSystemPrompt: false
+                      outputFormatting: false
+                      verboseMode: false
+                      sandboxControl: true
+                      modelSelection: true
+                      webSearch: false
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

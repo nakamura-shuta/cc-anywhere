@@ -1,6 +1,7 @@
 import type { TimeoutOptions } from "../types/timeout.js";
 import type { WorktreeOptions } from "../services/worktree/types.js";
 import type { TodoItem } from "../types/todo.js";
+import type { CommonExecutorOptions } from "../agents/types.js";
 
 // Retry policy types
 export enum RetryPolicy {
@@ -46,34 +47,44 @@ export interface MCPServerConfig {
 }
 
 // Claude Code SDK specific options
-export interface ClaudeCodeSDKOptions {
-  // Priority: High
-  maxTurns?: number;
-  allowedTools?: string[];
-  disallowedTools?: string[];
-  systemPrompt?: string;
+export interface ClaudeCodeSDKOptions extends CommonExecutorOptions {
+  // Claude固有の機能
+
+  /** 権限モード設定（Claude固有） */
   permissionMode?: "ask" | "allow" | "deny" | "acceptEdits" | "bypassPermissions" | "plan";
 
-  // Priority: Medium
+  /** 実行環境（Node.js/Bun/Deno） */
   executable?: "node" | "bun" | "deno";
   executableArgs?: string[];
+
+  /** MCP（Model Context Protocol）設定 */
   mcpConfig?: Record<string, MCPServerConfig>;
-  continueSession?: boolean;
-  resumeSession?: string;
+
+  /** タスクIDを指定してセッション継続 */
   continueFromTaskId?: string;
-  outputFormat?: "text" | "json" | "stream-json";
 
-  // Session management for scheduled tasks
-  maxSessionExecutions?: number; // Reset session after N executions
+  /** スケジュールタスク用: N回実行後にセッションリセット */
+  maxSessionExecutions?: number;
 
-  // Priority: Low
-  verbose?: boolean;
+  /** 権限プロンプトツール */
   permissionPromptTool?: string;
+
+  /** Claude Code実行ファイルパス */
   pathToClaudeCodeExecutable?: string;
 
-  // Web search options
+  /** Web検索機能を有効化 */
   enableWebSearch?: boolean;
   webSearchConfig?: WebSearchConfig;
+
+  // CommonExecutorOptions から継承される共通パラメータ:
+  // - maxTurns
+  // - allowedTools
+  // - disallowedTools
+  // - systemPrompt
+  // - continueSession
+  // - resumeSession
+  // - verbose
+  // - outputFormat
 }
 
 export interface TaskRequest {

@@ -35,31 +35,290 @@ export const ALL_EXECUTOR_TYPES: readonly ExecutorType[] = [
  * Codex SDK specific options
  * Phase 0検証結果を反映
  */
-export interface CodexAgentOptions {
+/**
+ * 全Executorで共通のベースオプション
+ * 全てのExecutorがサポートすべき最小限のパラメータ
+ */
+export interface BaseExecutorOptions {
+  /** 詳細ログモード */
+  verbose?: boolean;
+
+  /** セッション継続フラグ */
+  continueSession?: boolean;
+
+  /** 再開するセッションID */
+  resumeSession?: string;
+}
+
+/**
+ * 多くのExecutorでサポートされる可能性の高いパラメータ
+ * サポートしないExecutorは無視することができる
+ */
+export interface CommonExecutorOptions extends BaseExecutorOptions {
+  /** 最大ターン数 */
+  maxTurns?: number;
+
+  /** 許可するツールのリスト */
+  allowedTools?: string[];
+
+  /** 禁止するツールのリスト */
+  disallowedTools?: string[];
+
+  /** カスタムシステムプロンプト */
+  systemPrompt?: string;
+
+  /** 出力フォーマット */
+  outputFormat?: "text" | "json" | "stream-json";
+}
+
+/**
+ * Executorの機能フラグ
+ * 各Executorがどの機能をサポートしているかを示す
+ */
+export interface ExecutorCapabilities {
+  // セッション管理
+  sessionContinuation: boolean; // セッション継続
+  sessionResume: boolean; // セッションID指定での再開
+  crossRepositorySession: boolean; // リポジトリ跨ぎセッション
+
+  // ターン制御
+  maxTurnsLimit: boolean; // 最大ターン数制限
+
+  // ツール制御
+  toolFiltering: boolean; // ツールの許可/禁止
+
+  // 権限制御
+  permissionModes: boolean; // 権限モード設定
+
+  // プロンプト制御
+  customSystemPrompt: boolean; // カスタムシステムプロンプト
+
+  // 出力制御
+  outputFormatting: boolean; // 出力フォーマット指定
+  verboseMode: boolean; // 詳細ログモード
+
+  // サンドボックス
+  sandboxControl: boolean; // サンドボックスモード制御
+
+  // その他
+  modelSelection: boolean; // モデル選択
+  webSearch: boolean; // Web検索
+}
+
+/**
+ * 各Executorの機能マトリックス
+ * 新しいExecutorを追加する際はここに定義を追加
+ */
+export const EXECUTOR_CAPABILITIES: Record<ExecutorType, ExecutorCapabilities> = {
+  claude: {
+    sessionContinuation: true,
+    sessionResume: true,
+    crossRepositorySession: true,
+    maxTurnsLimit: true,
+    toolFiltering: true,
+    permissionModes: true,
+    customSystemPrompt: true,
+    outputFormatting: true,
+    verboseMode: true,
+    sandboxControl: false,
+    modelSelection: false,
+    webSearch: true,
+  },
+  codex: {
+    sessionContinuation: false, // 未実装（SDK的には可能）
+    sessionResume: true, // resumeThread()で可能
+    crossRepositorySession: false,
+    maxTurnsLimit: false, // SDK未サポート
+    toolFiltering: false, // SDK未サポート
+    permissionModes: false, // SDK未サポート
+    customSystemPrompt: false, // SDK未サポート
+    outputFormatting: false, // SDK未サポート
+    verboseMode: false, // SDK未サポート
+    sandboxControl: true,
+    modelSelection: true,
+    webSearch: false,
+  },
+};
+
+/**
+ * 指定されたExecutorが特定の機能をサポートしているかチェック
+ *
+ * @param executor チェック対象のExecutor
+ * @param feature チェックする機能
+ * @returns サポートしている場合true
+ *
+ * @example
+ * if (supportsFeature('codex', 'maxTurnsLimit')) {
+ *   // maxTurnsをサポートしている
+ * }
+ */
+export function supportsFeature(
+  executor: ExecutorType,
+  feature: keyof ExecutorCapabilities,
+): boolean {
+  return EXECUTOR_CAPABILITIES[executor][feature];
+}
+
+/**
+ * サポートされていないオプションを検出
+ *
+ * @param executor チェック対象のExecutor
+ * @param options チェックするオプション
+ * @returns サポートされていないパラメータ名のリスト
+ *
+ * @example
+ * const unsupported = detectUnsupportedOptions('codex', options);
+ * if (unsupported.length > 0) {
+ *   logger.warn('Unsupported options:', unsupported);
+ * }
+ */
+export function detectUnsupportedOptions(
+  executor: ExecutorType,
+  options: CommonExecutorOptions,
+): string[] {
+  const capabilities = EXECUTOR_CAPABILITIES[executor];
+  const warnings: string[] = [];
+
+  if (options.maxTurns !== undefined && !capabilities.maxTurnsLimit) {
+    warnings.push("maxTurns");
+  }
+
+  if (
+    (options.allowedTools !== undefined || options.disallowedTools !== undefined) &&
+    !capabilities.toolFiltering
+  ) {
+    warnings.push("allowedTools/disallowedTools");
+  }
+
+  if (options.systemPrompt !== undefined && !capabilities.customSystemPrompt) {
+    warnings.push("systemPrompt");
+  }
+
+  if (options.outputFormat !== undefined && !capabilities.outputFormatting) {
+    warnings.push("outputFormat");
+  }
+
+  if (options.verbose !== undefined && !capabilities.verboseMode) {
+    warnings.push("verbose");
+  }
+
+  if (options.continueSession !== undefined && !capabilities.sessionContinuation) {
+    warnings.push("continueSession");
+  }
+
+  return warnings;
+}
+
+/**
+ * Executor機能比較表をMarkdownで生成
+ *
+ * @returns Markdown形式の機能比較表
+ */
+export function generateCapabilityMatrix(): string {
+  const executors = ALL_EXECUTOR_TYPES;
+  const features: Array<{ key: keyof ExecutorCapabilities; label: string; category: string }> = [
+    { key: "sessionContinuation", label: "セッション継続", category: "セッション管理" },
+    { key: "sessionResume", label: "セッションID再開", category: "セッション管理" },
+    { key: "crossRepositorySession", label: "リポジトリ跨ぎ", category: "セッション管理" },
+    { key: "maxTurnsLimit", label: "最大ターン数制限", category: "ターン制御" },
+    { key: "toolFiltering", label: "ツール許可/禁止", category: "ツール制御" },
+    { key: "permissionModes", label: "権限モード", category: "権限制御" },
+    { key: "customSystemPrompt", label: "システムプロンプト", category: "プロンプト制御" },
+    { key: "outputFormatting", label: "出力フォーマット", category: "出力制御" },
+    { key: "verboseMode", label: "詳細ログ", category: "出力制御" },
+    { key: "sandboxControl", label: "サンドボックスモード", category: "サンドボックス" },
+    { key: "modelSelection", label: "モデル選択", category: "その他" },
+    { key: "webSearch", label: "Web検索", category: "その他" },
+  ];
+
+  let markdown = "# Executor 機能比較表\n\n";
+  markdown += "| 機能 | " + executors.join(" | ") + " |\n";
+  markdown += "|------|" + executors.map(() => "------").join("|") + "|\n";
+
+  let currentCategory = "";
+  for (const feature of features) {
+    if (feature.category !== currentCategory) {
+      currentCategory = feature.category;
+      markdown += `| **${currentCategory}** | ${executors.map(() => "").join(" | ")} |\n`;
+    }
+
+    const row = [feature.label];
+    for (const executor of executors) {
+      const supported = EXECUTOR_CAPABILITIES[executor][feature.key];
+      row.push(supported ? "✅" : "❌");
+    }
+    markdown += "| " + row.join(" | ") + " |\n";
+  }
+
+  markdown += "\n凡例:\n";
+  markdown += "- ✅ : サポート\n";
+  markdown += "- ❌ : 未サポート\n";
+
+  return markdown;
+}
+
+export interface CodexAgentOptions extends CommonExecutorOptions {
   /** 必須: ファイル操作を有効化するため workspace-write を推奨 */
   sandboxMode: "read-only" | "workspace-write" | "danger-full-access";
 
   /** Git リポジトリチェックをスキップ */
   skipGitRepoCheck?: boolean;
 
-  /** 最大ターン数 */
+  /** モデル指定 */
+  model?: string;
+
+  // ⚠️ 以下のパラメータは CommonExecutorOptions から継承されているが、
+  // Codex SDK では未サポートのため実行時に無視されます
+  // 詳細は docs/codex-parameter-limitations.md を参照
+
+  /**
+   * @deprecated Codex SDK では未サポート - 無視されます
+   * @see EXECUTOR_CAPABILITIES.codex.maxTurnsLimit
+   */
   maxTurns?: number;
 
-  /** 許可するツール */
+  /**
+   * @deprecated Codex SDK では未サポート - 無視されます
+   * @see EXECUTOR_CAPABILITIES.codex.toolFiltering
+   */
   allowedTools?: string[];
 
-  /** 禁止するツール */
+  /**
+   * @deprecated Codex SDK では未サポート - 無視されます
+   * @see EXECUTOR_CAPABILITIES.codex.toolFiltering
+   */
   disallowedTools?: string[];
 
-  /** システムプロンプト */
+  /**
+   * @deprecated Codex SDK では未サポート - 無視されます
+   * @see EXECUTOR_CAPABILITIES.codex.customSystemPrompt
+   */
   systemPrompt?: string;
 
-  /** セッション継続 */
+  /**
+   * @deprecated Codex SDK では未サポート - resumeSession を使用してください
+   * @see EXECUTOR_CAPABILITIES.codex.sessionContinuation
+   */
   continueSession?: boolean;
+
+  /**
+   * セッション再開用のスレッドID
+   * codex.resumeThread(id) で使用されます
+   * @see EXECUTOR_CAPABILITIES.codex.sessionResume
+   */
   resumeSession?: string;
 
-  /** Verbose モード */
+  /**
+   * @deprecated Codex SDK では未サポート - 無視されます
+   * @see EXECUTOR_CAPABILITIES.codex.verboseMode
+   */
   verbose?: boolean;
+
+  /**
+   * @deprecated Codex SDK では未サポート - 無視されます
+   * @see EXECUTOR_CAPABILITIES.codex.outputFormatting
+   */
+  outputFormat?: "text" | "json" | "stream-json";
 }
 
 /**

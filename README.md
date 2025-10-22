@@ -1,355 +1,115 @@
 # CC-Anywhere
 
-Claude Codeをどこからでも使えるようにするサーバーアプリケーションです。
+Claude CodeとCodexをHTTP API経由で利用できるサーバーアプリケーション。
 
 ## 特徴
 
-CC-Anywhereは、Claude Code SDKをHTTP API経由で利用できるようにするサーバーです。ローカルのコードベースに対してAIが自動的にコード生成・編集・テスト実行などを行います。
-
-**主な用途:**
-- コードの自動生成と編集
-- 依存関係の更新
-- テストの作成と実行
-- リファクタリング
-- ドキュメント生成
-- 定期的なメンテナンスタスク（スケジューラー機能）
-
-**特徴:**
-- **マルチExecutor対応**: Claude Agent SDK、OpenAI Codex SDK（予定）から選択可能
-- Web UIとAPIの両方から利用可能
-- リアルタイムで実行状況を確認
-- 複数のリポジトリを管理
-- インターネット経由でのリモートアクセス（ngrok/Cloudflare Tunnel）
-- CLIからセッションを継続して作業可能
+- **マルチExecutor対応**: Claude Agent SDK、OpenAI Codex SDKから選択可能
+- **リアルタイム表示**: ログ、ファイル変更（[+]/[M]/[D]/[R]）をWebSocketで配信
+- **Web UI & REST API**: ブラウザまたはAPIから操作
+- **リモートアクセス**: ngrok/Cloudflare Tunnelでスマホからもアクセス可能
+- **スケジューラー**: Cron式で定期実行
+- **セッション継続**: CLI ⇔ SDK間でコンテキスト共有
 
 ## Quick Start
 
-
 ```bash
-# クローンして移動
 git clone https://github.com/nakamura-shuta/cc-anywhere
 cd cc-anywhere
-
-# セットアップ（依存関係インストール）
 npm install
-
-# 環境変数ファイルをコピーして編集
 cp .env.example .env
-# .envファイルを編集してCLAUDE_API_KEYを設定
+# .envを編集してCLAUDE_API_KEYを設定
 
-# 起動
-npm run dev
+./scripts/start-dev.sh
 ```
 
-ブラウザで http://localhost:5000 を開いて使用開始。初回起動時に作業ディレクトリを選択します。
-
-## 主な機能
-
-**基本機能**
-- マルチExecutorアーキテクチャ
-  - Claude Agent SDK 0.1.1（デフォルト）
-  - OpenAI Codex SDK（今後対応予定）
-  - タスク実行時にExecutorを選択可能
-- Web UIとREST APIの両方から操作可能
-- WebSocketによるリアルタイムログ表示
-- 複数リポジトリの管理と切り替え
-
-**実行モード**
-- default: 通常の対話的実行
-- acceptEdits: 編集を自動承認
-- bypassPermissions: すべての操作を自動承認
-- plan: 実行計画のみ作成
-
-**高度な機能**
-- スケジューラー: Cron式による定期実行
-- バッチ実行: 複数リポジトリへの一括タスク実行
-- Git Worktree: 独立した作業環境での安全な実行
-- セッション継続: Claude Code SDK/CLIとの双方向セッション継続に対応
+→ http://localhost:5000 をブラウザで開く
 
 ## 必要な環境
 
-- Node.js v20〜
-- npm 10〜
+- Node.js v20以上
+- npm 10以上
 - Claude API キー（[Anthropic Console](https://console.anthropic.com/)で取得）
 
-## セットアップと起動方法
-
-### 初期セットアップ
+## 起動スクリプト
 
 ```bash
-git clone https://github.com/nakamura-shuta/cc-anywhere
-cd cc-anywhere
-npm install
-cp .env.example .env
-# .envファイルを編集してCLAUDE_API_KEYを設定（必須）
+./scripts/start-dev.sh         # 開発環境（ホットリロード）
+./scripts/start-clamshell.sh   # モバイルアクセス（ngrok/Cloudflare）
+./scripts/start-production.sh  # 本番環境（PM2管理）
+./scripts/stop-all.sh          # 停止
 ```
 
-### 🚀 起動方法（用途別）
+詳細は[スクリプト使い分けガイド](docs/scripts-overview.md)を参照。
 
-#### 1️⃣ 通常の開発作業
-```bash
-./scripts/start-dev.sh
-# ホットリロード有効の開発サーバー
-# http://localhost:5000 でアクセス
-```
+## 環境変数
 
-#### 2️⃣ スマートフォンからアクセス
-```bash
-./scripts/start-clamshell.sh
-# → メニューから選択:
-#   1) ngrok - 一時的なURL（簡単）
-#   2) Cloudflare Tunnel - 固定URL（要設定）
-# QRコードが表示されるのでスマホでスキャン
-```
+`.env`ファイルで設定（`.env.example`をコピー）：
 
-#### 3️⃣ 本番環境（24時間稼働）
-```bash
-# 事前準備: PM2インストール
-npm install -g pm2
-
-# ビルドして起動
-./scripts/build-all.sh
-./scripts/start-production.sh
-```
-
-#### 🛑 停止方法
-```bash
-./scripts/stop-all.sh
-# すべてのプロセスを安全に停止
-```
-
-詳しい使い分けは[スクリプト使い分けガイド](docs/scripts-overview.md)を参照。
-
-## 環境変数の設定
-
-`.env`ファイルで設定します（`.env.example`をコピーして編集）。
-
-**必須:**
 ```env
-# Anthropic APIの場合
-CLAUDE_API_KEY=your-claude-api-key
+# 必須
+CLAUDE_API_KEY=your-api-key
 
-# Amazon Bedrockの場合
-FORCE_CLAUDE_MODE=bedrock
-AWS_REGION=us-east-1
+# 推奨
+API_KEY=your-secret-key        # API認証
+PORT=5000                      # ポート番号
+ENABLE_WORKTREE=true           # Git worktree使用
 ```
 
-**よく使う設定:**
-```env
-API_KEY=your-secret-key     # APIアクセス制限（推奨）
-PORT=5000                   # ポート番号
-ENABLE_WORKTREE=true        # Git worktree使用
-```
-
-詳細は[.env.example](.env.example)を参照。
+詳細は[環境変数リファレンス](docs/environment-variables.md)を参照。
 
 ## 使い方
 
-### Web UIで使う
+### Web UI
+1. http://localhost:5000 を開く
+2. リポジトリを選択
+3. Executorを選択（Claude/Codex）
+4. 指示を入力して実行
 
-1. ブラウザで http://localhost:5000 を開く
-2. 作業したいリポジトリを選択
-3. 指示を入力（例：「READMEを改善して」「テストを追加して」）
-4. 実行ボタンをクリック
-
-### APIで使う
-
+### REST API
 ```bash
 curl -X POST http://localhost:5000/api/tasks \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key" \
   -d '{
-    "instruction": "依存関係を更新して",
-    "repositoryName": "my-project"
+    "instruction": "Create README.md",
+    "options": {"executor": "claude"},
+    "context": {"workingDirectory": "/path/to/repo"}
   }'
 ```
 
-### リポジトリ設定
+API詳細: http://localhost:5000/api/docs
 
-初回起動時にWeb UIから設定するか、手動で設定：
+## Executor比較
 
-```bash
-cp backend/config/repositories.json.example backend/config/repositories.json
-# repositories.jsonを編集
-```
+| 機能 | Claude Agent SDK | OpenAI Codex SDK |
+|------|-----------------|------------------|
+| セッション継続 | ✅ | ❌ |
+| 実行モード選択 | ✅ | ❌ |
+| ファイル変更通知 | ✅ | ✅ |
+| ストリーミング | ✅ | ✅ |
 
-### セッション継続機能
-
-CC-AnywhereはClaude Code SDK v2.0.1のセッション継続機能をサポートしており、CLIとSDK間で会話コンテキストを引き継ぐことができます。
-
-#### SDK → CLI（セッションIDを使った継続）
-
-1. CC-Anywhereでタスクを実行
-2. タスク詳細画面に表示される`sdkSessionId`をコピー
-3. CLIで以下のコマンドを実行：
-```bash
-claude --resume <セッションID> "続きの指示"
-```
-
-#### CLI → SDK（resumeSessionオプション）
-
-1. Claude Code CLIでセッションIDを確認
-2. CC-AnywhereのAPI呼び出し時に`resumeSession`パラメータを指定：
-```json
-{
-  "instruction": "続きの作業",
-  "options": {
-    "sdk": {
-      "resumeSession": "CLIのセッションID"
-    }
-  }
-}
-```
-
-#### SDK → SDK（前タスクから継続）
-
-1. 前のタスクの`taskId`を確認
-2. 新規タスク作成時に`continueFromTaskId`を指定：
-```json
-{
-  "instruction": "続きの作業",
-  "options": {
-    "sdk": {
-      "continueFromTaskId": "前のタスクID"
-    }
-  }
-}
-```
-
-## リモートアクセス設定
-
-ローカルで動作しているCC-Anywhereをインターネット経由でアクセス可能にする方法です。
-
-### ngrok（開発環境向け）
-
-最も簡単な方法です。一時的なURLでアクセス可能になります。
-
-```bash
-# 1. ngrokをインストール
-brew install ngrok  # macOS
-# または https://ngrok.com/download から直接ダウンロード
-
-# 2. アカウント設定（初回のみ）
-# https://dashboard.ngrok.com/signup でアカウント作成後
-ngrok config add-authtoken YOUR_AUTH_TOKEN
-
-# 3. 起動スクリプトを実行
-./scripts/start-clamshell.sh
-# メニューから「1) ngrok」を選択
-# URLとQRコードが自動的に表示されます
-```
-
-### Cloudflare Tunnel（本番環境向け）
-
-安定した固定URLでアクセス可能になります。
-
-```bash
-# 自動セットアップスクリプトを実行
-./scripts/setup-cloudflare-tunnel.sh
-
-# 画面の指示に従って以下を入力:
-# - Cloudflare Email
-# - API Key（Cloudflareダッシュボードから取得）
-# - Account ID
-# - 独自ドメイン（オプション）
-
-# セットアップ完了後、起動スクリプトを実行
-./scripts/start-clamshell.sh
-# メニューから「2) Cloudflare Tunnel」を選択
-# 固定URLが表示されます
-```
-
-詳細な手動セットアップ手順は[ドキュメント](docs/features/cloudflare-tunnel.md)を参照。
-
-### セキュリティ
-
-リモートアクセス時は必ず:
-- `API_KEY`環境変数を設定してAPIアクセスを制限
-- 本番環境ではCloudflare Tunnelを推奨
-- 定期的にAPI_KEYを更新
-
-## その他の機能
-
-- **スケジューラー**: Cron式による定期実行
-- **バッチ実行**: 複数リポジトリへの一括タスク実行
-- **Git Worktree**: 安全な独立環境での実行
-- **UUID メッセージトラッキング**: SDK 2.0.1の機能を活用した重複排除とエラー追跡
-- **API ドキュメント**: http://localhost:5000/api/docs でOpenAPIドキュメント
+詳細: [ファイル変更検知ドキュメント](docs/file-watcher-websocket.md)
 
 ## 開発者向け
 
 ```bash
-# バックエンドテスト
-cd backend
-npm run test:unit        # ユニットテスト
-npm run test:integration # 統合テスト
-
-# システムテスト（E2E/API）
-cd system-tests
-npm test                 # 全テスト実行（11ケース）
-npm run test:api        # API基本テスト
-npm run test:verify     # 実行結果検証テスト
-npm run test:group      # グループ実行テスト
+# テスト
+npm run test:unit           # ユニットテスト
+npm run test:integration    # 統合テスト
 
 # コード品質
 npm run lint
 npm run type-check
-
-# サーバー管理
-./scripts/start-production.sh  # 本番起動
-./scripts/stop-all.sh          # 停止
-./backend/scripts/pm2-manager.sh logs  # ログ確認
+npm run build
 ```
 
-### システムテスト
+## ドキュメント
 
-`system-tests`ディレクトリには、Playwrightベースの包括的なテスト環境があります:
-- **APIテスト**: タスクの作成・実行、エラーハンドリング、認証
-- **実行検証テスト**: ファイル作成・修正の動作確認
-- **グループテスト**: 複数タスクの順次・並列実行、依存関係
-
-詳細は[システムテストREADME](system-tests/README.md)を参照。
-
-## マルチExecutor対応
-
-CC-Anywhereは複数のAgent SDKをサポートし、タスク実行時に最適なExecutorを選択できます。
-
-### 利用可能なExecutor
-
-- **Claude Agent SDK**: Anthropic公式のエージェントフレームワーク（デフォルト）
-- **OpenAI Codex SDK**: OpenAIのコーディングアシスタント（今後対応予定）
-
-### Web UIでの使用方法
-
-1. 「新規タスク作成」ページを開く
-2. 「Executor」セレクターから使用するExecutorを選択
-3. その他の設定を入力してタスクを作成
-
-### API経由での使用方法
-
-```bash
-curl -X POST http://localhost:5000/api/queue/tasks \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "instruction": "Create a README file",
-    "context": {
-      "workingDirectory": "/path/to/repo"
-    },
-    "options": {
-      "executor": "claude"
-    }
-  }'
-```
-
-利用可能なExecutorを確認：
-
-```bash
-curl -X GET http://localhost:5000/api/executors \
-  -H "X-API-Key: your-api-key"
-```
-
-詳細は[マルチExecutor対応ドキュメント](docs/multi-executor-support.md)を参照してください。
+- [スクリプト使い分けガイド](docs/scripts-overview.md)
+- [環境変数リファレンス](docs/environment-variables.md)
+- [ファイル変更検知とWebSocket](docs/file-watcher-websocket.md)
+- [APIリファレンス](docs/api/README.md)
 
 ## ライセンス
 

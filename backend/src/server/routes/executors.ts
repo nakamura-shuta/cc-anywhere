@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { AgentExecutorFactory } from "../../agents/agent-executor-factory.js";
+import { EXECUTOR_CAPABILITIES } from "../../agents/types.js";
 import { logger } from "../../utils/logger.js";
 
 /**
@@ -27,6 +28,23 @@ export const executorRoutes: FastifyPluginAsync = async (fastify) => {
                     type: { type: "string" },
                     available: { type: "boolean" },
                     description: { type: "string" },
+                    capabilities: {
+                      type: "object",
+                      properties: {
+                        sessionContinuation: { type: "boolean" },
+                        sessionResume: { type: "boolean" },
+                        crossRepositorySession: { type: "boolean" },
+                        maxTurnsLimit: { type: "boolean" },
+                        toolFiltering: { type: "boolean" },
+                        permissionModes: { type: "boolean" },
+                        customSystemPrompt: { type: "boolean" },
+                        outputFormatting: { type: "boolean" },
+                        verboseMode: { type: "boolean" },
+                        sandboxControl: { type: "boolean" },
+                        modelSelection: { type: "boolean" },
+                        webSearch: { type: "boolean" },
+                      },
+                    },
                   },
                 },
               },
@@ -44,14 +62,16 @@ export const executorRoutes: FastifyPluginAsync = async (fastify) => {
       // Build response with all executor types
       const allExecutors = [
         {
-          type: "claude",
+          type: "claude" as const,
           available: availableTypes.includes("claude"),
           description: "Claude Agent SDK - Official Anthropic agent framework",
+          capabilities: EXECUTOR_CAPABILITIES.claude,
         },
         {
-          type: "codex",
+          type: "codex" as const,
           available: availableTypes.includes("codex"),
           description: "OpenAI Codex SDK - AI coding assistant",
+          capabilities: EXECUTOR_CAPABILITIES.codex,
         },
       ];
 

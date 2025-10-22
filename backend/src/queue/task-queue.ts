@@ -6,12 +6,14 @@ import type { QueuedTask, QueueOptions, QueueStats, TaskQueue } from "./types";
 import { TaskExecutorImpl } from "../claude/executor";
 import type { CodexTaskExecutorAdapter } from "../agents/codex-task-executor-adapter.js";
 import { logger } from "../utils/logger";
+import { config } from "../config";
 import { getSharedRepository } from "../db/shared-instance";
 import type { TaskRepositoryAdapter } from "../repositories/task-repository-adapter";
 import { RetryService } from "../services/retry-service";
 import type { WebSocketServer } from "../websocket/websocket-server.js";
 import { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
 import { getTypedEventBus, type TypedEventBus } from "../events";
+import { fileWatcherService } from "../services/file-watcher.service.js";
 
 export { TaskQueue };
 
@@ -30,6 +32,11 @@ export class TaskQueueImpl implements TaskQueue {
   // Legacy event handlers (deprecated - will be removed)
   private onCompleteHandlers: Array<(task: QueuedTask) => void> = [];
   private onErrorHandlers: Array<(task: QueuedTask, error: Error) => void> = [];
+
+  // Memory management
+  private taskRetentionTime: number;
+  private cleanupEnabled: boolean;
+  private cleanupTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(options: QueueOptions = {}) {
     // Build queue options dynamically to avoid read-only property issues
@@ -57,12 +64,18 @@ export class TaskQueueImpl implements TaskQueue {
     this.repository = getSharedRepository();
     this.eventBus = getTypedEventBus(); // Initialize event bus
 
+    // Initialize memory management settings
+    this.taskRetentionTime = options.taskRetentionTime ?? config.queue.taskRetentionTime;
+    this.cleanupEnabled = options.cleanupEnabled ?? config.queue.cleanupEnabled;
+
     // Restore pending tasks from database
     this.restorePendingTasks();
 
     logger.info("Task queue initialized", {
       concurrency: this.queue.concurrency,
       autoStart: options.autoStart !== false,
+      taskRetentionTime: this.taskRetentionTime,
+      cleanupEnabled: this.cleanupEnabled,
     });
   }
 
@@ -76,6 +89,43 @@ export class TaskQueueImpl implements TaskQueue {
       this.codexExecutor = new CodexTaskExecutorAdapter();
     }
     return this.codexExecutor;
+  }
+
+  /**
+   * Schedule task cleanup after retention time
+   * @param taskId Task ID to schedule for cleanup
+   */
+  private scheduleTaskCleanup(taskId: string): void {
+    if (!this.cleanupEnabled) {
+      return;
+    }
+
+    // Clear existing timer if any
+    const existingTimer = this.cleanupTimers.get(taskId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // Schedule new cleanup
+    const timer = setTimeout(() => {
+      const task = this.tasks.get(taskId);
+      if (
+        task &&
+        (task.status === TaskStatus.COMPLETED ||
+          task.status === TaskStatus.FAILED ||
+          task.status === TaskStatus.CANCELLED)
+      ) {
+        this.tasks.delete(taskId);
+        this.cleanupTimers.delete(taskId);
+        logger.debug("Task removed from memory after retention period", {
+          taskId,
+          status: task.status,
+          retentionTime: this.taskRetentionTime,
+        });
+      }
+    }, this.taskRetentionTime);
+
+    this.cleanupTimers.set(taskId, timer);
   }
 
   add(
@@ -171,6 +221,24 @@ export class TaskQueueImpl implements TaskQueue {
         taskId: task.id,
         startedAt: task.startedAt,
       });
+
+      // Start watching working directory if specified
+      const workingDirectory = task.request.context?.workingDirectory;
+      if (workingDirectory) {
+        try {
+          logger.debug("Starting file watcher for task working directory", {
+            taskId: task.id,
+            workingDirectory,
+          });
+          await fileWatcherService.watchRepository(workingDirectory);
+        } catch (error) {
+          logger.error("Failed to start file watcher for working directory", {
+            taskId: task.id,
+            workingDirectory,
+            error,
+          });
+        }
+      }
 
       // Initialize progress data for this task
       const progressData = {
@@ -613,6 +681,9 @@ export class TaskQueueImpl implements TaskQueue {
         logger.info("Task completed successfully", {
           duration: result.duration,
         });
+
+        // Schedule task cleanup from memory
+        this.scheduleTaskCleanup(task.id);
       } else {
         const error = result.error || new Error("Unknown error");
         const errorInfo = {
@@ -741,6 +812,9 @@ export class TaskQueueImpl implements TaskQueue {
           retryAttempts: task.retryMetadata?.currentAttempt ?? 0,
           maxRetries: task.retryMetadata?.maxRetries ?? 0,
         });
+
+        // Schedule task cleanup from memory
+        this.scheduleTaskCleanup(task.id);
       }
     } catch (error) {
       // Handle unexpected errors
@@ -768,6 +842,9 @@ export class TaskQueueImpl implements TaskQueue {
         });
 
         logger.info("Task cancelled during execution", { taskId: task.id });
+
+        // Schedule task cleanup from memory
+        this.scheduleTaskCleanup(task.id);
 
         // Don't count cancellations as failures
         return;
@@ -812,6 +889,27 @@ export class TaskQueueImpl implements TaskQueue {
           logger.error("Error in error handler", { error: err });
         }
       });
+
+      // Schedule task cleanup from memory
+      this.scheduleTaskCleanup(task.id);
+
+      // Stop watching working directory
+      const workingDirectory = task.request.context?.workingDirectory;
+      if (workingDirectory) {
+        try {
+          logger.debug("Stopping file watcher for task working directory", {
+            taskId: task.id,
+            workingDirectory,
+          });
+          await fileWatcherService.unwatchRepository(workingDirectory);
+        } catch (error) {
+          logger.error("Failed to stop file watcher for working directory", {
+            taskId: task.id,
+            workingDirectory,
+            error,
+          });
+        }
+      }
     }
   }
 
@@ -883,6 +981,10 @@ export class TaskQueueImpl implements TaskQueue {
     // Clear all tasks from memory
     this.tasks.clear();
 
+    // Clear all cleanup timers
+    this.cleanupTimers.forEach((timer) => clearTimeout(timer));
+    this.cleanupTimers.clear();
+
     // Reset counters
     this.completedCount = 0;
     this.failedCount = 0;
@@ -932,6 +1034,9 @@ export class TaskQueueImpl implements TaskQueue {
       cancelledAt: task.completedAt,
     });
 
+    // Schedule task cleanup from memory
+    this.scheduleTaskCleanup(taskId);
+
     logger.info("Task cancelled", { taskId });
     return true;
   }
@@ -947,6 +1052,15 @@ export class TaskQueueImpl implements TaskQueue {
   setWebSocketServer(wsServer: WebSocketServer): void {
     this.wsServer = wsServer;
     this.broadcaster = new WebSocketBroadcaster(wsServer);
+
+    // Register FileWatcherService listener for WebSocket broadcasting
+    // This ensures file changes from TaskQueue-initiated watching are broadcast
+    fileWatcherService.on("repositoryFileChange", (event) => {
+      if (this.broadcaster) {
+        this.broadcaster.global("repository-file-change", event);
+        logger.debug("Broadcasted repository file change event from TaskQueue", event);
+      }
+    });
   }
 
   // Additional utility methods

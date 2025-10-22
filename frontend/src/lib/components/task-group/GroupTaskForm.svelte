@@ -82,12 +82,13 @@
 	
 	// Toggle task expansion
 	function toggleTaskExpansion(taskId: string) {
-		if (expandedTasks.has(taskId)) {
-			expandedTasks.delete(taskId);
+		const newExpandedTasks = new Set(expandedTasks);
+		if (newExpandedTasks.has(taskId)) {
+			newExpandedTasks.delete(taskId);
 		} else {
-			expandedTasks.add(taskId);
+			newExpandedTasks.add(taskId);
 		}
-		expandedTasks = expandedTasks; // Trigger reactivity
+		expandedTasks = newExpandedTasks; // Trigger reactivity
 	}
 	
 	// Get available dependencies for a task (all tasks before it)

@@ -12,6 +12,12 @@ describe("Schedule routes", () => {
     app = await createApp({ logger: false });
     schedulerService = app.schedulerService;
     await app.ready();
+
+    // Clear existing schedules before each test
+    const existing = await schedulerService.listSchedules({ limit: 1000 });
+    for (const schedule of existing.schedules) {
+      await schedulerService.deleteSchedule(schedule.id);
+    }
   });
 
   afterEach(async () => {
@@ -113,13 +119,7 @@ describe("Schedule routes", () => {
 
   describe("GET /api/schedules", () => {
     beforeEach(async () => {
-      // Clear existing schedules
-      const existing = await schedulerService.listSchedules({ limit: 100 });
-      for (const schedule of existing.schedules) {
-        await schedulerService.deleteSchedule(schedule.id);
-      }
-
-      // Create test schedules
+      // Create test schedules (cleanup already done at top level)
       for (let i = 0; i < 15; i++) {
         await schedulerService.createSchedule({
           name: `Schedule ${i}`,
