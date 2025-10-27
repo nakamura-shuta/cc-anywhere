@@ -25,6 +25,10 @@ export interface RepositoryExplorerProps {
   showHeader?: boolean;
   collapsible?: boolean;
   onFileSelect?: (repository: string, filePath: string) => void;
+  // URLパラメータで初期表示するファイル
+  initialFile?: string;
+  // URL同期を有効にするか（ファイル選択時にURLを更新）
+  syncWithUrl?: boolean;
 }
 
 export interface FileTreeProps {

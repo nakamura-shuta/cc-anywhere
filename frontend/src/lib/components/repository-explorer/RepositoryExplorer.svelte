@@ -12,11 +12,32 @@
 		layout = 'horizontal',
 		showHeader = true,
 		collapsible = false,
-		onFileSelect
+		onFileSelect,
+		initialFile = undefined,
+		syncWithUrl = false
 	}: Props = $props();
 
 	let selectedFile = $state<{ repository: string; path: string } | undefined>(undefined);
 	let collapsed = $state(false);
+
+	// 初期ファイルの自動選択
+	$effect(() => {
+		if (initialFile && repositories.length > 0 && !selectedFile) {
+			// デフォルトで最初のリポジトリを使用
+			const repository = repositories[0].path;
+			console.log('Auto-selecting initial file:', initialFile);
+			handleFileSelect(repository, initialFile);
+		}
+	});
+
+	// URL同期（オプション）
+	$effect(() => {
+		if (syncWithUrl && selectedFile && typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('file', selectedFile.path);
+			window.history.pushState({}, '', url);
+		}
+	});
 
 	function handleFileSelect(repository: string, filePath: string) {
 		selectedFile = { repository, path: filePath };

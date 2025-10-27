@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
@@ -13,9 +14,12 @@
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Separator } from '$lib/components/ui/separator';
 	import { RepositoryExplorer } from '$lib/components/repository-explorer';
-	
+
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
+
+	// URLパラメータから初期ファイルを取得
+	const initialFile = $derived($page.url.searchParams.get('file') || undefined);
 	
 	// 初期データを抽出（progressDataから）
 	const initialData = data.task ? {
@@ -982,6 +986,8 @@
 							position="side"
 							layout="horizontal"
 							showHeader={false}
+							initialFile={initialFile}
+							syncWithUrl={true}
 						/>
 					</div>
 				</Card.Content>
