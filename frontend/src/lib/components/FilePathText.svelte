@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { convertFilePathsToLinks } from '$lib/utils/file-path-linker';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 
 	interface Props {
 		text: string;
@@ -33,18 +32,19 @@
 		}
 	}
 
-	// マウント時にイベントリスナーを設定
-	onMount(() => {
+	// $effectでイベントリスナーを管理（htmlが変更されるたびに再設定）
+	$effect(() => {
+		// htmlが変更されたときに実行される
 		if (containerElement) {
 			containerElement.addEventListener('click', handleClick);
-		}
 
-		// クリーンアップ
-		return () => {
-			if (containerElement) {
-				containerElement.removeEventListener('click', handleClick);
-			}
-		};
+			// クリーンアップ
+			return () => {
+				if (containerElement) {
+					containerElement.removeEventListener('click', handleClick);
+				}
+			};
+		}
 	});
 </script>
 
