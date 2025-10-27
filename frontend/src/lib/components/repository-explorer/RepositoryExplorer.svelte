@@ -12,11 +12,66 @@
 		layout = 'horizontal',
 		showHeader = true,
 		collapsible = false,
-		onFileSelect
+		onFileSelect,
+		initialFile = undefined,
+		syncWithUrl = false
 	}: Props = $props();
 
 	let selectedFile = $state<{ repository: string; path: string } | undefined>(undefined);
 	let collapsed = $state(false);
+
+	// 初期ファイルの自動選択
+	$effect(() => {
+		if (!initialFile || repositories.length === 0) return;
+
+		// デフォルトで最初のリポジトリを使用
+		const repository = repositories[0].path;
+
+		// initialFile が変化したら必ず選択を更新する
+		if (!selectedFile || selectedFile.path !== initialFile || selectedFile.repository !== repository) {
+			console.log('Auto-selecting initial file:', initialFile);
+			handleFileSelect(repository, initialFile);
+		}
+	});
+
+	// URL同期（オプション）
+	$effect(() => {
+		if (syncWithUrl && selectedFile && typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+
+			if (selectedFile.path) {
+				url.searchParams.set('file', selectedFile.path);
+			} else {
+				url.searchParams.delete('file');
+			}
+
+			// replaceStateを使用して履歴を汚染しない
+			window.history.replaceState({}, '', url);
+		}
+	});
+
+	// ブラウザの戻る/進むボタンへの対応
+	$effect(() => {
+		if (typeof window === 'undefined' || !syncWithUrl) return;
+
+		const handlePopState = () => {
+			const urlParams = new URL(window.location.href).searchParams;
+			const fileParam = urlParams.get('file');
+
+			if (fileParam && repositories.length > 0) {
+				const repository = repositories[0].path;
+				handleFileSelect(repository, fileParam);
+			} else {
+				selectedFile = undefined;
+			}
+		};
+
+		window.addEventListener('popstate', handlePopState);
+
+		return () => {
+			window.removeEventListener('popstate', handlePopState);
+		};
+	});
 
 	function handleFileSelect(repository: string, filePath: string) {
 		selectedFile = { repository, path: filePath };

@@ -58,6 +58,17 @@
 		expanded[repoName] = !expanded[repoName];
 	}
 
+	// selectedFileが変更されたときに自動的にリポジトリを展開
+	$effect(() => {
+		if (selectedFile && selectedFile.repository) {
+			// 対応するリポジトリ名を見つける
+			const repo = repositories.find(r => r.path === selectedFile.repository);
+			if (repo && !expanded[repo.name]) {
+				expanded[repo.name] = true;
+			}
+		}
+	});
+
 	// リポジトリの変更を監視して動的にツリーをロード/アンロード
 	$effect(() => {
 		const currentRepoNames = new Set(repositories.map(r => r.name));

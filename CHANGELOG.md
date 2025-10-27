@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **ファイルパスリンク機能** (2025-10-27)
+  - AI応答内のファイルパスを自動的にクリック可能なリンクに変換
+  - ファイルパスリンクをクリックすると該当ファイルがファイルエクスプローラーに表示される
+  - Claude Code、Codex両方の応答でファイルパスリンクに対応
+  - バッククォートで囲まれたファイル名（例: `sample.txt`）もリンク化
+  - 複数のファイルパスフォーマットに対応:
+    - Markdownリンク: `[text](path/to/file.ext)`
+    - インラインコード: `` `path/to/file.ext` `` または `` `file.ext` ``
+    - プレーンパス: `path/to/file.ext` または `/absolute/path/to/file.ext`
+    - 行番号付き: `path/to/file.ext:42`
+  - ファイルエクスプローラーの自動展開機能（ファイルパスの親ディレクトリまで）
+  - ブラウザ履歴との統合（戻る・進むボタンでファイル間を移動可能）
+  - 実装ファイル:
+    - `frontend/src/lib/components/FilePathText.svelte` - ファイルパスリンク変換コンポーネント
+    - `frontend/src/lib/utils/file-path-linker.ts` - ファイルパス検出・リンク化ロジック
+    - `frontend/src/lib/components/repository-explorer/RepositoryExplorer.svelte` - ファイルエクスプローラー表示制御
+
 ### Fixed
 - **Codexファイル変更検知WebSocket対応** (2025-10-22)
   - TaskQueueでFileWatcherServiceを自動起動するように修正

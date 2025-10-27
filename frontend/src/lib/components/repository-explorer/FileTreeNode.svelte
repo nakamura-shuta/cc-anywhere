@@ -29,6 +29,16 @@
 		}
 	});
 
+	// selectedPathに含まれるディレクトリは自動的に展開
+	$effect(() => {
+		if (node.type === 'directory' && selectedPath) {
+			// selectedPathがこのディレクトリ配下にある場合は展開
+			if (selectedPath.startsWith(node.path + '/')) {
+				expanded = true;
+			}
+		}
+	});
+
 	function toggleExpanded() {
 		if (node.type === 'directory') {
 			expanded = !expanded;
