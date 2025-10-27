@@ -34,9 +34,39 @@
 	$effect(() => {
 		if (syncWithUrl && selectedFile && typeof window !== 'undefined') {
 			const url = new URL(window.location.href);
-			url.searchParams.set('file', selectedFile.path);
-			window.history.pushState({}, '', url);
+
+			if (selectedFile.path) {
+				url.searchParams.set('file', selectedFile.path);
+			} else {
+				url.searchParams.delete('file');
+			}
+
+			// replaceStateを使用して履歴を汚染しない
+			window.history.replaceState({}, '', url);
 		}
+	});
+
+	// ブラウザの戻る/進むボタンへの対応
+	$effect(() => {
+		if (typeof window === 'undefined' || !syncWithUrl) return;
+
+		const handlePopState = () => {
+			const urlParams = new URL(window.location.href).searchParams;
+			const fileParam = urlParams.get('file');
+
+			if (fileParam && repositories.length > 0) {
+				const repository = repositories[0].path;
+				handleFileSelect(repository, fileParam);
+			} else {
+				selectedFile = undefined;
+			}
+		};
+
+		window.addEventListener('popstate', handlePopState);
+
+		return () => {
+			window.removeEventListener('popstate', handlePopState);
+		};
 	});
 
 	function handleFileSelect(repository: string, filePath: string) {
