@@ -20,7 +20,8 @@ export interface FilePathLink {
  * - ./relative/path/file.js
  * - /absolute/path/to/file.ts
  * - [filename.ts](path/to/file.ts) (Markdown link)
- * - `src/utils/helper.ts` (inline code)
+ * - `src/utils/helper.ts` (inline code with path)
+ * - `sample.txt` (inline code - filename only)
  */
 const FILE_PATH_PATTERNS = [
 	// Markdown link with bold: **[text](path/to/file.ext)**
@@ -29,13 +30,15 @@ const FILE_PATH_PATTERNS = [
 	// Markdown link: [text](path/to/file.ext)
 	/\[([^\]]+)\]\(((?:\/|[a-zA-Z0-9_\-./])+\.[a-z]+(?::\d+)?)\)/g,
 
-	// Inline code with absolute or relative file path: `path/to/file.ext` or `path/to/file.ext:123`
-	/`((\/|[a-zA-Z0-9_\-./]+\/)[a-zA-Z0-9_\-./]+\.[a-z]+(?::\d+)?)`/g,
+	// Inline code with file path: `path/to/file.ext` or `file.ext`
+	// パスを含む場合とファイル名のみの場合の両方に対応
+	/`([a-zA-Z0-9_\-./]+\.[a-z]+(?::\d+)?)`/g,
 
 	// Plain absolute path: /path/to/file.ext or /path/to/file.ext:123
 	/(?:^|\s)(\/[a-zA-Z0-9_\-./]+\.[a-z]+(?::\d+)?)(?:\s|$|[,.](?:\s|$))/g,
 
 	// Plain relative path with optional line number: path/to/file.ext or path/to/file.ext:123
+	// スラッシュを含むパスのみマッチ（偽陽性を防ぐため）
 	/(?:^|\s)([a-zA-Z0-9_\-./]+\/[a-zA-Z0-9_\-./]+\.[a-z]+(?::\d+)?)(?:\s|$|[,.](?:\s|$))/g,
 ];
 

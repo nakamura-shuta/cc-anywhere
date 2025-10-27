@@ -55,6 +55,23 @@ describe('file-path-linker', () => {
 			expect(result[0].line).toBe(123);
 		});
 
+		it('should extract inline code with filename only (no path)', () => {
+			const text = 'Found `sample.txt` and `utils.js` in the directory';
+			const result = extractFilePaths(text);
+	
+			expect(result.length).toBeGreaterThanOrEqual(2);
+			expect(result[0].path).toBe('sample.txt');
+			expect(result[1].path).toBe('utils.js');
+		});
+	
+		it('should extract single inline filename', () => {
+			const text = 'The file `README.md` contains documentation';
+			const result = extractFilePaths(text);
+	
+			expect(result).toHaveLength(1);
+			expect(result[0].path).toBe('README.md');
+		});
+
 		it('should handle relative paths', () => {
 			const text = 'Check ./src/components/Header.vue';
 			const result = extractFilePaths(text);
