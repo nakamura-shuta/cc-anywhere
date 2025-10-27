@@ -13,9 +13,10 @@ module.exports = {
   apps: [
     {
       name: 'cc-anywhere-backend',
-      script: './dist/index.js',
+      script: '../node_modules/.bin/tsx',
+      args: './src/index.ts',
       instances: 1,              // インスタンス数（'max'でCPUコア数分起動）
-      exec_mode: 'cluster',      // クラスターモードで実行
+      exec_mode: 'fork',         // tsxはclusterモードに非対応のためforkモードに変更
       max_memory_restart: '1G',  // メモリ使用量が1GBを超えたら再起動
       
       // 環境変数
