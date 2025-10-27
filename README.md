@@ -6,6 +6,7 @@ Claude CodeとCodexをHTTP API経由で利用できるサーバーアプリケ�
 
 - **マルチExecutor対応**: Claude Agent SDK、OpenAI Codex SDKから選択可能
 - **リアルタイム表示**: ログ、ファイル変更（[+]/[M]/[D]/[R]）をWebSocketで配信
+- **ファイルパスリンク**: AI応答内のファイルパスを自動的にクリック可能なリンクに変換
 - **Web UI & REST API**: ブラウザまたはAPIから操作
 - **リモートアクセス**: ngrok/Cloudflare Tunnelでスマホからもアクセス可能
 - **スケジューラー**: Cron式で定期実行
