@@ -4,13 +4,14 @@
 	interface Props {
 		text: string;
 		taskId: string;
+		projectRoot?: string;
 		class?: string;
 	}
 
-	let { text, taskId, class: className = '' }: Props = $props();
+	let { text, taskId, projectRoot, class: className = '' }: Props = $props();
 
 	// テキストをHTMLに変換（ファイルパスをリンク化）
-	const html = $derived(convertFilePathsToLinks(text, taskId));
+	const html = $derived(convertFilePathsToLinks(text, taskId, projectRoot));
 </script>
 
 <!-- eslint-disable-next-line svelte/no-at-html-tags -->

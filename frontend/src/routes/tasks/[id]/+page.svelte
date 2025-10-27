@@ -675,7 +675,11 @@
 							<div class="text-xs font-mono">
 								{#each currentTask.result.split('\n') as line, i}
 									{#if i > 0}<br />{/if}
-									<FilePathText text={line} taskId={data.task?.taskId || ''} />
+									<FilePathText
+										text={line}
+										taskId={data.task?.taskId || ''}
+										projectRoot={currentTask.context?.workingDirectory || currentTask.workingDirectory}
+									/>
 								{/each}
 							</div>
 						{:else}
@@ -914,7 +918,11 @@
 												<div class="m-0">
 													{#each response.response.split('\n') as line, i}
 														{#if i > 0}<br />{/if}
-														<FilePathText text={line} taskId={data.task?.taskId || ''} />
+														<FilePathText
+															text={line}
+															taskId={data.task?.taskId || ''}
+															projectRoot={currentTask?.context?.workingDirectory || currentTask?.workingDirectory}
+														/>
 													{/each}
 												</div>
 											{:else}

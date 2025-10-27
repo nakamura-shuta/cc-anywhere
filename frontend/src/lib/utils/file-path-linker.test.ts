@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractFilePaths, filePathToUrl, convertFilePathsToLinks } from './file-path-linker';
+import { extractFilePaths, filePathToUrl, convertFilePathsToLinks, normalizeFilePath } from './file-path-linker';
 
 describe('file-path-linker', () => {
 	describe('extractFilePaths', () => {
@@ -192,6 +192,92 @@ describe('file-path-linker', () => {
 			const html = convertFilePathsToLinks(text, 'task-123');
 
 			expect(html).toContain('data-file-path="src/index.ts"');
+		});
+	});
+
+	describe('normalizeFilePath', () => {
+		it('should keep relative paths as-is', () => {
+			const path = 'src/index.ts';
+			const result = normalizeFilePath(path);
+
+			expect(result).toBe('src/index.ts');
+		});
+
+		it('should convert absolute path to relative when projectRoot is provided', () => {
+			const absolutePath = '/Users/test/project/src/index.ts';
+			const projectRoot = '/Users/test/project';
+			const result = normalizeFilePath(absolutePath, projectRoot);
+
+			expect(result).toBe('src/index.ts');
+		});
+
+		it('should handle absolute path with trailing slash in projectRoot', () => {
+			const absolutePath = '/Users/test/project/src/index.ts';
+			const projectRoot = '/Users/test/project/';
+			const result = normalizeFilePath(absolutePath, projectRoot);
+
+			expect(result).toBe('src/index.ts');
+		});
+
+		it('should return filename only for absolute paths outside projectRoot', () => {
+			const absolutePath = '/other/location/file.ts';
+			const projectRoot = '/Users/test/project';
+			const result = normalizeFilePath(absolutePath, projectRoot);
+
+			expect(result).toBe('file.ts');
+		});
+
+		it('should return filename only when projectRoot is not provided', () => {
+			const absolutePath = '/Users/test/project/src/index.ts';
+			const result = normalizeFilePath(absolutePath);
+
+			expect(result).toBe('index.ts');
+		});
+	});
+
+	describe('extractFilePaths - absolute paths', () => {
+		it('should extract absolute file paths', () => {
+			const text = 'Check /Users/test/project/src/index.ts for details';
+			const result = extractFilePaths(text);
+
+			expect(result.length).toBeGreaterThanOrEqual(1);
+			expect(result[0].path).toBe('/Users/test/project/src/index.ts');
+		});
+
+		it('should extract bold markdown links with absolute paths', () => {
+			const text = '**[package.json](/Users/test/project/package.json)**';
+			const result = extractFilePaths(text);
+
+			expect(result.length).toBeGreaterThanOrEqual(1);
+			expect(result[0].path).toBe('/Users/test/project/package.json');
+		});
+
+		it('should extract multiple absolute paths', () => {
+			const text = '/Users/test/project/frontend/package.json and /Users/test/project/backend/package.json';
+			const result = extractFilePaths(text);
+
+			expect(result.length).toBeGreaterThanOrEqual(2);
+		});
+	});
+
+	describe('convertFilePathsToLinks - absolute paths', () => {
+		it('should convert absolute paths to relative links', () => {
+			const text = 'File: /Users/test/project/src/index.ts';
+			const projectRoot = '/Users/test/project';
+			const html = convertFilePathsToLinks(text, 'task-123', projectRoot);
+
+			expect(html).toContain('src/index.ts');
+			expect(html).toContain('<a href=');
+			expect(html).not.toContain('/Users/test/project/src/index.ts');
+		});
+
+		it('should handle bold markdown absolute paths', () => {
+			const text = '**[package.json](/Users/test/project/package.json)**';
+			const projectRoot = '/Users/test/project';
+			const html = convertFilePathsToLinks(text, 'task-123', projectRoot);
+
+			expect(html).toContain('package.json');
+			expect(html).toContain('<a href=');
 		});
 	});
 });
