@@ -22,9 +22,13 @@
 
 	// 初期ファイルの自動選択
 	$effect(() => {
-		if (initialFile && repositories.length > 0 && !selectedFile) {
-			// デフォルトで最初のリポジトリを使用
-			const repository = repositories[0].path;
+		if (!initialFile || repositories.length === 0) return;
+
+		// デフォルトで最初のリポジトリを使用
+		const repository = repositories[0].path;
+
+		// initialFile が変化したら必ず選択を更新する
+		if (!selectedFile || selectedFile.path !== initialFile || selectedFile.repository !== repository) {
 			console.log('Auto-selecting initial file:', initialFile);
 			handleFileSelect(repository, initialFile);
 		}
