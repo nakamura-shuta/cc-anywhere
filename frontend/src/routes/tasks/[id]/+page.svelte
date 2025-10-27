@@ -14,6 +14,7 @@
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Separator } from '$lib/components/ui/separator';
 	import { RepositoryExplorer } from '$lib/components/repository-explorer';
+	import FilePathText from '$lib/components/FilePathText.svelte';
 
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -674,7 +675,7 @@
 							<div class="text-xs font-mono">
 								{#each currentTask.result.split('\n') as line, i}
 									{#if i > 0}<br />{/if}
-									<span>{line}</span>
+									<FilePathText text={line} taskId={data.task?.taskId || ''} />
 								{/each}
 							</div>
 						{:else}
@@ -913,7 +914,7 @@
 												<div class="m-0">
 													{#each response.response.split('\n') as line, i}
 														{#if i > 0}<br />{/if}
-														<span>{line}</span>
+														<FilePathText text={line} taskId={data.task?.taskId || ''} />
 													{/each}
 												</div>
 											{:else}
