@@ -22,6 +22,7 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "postinstall": "node scripts/patch-codex-sdk.js || true",
     "db:migrate": "echo 'Database migrations not yet implemented'",
     "db:rollback": "echo 'Database rollback not yet implemented'",
     "db:seed": "echo 'Database seeding not yet implemented'"
