@@ -32,14 +32,29 @@ try {
   // Read the package.json
   const packageJson = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, 'utf-8'));
 
-  // Check if "main" field already exists
-  if (packageJson.main) {
-    console.log('@openai/codex-sdk already has "main" field, skipping patch');
-    process.exit(0);
+  let patched = false;
+
+  // Check and add "main" field if missing
+  if (!packageJson.main) {
+    packageJson.main = './dist/index.js';
+    patched = true;
+    console.log('Added "main" field');
   }
 
-  // Add the "main" field
-  packageJson.main = './dist/index.js';
+  // Check and add "require" in exports if missing
+  if (packageJson.exports && packageJson.exports['.']) {
+    if (!packageJson.exports['.'].require) {
+      packageJson.exports['.'].require = './dist/index.js';
+      patched = true;
+      console.log('Added "require" to exports');
+    }
+  }
+
+  // If nothing was patched, skip
+  if (!patched) {
+    console.log('@openai/codex-sdk already has "main" field and exports.require, skipping patch');
+    process.exit(0);
+  }
 
   // Write back
   fs.writeFileSync(
