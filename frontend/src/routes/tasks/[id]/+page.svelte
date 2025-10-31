@@ -15,6 +15,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { RepositoryExplorer } from '$lib/components/repository-explorer';
 	import FilePathText from '$lib/components/FilePathText.svelte';
+	import TokenUsageCard from '$lib/components/TokenUsageCard.svelte';
 
 	// load関数から受け取るデータ
 	let { data }: { data: PageData } = $props();
@@ -657,6 +658,13 @@
 			</Card.Root>
 		{/if}
 
+		<!-- ✅ Token Usage Card (Codex executor専用) -->
+		{#if currentTask.progressData?.statistics?.tokenUsage && (currentTask.executor === 'codex' || currentTask.options?.executor === 'codex')}
+			<TokenUsageCard
+				tokenUsage={currentTask.progressData.statistics.tokenUsage}
+				executor={currentTask.executor || currentTask.options?.executor}
+			/>
+		{/if}
 
 		<!-- 実行結果 -->
 		{#if currentTask.result}

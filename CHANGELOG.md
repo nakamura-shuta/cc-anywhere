@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Codex SDK v0.52.0 Token Usage表示機能** (2025-10-31)
+  - Codex executorでのトークン使用量（Input/Output/Cached tokens）をタスク詳細画面に表示
+  - プロンプトキャッシュによる節約率をパーセンテージで可視化
+  - cached_input_tokensフィールドをprogressData.statistics.tokenUsageとして保存
+  - Claude executorには影響なし（Codex executor専用機能）
+  - 実装ファイル:
+    - `frontend/src/lib/components/TokenUsageCard.svelte` - トークン使用量表示コンポーネント
+    - `backend/src/queue/task-queue.ts` - tokenUsage保存処理追加
+    - `backend/src/claude/types.ts`, `frontend/src/lib/types/api.ts` - tokenUsage型定義追加
+  - UIデザイン:
+    - キャッシュトークン > 0の場合：琥珀色背景でハイライト表示 + 節約率
+    - Total (billed): 実際に課金されるトークン数を表示（Total - Cached）
+
 - **ファイルパスリンク機能** (2025-10-27)
   - AI応答内のファイルパスを自動的にクリック可能なリンクに変換
   - ファイルパスリンクをクリックすると該当ファイルがファイルエクスプローラーに表示される

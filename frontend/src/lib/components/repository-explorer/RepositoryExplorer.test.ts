@@ -53,7 +53,11 @@ describe('RepositoryExplorer - File Navigation', () => {
 		vi.mocked(repositoryExplorerService.getFileContent).mockResolvedValue({
 			content: '// test content',
 			language: 'typescript',
-			path: 'src/index.ts'
+			path: 'src/index.ts',
+			encoding: 'utf8',
+			size: 16,
+			mimeType: 'text/typescript',
+			modifiedAt: new Date().toISOString()
 		});
 		vi.mocked(repositoryExplorerService.startWatching).mockResolvedValue(undefined);
 		vi.mocked(repositoryExplorerService.stopWatching).mockResolvedValue(undefined);
@@ -72,7 +76,7 @@ describe('RepositoryExplorer - File Navigation', () => {
 
 	describe('initialFile prop', () => {
 		it('should auto-select file when initialFile is provided', async () => {
-			const { container } = render(RepositoryExplorer, {
+			render(RepositoryExplorer, {
 				props: {
 					repositories: mockRepositories,
 					initialFile: 'src/index.ts',

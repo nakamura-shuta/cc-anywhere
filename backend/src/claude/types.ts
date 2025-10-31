@@ -168,6 +168,12 @@ export interface TaskResponse {
       createdFiles?: number;
       modifiedFiles?: number;
       totalExecutions?: number;
+      // ✅ Codex SDK v0.52.0: トークン使用量（Codex executor限定）
+      tokenUsage?: {
+        input: number;
+        output: number;
+        cached?: number; // Codex executorのみ返す（Claude executorは未定義）
+      };
     };
     todos?: TodoItem[];
   };

@@ -251,6 +251,7 @@ export class TaskQueueImpl implements TaskQueue {
           createdFiles: 0,
           modifiedFiles: 0,
           totalExecutions: 0,
+          tokenUsage: undefined as { input: number; output: number; cached?: number } | undefined,
         },
         todos: [] as any[],
         // 詳細な実行履歴
@@ -528,6 +529,15 @@ export class TaskQueueImpl implements TaskQueue {
                         progressData.statistics.createdFiles = createdFiles;
                         progressData.statistics.totalExecutions = totalExecutions;
                         progressData.statistics.processedFiles = modifiedFiles + createdFiles;
+                      }
+
+                      // ✅ Codex SDK v0.52.0: トークン使用量を保存（Codex executor限定）
+                      if (progress.data.tokenUsage) {
+                        progressData.statistics.tokenUsage = {
+                          input: progress.data.tokenUsage.input || 0,
+                          output: progress.data.tokenUsage.output || 0,
+                          cached: progress.data.tokenUsage.cached || 0,
+                        };
                       }
 
                       // Save progress data to database

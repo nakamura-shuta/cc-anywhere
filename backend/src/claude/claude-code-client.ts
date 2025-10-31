@@ -151,6 +151,27 @@ export class ClaudeCodeClient {
           logger.info("Claude Code SDK session ID detected", { sessionId });
         }
 
+        // Log new message types for investigation
+        if (message.type === "tool_progress") {
+          logger.info("🔧 TOOL_PROGRESS message received", {
+            taskId: effectiveTaskId,
+            messageType: message.type,
+            fullMessage: JSON.stringify(message, null, 2),
+            sessionId: (message as any).session_id,
+            uuid: (message as any).uuid,
+          });
+        }
+
+        if (message.type === "auth_status") {
+          logger.info("🔐 AUTH_STATUS message received", {
+            taskId: effectiveTaskId,
+            messageType: message.type,
+            fullMessage: JSON.stringify(message, null, 2),
+            sessionId: (message as any).session_id,
+            uuid: (message as any).uuid,
+          });
+        }
+
         // Track turns and tool usage
         if (message.type === "assistant") {
           turnCount++;
