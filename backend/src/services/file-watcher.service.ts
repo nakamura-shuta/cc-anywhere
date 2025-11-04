@@ -3,6 +3,7 @@ import * as chokidar from "chokidar";
 import { logger } from "../utils/logger.js";
 import { relative } from "path";
 import { fileCacheService } from "./file-cache.service.js";
+import { SensitiveFileDetector } from "../utils/sensitive-file-detector.js";
 
 export interface FileChangeEvent {
   operation: "add" | "change" | "unlink" | "addDir" | "unlinkDir";
@@ -137,6 +138,9 @@ export class FileWatcherService extends EventEmitter {
       watcher.on("unlink", async (filePath: string) => {
         const relativePath = relative(repositoryPath, filePath);
 
+        // 🆕 機密ファイルチェック
+        const isSensitive = SensitiveFileDetector.isSensitiveFile(relativePath);
+
         // キャッシュから削除されたファイルの内容を取得
         const cachedFile = fileCacheService.getFile(filePath);
 
@@ -145,10 +149,17 @@ export class FileWatcherService extends EventEmitter {
           repository: repositoryPath,
           path: relativePath,
           timestamp: Date.now(),
-          cachedContent: cachedFile?.content, // 削除前の内容を追加
+          // 🆕 機密ファイルの場合は内容を送信しない
+          cachedContent: isSensitive ? undefined : cachedFile?.content,
         };
 
-        logger.debug("Repository file removed", event);
+        // 🆕 機密ファイルの場合はログもマスク
+        logger.debug("Repository file removed", {
+          ...event,
+          path: SensitiveFileDetector.getSafePathForLogging(relativePath),
+          isSensitive,
+        });
+
         this.emit("repositoryFileChange", event);
 
         // キャッシュから削除

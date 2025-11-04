@@ -14,6 +14,7 @@ import type { WebSocketServer } from "../websocket/websocket-server.js";
 import { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
 import { getTypedEventBus, type TypedEventBus } from "../events";
 import { fileWatcherService } from "../services/file-watcher.service.js";
+import { PathValidator, PathValidationError } from "../utils/path-validator.js";
 
 export { TaskQueue };
 
@@ -226,12 +227,68 @@ export class TaskQueueImpl implements TaskQueue {
       const workingDirectory = task.request.context?.workingDirectory;
       if (workingDirectory) {
         try {
+          // 🆕 パス検証を追加
+          const validatedPath = await PathValidator.validateWorkingDirectory(workingDirectory);
+
           logger.debug("Starting file watcher for task working directory", {
             taskId: task.id,
-            workingDirectory,
+            originalPath: workingDirectory,
+            validatedPath,
           });
-          await fileWatcherService.watchRepository(workingDirectory);
+
+          await fileWatcherService.watchRepository(validatedPath);
         } catch (error) {
+          // 🆕 PathValidationError を特別に処理
+          if (error instanceof PathValidationError) {
+            logger.error("Path validation failed for working directory", {
+              taskId: task.id,
+              workingDirectory,
+              code: error.code,
+              error: error.message,
+            });
+
+            // タスクを失敗させる（セキュリティ理由）
+            task.status = TaskStatus.FAILED;
+            task.error = error;
+            task.completedAt = new Date();
+            this.failedCount++;
+
+            // Update status in database
+            try {
+              this.repository.updateStatus(task.id, TaskStatus.FAILED, error);
+            } catch (dbError) {
+              logger.error("Failed to update task status in database", {
+                error: dbError,
+              });
+            }
+
+            // Emit task failed event
+            void this.eventBus.emit("task.failed", {
+              taskId: task.id,
+              error: {
+                message: error.message,
+                code: error.code,
+              },
+              failedAt: task.completedAt,
+              willRetry: false,
+              retryCount: 0,
+            });
+
+            // Notify error handlers
+            this.onErrorHandlers.forEach((handler) => {
+              try {
+                handler(task, error);
+              } catch (handlerError) {
+                logger.error("Error in error handler", { error: handlerError });
+              }
+            });
+
+            // Schedule task cleanup from memory
+            this.scheduleTaskCleanup(task.id);
+
+            return;
+          }
+
           logger.error("Failed to start file watcher for working directory", {
             taskId: task.id,
             workingDirectory,

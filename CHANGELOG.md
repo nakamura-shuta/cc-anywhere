@@ -8,6 +8,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **セキュリティ脆弱性の修正** (2025-11-04) 🔒
+  - HIGH: パストラバーサル脆弱性を修正（CVSS 8.6）
+  - MEDIUM: 機密データ露出脆弱性を修正（CVSS 6.5）
+  - 実装内容:
+    - **PathValidator** (`backend/src/utils/path-validator.ts`): 作業ディレクトリの安全性検証
+      - ホワイトリスト検証（path.relative()による安全な判定）
+      - システムディレクトリブロック（/etc, /root, /sys等）
+      - パス正規化とシンボリックリンク解決
+      - パストラバーサル攻撃の防止
+    - **SensitiveFileDetector** (`backend/src/utils/sensitive-file-detector.ts`): 機密ファイル検出
+      - 機密ファイルパターン検出（.env*, *.key, *.pem, credentials*, secrets*等）
+      - ログ出力時のパスマスキング（[REDACTED]）
+      - カスタムパターン追加機能
+    - **セキュリティ設定** (`backend/src/config/index.ts`):
+      - ALLOWED_WORKING_DIRECTORIES: 許可ディレクトリのホワイトリスト（デフォルト: プロジェクトルート）
+      - STRICT_PATH_VALIDATION: システムディレクトリブロックを有効化（デフォルト: true）
+      - REQUIRE_WHITELIST: ホワイトリストチェックを必須化（デフォルト: true）
+    - **TaskQueue統合** (`backend/src/queue/task-queue.ts`): パス検証の適用
+    - **FileWatcherService統合** (`backend/src/services/file-watcher.service.ts`): 機密ファイル保護
+  - テスト:
+    - PathValidatorユニットテスト（類似プレフィックス攻撃、システムディレクトリ、シンボリックリンク等）
+    - SensitiveFileDetectorユニットテスト（各種機密ファイルパターン）
+  - ドキュメント: `.work/security-vulnerabilities-fix-sow.md`
+
+- **セキュリティ脆弱性修正SoW作成** (2025-11-04)
+  - パストラバーサル脆弱性（HIGH）と機密データ露出（MEDIUM）の対策計画を策定
+  - 作成ファイル: `.work/security-vulnerabilities-fix-sow.md`
+  - 主な対策:
+    - PathValidator: パス検証ユーティリティ（ホワイトリスト、正規化、シンボリックリンク解決）
+    - SensitiveFileDetector: 機密ファイル検出（.env, *.key, *.pem等）
+    - デフォルトでプロジェクトルートのみを許可（セキュアなデフォルト）
+    - path.relative()を使った安全な判定ロジック
+  - 見積り: 6.5日（Phase 1: 3日、Phase 2: 2.5日、Phase 3: 1日）
+  - 修正履歴:
+    - デフォルト設定の脆弱性を修正（空配列 → プロジェクトルート）
+    - ホワイトリスト判定ロジックの脆弱性を修正（startsWith → path.relative）
+    - 無効なパストラバーサル検出を削除（includes("..")は無意味）
+    - システムディレクトリブロックの誤判定を修正（類似パス許可）
+
 - **Codex SDK v0.52.0 Token Usage表示機能** (2025-10-31)
   - Codex executorでのトークン使用量（Input/Output/Cached tokens）をタスク詳細画面に表示
   - プロンプトキャッシュによる節約率をパーセンテージで可視化
@@ -37,6 +77,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `frontend/src/lib/components/FilePathText.svelte` - ファイルパスリンク変換コンポーネント
     - `frontend/src/lib/utils/file-path-linker.ts` - ファイルパス検出・リンク化ロジック
     - `frontend/src/lib/components/repository-explorer/RepositoryExplorer.svelte` - ファイルエクスプローラー表示制御
+
+### Changed
+
+- **Codex executor セッション継続機能の実装状況を明確化** (2025-11-04)
+  - ExecutorCapabilities の codex.sessionResume を true → false に変更
+  - Codex SDK の `resumeThread()` 機能は動作確認済み（`.work/sandbox/codex-test/codex-thread-runner.ts`）
+  - しかし、cc-anywhere への統合実装は未完了
+  - TODO.md に「Codex executor セッション継続機能実装」を優先度高として追加
+  - 修正ファイル: `backend/src/agents/types.ts`
 
 ### Fixed
 - **Codexファイル変更検知WebSocket対応** (2025-10-22)

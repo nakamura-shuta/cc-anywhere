@@ -76,6 +76,25 @@ const envSchema = z.object({
     .string()
     .default("true")
     .transform((v) => v === "true"),
+  // セキュリティ設定
+  ALLOWED_WORKING_DIRECTORIES: z
+    .string()
+    .default("")
+    .transform((v) => {
+      if (!v) {
+        // 🔴 デフォルトではプロジェクトルートのみを許可（セキュアなデフォルト）
+        return [path.resolve(process.cwd())];
+      }
+      return v.split(",").map((p) => path.resolve(p));
+    }),
+  STRICT_PATH_VALIDATION: z
+    .string()
+    .default("true")
+    .transform((v) => v === "true"),
+  REQUIRE_WHITELIST: z
+    .string()
+    .default("true")
+    .transform((v) => v === "true"),
 });
 
 // Parse and validate environment variables
@@ -163,5 +182,10 @@ export const config = {
   qrAuth: {
     enabled: env.QR_AUTH_ENABLED,
     sessionDuration: env.QR_AUTH_SESSION_DURATION,
+  },
+  security: {
+    allowedWorkingDirectories: env.ALLOWED_WORKING_DIRECTORIES,
+    strictPathValidation: env.STRICT_PATH_VALIDATION,
+    requireWhitelist: env.REQUIRE_WHITELIST,
   },
 } as const;
