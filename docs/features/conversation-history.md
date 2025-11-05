@@ -10,10 +10,10 @@
 
 タスクが完了すると、以下の情報が自動的にデータベースに保存されます：
 
-- ユーザーの指示
-- Claudeの応答
-- ツール使用の履歴
+- Claude Code SDKから返された会話メッセージ（ユーザーの指示とClaudeの応答）
 - タスクの成功/失敗に関わらず保存
+
+**注意**: ツール実行の開始/終了や結果は、会話履歴（`conversationHistory`）ではなく、進捗データ（`progressData.toolExecutions`）に別途記録されます。これらは異なるデータ構造で管理されています
 
 ### データベーススキーマ
 
@@ -21,20 +21,26 @@
 ALTER TABLE tasks ADD COLUMN conversationHistory TEXT
 ```
 
-会話履歴はJSON形式で保存されます：
+会話履歴はJSON形式で保存されます。実際にはClaude Code SDKから返される生のメッセージオブジェクトの配列が保存されます：
 
 ```json
 [
   {
     "type": "user",
-    "content": "Test instruction"
+    "content": "...",
+    "session_id": "...",
+    "uuid": "..."
   },
   {
     "type": "assistant",
-    "content": "Test response"
+    "content": [...],
+    "session_id": "...",
+    "uuid": "..."
   }
 ]
 ```
+
+**注意**: 上記は簡略化された例です。実際のSDKメッセージには、`session_id`、`uuid`、`content`（配列形式）など、より多くのフィールドが含まれる場合があります。詳細な構造については`backend/src/claude/claude-code-client.ts`の実装を参照してください
 
 ## API
 
