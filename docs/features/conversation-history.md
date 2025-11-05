@@ -27,20 +27,30 @@ ALTER TABLE tasks ADD COLUMN conversationHistory TEXT
 [
   {
     "type": "user",
-    "content": "...",
     "session_id": "...",
     "uuid": "..."
   },
   {
     "type": "assistant",
-    "content": [...],
+    "message": {
+      "content": [
+        {
+          "type": "text",
+          "text": "..."
+        }
+      ]
+    },
     "session_id": "...",
     "uuid": "..."
   }
 ]
 ```
 
-**注意**: 上記は簡略化された例です。実際のSDKメッセージには、`session_id`、`uuid`、`content`（配列形式）など、より多くのフィールドが含まれる場合があります。詳細な構造については`backend/src/claude/claude-code-client.ts`の実装を参照してください
+**注意**:
+- `assistant`メッセージは`message.content`という入れ子構造を持ち、`content`は配列形式です
+- 上記は簡略化された例です。実際のSDKメッセージには`session_id`、`uuid`などの追加フィールドが含まれる場合があります
+- フィールド構造はClaude Code SDKのバージョンに依存します
+- 詳細な構造については`backend/src/claude/claude-code-client.ts:724-766`（extractAssistantMessage）の実装を参照してください
 
 ## API
 
