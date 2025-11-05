@@ -30,6 +30,12 @@ export class FileWatcherService extends EventEmitter {
   private watchers: Map<string, chokidar.FSWatcher> = new Map();
   private repositoryWatchers: Map<string, chokidar.FSWatcher> = new Map();
 
+  constructor() {
+    super();
+    // Increase max listeners to avoid warnings in tests with multiple instances
+    this.setMaxListeners(20);
+  }
+
   async watchDirectory(taskId: string, directory: string): Promise<void> {
     if (this.watchers.has(taskId)) {
       await this.stopWatching(taskId);
