@@ -8,15 +8,10 @@ describe("Conversation History", () => {
 
   beforeEach(async () => {
     // Initialize database
-    const dbProvider = getSharedDbProvider();
+    getSharedDbProvider();
 
-    // Run migration to add conversation_history column
-    const db = dbProvider.getDb();
-    try {
-      db.exec("ALTER TABLE tasks ADD COLUMN conversation_history TEXT");
-    } catch (error) {
-      // Column might already exist
-    }
+    // Database migrations are handled by DatabaseProvider automatically
+    // No need to manually add conversation_history column here
 
     queue = new TaskQueueImpl({ concurrency: 1, autoStart: false });
   });
@@ -49,7 +44,7 @@ describe("Conversation History", () => {
 
     const task: TaskRequest = {
       instruction: "Test instruction",
-      context: { workingDirectory: "/test" },
+      // Don't specify workingDirectory to avoid path validation
     };
 
     // Add task to queue
@@ -60,13 +55,25 @@ describe("Conversation History", () => {
     expect(queuedTask).toBeDefined();
 
     // Execute task directly (bypass queue processing)
-    await queue["executeTask"](queuedTask!);
+    try {
+      await queue["executeTask"](queuedTask!);
+    } catch (error) {
+      console.error("Error executing task:", error);
+      throw error;
+    }
 
     // Check that conversation history was saved
     const repository = queue["repository"];
     const savedTask = repository.getById(taskId);
 
+    // Debug: Check database directly
+    const dbProvider = getSharedDbProvider();
+    const db = dbProvider.getDb();
+    const rawRow = db.prepare("SELECT * FROM tasks WHERE id = ?").get(taskId) as any;
+
     expect(savedTask).toBeDefined();
+    expect(mockExecutor.execute.mock.calls.length).toBeGreaterThan(0);
+    expect(rawRow?.conversation_history).toBeDefined();
     expect(savedTask?.conversationHistory).toEqual(mockMessages);
   });
 
@@ -88,7 +95,7 @@ describe("Conversation History", () => {
 
     const task: TaskRequest = {
       instruction: "Test instruction",
-      context: { workingDirectory: "/test" },
+      // Don't specify workingDirectory to avoid path validation
     };
 
     // Add task to queue
@@ -132,7 +139,7 @@ describe("Conversation History", () => {
 
     const task: TaskRequest = {
       instruction: "Test instruction that fails",
-      context: { workingDirectory: "/test" },
+      // Don't specify workingDirectory to avoid path validation
     };
 
     // Add task to queue

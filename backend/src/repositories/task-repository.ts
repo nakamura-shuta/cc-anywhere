@@ -110,6 +110,18 @@ export class TaskRepositoryImpl extends BaseRepository<TaskEntity> implements IT
     }
   }
 
+  async updateConversationHistory(id: string, conversationHistory: unknown): Promise<void> {
+    try {
+      await this.update(id, {
+        conversationHistory,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      logger.error("Error updating conversation history", { id, error });
+      throw error;
+    }
+  }
+
   protected mapRowToEntity(row: any): TaskEntity {
     return {
       id: row.id,
@@ -128,6 +140,9 @@ export class TaskRepositoryImpl extends BaseRepository<TaskEntity> implements IT
       nextRetryAt: row.nextRetryAt ? new Date(row.nextRetryAt) : undefined,
       groupId: row.groupId,
       repositoryName: row.repositoryName,
+      conversationHistory: row.conversationHistory
+        ? JSON.parse(row.conversationHistory)
+        : undefined,
     };
   }
 
@@ -149,10 +164,18 @@ export class TaskRepositoryImpl extends BaseRepository<TaskEntity> implements IT
         retryMetadata TEXT,
         nextRetryAt TEXT,
         groupId TEXT,
-        repositoryName TEXT
+        repositoryName TEXT,
+        conversationHistory TEXT
       )
     `);
     stmt.run();
+
+    // Add conversationHistory column if it doesn't exist (for existing databases)
+    try {
+      this.db.prepare(`ALTER TABLE ${this.tableName} ADD COLUMN conversationHistory TEXT`).run();
+    } catch (error) {
+      // Column already exists, ignore error
+    }
 
     // Create indexes
     this.db

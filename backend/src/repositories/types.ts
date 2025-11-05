@@ -82,6 +82,7 @@ export interface ITaskRepository extends IQueryableRepository<TaskEntity, string
   updateResult(id: string, result: unknown): Promise<void>;
   updateRetryMetadata(id: string, metadata: unknown, nextRetryAt?: Date): Promise<void>;
   resetTaskForRetry(id: string): Promise<void>;
+  updateConversationHistory(id: string, conversationHistory: unknown): Promise<void>;
 }
 
 /**

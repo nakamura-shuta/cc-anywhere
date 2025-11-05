@@ -1,10 +1,27 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 import path from "path";
+import fs from "fs";
 
 // Load environment variables based on NODE_ENV
 const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
 dotenv.config({ path: path.resolve(__dirname, "../../../", envFile) });
+
+// Load repository paths from repositories.json
+function loadRepositoryPaths(): string[] {
+  try {
+    const repositoriesPath = path.resolve(__dirname, "../../config/repositories.json");
+    if (!fs.existsSync(repositoriesPath)) {
+      return [];
+    }
+    const content = fs.readFileSync(repositoriesPath, "utf-8");
+    const data = JSON.parse(content) as { repositories: Array<{ name: string; path: string }> };
+    return data.repositories.map((repo) => path.resolve(repo.path));
+  } catch (error) {
+    // repositories.jsonが存在しないか読み込めない場合は空配列を返す
+    return [];
+  }
+}
 
 // Environment configuration schema
 const envSchema = z.object({
@@ -81,11 +98,19 @@ const envSchema = z.object({
     .string()
     .default("")
     .transform((v) => {
-      if (!v) {
-        // 🔴 デフォルトではプロジェクトルートのみを許可（セキュアなデフォルト）
-        return [path.resolve(process.cwd())];
-      }
-      return v.split(",").map((p) => path.resolve(p));
+      // 環境変数で指定されたディレクトリ
+      const envPaths = v ? v.split(",").map((p) => path.resolve(p.trim())) : [];
+
+      // repositories.jsonから読み込んだディレクトリ
+      const repoPaths = loadRepositoryPaths();
+
+      // プロジェクトルート
+      const projectRoot = path.resolve(process.cwd());
+
+      // すべてを結合して重複を削除
+      const allPaths = [...new Set([projectRoot, ...envPaths, ...repoPaths])];
+
+      return allPaths;
     }),
   STRICT_PATH_VALIDATION: z
     .string()
@@ -99,6 +124,14 @@ const envSchema = z.object({
 
 // Parse and validate environment variables
 const env = envSchema.parse(process.env);
+
+// Log allowed directories for debugging
+if (env.NODE_ENV === "development") {
+  console.log("🔐 Allowed working directories:");
+  env.ALLOWED_WORKING_DIRECTORIES.forEach((dir) => {
+    console.log(`  - ${dir}`);
+  });
+}
 
 export const config = {
   env: env.NODE_ENV,

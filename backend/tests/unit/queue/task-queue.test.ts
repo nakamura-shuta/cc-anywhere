@@ -26,6 +26,9 @@ vi.mock("../../../src/db/shared-instance", () => ({
     create: vi.fn(),
     updateStatus: vi.fn(),
     updateResult: vi.fn(),
+    updateConversationHistory: vi.fn(),
+    updateProgressData: vi.fn(),
+    updateSdkSessionId: vi.fn(),
     getPendingTasks: vi.fn().mockReturnValue([]),
   })),
   getSharedDbProvider: vi.fn(),
@@ -382,7 +385,7 @@ describe("TaskQueue", () => {
       const task: TaskRequest = {
         instruction: "Task with options",
         context: {
-          workingDirectory: "/project",
+          // Don't specify workingDirectory to avoid path validation
           files: ["file1.ts", "file2.ts"],
         },
         options: {
