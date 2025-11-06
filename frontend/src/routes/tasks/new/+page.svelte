@@ -73,8 +73,12 @@
 	
 	// CLIセッション継続モード
 	let resumeSessionId = $state<string>('');
-	
-	
+
+	// Codexオプション
+	let codexSandboxMode = $state<'read-only' | 'workspace-write' | 'danger-full-access'>('workspace-write');
+	let codexResumeSession = $state<string>('');
+	let codexModel = $state<string>('');
+
 	// 詳細設定の表示/非表示（SDK Continueモードではデフォルトで非表示）
 	let showAdvancedSettings = $state(false);
 	
@@ -111,15 +115,45 @@
 				} else if (previousTask.context?.workingDirectory) {
 					selectedDirectories = [previousTask.context.workingDirectory];
 				}
-				
+
+				// 前のタスクのExecutorを引き継ぐ（継続時はExecutor変更不可）
+				const inheritedExecutor = previousTask.executor || previousTask.options?.executor;
+				if (inheritedExecutor) {
+					selectedExecutor = inheritedExecutor;
+				}
+
 				// 前のタスクの設定を引き継ぐ
 				if (previousTask.options) {
 					maxTurns = previousTask.options.sdk?.maxTurns || maxTurns;
 					timeout = previousTask.options.timeout || timeout;
 					permissionMode = previousTask.options.sdk?.permissionMode || permissionMode;
 					useWorktree = previousTask.options.useWorktree || false;
+
+					// Codexオプションを引き継ぐ
+					if (previousTask.options.codex) {
+						codexSandboxMode = previousTask.options.codex.sandboxMode || codexSandboxMode;
+						codexModel = previousTask.options.codex.model || codexModel;
+					}
 				}
-				
+
+				// セッションID/Thread IDを設定
+				if (previousTask.sdkSessionId) {
+					const executor = previousTask.executor || previousTask.options?.executor;
+					console.log('[DEBUG] Session continuation setup:', {
+						sdkSessionId: previousTask.sdkSessionId,
+						executor,
+						previousTaskExecutor: previousTask.executor,
+						previousTaskOptionsExecutor: previousTask.options?.executor
+					});
+					if (executor === 'codex') {
+						// Codex: Thread IDを設定
+						codexResumeSession = previousTask.sdkSessionId;
+						console.log('[DEBUG] Set codexResumeSession:', codexResumeSession);
+					}
+					// Claude: SDK Continueモードでは resumeSessionId を設定しない
+					// SDK Continue は continueFromTaskId を使用し、内部的にSession IDを解決する
+				}
+
 				// SDK Continueモードでは詳細設定をデフォルトで非表示
 				showAdvancedSettings = false;
 			} catch (error) {
@@ -150,7 +184,15 @@
 		}
 		
 		submitting = true;
-		
+
+		console.log('[DEBUG] Submit - Session continuation values:', {
+			selectedExecutor,
+			codexResumeSession,
+			resumeSessionId,
+			continueFromTaskId,
+			isSdkContinueMode
+		});
+
 		const request: TaskRequest = {
 			instruction: instruction.trim(),
 			context: {
@@ -161,14 +203,31 @@
 				timeout,
 				async: useAsync,
 				executor: selectedExecutor,
+				// Claude SDK オプション
 				sdk: {
 					maxTurns,
 					permissionMode: Array.isArray(permissionMode) ? permissionMode[0] : permissionMode as 'ask' | 'allow' | 'deny' | 'acceptEdits' | 'bypassPermissions' | 'plan',
-					// SDK Continueモードの場合、continueFromTaskIdを設定
-					...(isSdkContinueMode && continueFromTaskId ? { continueFromTaskId } : {}),
-					// CLIセッション継続モードの場合、resumeSessionを設定
-					...(resumeSessionId ? { resumeSession: resumeSessionId } : {})
+					// SDK Continueモードの場合、continueFromTaskIdを設定（Codex継続時は除外）
+					// selectedExecutorが未定義の場合はclaudeとして扱う（デフォルト executor）
+					...(isSdkContinueMode && continueFromTaskId && (!selectedExecutor || selectedExecutor !== 'codex') ? { continueFromTaskId } : {}),
+					// CLIセッション継続モードの場合、resumeSessionを設定（Codex継続時は除外）
+					// Reference: https://docs.claude.com/en/api/agent-sdk/sessions
+					// Only 'resume' parameter is needed for session continuation
+					...(resumeSessionId && (!selectedExecutor || selectedExecutor !== 'codex') ? {
+						resumeSession: resumeSessionId
+					} : {})
 				},
+				// Codex SDK オプション
+				...(selectedExecutor === 'codex' ? {
+					codex: {
+						sandboxMode: codexSandboxMode,
+						...(codexModel ? { model: codexModel } : {}),
+						...(codexResumeSession ? {
+							continueSession: true,
+							resumeSession: codexResumeSession
+						} : {})
+					}
+				} : {}),
 				// Worktree設定
 				useWorktree,
 				...(useWorktree ? {
@@ -180,13 +239,17 @@
 			}
 		};
 		
+		console.log('[DEBUG] Sending request:', JSON.stringify(request, null, 2));
+
 		try {
 			const result = await taskStore.createTask(request);
+			console.log('[DEBUG] Task created:', result.data);
 			if (result.data) {
 				// 作成成功したらタスク一覧ページへ
 				goto('/tasks');
 			}
 		} catch (error) {
+			console.error('[DEBUG] Task creation failed:', error);
 			alert('タスクの作成に失敗しました');
 		} finally {
 			submitting = false;
@@ -300,7 +363,13 @@
 					<ExecutorSelector
 						bind:value={selectedExecutor}
 						showLabel={true}
+						disabled={isSdkContinueMode || !!resumeSessionId || !!codexResumeSession}
 					/>
+					{#if (isSdkContinueMode || !!resumeSessionId || !!codexResumeSession) && selectedExecutor}
+						<p class="text-xs text-muted-foreground">
+							セッション継続時はExecutorを変更できません（現在: {selectedExecutor}）
+						</p>
+					{/if}
 				</div>
 
 				<div class="space-y-2">
@@ -330,21 +399,78 @@
 					readonly={isSdkContinueMode}
 				/>
 				
-				<!-- CLIセッションID入力 -->
-				<div class="space-y-2">
-					<Label for="resumeSessionId">CLIセッションID (オプション)</Label>
-					<Input
-						id="resumeSessionId"
-						type="text"
-						bind:value={resumeSessionId}
-						placeholder="例: 69647d9d-d1a3-4924-8dc2-e9c558007a4b"
-						class="font-mono text-sm"
-					/>
-					<p class="text-xs text-muted-foreground">
-						Claude Code CLIで開始したセッションを継続する場合に入力してください。
-						セッションIDを指定する場合は、単一のリポジトリのみ選択可能です。
-					</p>
-				</div>
+				<!-- CLIセッションID入力（Claude用） -->
+				{#if selectedExecutor === 'claude' || !selectedExecutor}
+					<div class="space-y-2">
+						<Label for="resumeSessionId">CLIセッションID (オプション)</Label>
+						<Input
+							id="resumeSessionId"
+							type="text"
+							bind:value={resumeSessionId}
+							placeholder="例: 69647d9d-d1a3-4924-8dc2-e9c558007a4b"
+							class="font-mono text-sm"
+						/>
+						<p class="text-xs text-muted-foreground">
+							Claude Code CLIで開始したセッションを継続する場合に入力してください。
+							セッションIDを指定する場合は、単一のリポジトリのみ選択可能です。
+						</p>
+					</div>
+				{/if}
+
+				<!-- Codex専用オプション -->
+				{#if selectedExecutor === 'codex'}
+					<div class="space-y-4 border rounded-lg p-4 bg-muted/30">
+						<h3 class="text-sm font-semibold">Codex Executor オプション</h3>
+
+						<!-- Sandbox Mode -->
+						<div class="space-y-2">
+							<Label for="codexSandboxMode">Sandbox Mode</Label>
+							<Select.Root type="single" bind:value={codexSandboxMode}>
+								<Select.Trigger id="codexSandboxMode">
+									{codexSandboxMode}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="workspace-write">workspace-write (推奨)</Select.Item>
+									<Select.Item value="read-only">read-only</Select.Item>
+									<Select.Item value="danger-full-access">danger-full-access</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<p class="text-xs text-muted-foreground">
+								ファイル操作の権限を設定します。workspace-writeが推奨です。
+							</p>
+						</div>
+
+						<!-- Codex Thread ID -->
+						<div class="space-y-2">
+							<Label for="codexResumeSession">Codex Thread ID (継続用・オプション)</Label>
+							<Input
+								id="codexResumeSession"
+								type="text"
+								bind:value={codexResumeSession}
+								placeholder="例: thread-789abc"
+								class="font-mono text-sm"
+							/>
+							<p class="text-xs text-muted-foreground">
+								Codex SDKで開始したスレッドを継続する場合にThread IDを入力してください。
+							</p>
+						</div>
+
+						<!-- Model -->
+						<div class="space-y-2">
+							<Label for="codexModel">Model (オプション)</Label>
+							<Input
+								id="codexModel"
+								type="text"
+								bind:value={codexModel}
+								placeholder="例: gpt-4"
+								class="font-mono text-sm"
+							/>
+							<p class="text-xs text-muted-foreground">
+								使用するモデルを指定します。空欄の場合はデフォルトモデルが使用されます。
+							</p>
+						</div>
+					</div>
+				{/if}
 
 				{#if isSdkContinueMode}
 					<div class="border-t pt-4">

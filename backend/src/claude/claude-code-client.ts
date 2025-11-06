@@ -22,6 +22,7 @@ export interface ClaudeCodeOptions {
   mcpConfig?: Record<string, any>;
   continueSession?: boolean;
   resumeSession?: string;
+  continueFromTaskId?: string; // Task ID to continue session from
   outputFormat?: string;
   verbose?: boolean;
   onProgress?: (progress: { type: string; message: string; data?: any }) => void | Promise<void>;
@@ -115,11 +116,29 @@ export class ClaudeCodeClient {
           executable: options.executable,
           executableArgs: options.executableArgs,
           mcpServers: options.mcpConfig,
-          continue: options.continueSession,
-          resume: options.resumeSession,
-          // outputFormat and verbose are not supported by SDK
+          // Session continuation: Only 'resume' is needed for explicit session continuation
+          // Reference: https://docs.claude.com/en/api/agent-sdk/sessions
+          // NOTE: 'continue: true' auto-loads the LATEST session (not what we want)
+          // We use 'resume' to specify exact session ID for continuation
+          // For base tasks, omit both 'continue' and 'resume' to create new sessions
+          ...(options.resumeSession
+            ? {
+                resume: options.resumeSession, // Session ID to resume
+                forkSession: false, // Continue (not fork) the session
+              }
+            : {}),
+          // NOTE: continueFromTaskId is NOT passed to SDK - it's only used internally
+          // to resolve the session ID, which is passed via 'resume'
         },
       };
+
+      logger.info("QueryOptions being passed to Claude Code SDK", {
+        taskId: effectiveTaskId,
+        resume: queryOptions.options?.resume,
+        forkSession: queryOptions.options?.forkSession,
+        hasCwd: !!queryOptions.options?.cwd,
+        hasAllowedTools: !!queryOptions.options?.allowedTools,
+      });
 
       logger.debug("Starting Claude Code SDK executeQuery", {
         executionMode: this.getCurrentMode(),
@@ -145,31 +164,9 @@ export class ClaudeCodeClient {
           }
         }
 
-        // Extract session ID if available
-        if (!sessionId && (message as any).session_id) {
+        // Extract session ID from system message
+        if (message.type === "system" && !sessionId && "session_id" in message) {
           sessionId = (message as any).session_id;
-          logger.info("Claude Code SDK session ID detected", { sessionId });
-        }
-
-        // Log new message types for investigation
-        if (message.type === "tool_progress") {
-          logger.info("🔧 TOOL_PROGRESS message received", {
-            taskId: effectiveTaskId,
-            messageType: message.type,
-            fullMessage: JSON.stringify(message, null, 2),
-            sessionId: (message as any).session_id,
-            uuid: (message as any).uuid,
-          });
-        }
-
-        if (message.type === "auth_status") {
-          logger.info("🔐 AUTH_STATUS message received", {
-            taskId: effectiveTaskId,
-            messageType: message.type,
-            fullMessage: JSON.stringify(message, null, 2),
-            sessionId: (message as any).session_id,
-            uuid: (message as any).uuid,
-          });
         }
 
         // Track turns and tool usage

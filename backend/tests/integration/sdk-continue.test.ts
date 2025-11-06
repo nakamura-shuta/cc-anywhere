@@ -14,13 +14,13 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
 
     yield {
       type: "system",
+      session_id: sessionId, // Include session ID in system message
       message: "Starting task",
     };
 
     yield {
       type: "assistant",
       message: { content: [{ type: "text", text: "Processing..." }] },
-      session_id: sessionId, // Include session ID in response
     };
 
     // Simulate different responses based on prompt

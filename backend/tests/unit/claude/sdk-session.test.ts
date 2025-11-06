@@ -55,11 +55,10 @@ describe("ClaudeCodeClient SDK Session", () => {
   it("should extract session ID from SDK messages", async () => {
     const mockSessionId = "test-session-123";
     const mockMessages = [
-      { type: "system", message: "Starting task" },
+      { type: "system", session_id: mockSessionId, message: "Starting task" },
       {
         type: "assistant",
         message: { content: [{ type: "text", text: "Hello" }] },
-        session_id: mockSessionId,
       },
       { type: "result", result: "Task completed", subtype: "success" },
     ];
@@ -103,7 +102,8 @@ describe("ClaudeCodeClient SDK Session", () => {
     );
   });
 
-  it("should pass continueSession option to SDK", async () => {
+  it("should pass forkSession: false when resumeSession is provided", async () => {
+    const mockSessionId = "resume-session-789";
     const mockMessages = [
       { type: "assistant", message: { content: [{ type: "text", text: "Continued" }] } },
       { type: "result", result: "Task completed", subtype: "success" },
@@ -116,13 +116,14 @@ describe("ClaudeCodeClient SDK Session", () => {
     });
 
     await client.executeTask("Test prompt", {
-      continueSession: true,
+      resumeSession: mockSessionId,
     });
 
     expect(mockQuery).toHaveBeenCalledWith(
       expect.objectContaining({
         options: expect.objectContaining({
-          continue: true,
+          resume: mockSessionId,
+          forkSession: false,
         }),
       }),
     );
@@ -149,10 +150,10 @@ describe("ClaudeCodeClient SDK Session", () => {
   it("should handle errors and still return session ID if available", async () => {
     const mockSessionId = "error-session-789";
     const mockMessages = [
+      { type: "system", session_id: mockSessionId, message: "Starting task" },
       {
         type: "assistant",
         message: { content: [{ type: "text", text: "Starting" }] },
-        session_id: mockSessionId,
       },
       { type: "error", error: "Task failed" },
     ];

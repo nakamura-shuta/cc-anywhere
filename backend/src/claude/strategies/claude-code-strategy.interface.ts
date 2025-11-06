@@ -17,8 +17,13 @@ export interface QueryOptions {
     executable?: "bun" | "deno" | "node";
     executableArgs?: string[];
     mcpServers?: Record<string, any>;
-    continue?: boolean;
-    resume?: string;
+    // Session continuation: Use 'resume' to specify session ID for continuation
+    // Reference: https://docs.claude.com/en/api/agent-sdk/sessions
+    // NOTE: 'continue: true' auto-loads the LATEST session (not recommended for multi-user apps)
+    resume?: string; // Session ID to resume (Claude Code SDK parameter)
+    forkSession?: boolean; // Fork session (true) or continue (false). Default should be false for continuation
+    // NOTE: continueFromTaskId is NOT a Claude Code SDK parameter
+    // It's only used in ClaudeCodeOptions to internally resolve the session ID
   };
 }
 

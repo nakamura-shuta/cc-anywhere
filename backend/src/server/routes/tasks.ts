@@ -356,6 +356,33 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                   },
                   additionalProperties: false,
                 },
+                codex: {
+                  type: "object",
+                  properties: {
+                    sandboxMode: {
+                      type: "string",
+                      enum: ["read-only", "workspace-write", "danger-full-access"],
+                      description: "Sandbox mode for file operations (workspace-write recommended)",
+                    },
+                    skipGitRepoCheck: {
+                      type: "boolean",
+                      description: "Skip Git repository check",
+                    },
+                    model: {
+                      type: "string",
+                      description: "Model to use for execution",
+                    },
+                    continueSession: {
+                      type: "boolean",
+                      description: "Continue session (requires resumeSession thread ID)",
+                    },
+                    resumeSession: {
+                      type: "string",
+                      description: "Resume specific Codex thread ID",
+                    },
+                  },
+                  additionalProperties: false,
+                },
                 useWorktree: {
                   type: "boolean",
                   description: "Enable Git worktree for isolated execution",
@@ -426,6 +453,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
+      console.log("=== ROUTE HANDLER CALLED ===");
       // Handle continueFromTaskId option
       let taskRequest = request.body;
 
@@ -439,6 +467,21 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           },
         };
       }
+
+      // Debug: Log request body for continuation debugging
+      logger.debug("=== ROUTE HANDLER CALLED ===");
+      logger.debug("=== DEBUG: POST /tasks request body ===");
+      logger.debug("hasOptions:", { hasOptions: !!request.body.options });
+      logger.debug("hasSdk:", { hasSdk: !!request.body.options?.sdk });
+      logger.debug("hasContinueFromTaskId:", {
+        hasContinueFromTaskId: !!request.body.options?.sdk?.continueFromTaskId,
+      });
+      logger.debug("continueFromTaskId:", {
+        continueFromTaskId: request.body.options?.sdk?.continueFromTaskId,
+      });
+      logger.debug("executor:", { executor: request.body.options?.executor });
+      logger.debug("fullSdkOptions:", { fullSdkOptions: request.body.options?.sdk });
+      logger.debug("=== END DEBUG ===");
 
       if (request.body.options?.sdk?.continueFromTaskId) {
         const previousTaskId = request.body.options.sdk.continueFromTaskId;
@@ -459,13 +502,15 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         // Update the request to use resumeSession with the latest SDK session ID
+        // Reference: https://docs.claude.com/en/api/agent-sdk/sessions
+        // Only 'resume' parameter is needed for session continuation
         taskRequest = {
           ...request.body,
           options: {
             ...request.body.options,
             sdk: {
               ...request.body.options?.sdk,
-              resumeSession: latestSdkSessionId,
+              resumeSession: latestSdkSessionId, // Session ID to resume
               // Keep continueFromTaskId for the queue to process
               continueFromTaskId: previousTaskId,
             },
