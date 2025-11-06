@@ -18,6 +18,7 @@ import type {
 } from "./types.js";
 import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
+import { FormattingHelpers } from "../utils/formatting-helpers";
 import { config } from "../config/index.js";
 import { getSharedClaudeClient } from "../claude/shared-instance.js";
 import type { ClaudeCodeClient } from "../claude/claude-code-client.js";
@@ -294,6 +295,6 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
    * Generate a unique task ID
    */
   private generateTaskId(): string {
-    return `task-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    return FormattingHelpers.generateTaskId("task");
   }
 }

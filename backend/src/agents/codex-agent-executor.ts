@@ -15,6 +15,7 @@ import type {
 import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
+import { FormattingHelpers } from "../utils/formatting-helpers";
 
 /**
  * Lazy-load Codex SDK module
@@ -287,6 +288,6 @@ export class CodexAgentExecutor implements IAgentExecutor {
   }
 
   private generateTaskId(): string {
-    return `codex-task-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    return FormattingHelpers.generateTaskId("codex-task");
   }
 }

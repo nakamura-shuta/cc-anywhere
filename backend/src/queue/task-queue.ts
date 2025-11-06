@@ -15,6 +15,8 @@ import { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
 import { getTypedEventBus, type TypedEventBus } from "../events";
 import { fileWatcherService } from "../services/file-watcher.service.js";
 import { PathValidator, PathValidationError } from "../utils/path-validator.js";
+import { FormattingHelpers } from "../utils/formatting-helpers";
+import { ErrorHandlers } from "../utils/error-handlers";
 
 export { TaskQueue };
 
@@ -209,7 +211,11 @@ export class TaskQueueImpl implements TaskQueue {
       try {
         this.repository.updateStatus(task.id, TaskStatus.RUNNING);
       } catch (error) {
-        logger.error("Failed to update task status in database", { error });
+        await ErrorHandlers.handleDatabaseError(
+          "update task status in database",
+          { taskId: task.id },
+          error,
+        );
       }
 
       logger.info("Task execution started", {
@@ -257,9 +263,11 @@ export class TaskQueueImpl implements TaskQueue {
             try {
               this.repository.updateStatus(task.id, TaskStatus.FAILED, error);
             } catch (dbError) {
-              logger.error("Failed to update task status in database", {
-                error: dbError,
-              });
+              await ErrorHandlers.handleDatabaseError(
+                "update task status in database",
+                { taskId: task.id },
+                dbError,
+              );
             }
 
             // Emit task failed event
@@ -395,13 +403,17 @@ export class TaskQueueImpl implements TaskQueue {
                       const todoList = progress.data.todos
                         .map((t: any) => `  • ${t.content} [${t.status}]`)
                         .join("\n");
-                      logMessage = `📝 TODO更新\n${todoList}\n${new Date(timestamp).toLocaleString("ja-JP")}`;
+                      logMessage = `📝 TODO更新\n${todoList}\n${FormattingHelpers.formatJapaneseTimestamp(timestamp)}`;
 
                       // Save progress data to database
                       try {
                         this.repository.updateProgressData(task.id, progressData);
                       } catch (error) {
-                        logger.error("Failed to update progress data", { error });
+                        await ErrorHandlers.handleDatabaseError(
+                          "update progress data",
+                          { taskId: task.id },
+                          error,
+                        );
                       }
 
                       // Broadcast todo update via WebSocket
@@ -456,7 +468,7 @@ export class TaskQueueImpl implements TaskQueue {
                         displayInput = `: ${JSON.stringify(progress.data.input).slice(0, 100)}...`;
                       }
 
-                      logMessage = `${progress.data.tool}\n${new Date(timestamp).toLocaleString("ja-JP")}${displayInput}`;
+                      logMessage = `${progress.data.tool}\n${FormattingHelpers.formatJapaneseTimestamp(timestamp)}${displayInput}`;
 
                       // Save progress data to database
                       try {
@@ -495,7 +507,7 @@ export class TaskQueueImpl implements TaskQueue {
                       const duration = progress.data.duration
                         ? `\n実行時間: ${progress.data.duration}ms`
                         : "";
-                      logMessage = `${status}\n${progress.data.tool}${duration}\n${new Date(timestamp).toLocaleString("ja-JP")}`;
+                      logMessage = `${status}\n${progress.data.tool}${duration}\n${FormattingHelpers.formatJapaneseTimestamp(timestamp)}`;
 
                       // Save progress data to database
                       try {
@@ -538,13 +550,17 @@ export class TaskQueueImpl implements TaskQueue {
                           ? ` (ターン ${progress.data.turnNumber}/${progress.data.maxTurns})`
                           : "";
                       const responseText = progress.message || "";
-                      logMessage = `${new Date(timestamp).toLocaleString("ja-JP")}${turnInfo}\n${responseText}`;
+                      logMessage = `${FormattingHelpers.formatJapaneseTimestamp(timestamp)}${turnInfo}\n${responseText}`;
 
                       // Save progress data to database
                       try {
                         this.repository.updateProgressData(task.id, progressData);
                       } catch (error) {
-                        logger.error("Failed to update progress data", { error });
+                        await ErrorHandlers.handleDatabaseError(
+                          "update progress data",
+                          { taskId: task.id },
+                          error,
+                        );
                       }
 
                       this.broadcaster?.task(task.id, "task:claude_response", {
@@ -601,7 +617,11 @@ export class TaskQueueImpl implements TaskQueue {
                       try {
                         this.repository.updateProgressData(task.id, progressData);
                       } catch (error) {
-                        logger.error("Failed to update progress data", { error });
+                        await ErrorHandlers.handleDatabaseError(
+                          "update progress data",
+                          { taskId: task.id },
+                          error,
+                        );
                       }
 
                       this.broadcaster?.task(task.id, "task:statistics", {
@@ -725,7 +745,11 @@ export class TaskQueueImpl implements TaskQueue {
 
           logger.info("Task result updated in database", { status: task.status });
         } catch (error) {
-          logger.error("Failed to update task result in database", { error });
+          await ErrorHandlers.handleDatabaseError(
+            "update task result in database",
+            { taskId: task.id },
+            error,
+          );
         }
 
         // Emit task completed event
@@ -789,9 +813,11 @@ export class TaskQueueImpl implements TaskQueue {
             this.repository.updateRetryMetadata(task.id, updatedRetryMetadata);
             this.repository.resetTaskForRetry(task.id);
           } catch (dbError) {
-            logger.error("Failed to update retry metadata in database", {
-              error: dbError,
-            });
+            await ErrorHandlers.handleDatabaseError(
+              "update retry metadata in database",
+              { taskId: task.id },
+              dbError,
+            );
           }
 
           // Log retry attempt
@@ -851,9 +877,11 @@ export class TaskQueueImpl implements TaskQueue {
             });
           }
         } catch (dbError) {
-          logger.error("Failed to update task status in database", {
-            error: dbError,
-          });
+          await ErrorHandlers.handleDatabaseError(
+            "update task status in database",
+            { taskId: task.id },
+            dbError,
+          );
         }
 
         // Emit task failed event
@@ -896,9 +924,11 @@ export class TaskQueueImpl implements TaskQueue {
         try {
           this.repository.updateStatus(task.id, TaskStatus.CANCELLED);
         } catch (dbError) {
-          logger.error("Failed to update task status in database", {
-            error: dbError,
-          });
+          await ErrorHandlers.handleDatabaseError(
+            "update task status in database",
+            { taskId: task.id },
+            dbError,
+          );
         }
 
         // Emit task cancelled event
@@ -927,9 +957,11 @@ export class TaskQueueImpl implements TaskQueue {
       try {
         this.repository.updateStatus(task.id, TaskStatus.FAILED, task.error);
       } catch (dbError) {
-        logger.error("Failed to update task status in database", {
-          error: dbError,
-        });
+        await ErrorHandlers.handleDatabaseError(
+          "update task status in database",
+          { taskId: task.id },
+          dbError,
+        );
       }
 
       logger.error("Unexpected error during task execution", {
@@ -1091,7 +1123,7 @@ export class TaskQueueImpl implements TaskQueue {
     try {
       this.repository.updateStatus(task.id, TaskStatus.CANCELLED);
     } catch (error) {
-      logger.error("Failed to update task status in database", { taskId, error });
+      await ErrorHandlers.handleDatabaseError("update task status in database", { taskId }, error);
     }
 
     // Emit task cancelled event
