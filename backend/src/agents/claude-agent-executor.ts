@@ -18,17 +18,17 @@ import type {
 } from "./types.js";
 import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
-import { FormattingHelpers } from "../utils/formatting-helpers";
 import { config } from "../config/index.js";
 import { getSharedClaudeClient } from "../claude/shared-instance.js";
 import type { ClaudeCodeClient } from "../claude/claude-code-client.js";
+import { BaseExecutorHelper } from "./base-executor-helper.js";
 
 /**
  * Claude Agent SDK executor implementation
  */
 export class ClaudeAgentExecutor implements IAgentExecutor {
   private codeClient: ClaudeCodeClient;
-  private runningTasks: Map<string, AbortController> = new Map();
+  private helper = new BaseExecutorHelper("task");
 
   constructor() {
     this.codeClient = getSharedClaudeClient();
@@ -39,7 +39,7 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
     request: AgentTaskRequest,
     options: AgentExecutionOptions,
   ): AsyncIterator<AgentExecutionEvent> {
-    const taskId = options.taskId || this.generateTaskId();
+    const taskId = options.taskId || this.helper.generateTaskId();
     const startTime = Date.now();
 
     logger.debug("Starting Claude task execution", { taskId, instruction: request.instruction });
@@ -54,10 +54,8 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
     // Create AbortController for this task
     const abortController = options.abortController || new AbortController();
 
-    // Register the task if taskId is provided
-    if (taskId) {
-      this.runningTasks.set(taskId, abortController);
-    }
+    // Track the task for cancellation
+    this.helper.trackTask(taskId, abortController);
 
     try {
       // Build prompt
@@ -135,21 +133,12 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
       };
     } finally {
       // Cleanup
-      if (taskId) {
-        this.runningTasks.delete(taskId);
-      }
+      this.helper.untrackTask(taskId);
     }
   }
 
   async cancelTask(taskId: string): Promise<void> {
-    const abortController = this.runningTasks.get(taskId);
-    if (abortController) {
-      logger.debug("Cancelling task", { taskId });
-      abortController.abort();
-      this.runningTasks.delete(taskId);
-    } else {
-      logger.debug("Task not found for cancellation", { taskId });
-    }
+    await this.helper.cancelTrackedTask(taskId);
   }
 
   getExecutorType(): ExecutorType {
@@ -289,12 +278,5 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
           timestamp: new Date(),
         } as AgentProgressEvent;
     }
-  }
-
-  /**
-   * Generate a unique task ID
-   */
-  private generateTaskId(): string {
-    return FormattingHelpers.generateTaskId("task");
   }
 }

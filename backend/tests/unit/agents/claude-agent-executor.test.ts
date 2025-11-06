@@ -313,9 +313,10 @@ describe("ClaudeAgentExecutor", () => {
 
       await executor.cancelTask("non-existent-task");
 
+      // BaseExecutorHelper logs with different format
       expect(logger.debug).toHaveBeenCalledWith(
-        "Task not found for cancellation",
-        expect.objectContaining({ taskId: "non-existent-task" }),
+        "Task not found for cancellation: non-existent-task",
+        expect.objectContaining({ prefix: "task" }),
       );
     });
   });
