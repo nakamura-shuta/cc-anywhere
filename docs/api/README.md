@@ -1147,7 +1147,15 @@ print(f"Task status: {status['status']}")
 
 ## 変更履歴
 
-### v1.1.0 (2025-08-12)
+### v1.2.0 (2025-01-06)
+- リファクタリング完了（Phase 1 & 2）
+  - FormattingHelpers・ErrorHandlers抽出（Phase 1）
+  - ProgressHandler・BaseExecutorHelper実装（Phase 2）
+  - task-queue.ts 25%削減（1209→906行）
+- 会話履歴永続化機能
+- セキュリティ強化（パス検証）
+
+### v1.1.0 (2024-12-15)
 - OpenAPI/Swagger統合
   - Scalar UIによるAPIドキュメント表示
   - OpenAPI 3.1.0仕様の完全実装
@@ -1157,7 +1165,7 @@ print(f"Task status: {status['status']}")
   - ファイル内容取得API
   - ファイル監視API
 
-### v1.0.0 (2024-01-15)
+### v1.0.0 (2024-11-01)
 - 初回リリース
 - タスク管理API
 - バッチ実行API
