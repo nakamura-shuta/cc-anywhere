@@ -2,7 +2,14 @@ import { logger } from "../utils/logger.js";
 import { FormattingHelpers } from "../utils/formatting-helpers.js";
 import { ErrorHandlers } from "../utils/error-handlers.js";
 import type { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
-import type { ITaskRepository } from "../repositories/types.js";
+
+/**
+ * Minimal repository interface for progress handling
+ * Works with both ITaskRepository and TaskRepositoryAdapter
+ */
+interface ProgressRepository {
+  updateProgressData(id: string, progressData: unknown): Promise<void> | void;
+}
 
 /**
  * Progress data structure
@@ -37,7 +44,7 @@ export class ProgressHandler {
   constructor(
     private taskId: string,
     private broadcaster?: WebSocketBroadcaster,
-    private repository?: ITaskRepository,
+    private repository?: ProgressRepository,
   ) {}
 
   /**

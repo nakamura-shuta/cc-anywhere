@@ -15,8 +15,8 @@ import { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
 import { getTypedEventBus, type TypedEventBus } from "../events";
 import { fileWatcherService } from "../services/file-watcher.service.js";
 import { PathValidator, PathValidationError } from "../utils/path-validator.js";
-import { FormattingHelpers } from "../utils/formatting-helpers";
 import { ErrorHandlers } from "../utils/error-handlers";
+import { ProgressHandler } from "../services/progress-handler.js";
 
 export { TaskQueue };
 
@@ -325,6 +325,9 @@ export class TaskQueueImpl implements TaskQueue {
         logs: [] as string[],
       };
 
+      // Create progress handler for unified progress handling
+      const progressHandler = new ProgressHandler(task.id, this.broadcaster, this.repository);
+
       // Set up progress handler for WebSocket log streaming
       const requestWithProgress = {
         ...task.request,
@@ -332,319 +335,13 @@ export class TaskQueueImpl implements TaskQueue {
           ...task.request.options,
           onProgress: this.wsServer
             ? async (progress: { type: string; message: string; data?: any }) => {
-                const timestamp = new Date().toISOString();
-
-                // すべてのメッセージをログとして保存（WebSocketと同じ形式）
-                let logMessage = "";
-
-                switch (progress.type) {
-                  case "log":
-                    logger.debug("Sending progress log via WebSocket", {
-                      message: progress.message,
-                    });
-                    logMessage = progress.message;
-                    this.broadcaster?.task(task.id, "task:log", {
-                      log: progress.message,
-                      timestamp,
-                      level: "info",
-                    });
-                    break;
-
-                  case "tool_usage":
-                    if (progress.data) {
-                      // ログメッセージをフォーマット（レガシー形式）
-                      const toolStatus =
-                        progress.data.status === "success"
-                          ? "✓"
-                          : progress.data.status === "failure"
-                            ? "✗"
-                            : "⚡";
-                      logMessage = `[${progress.data.tool}] ${toolStatus} ${progress.data.status === "start" ? "開始" : progress.data.status === "success" ? "成功" : "失敗"}`;
-                      if (progress.data.filePath) logMessage += `: ${progress.data.filePath}`;
-                      else if (progress.data.command) logMessage += `: ${progress.data.command}`;
-                      else if (progress.data.pattern) logMessage += `: ${progress.data.pattern}`;
-
-                      this.broadcaster?.task(task.id, "task:tool_usage", {
-                        tool: {
-                          ...progress.data,
-                          timestamp: progress.data.timestamp?.toISOString() || timestamp,
-                        },
-                      });
-                    }
-                    break;
-
-                  case "progress":
-                    if (progress.data) {
-                      // プログレスメッセージはログに含めない（進捗バー表示用）
-                      this.broadcaster?.task(task.id, "task:progress", {
-                        progress: {
-                          ...progress.data,
-                          timestamp: progress.data.timestamp?.toISOString() || timestamp,
-                        },
-                      });
-                    }
-                    break;
-
-                  case "summary":
-                    if (progress.data) {
-                      // サマリーメッセージもログに含めない（別UI表示用）
-                      this.broadcaster?.task(task.id, "task:summary", {
-                        summary: progress.data,
-                      });
-                    }
-                    break;
-                  case "todo_update":
-                    if (progress.data && progress.data.todos) {
-                      // 実行中のタスクのTODOを一時的に保存
-                      task.todos = progress.data.todos;
-                      progressData.todos = progress.data.todos;
-
-                      // ログメッセージをフォーマット（タイムスタンプ付き）
-                      const todoList = progress.data.todos
-                        .map((t: any) => `  • ${t.content} [${t.status}]`)
-                        .join("\n");
-                      logMessage = `📝 TODO更新\n${todoList}\n${FormattingHelpers.formatJapaneseTimestamp(timestamp)}`;
-
-                      // Save progress data to database
-                      try {
-                        this.repository.updateProgressData(task.id, progressData);
-                      } catch (error) {
-                        await ErrorHandlers.handleDatabaseError(
-                          "update progress data",
-                          { taskId: task.id },
-                          error,
-                        );
-                      }
-
-                      // Broadcast todo update via WebSocket
-                      if (this.wsServer) {
-                        this.broadcaster?.task(task.id, "task:todo_update", {
-                          todos: progress.data.todos,
-                        });
-                      } else {
-                        logger.warn("WebSocket server not available for todo update");
-                      }
-                    } else {
-                      logger.warn("todo_update progress missing todos data", {
-                        data: progress.data,
-                      });
-                    }
-                    break;
-
-                  case "tool:start":
-                    if (progress.data) {
-                      // Update tool usage count
-                      const toolName = progress.data.tool;
-                      if (toolName) {
-                        progressData.toolUsageCount[toolName] =
-                          (progressData.toolUsageCount[toolName] || 0) + 1;
-                      }
-
-                      // ツール実行履歴を保存
-                      progressData.toolExecutions.push({
-                        type: "start",
-                        tool: progress.data.tool,
-                        timestamp,
-                        args: progress.data.input,
-                      });
-
-                      // ログメッセージをフォーマット（タイムスタンプ付き）
-                      // Use formatted input if available, otherwise fall back to raw input
-                      let displayInput = "";
-                      if (progress.data.formattedInput) {
-                        // For TodoWrite with multiple lines, add proper indentation
-                        if (
-                          progress.data.tool === "TodoWrite" &&
-                          progress.data.formattedInput.includes("\n")
-                        ) {
-                          displayInput = "\n" + progress.data.formattedInput;
-                        } else {
-                          displayInput = progress.data.formattedInput
-                            ? `: ${progress.data.formattedInput}`
-                            : "";
-                        }
-                      } else if (progress.data.input) {
-                        // Fallback to raw input with truncation
-                        displayInput = `: ${JSON.stringify(progress.data.input).slice(0, 100)}...`;
-                      }
-
-                      logMessage = `${progress.data.tool}\n${FormattingHelpers.formatJapaneseTimestamp(timestamp)}${displayInput}`;
-
-                      // Save progress data to database
-                      try {
-                        this.repository.updateProgressData(task.id, progressData);
-                      } catch (error) {
-                        logger.error("Failed to update progress data", {
-                          error,
-                        });
-                      }
-
-                      this.broadcaster?.task(task.id, "task:tool:start", {
-                        toolId: progress.data.toolId || `${progress.data.tool}-${Date.now()}`,
-                        tool: progress.data.tool,
-                        input: progress.data.input,
-                        formattedInput: progress.data.formattedInput, // Add formatted input
-                        timestamp,
-                      });
-                    }
-                    break;
-
-                  case "tool:end":
-                    if (progress.data) {
-                      // ツール実行履歴を保存
-                      progressData.toolExecutions.push({
-                        type: "end",
-                        tool: progress.data.tool,
-                        timestamp,
-                        output: progress.data.output,
-                        error: progress.data.error,
-                        duration: progress.data.duration,
-                        success: progress.data.success,
-                      });
-
-                      // ログメッセージをフォーマット（タイムスタンプ付き）
-                      const status = progress.data.success ? "✅ 完了" : "❌ 失敗";
-                      const duration = progress.data.duration
-                        ? `\n実行時間: ${progress.data.duration}ms`
-                        : "";
-                      logMessage = `${status}\n${progress.data.tool}${duration}\n${FormattingHelpers.formatJapaneseTimestamp(timestamp)}`;
-
-                      // Save progress data to database
-                      try {
-                        this.repository.updateProgressData(task.id, progressData);
-                      } catch (error) {
-                        logger.error("Failed to update progress data", {
-                          error,
-                        });
-                      }
-
-                      this.broadcaster?.task(task.id, "task:tool:end", {
-                        toolId: progress.data.toolId,
-                        tool: progress.data.tool,
-                        output: progress.data.output,
-                        error: progress.data.error,
-                        duration: progress.data.duration,
-                        success: progress.data.success,
-                        timestamp,
-                      });
-                    }
-                    break;
-
-                  case "claude:response":
-                    if (progress.data) {
-                      // Update progress data
-                      progressData.currentTurn = progress.data.turnNumber || 1;
-                      progressData.maxTurns = progress.data.maxTurns || progressData.maxTurns;
-
-                      // Claude応答履歴を保存
-                      progressData.claudeResponses.push({
-                        text: progress.message,
-                        turnNumber: progress.data.turnNumber || 1,
-                        maxTurns: progress.data.maxTurns,
-                        timestamp,
-                      });
-
-                      // ログメッセージをフォーマット（ターン情報とタイムスタンプ付き）
-                      const turnInfo =
-                        progress.data?.turnNumber && progress.data?.maxTurns
-                          ? ` (ターン ${progress.data.turnNumber}/${progress.data.maxTurns})`
-                          : "";
-                      const responseText = progress.message || "";
-                      logMessage = `${FormattingHelpers.formatJapaneseTimestamp(timestamp)}${turnInfo}\n${responseText}`;
-
-                      // Save progress data to database
-                      try {
-                        this.repository.updateProgressData(task.id, progressData);
-                      } catch (error) {
-                        await ErrorHandlers.handleDatabaseError(
-                          "update progress data",
-                          { taskId: task.id },
-                          error,
-                        );
-                      }
-
-                      this.broadcaster?.task(task.id, "task:claude_response", {
-                        text: progress.message,
-                        turnNumber: progress.data.turnNumber || 1,
-                        maxTurns: progress.data.maxTurns,
-                        timestamp,
-                      });
-                    }
-                    break;
-
-                  case "statistics":
-                    if (progress.data) {
-                      // Claude Code SDKから送信される統計情報をprogressDataに保存
-                      // 統計情報はログに含めない（別UI表示用）
-                      progressData.statistics.totalToolCalls = progress.data.totalToolCalls || 0;
-                      progressData.currentTurn =
-                        progress.data.totalTurns || progressData.currentTurn;
-
-                      // ツール統計から詳細情報を抽出
-                      if (progress.data.toolStats) {
-                        let modifiedFiles = 0;
-                        let createdFiles = 0;
-                        let totalExecutions = 0;
-
-                        Object.entries(progress.data.toolStats).forEach(
-                          ([tool, stats]: [string, any]) => {
-                            if (tool === "Edit" || tool === "MultiEdit") {
-                              modifiedFiles += stats.count || 0;
-                            } else if (tool === "Write") {
-                              createdFiles += stats.count || 0;
-                            } else if (tool === "Bash") {
-                              totalExecutions += stats.count || 0;
-                            }
-                          },
-                        );
-
-                        progressData.statistics.modifiedFiles = modifiedFiles;
-                        progressData.statistics.createdFiles = createdFiles;
-                        progressData.statistics.totalExecutions = totalExecutions;
-                        progressData.statistics.processedFiles = modifiedFiles + createdFiles;
-                      }
-
-                      // ✅ Codex SDK v0.52.0: トークン使用量を保存（Codex executor限定）
-                      if (progress.data.tokenUsage) {
-                        progressData.statistics.tokenUsage = {
-                          input: progress.data.tokenUsage.input || 0,
-                          output: progress.data.tokenUsage.output || 0,
-                          cached: progress.data.tokenUsage.cached || 0,
-                        };
-                      }
-
-                      // Save progress data to database
-                      try {
-                        this.repository.updateProgressData(task.id, progressData);
-                      } catch (error) {
-                        await ErrorHandlers.handleDatabaseError(
-                          "update progress data",
-                          { taskId: task.id },
-                          error,
-                        );
-                      }
-
-                      this.broadcaster?.task(task.id, "task:statistics", {
-                        statistics: progress.data,
-                      });
-                    }
-                    break;
-
-                  default:
-                    // Log any other type as a regular log message
-                    if (progress.message) {
-                      logger.info("Task progress", {
-                        type: progress.type,
-                        message: progress.message,
-                      });
-                      logMessage = progress.message;
-                      // Also broadcast as a log message
-                      this.broadcaster?.task(task.id, "task:log", {
-                        log: progress.message,
-                        timestamp,
-                      });
-                    }
+                // Also sync task todos for todo_update events
+                if (progress.type === "todo_update" && progress.data?.todos) {
+                  task.todos = progress.data.todos;
                 }
+
+                // Handle progress event with ProgressHandler
+                const logMessage = await progressHandler.handleProgress(progress, progressData);
 
                 // すべてのログメッセージをprogressData.logsに保存
                 if (logMessage) {
@@ -653,7 +350,7 @@ export class TaskQueueImpl implements TaskQueue {
                   // 定期的にDBに保存（100ログごと）
                   if (progressData.logs.length % 100 === 0) {
                     try {
-                      this.repository.updateProgressData(task.id, progressData);
+                      await this.repository.updateProgressData(task.id, progressData);
                     } catch (error) {
                       logger.error("Failed to update progress data", { error });
                     }
