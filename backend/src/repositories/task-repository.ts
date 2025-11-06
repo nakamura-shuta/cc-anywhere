@@ -80,6 +80,18 @@ export class TaskRepositoryImpl extends BaseRepository<TaskEntity> implements IT
     }
   }
 
+  async updateProgressData(id: string, progressData: unknown): Promise<void> {
+    try {
+      await this.update(id, {
+        progressData,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      logger.error("Error updating task progress data", { id, error });
+      throw error;
+    }
+  }
+
   async updateRetryMetadata(id: string, metadata: unknown, nextRetryAt?: Date): Promise<void> {
     try {
       const updates: Partial<TaskEntity> = {
