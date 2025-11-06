@@ -15,6 +15,7 @@ import type {
 import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
+import { BaseExecutorHelper } from "./base-executor-helper.js";
 
 /**
  * Lazy-load Codex SDK module
@@ -39,6 +40,7 @@ async function loadCodexModule(): Promise<CodexModule> {
  */
 export class CodexAgentExecutor implements IAgentExecutor {
   private codex: Codex | null = null;
+  private helper = new BaseExecutorHelper("codex-task");
   private runningThreads: Map<
     string,
     { thread: any; iterator: AsyncIterator<any>; returnFn?: () => Promise<void> }
@@ -61,7 +63,7 @@ export class CodexAgentExecutor implements IAgentExecutor {
     request: AgentTaskRequest,
     options: AgentExecutionOptions,
   ): AsyncIterator<AgentExecutionEvent> {
-    const taskId = options.taskId || this.generateTaskId();
+    const taskId = options.taskId || this.helper.generateTaskId();
     const startTime = Date.now();
 
     logger.debug("Starting Codex task execution", { taskId, instruction: request.instruction });
@@ -284,9 +286,5 @@ export class CodexAgentExecutor implements IAgentExecutor {
     }
 
     return null;
-  }
-
-  private generateTaskId(): string {
-    return `codex-task-${Date.now()}-${Math.random().toString(36).substring(7)}`;
   }
 }
