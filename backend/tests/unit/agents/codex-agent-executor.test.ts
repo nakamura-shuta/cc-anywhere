@@ -12,6 +12,7 @@ import type {
 // Mock Codex SDK
 const mockCodex = {
   startThread: vi.fn(),
+  resumeThread: vi.fn(),
 };
 
 const mockThread = {
@@ -417,6 +418,201 @@ describe("CodexAgentExecutor", () => {
 
     it("should handle cancelling non-existent task", async () => {
       await expect(executor.cancelTask("non-existent-task")).resolves.toBeUndefined();
+    });
+  });
+
+  describe("Session Continuation", () => {
+    beforeEach(() => {
+      mockCodex.resumeThread.mockReturnValue(mockThread);
+    });
+
+    it("should start new thread when continueSession is false", async () => {
+      const request: AgentTaskRequest = {
+        instruction: "test task",
+        options: {
+          codex: {
+            sandboxMode: "workspace-write",
+            continueSession: false,
+          },
+        },
+      };
+
+      const options: AgentExecutionOptions = {
+        taskId: "test-task-session-1",
+      };
+
+      const mockEvents = [
+        { type: "thread.started", thread_id: "new-thread-123" },
+        { type: "turn.completed", usage: { input_tokens: 10, output_tokens: 20 } },
+      ];
+
+      const asyncIterator = (async function* () {
+        for (const event of mockEvents) {
+          yield event;
+        }
+      })();
+
+      mockThread.runStreamed.mockResolvedValue({
+        events: asyncIterator,
+      });
+
+      const events: AgentExecutionEvent[] = [];
+      for await (const event of executor.executeTask(request, options)) {
+        events.push(event);
+      }
+
+      // Verify startThread was called (not resumeThread)
+      expect(mockCodex.startThread).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sandboxMode: "workspace-write",
+        }),
+      );
+      expect(mockCodex.resumeThread).not.toHaveBeenCalled();
+    });
+
+    it("should resume thread when continueSession is true and resumeSession is provided", async () => {
+      const threadId = "existing-thread-456";
+      const request: AgentTaskRequest = {
+        instruction: "continue task",
+        options: {
+          codex: {
+            sandboxMode: "workspace-write",
+            continueSession: true,
+            resumeSession: threadId,
+          },
+        },
+      };
+
+      const options: AgentExecutionOptions = {
+        taskId: "test-task-session-2",
+      };
+
+      const mockEvents = [
+        { type: "thread.started", thread_id: threadId },
+        { type: "turn.completed", usage: { input_tokens: 10, output_tokens: 20 } },
+      ];
+
+      const asyncIterator = (async function* () {
+        for (const event of mockEvents) {
+          yield event;
+        }
+      })();
+
+      mockThread.runStreamed.mockResolvedValue({
+        events: asyncIterator,
+      });
+
+      const events: AgentExecutionEvent[] = [];
+      for await (const event of executor.executeTask(request, options)) {
+        events.push(event);
+      }
+
+      // Verify resumeThread was called (not startThread)
+      expect(mockCodex.resumeThread).toHaveBeenCalledWith(
+        threadId,
+        expect.objectContaining({
+          sandboxMode: "workspace-write",
+        }),
+      );
+      expect(mockCodex.startThread).not.toHaveBeenCalled();
+    });
+
+    it("should emit agent:completed event with sessionId (thread ID)", async () => {
+      const threadId = "thread-789";
+      const request: AgentTaskRequest = {
+        instruction: "test task",
+      };
+
+      const options: AgentExecutionOptions = {
+        taskId: "test-task-session-3",
+      };
+
+      const mockEvents = [
+        { type: "thread.started", thread_id: threadId },
+        {
+          type: "item.completed",
+          item: {
+            id: "item-1",
+            type: "agent_message",
+            text: "Response",
+          },
+        },
+        { type: "turn.completed", usage: { input_tokens: 10, output_tokens: 20 } },
+      ];
+
+      const asyncIterator = (async function* () {
+        for (const event of mockEvents) {
+          yield event;
+        }
+      })();
+
+      mockThread.runStreamed.mockResolvedValue({
+        events: asyncIterator,
+      });
+
+      const events: AgentExecutionEvent[] = [];
+      for await (const event of executor.executeTask(request, options)) {
+        events.push(event);
+      }
+
+      // Check that agent:completed event includes sessionId
+      const completedEvent = events.find((e) => e.type === "agent:completed");
+      expect(completedEvent).toBeDefined();
+      expect(completedEvent).toMatchObject({
+        type: "agent:completed",
+        sessionId: threadId,
+      });
+    });
+
+    it("should fallback to new thread if resume fails", async () => {
+      const threadId = "invalid-thread";
+      const request: AgentTaskRequest = {
+        instruction: "test task",
+        options: {
+          codex: {
+            sandboxMode: "workspace-write",
+            continueSession: true,
+            resumeSession: threadId,
+          },
+        },
+      };
+
+      const options: AgentExecutionOptions = {
+        taskId: "test-task-session-4",
+      };
+
+      // Make resumeThread throw an error
+      mockCodex.resumeThread.mockImplementation(() => {
+        throw new Error("Thread not found or expired");
+      });
+
+      const mockEvents = [
+        { type: "thread.started", thread_id: "fallback-thread-999" },
+        { type: "turn.completed", usage: { input_tokens: 10, output_tokens: 20 } },
+      ];
+
+      const asyncIterator = (async function* () {
+        for (const event of mockEvents) {
+          yield event;
+        }
+      })();
+
+      mockThread.runStreamed.mockResolvedValue({
+        events: asyncIterator,
+      });
+
+      const events: AgentExecutionEvent[] = [];
+      for await (const event of executor.executeTask(request, options)) {
+        events.push(event);
+      }
+
+      // Verify both resumeThread and startThread were called
+      expect(mockCodex.resumeThread).toHaveBeenCalled();
+      expect(mockCodex.startThread).toHaveBeenCalled();
+
+      // Check that execution succeeded with fallback thread
+      const completedEvent = events.find((e) => e.type === "agent:completed");
+      expect(completedEvent).toBeDefined();
     });
   });
 });

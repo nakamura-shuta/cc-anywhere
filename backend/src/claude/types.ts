@@ -1,7 +1,7 @@
 import type { TimeoutOptions } from "../types/timeout.js";
 import type { WorktreeOptions } from "../services/worktree/types.js";
 import type { TodoItem } from "../types/todo.js";
-import type { CommonExecutorOptions } from "../agents/types.js";
+import type { CommonExecutorOptions, CodexAgentOptions } from "../agents/types.js";
 
 // Retry policy types
 export enum RetryPolicy {
@@ -102,6 +102,8 @@ export interface TaskRequest {
     worktree?: WorktreeOptions; // Detailed worktree configuration
     // Claude Code SDK options
     sdk?: ClaudeCodeSDKOptions;
+    // Codex SDK options
+    codex?: CodexAgentOptions;
     // Cross-repository continuation
     allowCrossRepository?: boolean; // Allow continuation in different repository
   };

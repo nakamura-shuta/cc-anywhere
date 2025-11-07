@@ -201,8 +201,11 @@ describe("Executors Routes", () => {
       expect(codexExecutor.capabilities.sandboxControl).toBe(true);
       expect(codexExecutor.capabilities.modelSelection).toBe(true);
 
-      // Codex should NOT support these features (including sessionResume - SDK supports but cc-anywhere integration is not implemented)
-      expect(codexExecutor.capabilities.sessionResume).toBe(false);
+      // Codex now supports session continuation and resume (implemented)
+      expect(codexExecutor.capabilities.sessionContinuation).toBe(true);
+      expect(codexExecutor.capabilities.sessionResume).toBe(true);
+
+      // Codex should NOT support these features
       expect(codexExecutor.capabilities.maxTurnsLimit).toBe(false);
       expect(codexExecutor.capabilities.toolFiltering).toBe(false);
       expect(codexExecutor.capabilities.permissionModes).toBe(false);

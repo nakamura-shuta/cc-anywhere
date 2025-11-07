@@ -55,6 +55,15 @@ export interface ClaudeCodeSDKOptions {
 	verbose?: boolean;
 }
 
+// Codex SDKオプション
+export interface CodexExecutorOptions {
+	sandboxMode?: "read-only" | "workspace-write" | "danger-full-access";
+	skipGitRepoCheck?: boolean;
+	model?: string;
+	continueSession?: boolean;
+	resumeSession?: string; // Codex thread ID
+}
+
 // Worktreeオプション
 export interface WorktreeOptions {
 	enabled: boolean;
@@ -77,6 +86,7 @@ export interface TaskRequest {
 		async?: boolean;
 		retry?: RetryOptions;
 		sdk?: ClaudeCodeSDKOptions;
+		codex?: CodexExecutorOptions;
 		useWorktree?: boolean;
 		worktree?: WorktreeOptions;
 		executor?: ExecutorType;

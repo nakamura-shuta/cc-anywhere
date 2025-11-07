@@ -78,21 +78,51 @@ export class CodexAgentExecutor implements IAgentExecutor {
     try {
       const codex = await this.getCodexInstance();
       // Create thread with mandatory sandbox settings
-      const sandboxMode = request.options?.codex?.sandboxMode ?? "workspace-write";
-      const skipGitRepoCheck = request.options?.codex?.skipGitRepoCheck ?? true;
+      const codexOptions = request.options?.codex;
+      const sandboxMode = codexOptions?.sandboxMode ?? "workspace-write";
+      const skipGitRepoCheck = codexOptions?.skipGitRepoCheck ?? true;
       const workingDirectory = request.context?.workingDirectory;
 
-      logger.debug("Creating Codex thread", {
-        sandboxMode,
-        skipGitRepoCheck,
-        workingDirectory,
-      });
+      // Session continuation options
+      const continueSession = codexOptions?.continueSession ?? false;
+      const resumeThreadId = codexOptions?.resumeSession;
 
-      const thread = codex.startThread({
+      const threadOptions = {
         skipGitRepoCheck,
         sandboxMode,
         workingDirectory,
-      });
+      };
+
+      // Create or resume thread
+      let thread;
+      let shouldFallbackToNew = false;
+
+      if (continueSession && resumeThreadId) {
+        logger.debug("Resuming Codex thread", {
+          threadId: resumeThreadId,
+          taskId,
+          ...threadOptions,
+        });
+
+        try {
+          thread = codex.resumeThread(resumeThreadId, threadOptions);
+        } catch (error) {
+          logger.warn("Failed to resume thread, falling back to new thread", {
+            threadId: resumeThreadId,
+            taskId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          shouldFallbackToNew = true;
+        }
+      }
+
+      if (!thread || shouldFallbackToNew) {
+        logger.debug("Starting new Codex thread", {
+          taskId,
+          ...threadOptions,
+        });
+        thread = codex.startThread(threadOptions);
+      }
 
       // Execute with streaming (Phase 0: ストリーミングモードのみ使用)
       logger.debug("Starting streamed execution", { instruction: request.instruction });
@@ -112,11 +142,19 @@ export class CodexAgentExecutor implements IAgentExecutor {
 
       // Collect agent responses to build final output
       const agentResponses: string[] = [];
+      // Initialize threadId with resumeThreadId if resuming (thread.started may not fire)
+      let threadId: string | undefined = resumeThreadId;
 
       // Process events and convert to unified format
       try {
         for await (const event of iterator) {
           logger.debug("Received Codex event", { type: event.type, taskId });
+
+          // Capture thread ID from thread.started event
+          if (event.type === "thread.started") {
+            threadId = event.thread_id;
+            logger.debug("Thread ID captured from event", { threadId, taskId });
+          }
 
           // Collect agent message text for final output
           if (event.type === "item.completed" && event.item.type === "agent_message") {
@@ -152,15 +190,22 @@ export class CodexAgentExecutor implements IAgentExecutor {
       const duration = Date.now() - startTime;
       const output = agentResponses.length > 0 ? agentResponses.join("\n\n") : "Task completed";
 
+      // Fallback: Use thread.id if threadId is still undefined
+      const finalThreadId = threadId || (thread as any)?.id;
+
       logger.debug("Codex task completed", {
         taskId,
         duration,
         responseCount: agentResponses.length,
+        threadId: finalThreadId,
+        fromEvent: !!threadId,
+        fromThreadObject: !threadId && !!(thread as any)?.id,
       });
 
       yield {
         type: "agent:completed",
         output,
+        sessionId: finalThreadId, // Include thread ID for session continuation
         duration,
         timestamp: new Date(),
       };

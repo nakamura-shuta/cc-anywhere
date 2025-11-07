@@ -57,6 +57,8 @@ export class CodexTaskExecutorAdapter {
           worktree: request.options?.worktree,
           allowCrossRepository: request.options?.allowCrossRepository,
           executor: "codex",
+          // Pass through Codex-specific options (including resumeSession for session continuation)
+          codex: request.options?.codex,
           // Convert onProgress to match AgentExecutionEvent type
           onProgress: originalOnProgress
             ? async (event: AgentExecutionEvent) => {

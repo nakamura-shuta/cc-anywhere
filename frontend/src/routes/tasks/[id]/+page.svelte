@@ -461,7 +461,13 @@
 				{/if}
 				{#if currentTask.sdkSessionId}
 					<div>
-						<p class="text-sm text-muted-foreground">セッションID（CLIで使用可能）</p>
+						<p class="text-sm text-muted-foreground">
+							{#if currentTask.executor === 'codex'}
+								Thread ID（継続で使用可能）
+							{:else}
+								セッションID（CLIで使用可能）
+							{/if}
+						</p>
 						<div class="flex items-center gap-2">
 							<code class="px-2 py-1 bg-muted rounded font-mono text-xs">{currentTask.sdkSessionId}</code>
 							<Button
@@ -486,9 +492,11 @@
 								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
 							</Button>
 						</div>
-						<p class="text-xs text-muted-foreground mt-1">
-							CLIで <code class="px-1 py-0.5 bg-muted rounded">claude --resume {currentTask.sdkSessionId} "次の指示"</code> を実行して継続
-						</p>
+						{#if currentTask.executor !== 'codex'}
+							<p class="text-xs text-muted-foreground mt-1">
+								CLIで <code class="px-1 py-0.5 bg-muted rounded">claude --resume {currentTask.sdkSessionId} "次の指示"</code> を実行して継続
+							</p>
+						{/if}
 					</div>
 				{/if}
 				<div>
@@ -569,36 +577,48 @@
 							<h4 class="text-sm font-semibold">継続オプション</h4>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								{#if currentTask.sdkSessionId}
-									<!-- 会話を継続 -->
+									<!-- 会話を継続 / スレッドを継続 -->
 									<div class="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
 										<div class="space-y-3">
 											<div class="flex items-center gap-2">
 												<MessageSquare class="h-5 w-5 text-primary" />
-												<h5 class="font-medium">会話を継続</h5>
+												<h5 class="font-medium">
+													{#if currentTask.executor === 'codex'}
+														スレッドを継続
+													{:else}
+														会話を継続
+													{/if}
+												</h5>
 												<Badge variant="default" class="text-xs">利用可能</Badge>
 											</div>
 											<p class="text-sm text-muted-foreground">
-												前回の会話セッションを継続して作業します
+												{#if currentTask.executor === 'codex'}
+													前回のCodexスレッドを継続して作業します
+												{:else}
+													前回の会話セッションを継続して作業します
+												{/if}
 											</p>
 											<ul class="text-xs text-muted-foreground space-y-1">
 												<li>✅ 文脈を保持した追加作業</li>
 												<li>✅ 修正や改善の実施</li>
 												<li>✅ 効率的なトークン使用</li>
 											</ul>
-											<Button 
-												variant="default" 
+											<Button
+												variant="default"
 												onclick={() => handleSdkContinue()}
 												class="w-full gap-2"
 											>
 												<MessageSquare class="h-4 w-4" />
 												Web UIで継続する
 											</Button>
-											<div class="pt-2 border-t">
-												<p class="text-xs text-muted-foreground mb-1">CLIからも継続可能:</p>
-												<code class="text-xs bg-muted px-2 py-1 rounded block overflow-x-auto">
-													claude code continue --session-id {currentTask.sdkSessionId}
-												</code>
-											</div>
+											{#if currentTask.executor !== 'codex'}
+												<div class="pt-2 border-t">
+													<p class="text-xs text-muted-foreground mb-1">CLIからも継続可能:</p>
+													<code class="text-xs bg-muted px-2 py-1 rounded block overflow-x-auto">
+														claude code continue --session-id {currentTask.sdkSessionId}
+													</code>
+												</div>
+											{/if}
 										</div>
 									</div>
 								{:else}

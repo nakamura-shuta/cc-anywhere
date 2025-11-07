@@ -125,8 +125,8 @@ export const EXECUTOR_CAPABILITIES: Record<ExecutorType, ExecutorCapabilities> =
     webSearch: true,
   },
   codex: {
-    sessionContinuation: false, // 🔴 未実装（SDK検証済み、統合実装が必要）
-    sessionResume: false, // 🔴 未実装（SDK的にはresumeThread()で可能、統合実装が必要）
+    sessionContinuation: true, // ✅ 実装完了（resumeThread()による会話継続）
+    sessionResume: true, // ✅ 実装完了（thread ID指定での再開）
     crossRepositorySession: false,
     maxTurnsLimit: false, // SDK未サポート
     toolFiltering: false, // SDK未サポート

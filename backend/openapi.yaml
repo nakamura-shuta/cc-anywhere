@@ -116,7 +116,7 @@ components:
         sdkSessionId:
           type: string
           nullable: true
-          description: Claude Code SDK session ID for task continuation
+          description: SDK session ID for task continuation (Claude SDK session ID or Codex thread ID)
         continuedFrom:
           type: string
           nullable: true
@@ -282,6 +282,29 @@ components:
                 pathToClaudeCodeExecutable:
                   type: string
                   description: Path to Claude Code executable
+            codex:
+              type: object
+              description: OpenAI Codex SDK specific options
+              properties:
+                sandboxMode:
+                  type: string
+                  enum: [read-only, workspace-write, danger-full-access]
+                  description: Sandbox mode for file operations (workspace-write recommended)
+                  default: workspace-write
+                skipGitRepoCheck:
+                  type: boolean
+                  description: Skip Git repository check
+                  default: true
+                model:
+                  type: string
+                  description: Model to use for execution
+                continueSession:
+                  type: boolean
+                  description: Continue session (requires resumeSession thread ID)
+                resumeSession:
+                  type: string
+                  description: Resume specific Codex thread ID for session continuation
+                  example: "thread-789abc"
         continuationOptions:
           type: object
           properties:

@@ -85,7 +85,7 @@ API詳細: http://localhost:5000/api/docs
 
 | 機能 | Claude Agent SDK | OpenAI Codex SDK |
 |------|-----------------|------------------|
-| セッション継続 | ✅ | ❌ |
+| セッション継続 | ✅ | ✅ |
 | 実行モード選択 | ✅ | ❌ |
 | ファイル変更通知 | ✅ | ✅ |
 | ストリーミング | ✅ | ✅ |
@@ -110,6 +110,7 @@ npm run build
 - [スクリプト使い分けガイド](docs/scripts-overview.md)
 - [環境変数リファレンス](docs/environment-variables.md)
 - [ファイル変更検知とWebSocket](docs/file-watcher-websocket.md)
+- [Codex Executorセッション継続機能](docs/features/codex-session-continuation.md)
 - [APIリファレンス](docs/api/README.md)
 
 ## ライセンス

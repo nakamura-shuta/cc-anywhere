@@ -1,17 +1,19 @@
 /**
  * 日付をフォーマットする
- * @param date - Date オブジェクトまたは日付文字列
+ * @param date - Date オブジェクト、日付文字列、またはUnixタイムスタンプ（ミリ秒）
  * @param format - フォーマット形式 ('full' | 'date' | 'time' | 'relative')
  * @returns フォーマットされた日付文字列
  */
 export function formatDate(
-	date: Date | string | undefined,
+	date: Date | string | number | undefined,
 	format: 'full' | 'date' | 'time' | 'relative' = 'full'
 ): string {
 	if (!date) return '-';
-	
-	const d = typeof date === 'string' ? new Date(date) : date;
-	
+
+	const d = typeof date === 'string' ? new Date(date)
+	        : typeof date === 'number' ? new Date(date)
+	        : date;
+
 	// 無効な日付の場合
 	if (isNaN(d.getTime())) return '-';
 	
