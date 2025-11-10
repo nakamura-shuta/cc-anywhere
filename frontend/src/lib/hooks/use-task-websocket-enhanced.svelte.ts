@@ -70,6 +70,19 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 		return unsubscribe;
 	});
 	
+	// Reasoning メッセージ（Codex SDK v0.52.0+）
+	const reasoningMessages = $derived(
+		(() => {
+			return taskMessages
+				.filter(m => m.type === 'task:reasoning')
+				.map(m => ({
+					id: m.payload?.id || '',
+					text: m.payload?.text || '',
+					timestamp: m.timestamp || new Date().toISOString()
+				}));
+		})()
+	);
+
 	// 最新のログメッセージ（すべてのログタイプを含む）
 	const logs = $derived(
 		(() => {
@@ -583,6 +596,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 		get logs() { return logs; },
 		get toolExecutions() { return toolExecutions; },
 		get claudeResponses() { return claudeResponses; },
+		get reasoningMessages() { return reasoningMessages; },
 		get statistics() { return statistics; },
 		get todoUpdates() { return todoUpdates; },
 		get progress() { return progress; },

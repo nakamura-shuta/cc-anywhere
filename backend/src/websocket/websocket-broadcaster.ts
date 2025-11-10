@@ -14,6 +14,7 @@ export type MessageType =
   | "task:summary"
   | "task:statistics"
   | "task:claude_response"
+  | "task:reasoning"
   | "schedule:update"
   | "schedule:execution"
   | "task-group:created"

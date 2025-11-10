@@ -83,6 +83,8 @@ export class ProgressHandler {
         return await this.handleToolEndProgress(progress, timestamp, progressData);
       case "claude:response":
         return await this.handleClaudeResponseProgress(progress, timestamp, progressData);
+      case "reasoning":
+        return this.handleReasoningProgress(progress, timestamp);
       case "statistics":
         return await this.handleStatisticsProgress(progress, timestamp, progressData);
       default:
@@ -305,6 +307,25 @@ export class ProgressHandler {
     const turnInfo = turnNumber !== undefined ? ` (Turn ${turnNumber})` : "";
     const responseText = text.length > 100 ? `${text.substring(0, 100)}...` : text;
     return `${FormattingHelpers.formatJapaneseTimestamp(timestamp)}${turnInfo}\n${responseText}`;
+  }
+
+  /**
+   * Reasoning進捗処理 (Codex SDK v0.52.0+)
+   */
+  private handleReasoningProgress(progress: any, timestamp: number): string {
+    const id = progress.data?.id || "";
+    const text = progress.message || progress.data?.text || "";
+
+    // WebSocket配信
+    this.broadcaster?.task(this.taskId, "task:reasoning", {
+      id,
+      text,
+      timestamp,
+    });
+
+    // ログメッセージ生成（reasoning textは通常長いので最初の100文字のみ）
+    const reasoningText = text.length > 100 ? `${text.substring(0, 100)}...` : text;
+    return `💭 Reasoning\n${reasoningText}\n${FormattingHelpers.formatJapaneseTimestamp(timestamp)}`;
   }
 
   /**

@@ -193,6 +193,17 @@ export class CodexTaskExecutorAdapter {
             },
           });
           break;
+        case "agent:reasoning":
+          // Codex SDK v0.52.0+ reasoning event
+          await onProgress({
+            type: "reasoning",
+            message: event.text,
+            data: {
+              id: event.id,
+              text: event.text,
+            },
+          });
+          break;
         case "agent:tool:start":
           await onProgress({
             type: "tool:start",

@@ -475,6 +475,14 @@ export interface AgentFailedEvent {
   timestamp: Date;
 }
 
+/** Reasoning イベント (Codex SDK v0.52.0+) */
+export interface AgentReasoningEvent {
+  type: "agent:reasoning";
+  id: string;
+  text: string;
+  timestamp: Date;
+}
+
 /**
  * Agent execution event union type
  */
@@ -486,7 +494,8 @@ export type AgentExecutionEvent =
   | AgentResponseEvent
   | AgentStatisticsEvent
   | AgentCompletedEvent
-  | AgentFailedEvent;
+  | AgentFailedEvent
+  | AgentReasoningEvent;
 
 /**
  * Agent executor interface

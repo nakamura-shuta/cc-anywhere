@@ -295,6 +295,14 @@ export class CodexAgentExecutor implements IAgentExecutor {
             duration: 0, // TODO: Calculate duration
             timestamp: new Date(),
           };
+        } else if (codexEvent.item.type === "reasoning") {
+          // Codex SDK v0.52.0+ reasoning item
+          return {
+            type: "agent:reasoning",
+            id: codexEvent.item.id,
+            text: codexEvent.item.text,
+            timestamp: new Date(),
+          };
         } else if (codexEvent.item.type === "agent_message") {
           return {
             type: "agent:response",
