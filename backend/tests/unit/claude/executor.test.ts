@@ -5,7 +5,12 @@ import type { TaskRequest } from "../../../src/claude/types";
 
 vi.mock("../../../src/claude/shared-instance");
 vi.mock("fs", () => ({
+  default: {
+    existsSync: vi.fn(() => true),
+    mkdirSync: vi.fn(),
+  },
   existsSync: vi.fn(() => true),
+  mkdirSync: vi.fn(),
 }));
 
 describe("TaskExecutor", () => {
