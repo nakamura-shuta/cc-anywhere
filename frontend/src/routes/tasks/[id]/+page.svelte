@@ -7,7 +7,7 @@
 	import { taskStore } from '$lib/stores/api.svelte';
 	import { useTaskWebSocket } from '$lib/hooks/use-task-websocket-enhanced.svelte';
 	import { TaskStatus } from '$lib/types/api';
-	import { ArrowLeft, RefreshCw, XCircle, Download, Clock, Activity, MessageSquare, CheckSquare, Folder, ChevronRight, GitBranch, Terminal, FileText, Search, ListTodo, Globe, Layers, CheckCircle, AlertCircle, Loader2 } from 'lucide-svelte';
+	import { ArrowLeft, RefreshCw, XCircle, Download, Clock, Activity, MessageSquare, CheckSquare, Folder, ChevronRight, GitBranch, Terminal, FileText, Search, ListTodo, Globe, Layers, CheckCircle, AlertCircle, Loader2, Brain } from 'lucide-svelte';
 	import { formatDate } from '$lib/utils/date';
 	import { getStatusVariant } from '$lib/utils/task';
 	import { Progress } from '$lib/components/ui/progress';
@@ -780,7 +780,7 @@
 			</Card.Header>
 			<Card.Content>
 				<Tabs bind:value={selectedTab} class="w-full">
-					<TabsList class="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+					<TabsList class="grid w-full grid-cols-2 lg:grid-cols-5 h-auto">
 						<TabsTrigger value="logs" class="text-xs flex-col sm:flex-row gap-1 py-2 sm:py-1.5">
 							<Activity class="h-3 w-3 sm:mr-1" />
 							<span class="hidden sm:inline">ログ</span>
@@ -795,6 +795,11 @@
 							<MessageSquare class="h-3 w-3 sm:mr-1" />
 							<span class="hidden sm:inline">Claude応答 ({ws.claudeResponses.length})</span>
 							<span class="sm:hidden">Claude<br />({ws.claudeResponses.length})</span>
+						</TabsTrigger>
+						<TabsTrigger value="reasoning" class="text-xs flex-col sm:flex-row gap-1 py-2 sm:py-1.5">
+							<Brain class="h-3 w-3 sm:mr-1" />
+							<span class="hidden sm:inline">思考過程 ({ws.reasoningMessages.length})</span>
+							<span class="sm:hidden">思考<br />({ws.reasoningMessages.length})</span>
 						</TabsTrigger>
 						<TabsTrigger value="todos" class="text-xs flex-col sm:flex-row gap-1 py-2 sm:py-1.5">
 							<CheckSquare class="h-3 w-3 sm:mr-1" />
@@ -964,7 +969,30 @@
 							<p class="text-muted-foreground text-center py-8">Claude応答がありません</p>
 						{/if}
 					</TabsContent>
-					
+
+					<!-- Reasoningタブ（思考過程）-->
+					<TabsContent value="reasoning" class="mt-4">
+						{#if ws.reasoningMessages.length > 0}
+							<div class="space-y-4 max-h-96 overflow-auto">
+								{#each ws.reasoningMessages as reasoning}
+									<div class="p-4 rounded-lg border bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
+										<div class="flex items-center gap-2 mb-2">
+											<Brain class="h-4 w-4 text-purple-600 dark:text-purple-400" />
+											<span class="text-xs text-muted-foreground">
+												{formatDate(reasoning.timestamp, 'full')}
+											</span>
+										</div>
+										<div class="prose prose-sm dark:prose-invert max-w-none">
+											<p class="whitespace-pre-wrap break-words m-0 text-sm">{reasoning.text}</p>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{:else}
+							<p class="text-muted-foreground text-center py-8">思考過程の情報がありません</p>
+						{/if}
+					</TabsContent>
+
 					<!-- TODOタブ -->
 					<TabsContent value="todos" class="mt-4">
 						{#if ws.todoUpdates.length > 0}
