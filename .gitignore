@@ -92,3 +92,6 @@ backend/package.json
 
 # Serena
 .serena/
+# SQLite files in backend root
+backend/*.sqlite
+backend/*.sqlite-*
