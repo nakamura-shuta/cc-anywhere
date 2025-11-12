@@ -10,11 +10,6 @@ import type {
   AgentExecutionOptions,
   AgentExecutionEvent,
   ExecutorType,
-  AgentProgressEvent,
-  AgentToolStartEvent,
-  AgentToolEndEvent,
-  AgentResponseEvent,
-  AgentStatisticsEvent,
 } from "./types.js";
 import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
@@ -23,6 +18,7 @@ import { config } from "../config/index.js";
 import { getSharedClaudeClient } from "../claude/shared-instance.js";
 import type { ClaudeCodeClient } from "../claude/claude-code-client.js";
 import { BaseExecutorHelper } from "./base-executor-helper.js";
+import { ProgressFormatter } from "../services/progress-formatter.js";
 
 /**
  * Claude Agent SDK executor implementation
@@ -65,7 +61,7 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
       // Prepare progress callback that converts to AgentExecutionEvent
       const progressEvents: AgentExecutionEvent[] = [];
       const onProgress = async (progress: ProgressEvent) => {
-        const event = this.convertProgressToEvent(progress);
+        const event = ProgressFormatter.convertProgressToEvent(progress);
         if (event) {
           progressEvents.push(event);
         }
@@ -192,92 +188,5 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
       abortController,
       onProgress,
     };
-  }
-
-  /**
-   * Convert Claude SDK progress event to AgentExecutionEvent
-   */
-  private convertProgressToEvent(progress: {
-    type: string;
-    message: string;
-    data?: any;
-  }): AgentExecutionEvent | null {
-    switch (progress.type) {
-      case "log":
-        return {
-          type: "agent:progress",
-          message: progress.message,
-          timestamp: new Date(),
-        } as AgentProgressEvent;
-
-      case "progress":
-        return {
-          type: "agent:progress",
-          message: progress.message,
-          data: progress.data,
-          timestamp: new Date(),
-        } as AgentProgressEvent;
-
-      case "tool:start":
-        return {
-          type: "agent:tool:start",
-          tool: progress.data?.tool || "unknown",
-          toolId: progress.data?.toolId,
-          input: progress.data?.input,
-          timestamp: new Date(),
-        } as AgentToolStartEvent;
-
-      case "tool:end":
-        return {
-          type: "agent:tool:end",
-          tool: progress.data?.tool || "unknown",
-          toolId: progress.data?.toolId,
-          output: progress.data?.output,
-          error: progress.data?.error,
-          duration: progress.data?.duration,
-          success: !progress.data?.error,
-          timestamp: new Date(),
-        } as AgentToolEndEvent;
-
-      case "claude:response":
-        return {
-          type: "agent:response",
-          text: progress.message || progress.data?.text || "",
-          turnNumber: progress.data?.turnNumber,
-          timestamp: new Date(),
-        } as AgentResponseEvent;
-
-      case "statistics":
-        return {
-          type: "agent:statistics",
-          totalTurns: progress.data?.totalTurns || 0,
-          totalToolCalls: progress.data?.totalToolCalls || 0,
-          toolStats: progress.data?.toolStats || {},
-          elapsedTime: progress.data?.elapsedTime || 0,
-          tokenUsage: progress.data?.tokenUsage,
-          timestamp: new Date(),
-        } as AgentStatisticsEvent;
-
-      case "todo_update":
-      case "tool_usage":
-      case "summary":
-        // These event types are Claude-specific and don't map directly
-        // They can be logged but not converted to standard AgentExecutionEvent
-        return {
-          type: "agent:progress",
-          message: progress.message,
-          data: progress.data,
-          timestamp: new Date(),
-        } as AgentProgressEvent;
-
-      default:
-        // Unknown event type - treat as progress
-        logger.debug("Unknown progress event type", { type: progress.type });
-        return {
-          type: "agent:progress",
-          message: progress.message,
-          timestamp: new Date(),
-        } as AgentProgressEvent;
-    }
   }
 }

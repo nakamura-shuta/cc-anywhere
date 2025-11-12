@@ -16,6 +16,7 @@ import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
 import { BaseExecutorHelper } from "./base-executor-helper.js";
+import { ProgressFormatter } from "../services/progress-formatter.js";
 
 /**
  * Lazy-load Codex SDK module
@@ -162,7 +163,7 @@ export class CodexAgentExecutor implements IAgentExecutor {
           }
 
           // Convert Codex event to AgentExecutionEvent
-          const agentEvent = this.convertCodexEvent(event);
+          const agentEvent = ProgressFormatter.convertCodexEvent(event);
           if (agentEvent) {
             yield agentEvent;
           }
@@ -250,94 +251,5 @@ export class CodexAgentExecutor implements IAgentExecutor {
   isAvailable(): boolean {
     // Check if OpenAI API key is configured
     return !!config.openai.apiKey;
-  }
-
-  /**
-   * Codex イベントを AgentExecutionEvent に変換
-   * Phase 0検証結果に基づくイベント変換
-   */
-  private convertCodexEvent(codexEvent: any): AgentExecutionEvent | null {
-    switch (codexEvent.type) {
-      case "thread.started":
-        return {
-          type: "agent:progress",
-          message: "Thread started",
-          timestamp: new Date(),
-        };
-
-      case "turn.started":
-        return {
-          type: "agent:progress",
-          message: "Turn started",
-          timestamp: new Date(),
-        };
-
-      case "item.started":
-        if (codexEvent.item.type === "command_execution") {
-          return {
-            type: "agent:tool:start",
-            tool: "Bash",
-            toolId: codexEvent.item.id,
-            input: { command: codexEvent.item.command },
-            timestamp: new Date(),
-          };
-        }
-        break;
-
-      case "item.completed":
-        if (codexEvent.item.type === "command_execution") {
-          return {
-            type: "agent:tool:end",
-            tool: "Bash",
-            toolId: codexEvent.item.id,
-            output: codexEvent.item.aggregated_output,
-            success: codexEvent.item.exit_code === 0,
-            duration: 0, // TODO: Calculate duration
-            timestamp: new Date(),
-          };
-        } else if (codexEvent.item.type === "reasoning") {
-          // Codex SDK v0.52.0+ reasoning item
-          return {
-            type: "agent:reasoning",
-            id: codexEvent.item.id,
-            text: codexEvent.item.text,
-            timestamp: new Date(),
-          };
-        } else if (codexEvent.item.type === "agent_message") {
-          return {
-            type: "agent:response",
-            text: codexEvent.item.text,
-            timestamp: new Date(),
-          };
-        }
-        break;
-
-      case "turn.completed":
-        return {
-          type: "agent:statistics",
-          totalTurns: 1, // TODO: Track turn count
-          totalToolCalls: 0, // TODO: Track tool calls
-          toolStats: {},
-          elapsedTime: 0,
-          tokenUsage: codexEvent.usage
-            ? {
-                input: codexEvent.usage.input_tokens || 0,
-                output: codexEvent.usage.output_tokens || 0,
-                cached: codexEvent.usage.cached_input_tokens || 0,
-              }
-            : undefined,
-          timestamp: new Date(),
-        };
-
-      case "turn.failed":
-        logger.warn("Turn failed", { error: codexEvent.error });
-        return {
-          type: "agent:progress",
-          message: `Turn failed: ${codexEvent.error || "Unknown error"}`,
-          timestamp: new Date(),
-        };
-    }
-
-    return null;
   }
 }
