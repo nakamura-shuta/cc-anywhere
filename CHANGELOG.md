@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Agent Executorアーキテクチャのリファクタリング** (2025-11-12)
+  - **BaseTaskExecutor導入**: ClaudeとCodex Executorの共通ロジックを統合
+    - タスク追跡、キャンセル、ヘルパーメソッドを基底クラスに集約
+    - `backend/src/agents/base-task-executor.ts` - 抽象基底クラス
+    - `backend/src/agents/base-executor-helper.ts` - ヘルパーユーティリティ
+    - `ClaudeAgentExecutor`と`CodexAgentExecutor`が`BaseTaskExecutor`を継承
+  - **ProgressEventConverter統合**: イベント変換ロジックを一元化
+    - `services/progress-formatter.ts` → `progress-event-converter.ts` にリネーム
+    - ClaudeとCodex両SDKのイベント変換を統一的に処理
+    - `convertProgressToEvent()`: Claude SDK Progress Event変換
+    - `convertCodexEvent()`: Codex SDKイベント変換
+    - 命名衝突を解消（`src/utils/progress-formatter.ts`と区別）
+  - **テストカバレッジ強化**:
+    - `tests/unit/services/progress-event-converter.test.ts` - 14テストケース追加
+    - 全671単体テスト、42統合テストが成功
+  - **ドキュメント更新**:
+    - `docs/architecture/agent-execution-events.md` - アーキテクチャ図とファイル一覧を更新
+  - **コード品質改善**:
+    - ESLint自動修正適用
+    - 型安全性向上（`import type`の適切な使用）
+    - `-121行、+102行` のコード削減（重複排除による効率化）
+
 ### Added
 
 - **セキュリティ脆弱性の修正** (2025-11-04) 🔒

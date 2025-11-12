@@ -105,13 +105,34 @@ npm run type-check
 npm run build
 ```
 
+## アーキテクチャ
+
+### Agent Executor
+
+ClaudeとCodex両SDKに対応したExecutorアーキテクチャ：
+
+- **BaseTaskExecutor**: 共通ロジックを提供する抽象基底クラス
+  - タスク追跡・キャンセル機能
+  - ヘルパーメソッド（ログ、ID生成等）
+- **ClaudeAgentExecutor**: Claude Agent SDK実装
+- **CodexAgentExecutor**: OpenAI Codex SDK実装
+- **ProgressEventConverter**: イベント変換の統一インターフェース
+
+詳細: [Agent Execution Events](docs/architecture/agent-execution-events.md), [Progress Events](docs/architecture/progress-events.md)
+
 ## ドキュメント
 
+### ユーザー向け
 - [スクリプト使い分けガイド](docs/scripts-overview.md)
 - [環境変数リファレンス](docs/environment-variables.md)
 - [ファイル変更検知とWebSocket](docs/file-watcher-websocket.md)
 - [Codex Executorセッション継続機能](docs/features/codex-session-continuation.md)
 - [APIリファレンス](docs/api/README.md)
+
+### 開発者向け
+- [アーキテクチャ概要](docs/architecture/README.md)
+- [Agent Execution Events](docs/architecture/agent-execution-events.md)
+- [Progress Events](docs/architecture/progress-events.md)
 
 ## ライセンス
 
