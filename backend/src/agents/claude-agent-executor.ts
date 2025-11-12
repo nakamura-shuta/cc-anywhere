@@ -17,7 +17,7 @@ import { config } from "../config/index.js";
 import { getSharedClaudeClient } from "../claude/shared-instance.js";
 import type { ClaudeCodeClient } from "../claude/claude-code-client.js";
 import { BaseTaskExecutor } from "./base-task-executor.js";
-import { ProgressFormatter } from "../services/progress-formatter.js";
+import { ProgressEventConverter } from "../services/progress-event-converter.js";
 
 /**
  * Claude Agent SDK executor implementation
@@ -60,7 +60,7 @@ export class ClaudeAgentExecutor extends BaseTaskExecutor {
       // Prepare progress callback that converts to AgentExecutionEvent
       const progressEvents: AgentExecutionEvent[] = [];
       const onProgress = async (progress: ProgressEvent) => {
-        const event = ProgressFormatter.convertProgressToEvent(progress);
+        const event = ProgressEventConverter.convertProgressToEvent(progress);
         if (event) {
           progressEvents.push(event);
         }

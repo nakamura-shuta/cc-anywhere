@@ -15,7 +15,7 @@ import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
 import { BaseTaskExecutor } from "./base-task-executor.js";
-import { ProgressFormatter } from "../services/progress-formatter.js";
+import { ProgressEventConverter } from "../services/progress-event-converter.js";
 
 /**
  * Lazy-load Codex SDK module
@@ -162,7 +162,7 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
           }
 
           // Convert Codex event to AgentExecutionEvent
-          const agentEvent = ProgressFormatter.convertCodexEvent(event);
+          const agentEvent = ProgressEventConverter.convertCodexEvent(event);
           if (agentEvent) {
             yield agentEvent;
           }
