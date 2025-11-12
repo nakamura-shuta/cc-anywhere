@@ -17,6 +17,7 @@ import { fileWatcherService } from "../services/file-watcher.service.js";
 import { PathValidator, PathValidationError } from "../utils/path-validator.js";
 import { ErrorHandlers } from "../utils/error-handlers";
 import { ProgressHandler } from "../services/progress-handler.js";
+import type { ProgressEvent } from "../types/progress-events.js";
 
 export { TaskQueue };
 
@@ -334,10 +335,15 @@ export class TaskQueueImpl implements TaskQueue {
         options: {
           ...task.request.options,
           onProgress: this.wsServer
-            ? async (progress: { type: string; message: string; data?: any }) => {
+            ? async (progress: ProgressEvent) => {
                 // Also sync task todos for todo_update events
-                if (progress.type === "todo_update" && progress.data?.todos) {
-                  task.todos = progress.data.todos;
+                if (progress.type === "todo_update") {
+                  // Convert ProgressTodoItem to TodoItem by adding required fields
+                  task.todos = progress.data.todos.map((todo) => ({
+                    ...todo,
+                    id: `${task.id}-${Date.now()}-${Math.random()}`,
+                    priority: "medium" as const,
+                  }));
                 }
 
                 // Handle progress event with ProgressHandler

@@ -8,6 +8,7 @@ import { LogLevel } from "../types/enhanced-logging";
 import type { WebSearchConfig } from "./types";
 import type { ClaudeCodeStrategy, ExecutionMode, QueryOptions } from "./strategies";
 import { ClaudeCodeClientFactory } from "./claude-code-client-factory";
+import type { ProgressEvent } from "../types/progress-events.js";
 
 export interface ClaudeCodeOptions {
   maxTurns?: number;
@@ -25,7 +26,7 @@ export interface ClaudeCodeOptions {
   continueFromTaskId?: string; // Task ID to continue session from
   outputFormat?: string;
   verbose?: boolean;
-  onProgress?: (progress: { type: string; message: string; data?: any }) => void | Promise<void>;
+  onProgress?: (progress: ProgressEvent) => void | Promise<void>;
   enableWebSearch?: boolean;
   webSearchConfig?: WebSearchConfig;
 }
@@ -292,7 +293,7 @@ export class ClaudeCodeClient {
               await options.onProgress({
                 type: "tool_usage",
                 message: this.formatToolUsageMessage(toolDetail),
-                data: toolDetail,
+                data: toolDetail as any, // ToolUsageDetail has additional properties
               });
             }
           }
@@ -342,7 +343,7 @@ export class ClaudeCodeClient {
             await options.onProgress({
               type: "progress",
               message: progressInfo.message,
-              data: progressInfo,
+              data: progressInfo as any, // TaskProgressInfo has additional properties
             });
           }
 

@@ -2,6 +2,7 @@ import type { TimeoutOptions } from "../types/timeout.js";
 import type { WorktreeOptions } from "../services/worktree/types.js";
 import type { TodoItem } from "../types/todo.js";
 import type { CommonExecutorOptions, CodexAgentOptions } from "../agents/types.js";
+import type { ProgressEvent } from "../types/progress-events.js";
 
 // Retry policy types
 export enum RetryPolicy {
@@ -96,7 +97,7 @@ export interface TaskRequest {
     executor?: "claude" | "codex"; // Executor type selection
     allowedTools?: string[]; // 後方互換性のため残す
     retry?: RetryOptions; // Retry options
-    onProgress?: (progress: { type: string; message: string }) => void | Promise<void>; // Progress callback
+    onProgress?: (progress: ProgressEvent) => void | Promise<void>; // Progress callback
     // Worktree options
     useWorktree?: boolean; // Simple flag to enable worktree
     worktree?: WorktreeOptions; // Detailed worktree configuration

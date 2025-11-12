@@ -18,6 +18,7 @@ import type {
 } from "./types.js";
 import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
+import type { ProgressEvent } from "../types/progress-events.js";
 import { config } from "../config/index.js";
 import { getSharedClaudeClient } from "../claude/shared-instance.js";
 import type { ClaudeCodeClient } from "../claude/claude-code-client.js";
@@ -63,7 +64,7 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
 
       // Prepare progress callback that converts to AgentExecutionEvent
       const progressEvents: AgentExecutionEvent[] = [];
-      const onProgress = async (progress: { type: string; message: string; data?: any }) => {
+      const onProgress = async (progress: ProgressEvent) => {
         const event = this.convertProgressToEvent(progress);
         if (event) {
           progressEvents.push(event);

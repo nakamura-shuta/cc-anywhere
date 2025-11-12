@@ -20,6 +20,7 @@ import { NotFoundError, TaskCancelledError, SystemError } from "../utils/errors"
 import { mapPermissionMode } from "./permission-mode-mapper";
 import type { ClaudeCodeClient } from "./claude-code-client";
 import { fileWatcherService } from "../services/file-watcher.service";
+import type { ProgressEvent } from "../types/progress-events.js";
 
 /**
  * Task execution engine that handles Claude API interactions
@@ -330,11 +331,7 @@ export class TaskExecutorImpl implements TaskExecutor {
         this.validateSDKOptions(sdkOptions);
 
         // 進捗コールバックを拡張して構造化されたログを処理
-        const enhancedOnProgress = async (progress: {
-          type: string;
-          message: string;
-          data?: any;
-        }) => {
+        const enhancedOnProgress = async (progress: ProgressEvent) => {
           // 元のコールバックにプログレスを転送（タイプを維持）
           if (task.options?.onProgress) {
             // 構造化されたイベントタイプはそのまま転送
@@ -346,27 +343,16 @@ export class TaskExecutorImpl implements TaskExecutor {
               progress.type === "tool:start" ||
               progress.type === "tool:end" ||
               progress.type === "claude:response" ||
-              progress.type === "statistics"
+              progress.type === "statistics" ||
+              progress.type === "reasoning"
             ) {
               await task.options.onProgress(progress);
             } else {
               // その他は通常のログメッセージとして処理
               await task.options.onProgress({
                 type: "log",
-                message: progress.message,
-              });
-            }
-          }
-
-          // 構造化されたデータがある場合は別途処理
-          if (progress.data) {
-            switch (progress.type) {
-              case "tool_usage":
-                // TODO: WebSocket経由でツール使用情報を送信
-                break;
-              case "progress":
-                // TODO: WebSocket経由で進捗情報を送信
-                break;
+                message: progress.message || "",
+              } as ProgressEvent);
             }
           }
         };
@@ -651,7 +637,7 @@ export class TaskExecutorImpl implements TaskExecutor {
       mergeStrategy?: "merge" | "rebase" | "squash";
       targetBranch?: string;
     },
-    onProgress?: (progress: { type: string; message: string }) => void | Promise<void>,
+    onProgress?: (progress: ProgressEvent) => void | Promise<void>,
   ): Promise<Worktree> {
     if (!this.worktreeManager) {
       throw new SystemError("Worktree manager not initialized", {
@@ -730,7 +716,7 @@ export class TaskExecutorImpl implements TaskExecutor {
    */
   private async cleanupWorktree(
     worktree: Worktree,
-    onProgress?: (progress: { type: string; message: string }) => void | Promise<void>,
+    onProgress?: (progress: ProgressEvent) => void | Promise<void>,
   ): Promise<void> {
     if (!this.worktreeManager) {
       return;
