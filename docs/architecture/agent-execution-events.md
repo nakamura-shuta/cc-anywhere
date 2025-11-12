@@ -216,9 +216,11 @@ async function processAgentEvent(event: AgentExecutionEvent) {
 - `backend/src/agents/types.ts`: メインの型定義とType Guard関数
 
 ### 使用箇所
+- `backend/src/agents/base-task-executor.ts`: Agent Executorの共通基底クラス
 - `backend/src/agents/claude-agent-executor.ts`: Claude Agent Executor実装
 - `backend/src/agents/codex-agent-executor.ts`: Codex Agent Executor実装
 - `backend/src/agents/codex-task-executor-adapter.ts`: Codex Executor Adapter
+- `backend/src/services/progress-event-converter.ts`: イベント変換ユーティリティ
 
 ## Progress Eventとの関係
 
@@ -237,18 +239,21 @@ async function processAgentEvent(event: AgentExecutionEvent) {
 ### 変換フロー
 
 ```
-Claude Code SDK
-  ↓ (ProgressEvent)
-Progress Handler
-  ↓
-Task Queue
+Claude Code SDK / Codex SDK
+  ↓ (ProgressEvent / Codex Events)
+ProgressEventConverter
+  ↓ convertProgressToEvent() / convertCodexEvent()
   ↓ (AgentExecutionEvent)
-Agent Executor → convertProgressToEvent()
+Agent Executor (Claude / Codex)
   ↓
 WebSocket / API
 ```
 
-`claude-agent-executor.ts`の`convertProgressToEvent()`メソッドで、`ProgressEvent`を`AgentExecutionEvent`に変換しています。
+`services/progress-event-converter.ts`の`ProgressEventConverter`クラスで、以下の変換を提供：
+- `convertProgressToEvent()`: Claude SDKの`ProgressEvent`を`AgentExecutionEvent`に変換
+- `convertCodexEvent()`: Codex SDKのイベントを`AgentExecutionEvent`に変換
+
+この統一的な変換により、両Executorで一貫したイベント処理が可能になっています。
 
 ## 型安全性の改善ポイント
 
@@ -294,6 +299,7 @@ interface AgentCompletedEvent {
 - `tests/unit/agents/claude-agent-executor.test.ts`: 11テスト
 - `tests/unit/agents/codex-agent-executor.test.ts`: 16テスト
 - `tests/unit/agents/agent-executor-factory.test.ts`: 7テスト
+- `tests/unit/services/progress-event-converter.test.ts`: 14テスト（イベント変換ロジック）
 
 ## 今後の改善案
 
