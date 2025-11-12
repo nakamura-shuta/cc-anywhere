@@ -80,11 +80,7 @@ export abstract class BaseTaskExecutor implements IAgentExecutor {
    * Log task execution start
    * Utility method for subclasses
    */
-  protected logTaskStart(
-    executorType: ExecutorType,
-    taskId: string,
-    instruction: string,
-  ): void {
+  protected logTaskStart(executorType: ExecutorType, taskId: string, instruction: string): void {
     logger.debug(`Starting ${executorType} task execution`, { taskId, instruction });
   }
 

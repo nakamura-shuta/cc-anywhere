@@ -2,11 +2,7 @@ import { logger } from "../utils/logger.js";
 import { FormattingHelpers } from "../utils/formatting-helpers.js";
 import { ErrorHandlers } from "../utils/error-handlers.js";
 import type { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
-import type {
-  ProgressEvent,
-  ProgressTodoItem,
-  StatisticsData,
-} from "../types/progress-events.js";
+import type { ProgressEvent, ProgressTodoItem, StatisticsData } from "../types/progress-events.js";
 import type { TodoItem } from "../types/todo.js";
 
 /**

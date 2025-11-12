@@ -538,9 +538,7 @@ export function isAgentResponseEvent(event: AgentExecutionEvent): event is Agent
 /**
  * Type guard for AgentStatisticsEvent
  */
-export function isAgentStatisticsEvent(
-  event: AgentExecutionEvent,
-): event is AgentStatisticsEvent {
+export function isAgentStatisticsEvent(event: AgentExecutionEvent): event is AgentStatisticsEvent {
   return event.type === "agent:statistics";
 }
 

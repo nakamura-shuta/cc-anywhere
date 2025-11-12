@@ -96,7 +96,9 @@ describe("ProgressEventConverter", () => {
         },
       };
 
-      const result = ProgressEventConverter.convertProgressToEvent(progress) as AgentStatisticsEvent;
+      const result = ProgressEventConverter.convertProgressToEvent(
+        progress,
+      ) as AgentStatisticsEvent;
 
       expect(result).toMatchObject({
         type: "agent:statistics",
@@ -137,7 +139,7 @@ describe("ProgressEventConverter", () => {
 
       expect(result).toMatchObject({
         type: "agent:tool:start",
-        tool: "unknown",  // Falls back to "unknown" when data.tool is missing
+        tool: "unknown", // Falls back to "unknown" when data.tool is missing
         input: undefined,
       });
     });
