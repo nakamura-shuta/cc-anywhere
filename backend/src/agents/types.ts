@@ -413,6 +413,7 @@ export interface AgentProgressEvent {
   data?: {
     currentTurn?: number;
     maxTurns?: number;
+    [key: string]: unknown; // Allow additional properties
   };
   timestamp: Date;
 }
@@ -422,7 +423,7 @@ export interface AgentToolStartEvent {
   type: "agent:tool:start";
   tool: string;
   toolId?: string;
-  input?: any;
+  input?: unknown;
   timestamp: Date;
 }
 
@@ -431,7 +432,7 @@ export interface AgentToolEndEvent {
   type: "agent:tool:end";
   tool: string;
   toolId?: string;
-  output?: any;
+  output?: unknown;
   error?: string;
   duration?: number;
   success: boolean;
@@ -462,7 +463,7 @@ export interface AgentCompletedEvent {
   type: "agent:completed";
   output: unknown;
   sessionId?: string;
-  conversationHistory?: any[];
+  conversationHistory?: unknown[];
   todos?: TodoItem[];
   duration: number;
   timestamp: Date;
@@ -496,6 +497,73 @@ export type AgentExecutionEvent =
   | AgentCompletedEvent
   | AgentFailedEvent
   | AgentReasoningEvent;
+
+// ==================== Type Guards ====================
+
+/**
+ * Type guard for AgentStartEvent
+ */
+export function isAgentStartEvent(event: AgentExecutionEvent): event is AgentStartEvent {
+  return event.type === "agent:start";
+}
+
+/**
+ * Type guard for AgentProgressEvent
+ */
+export function isAgentProgressEvent(event: AgentExecutionEvent): event is AgentProgressEvent {
+  return event.type === "agent:progress";
+}
+
+/**
+ * Type guard for AgentToolStartEvent
+ */
+export function isAgentToolStartEvent(event: AgentExecutionEvent): event is AgentToolStartEvent {
+  return event.type === "agent:tool:start";
+}
+
+/**
+ * Type guard for AgentToolEndEvent
+ */
+export function isAgentToolEndEvent(event: AgentExecutionEvent): event is AgentToolEndEvent {
+  return event.type === "agent:tool:end";
+}
+
+/**
+ * Type guard for AgentResponseEvent
+ */
+export function isAgentResponseEvent(event: AgentExecutionEvent): event is AgentResponseEvent {
+  return event.type === "agent:response";
+}
+
+/**
+ * Type guard for AgentStatisticsEvent
+ */
+export function isAgentStatisticsEvent(
+  event: AgentExecutionEvent,
+): event is AgentStatisticsEvent {
+  return event.type === "agent:statistics";
+}
+
+/**
+ * Type guard for AgentCompletedEvent
+ */
+export function isAgentCompletedEvent(event: AgentExecutionEvent): event is AgentCompletedEvent {
+  return event.type === "agent:completed";
+}
+
+/**
+ * Type guard for AgentFailedEvent
+ */
+export function isAgentFailedEvent(event: AgentExecutionEvent): event is AgentFailedEvent {
+  return event.type === "agent:failed";
+}
+
+/**
+ * Type guard for AgentReasoningEvent
+ */
+export function isAgentReasoningEvent(event: AgentExecutionEvent): event is AgentReasoningEvent {
+  return event.type === "agent:reasoning";
+}
 
 /**
  * Agent executor interface
