@@ -5,7 +5,6 @@
  */
 
 import type {
-  IAgentExecutor,
   AgentTaskRequest,
   AgentExecutionOptions,
   AgentExecutionEvent,
@@ -17,17 +16,17 @@ import type { ProgressEvent } from "../types/progress-events.js";
 import { config } from "../config/index.js";
 import { getSharedClaudeClient } from "../claude/shared-instance.js";
 import type { ClaudeCodeClient } from "../claude/claude-code-client.js";
-import { BaseExecutorHelper } from "./base-executor-helper.js";
+import { BaseTaskExecutor } from "./base-task-executor.js";
 import { ProgressFormatter } from "../services/progress-formatter.js";
 
 /**
  * Claude Agent SDK executor implementation
  */
-export class ClaudeAgentExecutor implements IAgentExecutor {
+export class ClaudeAgentExecutor extends BaseTaskExecutor {
   private codeClient: ClaudeCodeClient;
-  private helper = new BaseExecutorHelper("task");
 
   constructor() {
+    super("task");
     this.codeClient = getSharedClaudeClient();
     logger.debug("ClaudeAgentExecutor initialized");
   }
@@ -36,10 +35,10 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
     request: AgentTaskRequest,
     options: AgentExecutionOptions,
   ): AsyncIterator<AgentExecutionEvent> {
-    const taskId = options.taskId || this.helper.generateTaskId();
+    const taskId = options.taskId || this.generateTaskId();
     const startTime = Date.now();
 
-    logger.debug("Starting Claude task execution", { taskId, instruction: request.instruction });
+    this.logTaskStart(EXECUTOR_TYPES.CLAUDE, taskId, request.instruction);
 
     // Emit start event
     yield {
@@ -52,7 +51,7 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
     const abortController = options.abortController || new AbortController();
 
     // Track the task for cancellation
-    this.helper.trackTask(taskId, abortController);
+    this.trackTask(taskId, abortController);
 
     try {
       // Build prompt
@@ -109,6 +108,8 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
       // Get todos from tracker if available
       const todos = result.tracker?.getTodos();
 
+      this.logTaskComplete(taskId, duration);
+
       // Emit completed event
       yield {
         type: "agent:completed",
@@ -120,7 +121,7 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
         timestamp: new Date(),
       };
     } catch (error) {
-      logger.error("Claude task execution failed", { taskId, error });
+      this.logTaskFailure(taskId, error);
 
       // Emit failed event
       yield {
@@ -130,12 +131,8 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
       };
     } finally {
       // Cleanup
-      this.helper.untrackTask(taskId);
+      this.untrackTask(taskId);
     }
-  }
-
-  async cancelTask(taskId: string): Promise<void> {
-    await this.helper.cancelTrackedTask(taskId);
   }
 
   getExecutorType(): ExecutorType {

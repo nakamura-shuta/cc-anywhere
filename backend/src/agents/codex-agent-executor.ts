@@ -6,7 +6,6 @@
 
 import type { Codex } from "@openai/codex-sdk";
 import type {
-  IAgentExecutor,
   AgentTaskRequest,
   AgentExecutionOptions,
   AgentExecutionEvent,
@@ -15,7 +14,7 @@ import type {
 import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
-import { BaseExecutorHelper } from "./base-executor-helper.js";
+import { BaseTaskExecutor } from "./base-task-executor.js";
 import { ProgressFormatter } from "../services/progress-formatter.js";
 
 /**
@@ -39,15 +38,15 @@ async function loadCodexModule(): Promise<CodexModule> {
  * Codex SDK executor implementation
  * Phase 0の検証結果に基づく実装
  */
-export class CodexAgentExecutor implements IAgentExecutor {
+export class CodexAgentExecutor extends BaseTaskExecutor {
   private codex: Codex | null = null;
-  private helper = new BaseExecutorHelper("codex-task");
   private runningThreads: Map<
     string,
     { thread: any; iterator: AsyncIterator<any>; returnFn?: () => Promise<void> }
   > = new Map();
 
   constructor() {
+    super("codex-task");
     // Codex SDKはESM専用のため、実体は初回利用時に動的ロードする
   }
 
@@ -64,10 +63,10 @@ export class CodexAgentExecutor implements IAgentExecutor {
     request: AgentTaskRequest,
     options: AgentExecutionOptions,
   ): AsyncIterator<AgentExecutionEvent> {
-    const taskId = options.taskId || this.helper.generateTaskId();
+    const taskId = options.taskId || this.generateTaskId();
     const startTime = Date.now();
 
-    logger.debug("Starting Codex task execution", { taskId, instruction: request.instruction });
+    this.logTaskStart(EXECUTOR_TYPES.CODEX, taskId, request.instruction);
 
     // Emit start event
     yield {
@@ -194,9 +193,8 @@ export class CodexAgentExecutor implements IAgentExecutor {
       // Fallback: Use thread.id if threadId is still undefined
       const finalThreadId = threadId || (thread as any)?.id;
 
-      logger.debug("Codex task completed", {
-        taskId,
-        duration,
+      this.logTaskComplete(taskId, duration);
+      logger.debug("Codex task completed with thread ID", {
         responseCount: agentResponses.length,
         threadId: finalThreadId,
         fromEvent: !!threadId,
@@ -211,8 +209,7 @@ export class CodexAgentExecutor implements IAgentExecutor {
         timestamp: new Date(),
       };
     } catch (error) {
-      const duration = Date.now() - startTime;
-      logger.error("Codex task failed", { taskId, duration, error });
+      this.logTaskFailure(taskId, error);
 
       yield {
         type: "agent:failed",
