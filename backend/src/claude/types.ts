@@ -160,7 +160,7 @@ export interface TaskResponse {
   todos?: TodoItem[];
   continuedFrom?: string;
   sdkSessionId?: string;
-  conversationHistory?: any[];
+  conversationHistory?: unknown[];
   progressData?: {
     currentTurn?: number;
     maxTurns?: number;
@@ -206,7 +206,7 @@ export interface ClaudeExecutionResult {
   /** Todo items from TodoWrite tool */
   todos?: TodoItem[];
   /** Conversation history (SDK messages) */
-  conversationHistory?: any[];
+  conversationHistory?: unknown[];
 }
 
 /**
