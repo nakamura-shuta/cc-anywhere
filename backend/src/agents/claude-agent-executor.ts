@@ -5,32 +5,28 @@
  */
 
 import type {
-  IAgentExecutor,
   AgentTaskRequest,
   AgentExecutionOptions,
   AgentExecutionEvent,
   ExecutorType,
-  AgentProgressEvent,
-  AgentToolStartEvent,
-  AgentToolEndEvent,
-  AgentResponseEvent,
-  AgentStatisticsEvent,
 } from "./types.js";
 import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
+import type { ProgressEvent } from "../types/progress-events.js";
 import { config } from "../config/index.js";
 import { getSharedClaudeClient } from "../claude/shared-instance.js";
 import type { ClaudeCodeClient } from "../claude/claude-code-client.js";
-import { BaseExecutorHelper } from "./base-executor-helper.js";
+import { BaseTaskExecutor } from "./base-task-executor.js";
+import { ProgressEventConverter } from "../services/progress-event-converter.js";
 
 /**
  * Claude Agent SDK executor implementation
  */
-export class ClaudeAgentExecutor implements IAgentExecutor {
+export class ClaudeAgentExecutor extends BaseTaskExecutor {
   private codeClient: ClaudeCodeClient;
-  private helper = new BaseExecutorHelper("task");
 
   constructor() {
+    super("task");
     this.codeClient = getSharedClaudeClient();
     logger.debug("ClaudeAgentExecutor initialized");
   }
@@ -39,10 +35,10 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
     request: AgentTaskRequest,
     options: AgentExecutionOptions,
   ): AsyncIterator<AgentExecutionEvent> {
-    const taskId = options.taskId || this.helper.generateTaskId();
+    const taskId = options.taskId || this.generateTaskId();
     const startTime = Date.now();
 
-    logger.debug("Starting Claude task execution", { taskId, instruction: request.instruction });
+    this.logTaskStart(EXECUTOR_TYPES.CLAUDE, taskId, request.instruction);
 
     // Emit start event
     yield {
@@ -55,7 +51,7 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
     const abortController = options.abortController || new AbortController();
 
     // Track the task for cancellation
-    this.helper.trackTask(taskId, abortController);
+    this.trackTask(taskId, abortController);
 
     try {
       // Build prompt
@@ -63,8 +59,8 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
 
       // Prepare progress callback that converts to AgentExecutionEvent
       const progressEvents: AgentExecutionEvent[] = [];
-      const onProgress = async (progress: { type: string; message: string; data?: any }) => {
-        const event = this.convertProgressToEvent(progress);
+      const onProgress = async (progress: ProgressEvent) => {
+        const event = ProgressEventConverter.convertProgressToEvent(progress);
         if (event) {
           progressEvents.push(event);
         }
@@ -112,6 +108,8 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
       // Get todos from tracker if available
       const todos = result.tracker?.getTodos();
 
+      this.logTaskComplete(taskId, duration);
+
       // Emit completed event
       yield {
         type: "agent:completed",
@@ -123,7 +121,7 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
         timestamp: new Date(),
       };
     } catch (error) {
-      logger.error("Claude task execution failed", { taskId, error });
+      this.logTaskFailure(taskId, error);
 
       // Emit failed event
       yield {
@@ -133,12 +131,8 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
       };
     } finally {
       // Cleanup
-      this.helper.untrackTask(taskId);
+      this.untrackTask(taskId);
     }
-  }
-
-  async cancelTask(taskId: string): Promise<void> {
-    await this.helper.cancelTrackedTask(taskId);
   }
 
   getExecutorType(): ExecutorType {
@@ -191,92 +185,5 @@ export class ClaudeAgentExecutor implements IAgentExecutor {
       abortController,
       onProgress,
     };
-  }
-
-  /**
-   * Convert Claude SDK progress event to AgentExecutionEvent
-   */
-  private convertProgressToEvent(progress: {
-    type: string;
-    message: string;
-    data?: any;
-  }): AgentExecutionEvent | null {
-    switch (progress.type) {
-      case "log":
-        return {
-          type: "agent:progress",
-          message: progress.message,
-          timestamp: new Date(),
-        } as AgentProgressEvent;
-
-      case "progress":
-        return {
-          type: "agent:progress",
-          message: progress.message,
-          data: progress.data,
-          timestamp: new Date(),
-        } as AgentProgressEvent;
-
-      case "tool:start":
-        return {
-          type: "agent:tool:start",
-          tool: progress.data?.tool || "unknown",
-          toolId: progress.data?.toolId,
-          input: progress.data?.input,
-          timestamp: new Date(),
-        } as AgentToolStartEvent;
-
-      case "tool:end":
-        return {
-          type: "agent:tool:end",
-          tool: progress.data?.tool || "unknown",
-          toolId: progress.data?.toolId,
-          output: progress.data?.output,
-          error: progress.data?.error,
-          duration: progress.data?.duration,
-          success: !progress.data?.error,
-          timestamp: new Date(),
-        } as AgentToolEndEvent;
-
-      case "claude:response":
-        return {
-          type: "agent:response",
-          text: progress.message || progress.data?.text || "",
-          turnNumber: progress.data?.turnNumber,
-          timestamp: new Date(),
-        } as AgentResponseEvent;
-
-      case "statistics":
-        return {
-          type: "agent:statistics",
-          totalTurns: progress.data?.totalTurns || 0,
-          totalToolCalls: progress.data?.totalToolCalls || 0,
-          toolStats: progress.data?.toolStats || {},
-          elapsedTime: progress.data?.elapsedTime || 0,
-          tokenUsage: progress.data?.tokenUsage,
-          timestamp: new Date(),
-        } as AgentStatisticsEvent;
-
-      case "todo_update":
-      case "tool_usage":
-      case "summary":
-        // These event types are Claude-specific and don't map directly
-        // They can be logged but not converted to standard AgentExecutionEvent
-        return {
-          type: "agent:progress",
-          message: progress.message,
-          data: progress.data,
-          timestamp: new Date(),
-        } as AgentProgressEvent;
-
-      default:
-        // Unknown event type - treat as progress
-        logger.debug("Unknown progress event type", { type: progress.type });
-        return {
-          type: "agent:progress",
-          message: progress.message,
-          timestamp: new Date(),
-        } as AgentProgressEvent;
-    }
   }
 }

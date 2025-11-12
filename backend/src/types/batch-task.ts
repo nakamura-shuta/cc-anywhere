@@ -40,7 +40,7 @@ export interface BatchTaskStatus {
     repository: string;
     status: TaskStatus;
     duration?: number;
-    result?: any;
-    error?: any;
+    result?: unknown;
+    error?: unknown;
   }>;
 }

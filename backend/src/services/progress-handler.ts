@@ -2,6 +2,8 @@ import { logger } from "../utils/logger.js";
 import { FormattingHelpers } from "../utils/formatting-helpers.js";
 import { ErrorHandlers } from "../utils/error-handlers.js";
 import type { WebSocketBroadcaster } from "../websocket/websocket-broadcaster.js";
+import type { ProgressEvent, ProgressTodoItem, StatisticsData } from "../types/progress-events.js";
+import type { TodoItem } from "../types/todo.js";
 
 /**
  * Minimal repository interface for progress handling
@@ -26,9 +28,22 @@ export interface ProgressData {
     totalExecutions: number;
     tokenUsage?: { input: number; output: number; cached?: number };
   };
-  todos: any[];
-  toolExecutions: any[];
-  claudeResponses: any[];
+  todos: TodoItem[] | ProgressTodoItem[];
+  toolExecutions: Array<{
+    type: "start" | "end";
+    tool: string;
+    timestamp: number;
+    args?: unknown;
+    duration?: number;
+    success?: boolean;
+    result?: unknown;
+    error?: Error | string;
+  }>;
+  claudeResponses: Array<{
+    turnNumber?: number;
+    text: string;
+    timestamp: number;
+  }>;
 }
 
 /**
@@ -61,7 +76,7 @@ export class ProgressHandler {
    * ```
    */
   async handleProgress(
-    progress: { type: string; message: string; data?: any },
+    progress: ProgressEvent,
     progressData: ProgressData,
   ): Promise<string | null> {
     const timestamp = Date.now();
@@ -95,7 +110,7 @@ export class ProgressHandler {
   /**
    * ログ進捗処理
    */
-  private handleLogProgress(progress: any, timestamp: number): string {
+  private handleLogProgress(progress: ProgressEvent, timestamp: number): string {
     this.broadcaster?.task(this.taskId, "task:log", {
       message: progress.message,
       timestamp,
@@ -106,7 +121,7 @@ export class ProgressHandler {
   /**
    * ツール使用進捗処理
    */
-  private handleToolUsageProgress(progress: any, timestamp: number): string {
+  private handleToolUsageProgress(progress: ProgressEvent, timestamp: number): string {
     this.broadcaster?.task(this.taskId, "task:tool_usage", {
       message: progress.message,
       timestamp,
@@ -117,7 +132,7 @@ export class ProgressHandler {
   /**
    * 一般進捗処理
    */
-  private handleGeneralProgress(progress: any, timestamp: number): string {
+  private handleGeneralProgress(progress: ProgressEvent, timestamp: number): string {
     this.broadcaster?.task(this.taskId, "task:progress", {
       message: progress.message,
       timestamp,
@@ -128,7 +143,7 @@ export class ProgressHandler {
   /**
    * サマリー進捗処理
    */
-  private handleSummaryProgress(progress: any, timestamp: number): string {
+  private handleSummaryProgress(progress: ProgressEvent, timestamp: number): string {
     this.broadcaster?.task(this.taskId, "task:summary", {
       message: progress.message,
       timestamp,
@@ -140,18 +155,19 @@ export class ProgressHandler {
    * TODO更新処理
    */
   private async handleTodoUpdateProgress(
-    progress: any,
+    progress: ProgressEvent,
     timestamp: number,
     progressData: ProgressData,
   ): Promise<string> {
-    const todoList = progress.data?.todos
-      ? progress.data.todos
-          .map((t: any) => `${t.status === "completed" ? "✅" : "⏳"} ${t.content}`)
-          .join("\n")
-      : "";
+    if (progress.type !== "todo_update") {
+      return "";
+    }
+    const todoList = progress.data.todos
+      .map((t) => `${t.status === "completed" ? "✅" : "⏳"} ${t.content}`)
+      .join("\n");
 
     // progressData更新
-    progressData.todos = progress.data?.todos || [];
+    progressData.todos = progress.data.todos;
 
     // DB保存
     try {
@@ -178,10 +194,13 @@ export class ProgressHandler {
    * ツール開始処理
    */
   private async handleToolStartProgress(
-    progress: any,
+    progress: ProgressEvent,
     timestamp: number,
     progressData: ProgressData,
   ): Promise<string> {
+    if (progress.type !== "tool:start") {
+      return "";
+    }
     const toolName = progress.data.tool;
 
     // progressData更新
@@ -222,10 +241,13 @@ export class ProgressHandler {
    * ツール終了処理
    */
   private async handleToolEndProgress(
-    progress: any,
+    progress: ProgressEvent,
     timestamp: number,
     progressData: ProgressData,
   ): Promise<string> {
+    if (progress.type !== "tool:end") {
+      return "";
+    }
     const toolName = progress.data.tool;
     const duration = progress.data.duration;
 
@@ -271,10 +293,13 @@ export class ProgressHandler {
    * Claude応答処理
    */
   private async handleClaudeResponseProgress(
-    progress: any,
+    progress: ProgressEvent,
     timestamp: number,
     progressData: ProgressData,
   ): Promise<string> {
+    if (progress.type !== "claude:response") {
+      return "";
+    }
     const text = progress.message || progress.data?.text || "";
     const turnNumber = progress.data?.turnNumber;
 
@@ -312,7 +337,10 @@ export class ProgressHandler {
   /**
    * Reasoning進捗処理 (Codex SDK v0.52.0+)
    */
-  private handleReasoningProgress(progress: any, timestamp: number): string {
+  private handleReasoningProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "reasoning") {
+      return "";
+    }
     const id = progress.data?.id || "";
     const text = progress.message || progress.data?.text || "";
 
@@ -332,11 +360,14 @@ export class ProgressHandler {
    * 統計情報処理
    */
   private async handleStatisticsProgress(
-    progress: any,
+    progress: ProgressEvent,
     timestamp: number,
     progressData: ProgressData,
   ): Promise<string> {
-    const stats = progress.data || {};
+    if (progress.type !== "statistics") {
+      return "";
+    }
+    const stats: StatisticsData = progress.data;
 
     // progressData更新
     progressData.statistics = {
@@ -376,7 +407,7 @@ export class ProgressHandler {
   /**
    * 未知のイベントタイプ処理
    */
-  private handleUnknownProgress(progress: any, timestamp: number): string {
+  private handleUnknownProgress(progress: ProgressEvent, timestamp: number): string {
     logger.debug("Unknown progress event type", {
       type: progress.type,
       taskId: this.taskId,
