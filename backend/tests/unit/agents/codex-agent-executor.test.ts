@@ -125,6 +125,9 @@ describe("CodexAgentExecutor", () => {
       expect(mockCodex.startThread).toHaveBeenCalledWith({
         skipGitRepoCheck: true,
         sandboxMode: "workspace-write",
+        networkAccessEnabled: false,
+        webSearchEnabled: false,
+        workingDirectory: undefined,
       });
     });
 
@@ -160,6 +163,147 @@ describe("CodexAgentExecutor", () => {
       expect(mockCodex.startThread).toHaveBeenCalledWith({
         skipGitRepoCheck: false,
         sandboxMode: "read-only",
+        networkAccessEnabled: false,
+        webSearchEnabled: false,
+      });
+    });
+
+    it("should disable network access and web search by default", async () => {
+      const request: AgentTaskRequest = {
+        instruction: "test task",
+      };
+
+      const options: AgentExecutionOptions = {
+        taskId: "test-task-network-1",
+      };
+
+      const asyncIterator = (async function* () {
+        yield { type: "turn.completed", usage: {} };
+      })();
+
+      mockThread.runStreamed.mockResolvedValue({
+        events: asyncIterator,
+      });
+
+      const events: AgentExecutionEvent[] = [];
+      for await (const event of executor.executeTask(request, options)) {
+        events.push(event);
+      }
+
+      expect(mockCodex.startThread).toHaveBeenCalledWith({
+        skipGitRepoCheck: true,
+        sandboxMode: "workspace-write",
+        networkAccessEnabled: false,
+        webSearchEnabled: false,
+      });
+    });
+
+    it("should enable network access when specified", async () => {
+      const request: AgentTaskRequest = {
+        instruction: "fetch data from API",
+        options: {
+          codex: {
+            sandboxMode: "workspace-write",
+            networkAccess: true,
+          },
+        },
+      };
+
+      const options: AgentExecutionOptions = {
+        taskId: "test-task-network-2",
+      };
+
+      const asyncIterator = (async function* () {
+        yield { type: "turn.completed", usage: {} };
+      })();
+
+      mockThread.runStreamed.mockResolvedValue({
+        events: asyncIterator,
+      });
+
+      const events: AgentExecutionEvent[] = [];
+      for await (const event of executor.executeTask(request, options)) {
+        events.push(event);
+      }
+
+      expect(mockCodex.startThread).toHaveBeenCalledWith({
+        skipGitRepoCheck: true,
+        sandboxMode: "workspace-write",
+        networkAccessEnabled: true,
+        webSearchEnabled: false,
+      });
+    });
+
+    it("should enable web search when specified", async () => {
+      const request: AgentTaskRequest = {
+        instruction: "search for information",
+        options: {
+          codex: {
+            sandboxMode: "workspace-write",
+            webSearch: true,
+          },
+        },
+      };
+
+      const options: AgentExecutionOptions = {
+        taskId: "test-task-search-1",
+      };
+
+      const asyncIterator = (async function* () {
+        yield { type: "turn.completed", usage: {} };
+      })();
+
+      mockThread.runStreamed.mockResolvedValue({
+        events: asyncIterator,
+      });
+
+      const events: AgentExecutionEvent[] = [];
+      for await (const event of executor.executeTask(request, options)) {
+        events.push(event);
+      }
+
+      expect(mockCodex.startThread).toHaveBeenCalledWith({
+        skipGitRepoCheck: true,
+        sandboxMode: "workspace-write",
+        networkAccessEnabled: false,
+        webSearchEnabled: true,
+      });
+    });
+
+    it("should enable both network access and web search when specified", async () => {
+      const request: AgentTaskRequest = {
+        instruction: "fetch and search data",
+        options: {
+          codex: {
+            sandboxMode: "workspace-write",
+            networkAccess: true,
+            webSearch: true,
+          },
+        },
+      };
+
+      const options: AgentExecutionOptions = {
+        taskId: "test-task-network-search-1",
+      };
+
+      const asyncIterator = (async function* () {
+        yield { type: "turn.completed", usage: {} };
+      })();
+
+      mockThread.runStreamed.mockResolvedValue({
+        events: asyncIterator,
+      });
+
+      const events: AgentExecutionEvent[] = [];
+      for await (const event of executor.executeTask(request, options)) {
+        events.push(event);
+      }
+
+      expect(mockCodex.startThread).toHaveBeenCalledWith({
+        skipGitRepoCheck: true,
+        sandboxMode: "workspace-write",
+        networkAccessEnabled: true,
+        webSearchEnabled: true,
       });
     });
 

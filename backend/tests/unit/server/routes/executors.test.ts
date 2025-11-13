@@ -205,12 +205,15 @@ describe("Executors Routes", () => {
       expect(codexExecutor.capabilities.sessionContinuation).toBe(true);
       expect(codexExecutor.capabilities.sessionResume).toBe(true);
 
+      // Codex supports network access and web search (v0.57.0+)
+      expect(codexExecutor.capabilities.networkAccess).toBe(true);
+      expect(codexExecutor.capabilities.webSearch).toBe(true);
+
       // Codex should NOT support these features
       expect(codexExecutor.capabilities.maxTurnsLimit).toBe(false);
       expect(codexExecutor.capabilities.toolFiltering).toBe(false);
       expect(codexExecutor.capabilities.permissionModes).toBe(false);
       expect(codexExecutor.capabilities.customSystemPrompt).toBe(false);
-      expect(codexExecutor.capabilities.webSearch).toBe(false);
     });
   });
 });

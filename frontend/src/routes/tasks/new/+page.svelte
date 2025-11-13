@@ -78,6 +78,8 @@
 	let codexSandboxMode = $state<'read-only' | 'workspace-write' | 'danger-full-access'>('workspace-write');
 	let codexResumeSession = $state<string>('');
 	let codexModel = $state<string>('');
+	let codexNetworkAccess = $state(true); // デフォルトtrue
+	let codexWebSearch = $state(true); // デフォルトtrue
 
 	// 詳細設定の表示/非表示（SDK Continueモードではデフォルトで非表示）
 	let showAdvancedSettings = $state(false);
@@ -133,6 +135,8 @@
 					if (previousTask.options.codex) {
 						codexSandboxMode = previousTask.options.codex.sandboxMode || codexSandboxMode;
 						codexModel = previousTask.options.codex.model || codexModel;
+						codexNetworkAccess = previousTask.options.codex.networkAccess ?? true;
+						codexWebSearch = previousTask.options.codex.webSearch ?? true;
 					}
 				}
 
@@ -221,6 +225,8 @@
 				...(selectedExecutor === 'codex' ? {
 					codex: {
 						sandboxMode: codexSandboxMode,
+						networkAccess: codexNetworkAccess,
+						webSearch: codexWebSearch,
 						...(codexModel ? { model: codexModel } : {}),
 						...(codexResumeSession ? {
 							continueSession: true,
@@ -468,6 +474,34 @@
 							<p class="text-xs text-muted-foreground">
 								使用するモデルを指定します。空欄の場合はデフォルトモデルが使用されます。
 							</p>
+						</div>
+
+						<!-- Network Access -->
+						<div class="flex items-center justify-between">
+							<div class="space-y-0.5">
+								<Label for="codexNetworkAccess" class="text-sm font-medium">Network Access</Label>
+								<p class="text-xs text-muted-foreground">
+									外部ネットワークへのアクセスを許可します
+								</p>
+							</div>
+							<Switch
+								id="codexNetworkAccess"
+								bind:checked={codexNetworkAccess}
+							/>
+						</div>
+
+						<!-- Web Search -->
+						<div class="flex items-center justify-between">
+							<div class="space-y-0.5">
+								<Label for="codexWebSearch" class="text-sm font-medium">Web Search</Label>
+								<p class="text-xs text-muted-foreground">
+									Web検索機能を有効化します
+								</p>
+							</div>
+							<Switch
+								id="codexWebSearch"
+								bind:checked={codexWebSearch}
+							/>
 						</div>
 					</div>
 				{/if}

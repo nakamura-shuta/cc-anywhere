@@ -87,10 +87,16 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
       const continueSession = codexOptions?.continueSession ?? false;
       const resumeThreadId = codexOptions?.resumeSession;
 
+      // Network and search options (Codex SDK v0.57.0+)
+      const networkAccess = codexOptions?.networkAccess ?? false;
+      const webSearch = codexOptions?.webSearch ?? false;
+
       const threadOptions = {
         skipGitRepoCheck,
         sandboxMode,
         workingDirectory,
+        networkAccessEnabled: networkAccess,
+        webSearchEnabled: webSearch,
       };
 
       // Create or resume thread

@@ -60,6 +60,8 @@ export interface CodexExecutorOptions {
 	sandboxMode?: "read-only" | "workspace-write" | "danger-full-access";
 	skipGitRepoCheck?: boolean;
 	model?: string;
+	networkAccess?: boolean; // ネットワークアクセス (v0.57.0+)
+	webSearch?: boolean; // Web検索 (v0.57.0+)
 	continueSession?: boolean;
 	resumeSession?: string; // Codex thread ID
 }
