@@ -492,11 +492,13 @@
 								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
 							</Button>
 						</div>
-						{#if currentTask.executor !== 'codex'}
-							<p class="text-xs text-muted-foreground mt-1">
+						<p class="text-xs text-muted-foreground mt-1">
+							{#if currentTask.executor === 'codex'}
+								CLIで <code class="px-1 py-0.5 bg-muted rounded">codex exec resume {currentTask.sdkSessionId}</code> を実行して継続
+							{:else}
 								CLIで <code class="px-1 py-0.5 bg-muted rounded">claude --resume {currentTask.sdkSessionId} "次の指示"</code> を実行して継続
-							</p>
-						{/if}
+							{/if}
+						</p>
 					</div>
 				{/if}
 				<div>
@@ -611,14 +613,18 @@
 												<MessageSquare class="h-4 w-4" />
 												Web UIで継続する
 											</Button>
-											{#if currentTask.executor !== 'codex'}
-												<div class="pt-2 border-t">
-													<p class="text-xs text-muted-foreground mb-1">CLIからも継続可能:</p>
+											<div class="pt-2 border-t">
+												<p class="text-xs text-muted-foreground mb-1">CLIからも継続可能:</p>
+												{#if currentTask.executor === 'codex'}
+													<code class="text-xs bg-muted px-2 py-1 rounded block overflow-x-auto">
+														codex exec resume {currentTask.sdkSessionId}
+													</code>
+												{:else}
 													<code class="text-xs bg-muted px-2 py-1 rounded block overflow-x-auto">
 														claude code continue --session-id {currentTask.sdkSessionId}
 													</code>
-												</div>
-											{/if}
+												{/if}
+											</div>
 										</div>
 									</div>
 								{:else}

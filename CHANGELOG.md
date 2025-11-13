@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Codex SDK Web Search機能** (2025-11-13)
+  - Codex SDK v0.57.0へアップグレード（v0.52.0から）
+  - Web検索機能をデフォルトで有効化（`webSearchEnabled: true`）
+  - ネットワークアクセスはセキュリティのためデフォルトで無効（`networkAccessEnabled: false`）
+  - タスク依頼画面でWeb検索とネットワークアクセスを個別に制御可能
+  - 実装ファイル:
+    - `backend/src/agents/codex-agent-executor.ts` - デフォルト値設定とdebugログ追加
+    - `.work/sandbox/codex-test/test-web-search.ts` - 検証プログラム
+  - Codex CLI継続方法の表示追加:
+    - タスク詳細画面でCodex実行時に`codex exec resume {threadId}`を表示
+    - Claude実行時は従来通り`claude --resume {sessionId}`を表示
+    - 継続オプションセクションでも適切なCLIコマンドを表示
+
 ### Changed
 
 - **Agent Executorアーキテクチャのリファクタリング** (2025-11-12)

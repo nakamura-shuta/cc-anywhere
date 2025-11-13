@@ -48,14 +48,19 @@ cp .env.example .env
 `.env`ファイルで設定（`.env.example`をコピー）：
 
 ```env
-# 必須
-CLAUDE_API_KEY=your-api-key
+# 必須（いずれか）
+CLAUDE_API_KEY=your-api-key    # Claude API（Claude Executorに必要）
+OPENAI_API_KEY=your-api-key    # OpenAI API（Codex Executorに必要）
 
 # 推奨
 API_KEY=your-secret-key        # API認証
 PORT=5000                      # ポート番号
 ENABLE_WORKTREE=true           # Git worktree使用
 ```
+
+**Codex Executor設定**:
+- `OPENAI_API_KEY`: OpenAI APIキー（[OpenAI Platform](https://platform.openai.com/)で取得）
+- Codex Executorを使用する場合はこのAPIキーが必要です
 
 詳細は[環境変数リファレンス](docs/environment-variables.md)を参照。
 
