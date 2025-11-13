@@ -100,9 +100,12 @@ export interface ExecutorCapabilities {
   // サンドボックス
   sandboxControl: boolean; // サンドボックスモード制御
 
+  // ネットワーク・検索
+  networkAccess: boolean; // ネットワークアクセス制御
+  webSearch: boolean; // Web検索
+
   // その他
   modelSelection: boolean; // モデル選択
-  webSearch: boolean; // Web検索
 }
 
 /**
@@ -121,8 +124,9 @@ export const EXECUTOR_CAPABILITIES: Record<ExecutorType, ExecutorCapabilities> =
     outputFormatting: true,
     verboseMode: true,
     sandboxControl: false,
-    modelSelection: false,
+    networkAccess: false, // Claude Agent SDKでは未サポート
     webSearch: true,
+    modelSelection: false,
   },
   codex: {
     sessionContinuation: true, // ✅ 実装完了（resumeThread()による会話継続）
@@ -135,8 +139,9 @@ export const EXECUTOR_CAPABILITIES: Record<ExecutorType, ExecutorCapabilities> =
     outputFormatting: false, // SDK未サポート
     verboseMode: false, // SDK未サポート
     sandboxControl: true,
+    networkAccess: true, // ✅ v0.57.0で追加 (networkAccessEnabled)
+    webSearch: true, // ✅ v0.57.0で追加 (webSearchEnabled)
     modelSelection: true,
-    webSearch: false,
   },
 };
 
@@ -227,8 +232,9 @@ export function generateCapabilityMatrix(): string {
     { key: "outputFormatting", label: "出力フォーマット", category: "出力制御" },
     { key: "verboseMode", label: "詳細ログ", category: "出力制御" },
     { key: "sandboxControl", label: "サンドボックスモード", category: "サンドボックス" },
+    { key: "networkAccess", label: "ネットワークアクセス", category: "ネットワーク・検索" },
+    { key: "webSearch", label: "Web検索", category: "ネットワーク・検索" },
     { key: "modelSelection", label: "モデル選択", category: "その他" },
-    { key: "webSearch", label: "Web検索", category: "その他" },
   ];
 
   let markdown = "# Executor 機能比較表\n\n";
@@ -266,6 +272,12 @@ export interface CodexAgentOptions extends CommonExecutorOptions {
 
   /** モデル指定 */
   model?: string;
+
+  /** ネットワークアクセスを有効化 (Codex SDK v0.57.0+) */
+  networkAccess?: boolean;
+
+  /** Web検索を有効化 (Codex SDK v0.57.0+) */
+  webSearch?: boolean;
 
   // ⚠️ 以下のパラメータは CommonExecutorOptions から継承されているが、
   // Codex SDK では未サポートのため実行時に無視されます
