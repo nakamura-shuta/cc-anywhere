@@ -37,7 +37,7 @@
     "typescript": "5.9"
   },
   "dependencies": {
-    "@openai/codex-sdk": "^0.52.0",
+    "@openai/codex-sdk": "^0.57.0",
     "execa": "^9.6.0",
     "nanoid": "^5.1.6"
   }

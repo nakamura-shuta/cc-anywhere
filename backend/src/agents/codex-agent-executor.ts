@@ -88,8 +88,10 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
       const resumeThreadId = codexOptions?.resumeSession;
 
       // Network and search options (Codex SDK v0.57.0+)
+      // デフォルト値: webSearch=true, networkAccess=false
+      // タスク依頼時に個別指定可能
       const networkAccess = codexOptions?.networkAccess ?? false;
-      const webSearch = codexOptions?.webSearch ?? false;
+      const webSearch = codexOptions?.webSearch ?? true;
 
       const threadOptions = {
         skipGitRepoCheck,
@@ -98,6 +100,13 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
         networkAccessEnabled: networkAccess,
         webSearchEnabled: webSearch,
       };
+
+      logger.debug("Codex thread options", {
+        taskId,
+        networkAccessEnabled: networkAccess,
+        webSearchEnabled: webSearch,
+        sandboxMode,
+      });
 
       // Create or resume thread
       let thread;
