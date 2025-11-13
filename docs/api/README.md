@@ -33,6 +33,7 @@ OpenAPI仕様は以下のファイルに定義されています：
 ## 目次
 
 - [認証](#認証)
+- [Executor管理](#executor管理)
 - [タスク管理](#タスク管理)
 - [バッチタスク](#バッチタスク)
 - [セッション管理](#セッション管理)
@@ -77,6 +78,76 @@ X-API-Key: your-api-key
   "message": "Invalid or missing API key"
 }
 ```
+
+## Executor管理
+
+### GET /api/executors
+利用可能なExecutor一覧と各Executorの機能を取得
+
+**レスポンス例:**
+```json
+{
+  "executors": [
+    {
+      "type": "claude",
+      "available": true,
+      "description": "Claude Agent SDK - Official Anthropic agent framework",
+      "capabilities": {
+        "sessionContinuation": true,
+        "sessionResume": true,
+        "crossRepositorySession": false,
+        "maxTurnsLimit": true,
+        "toolFiltering": true,
+        "permissionModes": true,
+        "customSystemPrompt": true,
+        "outputFormatting": true,
+        "verboseMode": true,
+        "sandboxControl": false,
+        "networkAccess": false,
+        "webSearch": true,
+        "modelSelection": false
+      }
+    },
+    {
+      "type": "codex",
+      "available": true,
+      "description": "OpenAI Codex SDK - AI coding assistant",
+      "capabilities": {
+        "sessionContinuation": true,
+        "sessionResume": true,
+        "crossRepositorySession": false,
+        "maxTurnsLimit": false,
+        "toolFiltering": false,
+        "permissionModes": false,
+        "customSystemPrompt": false,
+        "outputFormatting": false,
+        "verboseMode": false,
+        "sandboxControl": true,
+        "networkAccess": true,
+        "webSearch": true,
+        "modelSelection": true
+      }
+    }
+  ]
+}
+```
+
+**Capability説明:**
+| Capability | 説明 |
+|-----------|------|
+| sessionContinuation | セッション継続機能 |
+| sessionResume | セッション再開機能 |
+| crossRepositorySession | 複数リポジトリ間でのセッション共有 |
+| maxTurnsLimit | 最大ターン数制限 |
+| toolFiltering | ツールのフィルタリング（許可/拒否リスト） |
+| permissionModes | 権限モード制御 |
+| customSystemPrompt | カスタムシステムプロンプト |
+| outputFormatting | 出力フォーマット制御 |
+| verboseMode | 詳細ログモード |
+| sandboxControl | サンドボックスモード制御 |
+| networkAccess | 外部ネットワークアクセス（v0.57.0+） |
+| webSearch | Web検索機能（v0.57.0+） |
+| modelSelection | モデル選択機能 |
 
 ## タスク管理
 
@@ -124,7 +195,7 @@ X-API-Key: your-api-key
 ### POST /api/tasks
 新しいタスクを作成
 
-**リクエストボディ:**
+**リクエストボディ（Claude Executor使用例）:**
 ```json
 {
   "instruction": "実行する指示の内容",
@@ -142,10 +213,33 @@ X-API-Key: your-api-key
       "maxDelay": 60000
     },
     "allowedTools": ["read", "write", "run"],
+    "executor": "claude",
     "sdk": {
       "permissionMode": "allow",
       "maxTurns": 30,
       "model": "claude-3.5-sonnet"
+    }
+  }
+}
+```
+
+**リクエストボディ（Codex Executor使用例 - v0.57.0+ 機能含む）:**
+```json
+{
+  "instruction": "外部APIからデータを取得して分析",
+  "repositoryName": "my-project",
+  "context": {
+    "workingDirectory": "/path/to/project"
+  },
+  "options": {
+    "timeout": 300000,
+    "async": true,
+    "executor": "codex",
+    "codex": {
+      "sandboxMode": "workspace-write",
+      "model": "gpt-4o",
+      "networkAccess": true,
+      "webSearch": true
     }
   }
 }
@@ -1146,6 +1240,16 @@ print(f"Task status: {status['status']}")
 ```
 
 ## 変更履歴
+
+### v1.3.0 (2025-11-13)
+- Codex Executor機能強化
+  - Network Access対応（Codex SDK v0.57.0+）
+  - Web Search対応（Codex SDK v0.57.0+）
+  - 新規APIエンドポイント追加: `GET /api/executors`
+    - Executor機能確認用エンドポイント
+    - Capability情報の取得
+  - フロントエンドにNetwork Access/Web Searchトグル追加
+  - API リクエスト例にCodex executor使用例を追加
 
 ### v1.2.0 (2025-01-06)
 - リファクタリング完了（Phase 1 & 2）
