@@ -126,7 +126,7 @@ describe("CodexAgentExecutor", () => {
         skipGitRepoCheck: true,
         sandboxMode: "workspace-write",
         networkAccessEnabled: false,
-        webSearchEnabled: false,
+        webSearchEnabled: true,
         workingDirectory: undefined,
       });
     });
@@ -164,11 +164,12 @@ describe("CodexAgentExecutor", () => {
         skipGitRepoCheck: false,
         sandboxMode: "read-only",
         networkAccessEnabled: false,
-        webSearchEnabled: false,
+        webSearchEnabled: true,
+        workingDirectory: undefined,
       });
     });
 
-    it("should disable network access and web search by default", async () => {
+    it("should disable network access by default and enable web search by default", async () => {
       const request: AgentTaskRequest = {
         instruction: "test task",
       };
@@ -194,7 +195,8 @@ describe("CodexAgentExecutor", () => {
         skipGitRepoCheck: true,
         sandboxMode: "workspace-write",
         networkAccessEnabled: false,
-        webSearchEnabled: false,
+        webSearchEnabled: true,
+        workingDirectory: undefined,
       });
     });
 
@@ -230,7 +232,8 @@ describe("CodexAgentExecutor", () => {
         skipGitRepoCheck: true,
         sandboxMode: "workspace-write",
         networkAccessEnabled: true,
-        webSearchEnabled: false,
+        webSearchEnabled: true,
+        workingDirectory: undefined,
       });
     });
 

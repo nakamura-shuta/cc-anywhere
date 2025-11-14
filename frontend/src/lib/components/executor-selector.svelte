@@ -105,14 +105,16 @@
 				label={getExecutorLabel(executor)}
 				disabled={!executor.available}
 			>
-				<div class="flex items-center justify-between w-full">
-					<span>{getExecutorLabel(executor)}</span>
-					{#if !executor.available}
-						<Badge variant="outline" class="ml-2 text-xs">利用不可</Badge>
-					{/if}
-				</div>
-				<div class="text-xs text-muted-foreground mt-1">
-					{executor.description}
+				<div class="flex flex-col w-full">
+					<div class="flex items-center justify-between">
+						<span>{getExecutorLabel(executor)}</span>
+						{#if !executor.available}
+							<Badge variant="outline" class="ml-2 text-xs">利用不可</Badge>
+						{/if}
+					</div>
+					<div class="text-xs text-muted-foreground mt-1">
+						{executor.description}
+					</div>
 				</div>
 			</Select.Item>
 		{/each}
