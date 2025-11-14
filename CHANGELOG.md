@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Codex SDK 0.58.0アップデート & GPT-5.1-Codexモデル対応** (2025-11-13)
+  - Codex SDK v0.58.0へアップグレード（v0.57.0から）
+  - GPT-5.1-Codexモデルのサポート追加
+    - 長時間実行されるAgenticコーディングタスクに最適化されたGPT-5.1ベースのモデル
+    - タスク作成画面のモデル入力プレースホルダーを`gpt-5.1-codex`に更新
+    - デフォルトモデルとしてgpt-5.1-codexを推奨
+  - SDK 0.58.0の主な変更:
+    - GPT-5.1モデルファミリーのサポート
+    - アプリサーバーの機能強化（JSONスキーマジェネレータ、イベント処理改善）
+    - UIショートカットのインライン表示
+    - 各種バグ修正（Wayland、brew、クラウドタスク対応）
+
 - **Codex SDK Web Search機能** (2025-11-13)
   - Codex SDK v0.57.0へアップグレード（v0.52.0から）
   - Web検索機能をデフォルトで有効化（`webSearchEnabled: true`）

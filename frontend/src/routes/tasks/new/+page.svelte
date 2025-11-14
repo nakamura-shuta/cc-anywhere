@@ -468,11 +468,11 @@
 								id="codexModel"
 								type="text"
 								bind:value={codexModel}
-								placeholder="例: gpt-4"
+								placeholder="例: gpt-5.1-codex"
 								class="font-mono text-sm"
 							/>
 							<p class="text-xs text-muted-foreground">
-								使用するモデルを指定します。空欄の場合はデフォルトモデルが使用されます。
+								使用するモデルを指定します。空欄の場合はデフォルトモデル（gpt-5.1-codex）が使用されます。
 							</p>
 						</div>
 
