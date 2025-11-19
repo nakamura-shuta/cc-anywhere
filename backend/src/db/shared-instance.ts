@@ -8,6 +8,7 @@ import { TaskRepositoryAdapter } from "../repositories/task-repository-adapter";
 import { BatchTaskRepositoryImpl } from "../repositories/batch-task-repository";
 import { WorktreeRepositoryImpl } from "../repositories/worktree-repository";
 import { ScheduleRepository } from "../repositories/schedule-repository";
+import { ChatRepository } from "../repositories/chat-repository";
 import { BatchTaskService } from "../services/batch-task-service";
 import { config } from "../config";
 import type { TaskQueueImpl } from "../queue/task-queue";
@@ -19,6 +20,7 @@ let taskRepository: TaskRepositoryAdapter | null = null;
 let batchTaskRepository: BatchTaskRepositoryImpl | null = null;
 let worktreeRepository: WorktreeRepositoryImpl | null = null;
 let scheduleRepository: ScheduleRepository | null = null;
+let chatRepository: ChatRepository | null = null;
 let batchTaskService: BatchTaskService | null = null;
 
 /**
@@ -72,6 +74,16 @@ export function getSharedScheduleRepository(): ScheduleRepository {
 }
 
 /**
+ * Get or create chat repository instance
+ */
+export function getSharedChatRepository(): ChatRepository {
+  if (!chatRepository) {
+    chatRepository = new ChatRepository(getSharedDbProvider().getDb());
+  }
+  return chatRepository;
+}
+
+/**
  * Get or create batch task service instance
  */
 export function getSharedBatchTaskService(queue: TaskQueueImpl): BatchTaskService {
@@ -99,6 +111,7 @@ export function closeSharedServices(): void {
     batchTaskRepository = null;
     worktreeRepository = null;
     scheduleRepository = null;
+    chatRepository = null;
     batchTaskService = null;
   }
 }
