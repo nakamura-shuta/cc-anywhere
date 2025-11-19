@@ -496,6 +496,26 @@ export interface AgentReasoningEvent {
   timestamp: Date;
 }
 
+/** Hook PreToolUse イベント */
+export interface AgentHookPreToolUseEvent {
+  type: "agent:hook:pre_tool_use";
+  toolName: string;
+  toolInput?: Record<string, unknown>;
+  decision?: "approve" | "block";
+  error?: string;
+  timestamp: Date;
+}
+
+/** Hook PostToolUse イベント */
+export interface AgentHookPostToolUseEvent {
+  type: "agent:hook:post_tool_use";
+  toolName: string;
+  toolInput?: Record<string, unknown>;
+  toolOutput?: unknown;
+  error?: string;
+  timestamp: Date;
+}
+
 /**
  * Agent execution event union type
  */
@@ -508,7 +528,9 @@ export type AgentExecutionEvent =
   | AgentStatisticsEvent
   | AgentCompletedEvent
   | AgentFailedEvent
-  | AgentReasoningEvent;
+  | AgentReasoningEvent
+  | AgentHookPreToolUseEvent
+  | AgentHookPostToolUseEvent;
 
 // ==================== Type Guards ====================
 
@@ -573,6 +595,24 @@ export function isAgentFailedEvent(event: AgentExecutionEvent): event is AgentFa
  */
 export function isAgentReasoningEvent(event: AgentExecutionEvent): event is AgentReasoningEvent {
   return event.type === "agent:reasoning";
+}
+
+/**
+ * Type guard for AgentHookPreToolUseEvent
+ */
+export function isAgentHookPreToolUseEvent(
+  event: AgentExecutionEvent,
+): event is AgentHookPreToolUseEvent {
+  return event.type === "agent:hook:pre_tool_use";
+}
+
+/**
+ * Type guard for AgentHookPostToolUseEvent
+ */
+export function isAgentHookPostToolUseEvent(
+  event: AgentExecutionEvent,
+): event is AgentHookPostToolUseEvent {
+  return event.type === "agent:hook:post_tool_use";
 }
 
 /**

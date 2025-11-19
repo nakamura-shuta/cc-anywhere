@@ -70,7 +70,18 @@ describe("Queue Routes", () => {
         position: 1,
         status: TaskStatus.PENDING,
       });
-      expect(mockQueue.add).toHaveBeenCalledWith({ instruction: "Test task" }, 5);
+      expect(mockQueue.add).toHaveBeenCalledWith(
+        {
+          instruction: "Test task",
+          options: {
+            sdk: {
+              enableHooks: true,
+              hookConfig: undefined,
+            },
+          },
+        },
+        5,
+      );
     });
 
     it("should add task with context and options", async () => {
@@ -112,6 +123,10 @@ describe("Queue Routes", () => {
           options: {
             timeout: 60000,
             allowedTools: ["Read"],
+            sdk: {
+              enableHooks: true,
+              hookConfig: undefined,
+            },
           },
         },
         0, // default priority

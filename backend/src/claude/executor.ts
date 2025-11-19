@@ -344,7 +344,9 @@ export class TaskExecutorImpl implements TaskExecutor {
               progress.type === "tool:end" ||
               progress.type === "claude:response" ||
               progress.type === "statistics" ||
-              progress.type === "reasoning"
+              progress.type === "reasoning" ||
+              progress.type === "hook:pre_tool_use" ||
+              progress.type === "hook:post_tool_use"
             ) {
               await task.options.onProgress(progress);
             } else {
@@ -384,6 +386,8 @@ export class TaskExecutorImpl implements TaskExecutor {
             onProgress: enhancedOnProgress,
             enableWebSearch: sdkOptions.enableWebSearch,
             webSearchConfig: sdkOptions.webSearchConfig,
+            enableHooks: sdkOptions.enableHooks,
+            hookConfig: sdkOptions.hookConfig,
           },
           taskId,
         );

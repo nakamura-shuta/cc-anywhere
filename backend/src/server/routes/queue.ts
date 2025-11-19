@@ -21,6 +21,14 @@ const addToQueueSchema = z.object({
     })
     .optional(),
   priority: z.number().default(0),
+  enableHooks: z.boolean().optional(),
+  hookConfig: z
+    .object({
+      enablePreToolUse: z.boolean().optional(),
+      enablePostToolUse: z.boolean().optional(),
+      toolMatcher: z.string().optional(),
+    })
+    .optional(),
 });
 
 const queueRoutes: FastifyPluginAsync = async (fastify) => {
@@ -51,10 +59,29 @@ const queueRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const parsed = addToQueueSchema.parse(request.body);
-      const { priority, ...taskRequest } = parsed;
+      const { priority, enableHooks, hookConfig, ...rest } = parsed;
+
+      // Build TaskRequest with proper SDK options structure
+      const taskRequest: Record<string, unknown> = {
+        instruction: rest.instruction,
+      };
+
+      // Only add context if provided
+      if (rest.context) {
+        taskRequest.context = rest.context;
+      }
+
+      // Build options - enableHooks defaults to true
+      taskRequest.options = {
+        ...rest.options,
+        sdk: {
+          enableHooks: enableHooks ?? true, // Default to true
+          hookConfig,
+        },
+      };
 
       try {
-        const taskId = await queue.add(taskRequest, priority);
+        const taskId = await queue.add(taskRequest as any, priority);
         const task = queue.get(taskId);
         const stats = queue.getStats();
 

@@ -6,6 +6,8 @@ import type {
   AgentToolEndEvent,
   AgentResponseEvent,
   AgentStatisticsEvent,
+  AgentHookPreToolUseEvent,
+  AgentHookPostToolUseEvent,
 } from "../../../src/agents/types.js";
 
 describe("ProgressEventConverter", () => {
@@ -141,6 +143,116 @@ describe("ProgressEventConverter", () => {
         type: "agent:tool:start",
         tool: "unknown", // Falls back to "unknown" when data.tool is missing
         input: undefined,
+      });
+    });
+
+    it("should convert hook:pre_tool_use progress event", () => {
+      const progress = {
+        type: "hook:pre_tool_use",
+        message: "Tool: Bash",
+        data: {
+          toolName: "Bash",
+          toolInput: { command: "ls -la" },
+          decision: "approve",
+        },
+      };
+
+      const result = ProgressEventConverter.convertProgressToEvent(
+        progress,
+      ) as AgentHookPreToolUseEvent;
+
+      expect(result).toMatchObject({
+        type: "agent:hook:pre_tool_use",
+        toolName: "Bash",
+        toolInput: { command: "ls -la" },
+        decision: "approve",
+      });
+      expect(result.timestamp).toBeInstanceOf(Date);
+    });
+
+    it("should convert hook:pre_tool_use with block decision", () => {
+      const progress = {
+        type: "hook:pre_tool_use",
+        message: "Tool: Write",
+        data: {
+          toolName: "Write",
+          toolInput: { path: "/etc/passwd" },
+          decision: "block",
+          error: "Blocked by security policy",
+        },
+      };
+
+      const result = ProgressEventConverter.convertProgressToEvent(
+        progress,
+      ) as AgentHookPreToolUseEvent;
+
+      expect(result).toMatchObject({
+        type: "agent:hook:pre_tool_use",
+        toolName: "Write",
+        decision: "block",
+        error: "Blocked by security policy",
+      });
+    });
+
+    it("should convert hook:post_tool_use progress event", () => {
+      const progress = {
+        type: "hook:post_tool_use",
+        message: "Tool: Bash",
+        data: {
+          toolName: "Bash",
+          toolInput: { command: "echo hello" },
+          toolOutput: "hello\n",
+        },
+      };
+
+      const result = ProgressEventConverter.convertProgressToEvent(
+        progress,
+      ) as AgentHookPostToolUseEvent;
+
+      expect(result).toMatchObject({
+        type: "agent:hook:post_tool_use",
+        toolName: "Bash",
+        toolInput: { command: "echo hello" },
+        toolOutput: "hello\n",
+      });
+      expect(result.timestamp).toBeInstanceOf(Date);
+    });
+
+    it("should convert hook:post_tool_use with error", () => {
+      const progress = {
+        type: "hook:post_tool_use",
+        message: "Tool: Read",
+        data: {
+          toolName: "Read",
+          toolInput: { path: "/nonexistent" },
+          error: "File not found",
+        },
+      };
+
+      const result = ProgressEventConverter.convertProgressToEvent(
+        progress,
+      ) as AgentHookPostToolUseEvent;
+
+      expect(result).toMatchObject({
+        type: "agent:hook:post_tool_use",
+        toolName: "Read",
+        error: "File not found",
+      });
+    });
+
+    it("should handle hook events with missing data gracefully", () => {
+      const progress = {
+        type: "hook:pre_tool_use",
+        message: "",
+      };
+
+      const result = ProgressEventConverter.convertProgressToEvent(
+        progress,
+      ) as AgentHookPreToolUseEvent;
+
+      expect(result).toMatchObject({
+        type: "agent:hook:pre_tool_use",
+        toolName: "unknown",
       });
     });
   });

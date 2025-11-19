@@ -5,6 +5,8 @@ import type {
   AgentToolEndEvent,
   AgentResponseEvent,
   AgentStatisticsEvent,
+  AgentHookPreToolUseEvent,
+  AgentHookPostToolUseEvent,
 } from "../agents/types.js";
 import { logger } from "../utils/logger.js";
 
@@ -95,6 +97,26 @@ export class ProgressEventConverter {
           data: progress.data,
           timestamp: new Date(),
         } as AgentProgressEvent;
+
+      case "hook:pre_tool_use":
+        return {
+          type: "agent:hook:pre_tool_use",
+          toolName: progress.data?.toolName || "unknown",
+          toolInput: progress.data?.toolInput,
+          decision: progress.data?.decision,
+          error: progress.data?.error,
+          timestamp: new Date(),
+        } as AgentHookPreToolUseEvent;
+
+      case "hook:post_tool_use":
+        return {
+          type: "agent:hook:post_tool_use",
+          toolName: progress.data?.toolName || "unknown",
+          toolInput: progress.data?.toolInput,
+          toolOutput: progress.data?.toolOutput,
+          error: progress.data?.error,
+          timestamp: new Date(),
+        } as AgentHookPostToolUseEvent;
 
       default:
         // Unknown event type - treat as progress

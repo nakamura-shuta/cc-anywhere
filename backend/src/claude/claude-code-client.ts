@@ -109,40 +109,54 @@ export class ClaudeCodeClient {
       });
 
       // Build hooks if enabled
-      const hooks =
-        options.enableHooks && options.hookConfig
-          ? buildHooks({
-              config: options.hookConfig,
-              taskId: effectiveTaskId,
-              onProgress: options.onProgress
-                ? async (event) => {
-                    if (event.type === "hook:pre_tool_use") {
-                      await options.onProgress!({
-                        type: "hook:pre_tool_use",
-                        message: `Tool: ${event.toolName}`,
-                        data: {
-                          toolName: event.toolName,
-                          toolInput: event.toolInput,
-                          decision: event.decision,
-                          error: event.error,
-                        },
-                      });
-                    } else {
-                      await options.onProgress!({
-                        type: "hook:post_tool_use",
-                        message: `Tool: ${event.toolName}`,
-                        data: {
-                          toolName: event.toolName,
-                          toolInput: event.toolInput,
-                          toolOutput: event.toolOutput,
-                          error: event.error,
-                        },
-                      });
-                    }
+      logger.debug("Hook configuration", {
+        enableHooks: options.enableHooks,
+        hasOnProgress: !!options.onProgress,
+        hookConfig: options.hookConfig,
+      });
+
+      const hooks = options.enableHooks
+        ? buildHooks({
+            config: options.hookConfig || {}, // Use empty config if not provided (defaults apply)
+            taskId: effectiveTaskId,
+            onProgress: options.onProgress
+              ? async (event) => {
+                  logger.debug("Hook event received in client", {
+                    type: event.type,
+                    toolName: event.toolName,
+                  });
+                  if (event.type === "hook:pre_tool_use") {
+                    await options.onProgress!({
+                      type: "hook:pre_tool_use",
+                      message: `Tool: ${event.toolName}`,
+                      data: {
+                        toolName: event.toolName,
+                        toolInput: event.toolInput,
+                        decision: event.decision,
+                        error: event.error,
+                      },
+                    });
+                  } else {
+                    await options.onProgress!({
+                      type: "hook:post_tool_use",
+                      message: `Tool: ${event.toolName}`,
+                      data: {
+                        toolName: event.toolName,
+                        toolInput: event.toolInput,
+                        toolOutput: event.toolOutput,
+                        error: event.error,
+                      },
+                    });
                   }
-                : undefined,
-            })
-          : undefined;
+                }
+              : undefined,
+          })
+        : undefined;
+
+      logger.debug("Hooks built", {
+        hasHooks: !!hooks,
+        hookTypes: hooks ? Object.keys(hooks) : [],
+      });
 
       const queryOptions: QueryOptions = {
         prompt,

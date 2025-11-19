@@ -178,7 +178,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 			
 			// WebSocketメッセージがある場合はフォーマットして使用
 			const wsLogs = taskMessages
-				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update'].includes(m.type))
+				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update', 'task:hook:pre_tool_use', 'task:hook:post_tool_use'].includes(m.type))
 				.map(m => {
 					const timestamp = new Date(m.timestamp || Date.now()).toLocaleString('ja-JP');
 					
@@ -226,6 +226,14 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 								return `📝 TODO更新\n${todoList}\n${timestamp}`;
 							}
 							return `📝 TODO更新\n${timestamp}`;
+						case 'task:hook:pre_tool_use': {
+							const decisionIcon = m.payload?.decision === 'approve' ? '✅' : '🚫';
+							return `🪝 PreToolUse ${decisionIcon} ${m.payload?.toolName}\n${timestamp}`;
+						}
+						case 'task:hook:post_tool_use': {
+							const errorIcon = m.payload?.error ? '❌' : '✅';
+							return `🪝 PostToolUse ${errorIcon} ${m.payload?.toolName}\n${timestamp}`;
+						}
 						default:
 							return JSON.stringify(m.payload);
 					}
@@ -238,8 +246,13 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 	// ツール実行状況（初期データとWebSocketメッセージをマージ）
 	const toolExecutions = $derived(
 		(() => {
-			// WebSocketメッセージから取得
-			const wsMessages = taskMessages.filter(m => m.type === 'task:tool:start' || m.type === 'task:tool:end');
+			// WebSocketメッセージから取得（ツールイベントとフックイベント）
+			const wsMessages = taskMessages.filter(m =>
+				m.type === 'task:tool:start' ||
+				m.type === 'task:tool:end' ||
+				m.type === 'task:hook:pre_tool_use' ||
+				m.type === 'task:hook:post_tool_use'
+			);
 
 			// デバッグログ
 			if (wsMessages.length > 0) {
@@ -334,6 +347,35 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 						output: m.payload?.output,
 						duration: m.payload?.duration,
 						success: m.payload?.success,
+						error: m.payload?.error,
+						timestamp: m.timestamp || new Date().toISOString()
+					});
+				} else if (m.type === 'task:hook:pre_tool_use') {
+					// PreToolUse フックイベント
+					const hookToolName = m.payload?.toolName || toolName;
+					const decision = m.payload?.decision || 'approve';
+					completedTools.push({
+						type: 'task:hook:pre_tool_use',
+						tool: `🪝 PreToolUse: ${hookToolName}`,
+						toolId: `hook-pre-${hookToolName}-${m.timestamp}`,
+						args: m.payload?.toolInput,
+						output: decision === 'approve' ? '✅ Approved' : '🚫 Blocked',
+						duration: undefined,
+						success: decision === 'approve',
+						error: m.payload?.error,
+						timestamp: m.timestamp || new Date().toISOString()
+					});
+				} else if (m.type === 'task:hook:post_tool_use') {
+					// PostToolUse フックイベント
+					const hookToolName = m.payload?.toolName || toolName;
+					completedTools.push({
+						type: 'task:hook:post_tool_use',
+						tool: `🪝 PostToolUse: ${hookToolName}`,
+						toolId: `hook-post-${hookToolName}-${m.timestamp}`,
+						args: m.payload?.toolInput,
+						output: m.payload?.toolOutput ? JSON.stringify(m.payload.toolOutput).slice(0, 100) : '',
+						duration: undefined,
+						success: !m.payload?.error,
 						error: m.payload?.error,
 						timestamp: m.timestamp || new Date().toISOString()
 					});

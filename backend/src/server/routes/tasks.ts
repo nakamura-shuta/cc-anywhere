@@ -353,6 +353,28 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                       type: "string",
                       description: "Path to Claude Code executable",
                     },
+                    enableHooks: {
+                      type: "boolean",
+                      description: "Enable hooks for tool use events",
+                    },
+                    hookConfig: {
+                      type: "object",
+                      properties: {
+                        enablePreToolUse: {
+                          type: "boolean",
+                          description: "Enable PreToolUse hook",
+                        },
+                        enablePostToolUse: {
+                          type: "boolean",
+                          description: "Enable PostToolUse hook",
+                        },
+                        toolMatcher: {
+                          type: "string",
+                          description: "Tool matcher pattern (e.g., 'Bash|Read')",
+                        },
+                      },
+                      description: "Hook configuration",
+                    },
                   },
                   additionalProperties: false,
                 },

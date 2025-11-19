@@ -15,6 +15,8 @@ export type MessageType =
   | "task:statistics"
   | "task:claude_response"
   | "task:reasoning"
+  | "task:hook:pre_tool_use"
+  | "task:hook:post_tool_use"
   | "schedule:update"
   | "schedule:execution"
   | "task-group:created"

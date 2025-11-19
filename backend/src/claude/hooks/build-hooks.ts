@@ -52,8 +52,11 @@ export function buildHooks(
   const { config, taskId, onProgress } = options;
   const hooks: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {};
 
+  // Apply default values: enable both hooks if not explicitly set
+  const { enablePreToolUse = true, enablePostToolUse = true, toolMatcher } = config;
+
   // Build PreToolUse hook
-  if (config.enablePreToolUse) {
+  if (enablePreToolUse) {
     const preToolUseHook = async (
       input: HookInput,
       _toolUseID: string | undefined,
@@ -92,15 +95,15 @@ export function buildHooks(
     };
 
     // Add tool matcher if specified
-    if (config.toolMatcher) {
-      matcher.matcher = config.toolMatcher;
+    if (toolMatcher) {
+      matcher.matcher = toolMatcher;
     }
 
     hooks.PreToolUse = [matcher];
   }
 
   // Build PostToolUse hook
-  if (config.enablePostToolUse) {
+  if (enablePostToolUse) {
     const postToolUseHook = async (
       input: HookInput,
       _toolUseID: string | undefined,
@@ -135,8 +138,8 @@ export function buildHooks(
     };
 
     // Add tool matcher if specified
-    if (config.toolMatcher) {
-      matcher.matcher = config.toolMatcher;
+    if (toolMatcher) {
+      matcher.matcher = toolMatcher;
     }
 
     hooks.PostToolUse = [matcher];

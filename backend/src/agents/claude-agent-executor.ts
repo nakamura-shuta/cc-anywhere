@@ -166,7 +166,8 @@ export class ClaudeAgentExecutor extends BaseTaskExecutor {
     abortController: AbortController,
     onProgress: (progress: any) => Promise<void>,
   ): any {
-    const claudeOptions = request.options?.claude || {};
+    // Support both 'claude' (internal type) and 'sdk' (API schema) naming conventions
+    const claudeOptions = request.options?.claude || (request.options as any)?.sdk || {};
 
     return {
       maxTurns: claudeOptions.maxTurns,
@@ -182,6 +183,8 @@ export class ClaudeAgentExecutor extends BaseTaskExecutor {
       outputFormat: claudeOptions.outputFormat,
       verbose: claudeOptions.verbose,
       enableWebSearch: claudeOptions.enableWebSearch,
+      enableHooks: claudeOptions.enableHooks,
+      hookConfig: claudeOptions.hookConfig,
       abortController,
       onProgress,
     };

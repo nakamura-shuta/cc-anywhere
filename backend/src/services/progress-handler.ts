@@ -102,6 +102,10 @@ export class ProgressHandler {
         return this.handleReasoningProgress(progress, timestamp);
       case "statistics":
         return await this.handleStatisticsProgress(progress, timestamp, progressData);
+      case "hook:pre_tool_use":
+        return this.handleHookPreToolUseProgress(progress, timestamp);
+      case "hook:post_tool_use":
+        return this.handleHookPostToolUseProgress(progress, timestamp);
       default:
         return this.handleUnknownProgress(progress, timestamp);
     }
@@ -402,6 +406,54 @@ export class ProgressHandler {
       );
     }
     return lines.length > 0 ? `📊 統計情報\n${lines.join("\n")}` : "📊 統計情報";
+  }
+
+  /**
+   * Hook PreToolUse進捗処理
+   */
+  private handleHookPreToolUseProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "hook:pre_tool_use") {
+      return "";
+    }
+    const toolName = progress.data?.toolName || "unknown";
+    const decision = progress.data?.decision || "approve";
+
+    // WebSocket配信
+    this.broadcaster?.task(this.taskId, "task:hook:pre_tool_use", {
+      toolName,
+      toolInput: progress.data?.toolInput,
+      decision,
+      error: progress.data?.error,
+      timestamp,
+    });
+
+    // ログメッセージ生成
+    const decisionIcon = decision === "approve" ? "✅" : "🚫";
+    return `🪝 PreToolUse ${decisionIcon} ${toolName}`;
+  }
+
+  /**
+   * Hook PostToolUse進捗処理
+   */
+  private handleHookPostToolUseProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "hook:post_tool_use") {
+      return "";
+    }
+    const toolName = progress.data?.toolName || "unknown";
+
+    // WebSocket配信
+    this.broadcaster?.task(this.taskId, "task:hook:post_tool_use", {
+      toolName,
+      toolInput: progress.data?.toolInput,
+      toolOutput: progress.data?.toolOutput,
+      error: progress.data?.error,
+      timestamp,
+    });
+
+    // ログメッセージ生成
+    const hasError = progress.data?.error;
+    const icon = hasError ? "❌" : "✅";
+    return `🪝 PostToolUse ${icon} ${toolName}`;
   }
 
   /**
