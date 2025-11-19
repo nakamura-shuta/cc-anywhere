@@ -784,7 +784,10 @@ export class TaskExecutorImpl implements TaskExecutor {
       enableWebSearch: sdkOptions?.enableWebSearch ?? false,
       webSearchConfig: sdkOptions?.webSearchConfig ?? {},
       enableHooks: sdkOptions?.enableHooks ?? false,
-      hookConfig: sdkOptions?.hookConfig ?? {},
+      hookConfig: sdkOptions?.hookConfig ?? {
+        enablePreToolUse: true,
+        enablePostToolUse: true,
+      },
     };
   }
 

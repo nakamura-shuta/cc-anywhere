@@ -34,8 +34,6 @@ export type HookProgressCallback = (event: {
 export interface BuildHooksOptions {
   /** Hook configuration */
   config: HookConfig;
-  /** Session ID for tracking */
-  sessionId?: string;
   /** Task ID */
   taskId?: string;
   /** Progress callback for hook events */
@@ -69,6 +67,9 @@ export function buildHooks(
         taskId,
       });
 
+      // Default decision: approve all tools
+      const decision = "approve" as const;
+
       // Notify progress if callback provided
       if (onProgress) {
         await onProgress({
@@ -76,13 +77,13 @@ export function buildHooks(
           timestamp: new Date(),
           toolName: preToolInput.tool_name,
           toolInput: preToolInput.tool_input as Record<string, unknown>,
+          decision,
         });
       }
 
-      // Default: approve all tools
       return {
         continue: true,
-        decision: "approve",
+        decision,
       };
     };
 

@@ -113,7 +113,6 @@ export class ClaudeCodeClient {
         options.enableHooks && options.hookConfig
           ? buildHooks({
               config: options.hookConfig,
-              sessionId: options.resumeSession,
               taskId: effectiveTaskId,
               onProgress: options.onProgress
                 ? async (event) => {
