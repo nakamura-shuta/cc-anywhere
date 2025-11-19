@@ -7,13 +7,7 @@ import type { ExecutorType } from "../agents/types.js";
 /**
  * Chat stream event types
  */
-export type ChatStreamEventType =
-  | "start"
-  | "text"
-  | "tool_use"
-  | "tool_result"
-  | "done"
-  | "error";
+export type ChatStreamEventType = "start" | "text" | "tool_use" | "tool_result" | "done" | "error";
 
 /**
  * Chat stream event

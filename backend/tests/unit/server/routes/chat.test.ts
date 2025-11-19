@@ -55,11 +55,30 @@ vi.mock("../../../../src/db/shared-instance", () => ({
   }),
 }));
 
+// Mock config to disable auth
+vi.mock("../../../../src/config/index", async () => {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+  const actual = await vi.importActual<typeof import("../../../../src/config/index")>(
+    "../../../../src/config/index",
+  );
+  return {
+    ...actual,
+    config: {
+      ...actual.config,
+      auth: {
+        enabled: false,
+        apiKey: undefined,
+      },
+    },
+  };
+});
+
 describe("Chat Routes", () => {
   let app: FastifyInstance;
   let mockChatRepository: any;
   const apiKey = "test-key";
-  const userId = "test-user";
+  // When auth is disabled, getUserId returns "default-user"
+  const userId = "default-user";
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -91,7 +110,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/sessions",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
           payload: {
             characterId: "default",
@@ -147,7 +165,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/sessions",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -174,7 +191,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/sessions/session-123",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -191,7 +207,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/sessions/non-existent",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -213,7 +228,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/sessions/session-123",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -234,7 +248,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/sessions/session-123",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -273,7 +286,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/sessions/session-123/messages",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -303,7 +315,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/sessions/session-123/messages",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
           payload: {
             content: "Hello",
@@ -337,7 +348,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/characters",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -366,7 +376,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/characters",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
           payload: {
             name: "New Character",
@@ -388,7 +397,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/characters/default",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -413,7 +421,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/characters/char-123",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -431,7 +438,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/characters/non-existent",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 
@@ -463,7 +469,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/characters/char-123",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
           payload: {
             name: "New Name",
@@ -489,7 +494,6 @@ describe("Chat Routes", () => {
           url: "/api/chat/characters/char-123",
           headers: {
             "X-API-Key": apiKey,
-            "X-User-Id": userId,
           },
         });
 

@@ -84,9 +84,7 @@ describe("ChatExecutor", () => {
         },
       });
 
-      await expect(executor.execute("Hello", defaultOptions, onEvent)).rejects.toThrow(
-        "API Error",
-      );
+      await expect(executor.execute("Hello", defaultOptions, onEvent)).rejects.toThrow("API Error");
 
       const errorEvent = mockEvents.find((e) => e.type === "error");
       expect(errorEvent).toBeDefined();
@@ -100,12 +98,13 @@ describe("ChatExecutor", () => {
           yield {
             type: "assistant",
             message: {
-              content: [
-                { type: "tool_use", name: "read_file", input: { path: "/test.txt" } },
-              ],
+              content: [{ type: "tool_use", name: "read_file", input: { path: "/test.txt" } }],
             },
           };
-          yield { type: "assistant", message: { content: [{ type: "text", text: "Read the file" }] } };
+          yield {
+            type: "assistant",
+            message: { content: [{ type: "text", text: "Read the file" }] },
+          };
         },
       });
 
@@ -124,10 +123,14 @@ describe("ChatExecutor", () => {
         },
       });
 
-      await executor.execute("Hello", {
-        ...defaultOptions,
-        workingDirectory: "/test/dir",
-      }, onEvent);
+      await executor.execute(
+        "Hello",
+        {
+          ...defaultOptions,
+          workingDirectory: "/test/dir",
+        },
+        onEvent,
+      );
 
       expect(query).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -146,10 +149,14 @@ describe("ChatExecutor", () => {
         },
       });
 
-      await executor.execute("Continue", {
-        ...defaultOptions,
-        sdkSessionId: "sdk-session-123",
-      }, onEvent);
+      await executor.execute(
+        "Continue",
+        {
+          ...defaultOptions,
+          sdkSessionId: "sdk-session-123",
+        },
+        onEvent,
+      );
 
       expect(query).toHaveBeenCalledWith(
         expect.objectContaining({

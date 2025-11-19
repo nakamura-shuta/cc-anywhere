@@ -81,6 +81,21 @@ export interface ProcessMessageResponse {
 	content: string;
 }
 
+export interface ChatWebSocketMessage {
+	type: string;
+	data: unknown;
+	timestamp: string;
+}
+
+export interface ChatWebSocketCallbacks {
+	onConnect?: (sessionId: string) => void;
+	onText?: (text: string) => void;
+	onToolUse?: (tool: string, input: unknown) => void;
+	onError?: (error: string) => void;
+	onDone?: (messageId: string, content: string) => void;
+	onClose?: () => void;
+}
+
 // API Functions
 
 /**
@@ -124,6 +139,76 @@ export async function processMessage(sessionId: string, content: string): Promis
  */
 export async function getStreamToken(sessionId: string): Promise<StreamTokenResponse> {
 	return apiClient.post<StreamTokenResponse>(`/api/chat/sessions/${sessionId}/stream-token`);
+}
+
+/**
+ * Create WebSocket connection for chat session
+ */
+export function createChatWebSocket(
+	sessionId: string,
+	token: string,
+	callbacks: ChatWebSocketCallbacks
+): WebSocket {
+	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+	const host = window.location.host;
+	const wsUrl = `${protocol}//${host}/api/chat/sessions/${sessionId}/ws?token=${encodeURIComponent(token)}`;
+
+	const ws = new WebSocket(wsUrl);
+
+	ws.onopen = () => {
+		console.log('Chat WebSocket connected');
+	};
+
+	ws.onmessage = (event) => {
+		try {
+			const message = JSON.parse(event.data) as ChatWebSocketMessage;
+
+			switch (message.type) {
+				case 'connected':
+					callbacks.onConnect?.((message.data as { sessionId: string }).sessionId);
+					break;
+				case 'text':
+					callbacks.onText?.((message.data as { text: string }).text);
+					break;
+				case 'tool_use':
+					const toolData = message.data as { tool: string; toolInput: unknown };
+					callbacks.onToolUse?.(toolData.tool, toolData.toolInput);
+					break;
+				case 'error':
+					callbacks.onError?.((message.data as { message: string }).message);
+					break;
+				case 'done':
+					const doneData = message.data as { messageId: string; sdkSessionId?: string };
+					callbacks.onDone?.(doneData.messageId, '');
+					break;
+			}
+		} catch (error) {
+			console.error('Failed to parse WebSocket message:', error);
+		}
+	};
+
+	ws.onclose = () => {
+		console.log('Chat WebSocket closed');
+		callbacks.onClose?.();
+	};
+
+	ws.onerror = (error) => {
+		console.error('Chat WebSocket error:', error);
+		callbacks.onError?.('WebSocket connection error');
+	};
+
+	return ws;
+}
+
+/**
+ * Send message through WebSocket
+ */
+export function sendWebSocketMessage(ws: WebSocket, content: string): void {
+	if (ws.readyState === WebSocket.OPEN) {
+		ws.send(JSON.stringify({ type: 'message', content }));
+	} else {
+		console.error('WebSocket is not open');
+	}
 }
 
 /**

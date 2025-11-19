@@ -3,14 +3,20 @@
  */
 
 import type { FastifyPluginAsync } from "fastify";
+import type { WebSocket } from "@fastify/websocket";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { getSharedChatRepository } from "../../db/shared-instance.js";
 import { logger } from "../../utils/logger.js";
 import { config } from "../../config/index.js";
-import type { ChatSession, ChatMessage, CustomCharacter } from "../../repositories/chat-repository.js";
+import type {
+  ChatSession,
+  ChatMessage,
+  CustomCharacter,
+} from "../../repositories/chat-repository.js";
 import { createChatExecutor } from "../../chat/index.js";
 import type { ChatStreamEvent } from "../../chat/types.js";
 
@@ -42,10 +48,27 @@ const updateCharacterSchema = z.object({
 const chatRoutes: FastifyPluginAsync = async (fastify) => {
   const chatRepository = getSharedChatRepository();
 
-  // Helper to get user ID from request (simplified - real implementation would use auth)
+  // Helper to get user ID from request
+  // Uses API key hash as user identifier (authenticated via global-auth middleware)
   const getUserId = (request: any): string => {
-    // TODO: Implement proper authentication
-    return request.headers["x-user-id"] || "default-user";
+    // If auth is disabled, use default user
+    if (!config.auth.enabled || !config.auth.apiKey) {
+      return "default-user";
+    }
+
+    // Get API key from header or query
+    const apiKey =
+      (request.headers["x-api-key"] as string) ||
+      (request.query as Record<string, string>)?.api_key;
+
+    if (!apiKey) {
+      // Should not happen as global auth middleware validates this
+      return "default-user";
+    }
+
+    // Hash API key to create user ID (privacy + consistency)
+    const hash = crypto.createHash("sha256").update(apiKey).digest("hex");
+    return `user-${hash.substring(0, 16)}`;
   };
 
   // ======================
@@ -769,11 +792,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
       const expiresIn = config.chat.streamTokenExpirySeconds;
       const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
-      const token = jwt.sign(
-        { sessionId, userId },
-        config.chat.streamTokenSecret,
-        { expiresIn }
-      );
+      const token = jwt.sign({ sessionId, userId }, config.chat.streamTokenSecret, { expiresIn });
 
       logger.info("Stream token generated", { sessionId, userId });
 
@@ -784,39 +803,29 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  // SSE stream endpoint
+  // WebSocket chat endpoint
+  // Uses token from query parameter for authentication
   fastify.get<{ Params: { sessionId: string }; Querystring: { token?: string } }>(
-    "/chat/sessions/:sessionId/stream",
-    {
-      schema: {
-        params: {
-          type: "object",
-          properties: {
-            sessionId: { type: "string" },
-          },
-          required: ["sessionId"],
-        },
-        querystring: {
-          type: "object",
-          properties: {
-            token: { type: "string" },
-          },
-        },
-      },
-    },
-    async (request, reply) => {
+    "/chat/sessions/:sessionId/ws",
+    { websocket: true },
+    async (socket: WebSocket, request) => {
       const { sessionId } = request.params;
       const { token } = request.query;
 
+      // Helper to send WebSocket message
+      const sendWsMessage = (type: string, data: unknown) => {
+        try {
+          socket.send(JSON.stringify({ type, data, timestamp: new Date().toISOString() }));
+        } catch (error) {
+          logger.error("Failed to send WebSocket message", { sessionId, error });
+        }
+      };
+
       // Validate token
       if (!token) {
-        return reply.status(401).send({
-          error: {
-            message: "Stream token required",
-            statusCode: 401,
-            code: "TOKEN_REQUIRED",
-          },
-        });
+        sendWsMessage("error", { code: "TOKEN_REQUIRED", message: "Stream token required" });
+        socket.close(1008, "Token required");
+        return;
       }
 
       // Verify JWT token
@@ -827,171 +836,118 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
           userId: string;
         };
       } catch (error) {
-        return reply.status(401).send({
-          error: {
-            message: "Invalid or expired token",
-            statusCode: 401,
-            code: "INVALID_TOKEN",
-          },
-        });
+        sendWsMessage("error", { code: "INVALID_TOKEN", message: "Invalid or expired token" });
+        socket.close(1008, "Invalid token");
+        return;
       }
 
       // Validate session ID matches token
       if (decoded.sessionId !== sessionId) {
-        return reply.status(401).send({
-          error: {
-            message: "Token session mismatch",
-            statusCode: 401,
-            code: "SESSION_MISMATCH",
-          },
-        });
+        sendWsMessage("error", { code: "SESSION_MISMATCH", message: "Token session mismatch" });
+        socket.close(1008, "Session mismatch");
+        return;
       }
 
       // Verify session exists and belongs to user
       const session = await chatRepository.sessions.findById(sessionId);
       if (!session || session.userId !== decoded.userId) {
-        return reply.status(404).send({
-          error: {
-            message: "Session not found",
-            statusCode: 404,
-            code: "SESSION_NOT_FOUND",
-          },
-        });
+        sendWsMessage("error", { code: "SESSION_NOT_FOUND", message: "Session not found" });
+        socket.close(1008, "Session not found");
+        return;
       }
 
-      // Set SSE headers
-      reply.raw.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no", // Disable nginx buffering
-      });
+      const userId = decoded.userId;
+      logger.info("WebSocket chat connection established", { sessionId, userId });
 
-      // Send initial connection event
-      reply.raw.write(`event: connected\ndata: ${JSON.stringify({ sessionId })}\n\n`);
+      // Send connected event
+      sendWsMessage("connected", { sessionId });
 
-      // Store the connection for later use
-      const connectionId = uuidv4();
-      logger.info("SSE connection established", { sessionId, connectionId });
+      // Handle incoming messages
+      socket.on("message", async (data: Buffer) => {
+        try {
+          const message = JSON.parse(data.toString());
 
-      // Handle client disconnect
-      request.raw.on("close", () => {
-        logger.info("SSE connection closed", { sessionId, connectionId });
-      });
+          if (message.type === "message" && message.content) {
+            const content = message.content as string;
 
-      // Keep the connection open - don't call reply.send()
-      // Messages will be sent via processMessage endpoint
-    },
-  );
+            // Save user message
+            const userMessage: ChatMessage = {
+              id: uuidv4(),
+              sessionId,
+              role: "user",
+              content,
+              createdAt: new Date(),
+            };
+            await chatRepository.messages.create(userMessage);
 
-  // Process message and stream response
-  fastify.post<{ Params: { sessionId: string }; Body: z.infer<typeof sendMessageSchema> }>(
-    "/chat/sessions/:sessionId/process",
-    {
-      schema: {
-        params: {
-          type: "object",
-          properties: {
-            sessionId: { type: "string" },
-          },
-          required: ["sessionId"],
-        },
-        body: zodToJsonSchema(sendMessageSchema),
-        response: {
-          200: {
-            type: "object",
-            properties: {
-              messageId: { type: "string" },
-              content: { type: "string" },
-            },
-          },
-        },
-      },
-    },
-    async (request, reply) => {
-      const userId = getUserId(request);
-      const { sessionId } = request.params;
-      const { content } = sendMessageSchema.parse(request.body);
+            // Get character's system prompt
+            let systemPrompt = "You are a helpful assistant.";
+            if (session.characterId !== "default") {
+              const character = await chatRepository.characters.findByIdAndUserId(
+                session.characterId,
+                userId,
+              );
+              if (character) {
+                systemPrompt = character.systemPrompt;
+              }
+            }
 
-      const session = await chatRepository.sessions.findById(sessionId);
+            // Create executor
+            const executor = createChatExecutor(session.executor);
 
-      if (!session || session.userId !== userId) {
-        return reply.status(404).send({
-          error: {
-            message: "Session not found",
-            statusCode: 404,
-            code: "SESSION_NOT_FOUND",
-          },
-        });
-      }
+            // Execute and stream events via WebSocket
+            const result = await executor.execute(
+              content,
+              {
+                sessionId,
+                characterId: session.characterId,
+                systemPrompt,
+                workingDirectory: session.workingDirectory,
+                executor: session.executor,
+                sdkSessionId: session.sdkSessionId,
+              },
+              (event: ChatStreamEvent) => {
+                // Send event via WebSocket
+                sendWsMessage(event.type, event.data);
+              },
+            );
 
-      // Save user message
-      const userMessage: ChatMessage = {
-        id: uuidv4(),
-        sessionId,
-        role: "user",
-        content,
-        createdAt: new Date(),
-      };
-      await chatRepository.messages.create(userMessage);
+            // Save agent message
+            const agentMessage: ChatMessage = {
+              id: result.messageId,
+              sessionId,
+              role: "agent",
+              content: result.content,
+              createdAt: new Date(),
+            };
+            await chatRepository.messages.create(agentMessage);
 
-      // Get character's system prompt
-      let systemPrompt = "You are a helpful assistant.";
-      if (session.characterId !== "default") {
-        const character = await chatRepository.characters.findByIdAndUserId(
-          session.characterId,
-          userId
-        );
-        if (character) {
-          systemPrompt = character.systemPrompt;
+            // Update SDK session ID if changed
+            if (result.sdkSessionId && result.sdkSessionId !== session.sdkSessionId) {
+              await chatRepository.sessions.updateSdkSessionId(sessionId, result.sdkSessionId);
+            }
+
+            logger.info("Chat message processed via WebSocket", {
+              sessionId,
+              userMessageId: userMessage.id,
+              agentMessageId: agentMessage.id,
+            });
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error("WebSocket message processing failed", { sessionId, error: errorMessage });
+          sendWsMessage("error", { message: errorMessage });
         }
-      }
-
-      // Create executor
-      const executor = createChatExecutor(session.executor);
-
-      // Execute and collect events
-      const events: ChatStreamEvent[] = [];
-      const result = await executor.execute(
-        content,
-        {
-          sessionId,
-          characterId: session.characterId,
-          systemPrompt,
-          workingDirectory: session.workingDirectory,
-          executor: session.executor,
-          sdkSessionId: session.sdkSessionId,
-        },
-        (event) => {
-          events.push(event);
-        }
-      );
-
-      // Save agent message
-      const agentMessage: ChatMessage = {
-        id: result.messageId,
-        sessionId,
-        role: "agent",
-        content: result.content,
-        createdAt: new Date(),
-      };
-      await chatRepository.messages.create(agentMessage);
-
-      // Update SDK session ID if changed
-      if (result.sdkSessionId && result.sdkSessionId !== session.sdkSessionId) {
-        await chatRepository.sessions.updateSdkSessionId(sessionId, result.sdkSessionId);
-      }
-
-      logger.info("Chat message processed", {
-        sessionId,
-        userMessageId: userMessage.id,
-        agentMessageId: agentMessage.id,
       });
 
-      return {
-        messageId: result.messageId,
-        content: result.content,
-      };
+      // Handle disconnect
+      socket.on("close", () => {
+        logger.info("WebSocket chat connection closed", { sessionId, userId });
+      });
+
+      socket.on("error", (error) => {
+        logger.error("WebSocket chat error", { sessionId, error });
+      });
     },
   );
 };

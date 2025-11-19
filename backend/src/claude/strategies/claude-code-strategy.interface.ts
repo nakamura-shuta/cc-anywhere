@@ -1,11 +1,21 @@
-import type { SDKMessage, HookEvent, HookCallbackMatcher } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  SDKMessage,
+  SDKUserMessage,
+  HookEvent,
+  HookCallbackMatcher,
+} from "@anthropic-ai/claude-agent-sdk";
+
+/**
+ * Prompt type - can be a simple string or an async iterable for streaming input
+ */
+export type PromptInput = string | AsyncIterable<SDKUserMessage>;
 
 /**
  * Query options for Claude Code SDK
  * This matches the expected structure from @anthropic-ai/claude-agent-sdk
  */
 export interface QueryOptions {
-  prompt: string;
+  prompt: PromptInput;
   abortController?: AbortController;
   options?: {
     maxTurns?: number;

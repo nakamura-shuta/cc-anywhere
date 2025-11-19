@@ -2,9 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import {
   ChatRepository,
-  ChatSessionRepository,
-  ChatMessageRepository,
-  CustomCharacterRepository,
   type ChatSession,
   type ChatMessage,
   type CustomCharacter,

@@ -73,11 +73,9 @@ describe("buildHooks", () => {
         tool_input: { command: "ls" },
       };
 
-      const output = await hookCallback(
-        mockInput,
-        "tool-use-123",
-        { signal: new AbortController().signal }
-      );
+      const output = await hookCallback(mockInput, "tool-use-123", {
+        signal: new AbortController().signal,
+      });
 
       expect(output).toEqual({
         continue: true,
@@ -106,11 +104,7 @@ describe("buildHooks", () => {
         tool_input: { command: "ls" },
       };
 
-      await hookCallback(
-        mockInput,
-        "tool-use-123",
-        { signal: new AbortController().signal }
-      );
+      await hookCallback(mockInput, "tool-use-123", { signal: new AbortController().signal });
 
       expect(onProgress).toHaveBeenCalledTimes(1);
       expect(onProgress).toHaveBeenCalledWith(
@@ -118,7 +112,7 @@ describe("buildHooks", () => {
           type: "hook:pre_tool_use",
           toolName: "Bash",
           toolInput: { command: "ls" },
-        })
+        }),
       );
     });
   });
@@ -164,11 +158,9 @@ describe("buildHooks", () => {
         tool_response: "file contents",
       };
 
-      const output = await hookCallback(
-        mockInput,
-        "tool-use-123",
-        { signal: new AbortController().signal }
-      );
+      const output = await hookCallback(mockInput, "tool-use-123", {
+        signal: new AbortController().signal,
+      });
 
       expect(output).toEqual({
         continue: true,
@@ -197,11 +189,7 @@ describe("buildHooks", () => {
         tool_response: "file contents",
       };
 
-      await hookCallback(
-        mockInput,
-        "tool-use-123",
-        { signal: new AbortController().signal }
-      );
+      await hookCallback(mockInput, "tool-use-123", { signal: new AbortController().signal });
 
       expect(onProgress).toHaveBeenCalledTimes(1);
       expect(onProgress).toHaveBeenCalledWith(
@@ -210,7 +198,7 @@ describe("buildHooks", () => {
           toolName: "Read",
           toolInput: { file_path: "/test/file.ts" },
           toolOutput: "file contents",
-        })
+        }),
       );
     });
   });
@@ -261,11 +249,9 @@ describe("buildHooks", () => {
       };
 
       // Should not throw
-      const preOutput = await preHookCallback(
-        mockPreInput,
-        "tool-use-123",
-        { signal: new AbortController().signal }
-      );
+      const preOutput = await preHookCallback(mockPreInput, "tool-use-123", {
+        signal: new AbortController().signal,
+      });
       expect(preOutput).toEqual({
         continue: true,
         decision: "approve",
@@ -282,11 +268,9 @@ describe("buildHooks", () => {
         tool_response: "result",
       };
 
-      const postOutput = await postHookCallback(
-        mockPostInput,
-        "tool-use-456",
-        { signal: new AbortController().signal }
-      );
+      const postOutput = await postHookCallback(mockPostInput, "tool-use-456", {
+        signal: new AbortController().signal,
+      });
       expect(postOutput).toEqual({
         continue: true,
       });
@@ -311,11 +295,9 @@ describe("buildHooks", () => {
         tool_input: undefined as unknown,
       };
 
-      const output = await hookCallback(
-        mockInput,
-        undefined,
-        { signal: new AbortController().signal }
-      );
+      const output = await hookCallback(mockInput, undefined, {
+        signal: new AbortController().signal,
+      });
 
       expect(output).toEqual({
         continue: true,
@@ -348,16 +330,12 @@ describe("buildHooks", () => {
         tool_input: complexInput,
       };
 
-      await hookCallback(
-        mockInput,
-        "tool-use-789",
-        { signal: new AbortController().signal }
-      );
+      await hookCallback(mockInput, "tool-use-789", { signal: new AbortController().signal });
 
       expect(onProgress).toHaveBeenCalledWith(
         expect.objectContaining({
           toolInput: complexInput,
-        })
+        }),
       );
     });
   });

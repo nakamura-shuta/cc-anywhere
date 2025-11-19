@@ -253,9 +253,7 @@ export class CustomCharacterRepository extends BaseRepository<CustomCharacter> {
    */
   async findByIdAndUserId(id: string, userId: string): Promise<CustomCharacter | null> {
     try {
-      const stmt = this.db.prepare(
-        `SELECT * FROM ${this.tableName} WHERE id = ? AND user_id = ?`,
-      );
+      const stmt = this.db.prepare(`SELECT * FROM ${this.tableName} WHERE id = ? AND user_id = ?`);
       const row = stmt.get(id, userId);
       return row ? this.mapRowToEntity(row) : null;
     } catch (error) {
