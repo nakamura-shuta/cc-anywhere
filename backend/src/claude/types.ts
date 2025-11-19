@@ -3,6 +3,7 @@ import type { WorktreeOptions } from "../services/worktree/types.js";
 import type { TodoItem } from "../types/todo.js";
 import type { CommonExecutorOptions, CodexAgentOptions } from "../agents/types.js";
 import type { ProgressEvent } from "../types/progress-events.js";
+import type { HookConfig } from "./types/hooks.js";
 
 // Retry policy types
 export enum RetryPolicy {
@@ -76,6 +77,11 @@ export interface ClaudeCodeSDKOptions extends CommonExecutorOptions {
   /** Web検索機能を有効化 */
   enableWebSearch?: boolean;
   webSearchConfig?: WebSearchConfig;
+
+  /** Hooks System を有効化 */
+  enableHooks?: boolean;
+  /** Hook configuration */
+  hookConfig?: HookConfig;
 
   // CommonExecutorOptions から継承される共通パラメータ:
   // - maxTurns

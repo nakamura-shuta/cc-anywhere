@@ -1,4 +1,4 @@
-import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { SDKMessage, HookEvent, HookCallbackMatcher } from "@anthropic-ai/claude-agent-sdk";
 
 /**
  * Query options for Claude Code SDK
@@ -24,6 +24,10 @@ export interface QueryOptions {
     forkSession?: boolean; // Fork session (true) or continue (false). Default should be false for continuation
     // NOTE: continueFromTaskId is NOT a Claude Code SDK parameter
     // It's only used in ClaudeCodeOptions to internally resolve the session ID
+
+    // Hooks: PreToolUse/PostToolUse callbacks
+    // Reference: https://docs.claude.com/en/api/agent-sdk/typescript
+    hooks?: Partial<Record<HookEvent, HookCallbackMatcher[]>>;
   };
 }
 

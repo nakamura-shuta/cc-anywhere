@@ -164,6 +164,34 @@ export interface ToolUsageProgressEvent extends BaseProgressEvent {
   };
 }
 
+/**
+ * PreToolUse hook event
+ */
+export interface HookPreToolUseProgressEvent extends BaseProgressEvent {
+  type: "hook:pre_tool_use";
+  message: string;
+  data: {
+    toolName: string;
+    toolInput?: Record<string, unknown>;
+    decision?: "approve" | "block";
+    error?: string;
+  };
+}
+
+/**
+ * PostToolUse hook event
+ */
+export interface HookPostToolUseProgressEvent extends BaseProgressEvent {
+  type: "hook:post_tool_use";
+  message: string;
+  data: {
+    toolName: string;
+    toolInput?: Record<string, unknown>;
+    toolOutput?: unknown;
+    error?: string;
+  };
+}
+
 // ==================== Union Type ====================
 
 /**
@@ -195,7 +223,9 @@ export type ProgressEvent =
   | GeneralProgressEvent
   | SummaryProgressEvent
   | StatisticsProgressEvent
-  | ToolUsageProgressEvent;
+  | ToolUsageProgressEvent
+  | HookPreToolUseProgressEvent
+  | HookPostToolUseProgressEvent;
 
 // ==================== Type Guards ====================
 

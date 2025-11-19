@@ -783,6 +783,8 @@ export class TaskExecutorImpl implements TaskExecutor {
       maxSessionExecutions: sdkOptions?.maxSessionExecutions ?? 100,
       enableWebSearch: sdkOptions?.enableWebSearch ?? false,
       webSearchConfig: sdkOptions?.webSearchConfig ?? {},
+      enableHooks: sdkOptions?.enableHooks ?? false,
+      hookConfig: sdkOptions?.hookConfig ?? {},
     };
   }
 

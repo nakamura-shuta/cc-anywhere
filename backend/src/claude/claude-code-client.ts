@@ -9,6 +9,8 @@ import type { WebSearchConfig } from "./types";
 import type { ClaudeCodeStrategy, ExecutionMode, QueryOptions } from "./strategies";
 import { ClaudeCodeClientFactory } from "./claude-code-client-factory";
 import type { ProgressEvent } from "../types/progress-events.js";
+import { buildHooks } from "./hooks/build-hooks.js";
+import type { HookConfig } from "./types/hooks.js";
 
 export interface ClaudeCodeOptions {
   maxTurns?: number;
@@ -29,6 +31,8 @@ export interface ClaudeCodeOptions {
   onProgress?: (progress: ProgressEvent) => void | Promise<void>;
   enableWebSearch?: boolean;
   webSearchConfig?: WebSearchConfig;
+  enableHooks?: boolean;
+  hookConfig?: HookConfig;
 }
 
 export class ClaudeCodeClient {
@@ -104,6 +108,43 @@ export class ClaudeCodeClient {
         disallowedTools: finalDisallowedTools,
       });
 
+      // Build hooks if enabled
+      const hooks =
+        options.enableHooks && options.hookConfig
+          ? buildHooks({
+              config: options.hookConfig,
+              sessionId: options.resumeSession,
+              taskId: effectiveTaskId,
+              onProgress: options.onProgress
+                ? async (event) => {
+                    if (event.type === "hook:pre_tool_use") {
+                      await options.onProgress!({
+                        type: "hook:pre_tool_use",
+                        message: `Tool: ${event.toolName}`,
+                        data: {
+                          toolName: event.toolName,
+                          toolInput: event.toolInput,
+                          decision: event.decision,
+                          error: event.error,
+                        },
+                      });
+                    } else {
+                      await options.onProgress!({
+                        type: "hook:post_tool_use",
+                        message: `Tool: ${event.toolName}`,
+                        data: {
+                          toolName: event.toolName,
+                          toolInput: event.toolInput,
+                          toolOutput: event.toolOutput,
+                          error: event.error,
+                        },
+                      });
+                    }
+                  }
+                : undefined,
+            })
+          : undefined;
+
       const queryOptions: QueryOptions = {
         prompt,
         abortController,
@@ -130,6 +171,8 @@ export class ClaudeCodeClient {
             : {}),
           // NOTE: continueFromTaskId is NOT passed to SDK - it's only used internally
           // to resolve the session ID, which is passed via 'resume'
+          // Hooks: PreToolUse/PostToolUse callbacks
+          ...(hooks ? { hooks } : {}),
         },
       };
 
