@@ -6,9 +6,13 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { v4 as uuidv4 } from "uuid";
+import jwt from "jsonwebtoken";
 import { getSharedChatRepository } from "../../db/shared-instance.js";
 import { logger } from "../../utils/logger.js";
+import { config } from "../../config/index.js";
 import type { ChatSession, ChatMessage, CustomCharacter } from "../../repositories/chat-repository.js";
+import { createChatExecutor } from "../../chat/index.js";
+import type { ChatStreamEvent } from "../../chat/types.js";
 
 // Request schemas
 const createSessionSchema = z.object({
@@ -715,6 +719,279 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
       logger.info("Custom character deleted", { characterId, userId });
 
       return { message: "Character deleted successfully" };
+    },
+  );
+
+  // ======================
+  // Stream endpoints
+  // ======================
+
+  // Generate stream token for SSE connection
+  fastify.post<{ Params: { sessionId: string } }>(
+    "/chat/sessions/:sessionId/stream-token",
+    {
+      schema: {
+        params: {
+          type: "object",
+          properties: {
+            sessionId: { type: "string" },
+          },
+          required: ["sessionId"],
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              token: { type: "string" },
+              expiresAt: { type: "string", format: "date-time" },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = getUserId(request);
+      const { sessionId } = request.params;
+
+      const session = await chatRepository.sessions.findById(sessionId);
+
+      if (!session || session.userId !== userId) {
+        return reply.status(404).send({
+          error: {
+            message: "Session not found",
+            statusCode: 404,
+            code: "SESSION_NOT_FOUND",
+          },
+        });
+      }
+
+      // Generate JWT token
+      const expiresIn = config.chat.streamTokenExpirySeconds;
+      const expiresAt = new Date(Date.now() + expiresIn * 1000);
+
+      const token = jwt.sign(
+        { sessionId, userId },
+        config.chat.streamTokenSecret,
+        { expiresIn }
+      );
+
+      logger.info("Stream token generated", { sessionId, userId });
+
+      return {
+        token,
+        expiresAt: expiresAt.toISOString(),
+      };
+    },
+  );
+
+  // SSE stream endpoint
+  fastify.get<{ Params: { sessionId: string }; Querystring: { token?: string } }>(
+    "/chat/sessions/:sessionId/stream",
+    {
+      schema: {
+        params: {
+          type: "object",
+          properties: {
+            sessionId: { type: "string" },
+          },
+          required: ["sessionId"],
+        },
+        querystring: {
+          type: "object",
+          properties: {
+            token: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const { token } = request.query;
+
+      // Validate token
+      if (!token) {
+        return reply.status(401).send({
+          error: {
+            message: "Stream token required",
+            statusCode: 401,
+            code: "TOKEN_REQUIRED",
+          },
+        });
+      }
+
+      // Verify JWT token
+      let decoded: { sessionId: string; userId: string };
+      try {
+        decoded = jwt.verify(token, config.chat.streamTokenSecret) as {
+          sessionId: string;
+          userId: string;
+        };
+      } catch (error) {
+        return reply.status(401).send({
+          error: {
+            message: "Invalid or expired token",
+            statusCode: 401,
+            code: "INVALID_TOKEN",
+          },
+        });
+      }
+
+      // Validate session ID matches token
+      if (decoded.sessionId !== sessionId) {
+        return reply.status(401).send({
+          error: {
+            message: "Token session mismatch",
+            statusCode: 401,
+            code: "SESSION_MISMATCH",
+          },
+        });
+      }
+
+      // Verify session exists and belongs to user
+      const session = await chatRepository.sessions.findById(sessionId);
+      if (!session || session.userId !== decoded.userId) {
+        return reply.status(404).send({
+          error: {
+            message: "Session not found",
+            statusCode: 404,
+            code: "SESSION_NOT_FOUND",
+          },
+        });
+      }
+
+      // Set SSE headers
+      reply.raw.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no", // Disable nginx buffering
+      });
+
+      // Send initial connection event
+      reply.raw.write(`event: connected\ndata: ${JSON.stringify({ sessionId })}\n\n`);
+
+      // Store the connection for later use
+      const connectionId = uuidv4();
+      logger.info("SSE connection established", { sessionId, connectionId });
+
+      // Handle client disconnect
+      request.raw.on("close", () => {
+        logger.info("SSE connection closed", { sessionId, connectionId });
+      });
+
+      // Keep the connection open - don't call reply.send()
+      // Messages will be sent via processMessage endpoint
+    },
+  );
+
+  // Process message and stream response
+  fastify.post<{ Params: { sessionId: string }; Body: z.infer<typeof sendMessageSchema> }>(
+    "/chat/sessions/:sessionId/process",
+    {
+      schema: {
+        params: {
+          type: "object",
+          properties: {
+            sessionId: { type: "string" },
+          },
+          required: ["sessionId"],
+        },
+        body: zodToJsonSchema(sendMessageSchema),
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              messageId: { type: "string" },
+              content: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = getUserId(request);
+      const { sessionId } = request.params;
+      const { content } = sendMessageSchema.parse(request.body);
+
+      const session = await chatRepository.sessions.findById(sessionId);
+
+      if (!session || session.userId !== userId) {
+        return reply.status(404).send({
+          error: {
+            message: "Session not found",
+            statusCode: 404,
+            code: "SESSION_NOT_FOUND",
+          },
+        });
+      }
+
+      // Save user message
+      const userMessage: ChatMessage = {
+        id: uuidv4(),
+        sessionId,
+        role: "user",
+        content,
+        createdAt: new Date(),
+      };
+      await chatRepository.messages.create(userMessage);
+
+      // Get character's system prompt
+      let systemPrompt = "You are a helpful assistant.";
+      if (session.characterId !== "default") {
+        const character = await chatRepository.characters.findByIdAndUserId(
+          session.characterId,
+          userId
+        );
+        if (character) {
+          systemPrompt = character.systemPrompt;
+        }
+      }
+
+      // Create executor
+      const executor = createChatExecutor(session.executor);
+
+      // Execute and collect events
+      const events: ChatStreamEvent[] = [];
+      const result = await executor.execute(
+        content,
+        {
+          sessionId,
+          characterId: session.characterId,
+          systemPrompt,
+          workingDirectory: session.workingDirectory,
+          executor: session.executor,
+          sdkSessionId: session.sdkSessionId,
+        },
+        (event) => {
+          events.push(event);
+        }
+      );
+
+      // Save agent message
+      const agentMessage: ChatMessage = {
+        id: result.messageId,
+        sessionId,
+        role: "agent",
+        content: result.content,
+        createdAt: new Date(),
+      };
+      await chatRepository.messages.create(agentMessage);
+
+      // Update SDK session ID if changed
+      if (result.sdkSessionId && result.sdkSessionId !== session.sdkSessionId) {
+        await chatRepository.sessions.updateSdkSessionId(sessionId, result.sdkSessionId);
+      }
+
+      logger.info("Chat message processed", {
+        sessionId,
+        userMessageId: userMessage.id,
+        agentMessageId: agentMessage.id,
+      });
+
+      return {
+        messageId: result.messageId,
+        content: result.content,
+      };
     },
   );
 };

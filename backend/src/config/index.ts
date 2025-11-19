@@ -93,6 +93,9 @@ const envSchema = z.object({
     .string()
     .default("true")
     .transform((v) => v === "true"),
+  // Chat SSE設定
+  CHAT_STREAM_TOKEN_SECRET: z.string().default("cc-anywhere-chat-stream-secret-key"),
+  CHAT_STREAM_TOKEN_EXPIRY_SECONDS: z.string().default("300").transform(Number),
   // セキュリティ設定
   ALLOWED_WORKING_DIRECTORIES: z
     .string()
@@ -154,6 +157,10 @@ export const config = {
   auth: {
     apiKey: env.API_KEY,
     enabled: !!env.API_KEY,
+  },
+  chat: {
+    streamTokenSecret: env.CHAT_STREAM_TOKEN_SECRET,
+    streamTokenExpirySeconds: env.CHAT_STREAM_TOKEN_EXPIRY_SECONDS,
   },
   cors: {
     origin: env.CORS_ORIGIN === "*" ? true : env.CORS_ORIGIN?.split(",") || true,
