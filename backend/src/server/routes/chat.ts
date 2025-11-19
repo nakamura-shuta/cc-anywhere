@@ -849,12 +849,20 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Verify session exists and belongs to user
-      const session = await chatRepository.sessions.findById(sessionId);
-      if (!session || session.userId !== decoded.userId) {
+      const foundSession = await chatRepository.sessions.findById(sessionId);
+      if (!foundSession || foundSession.userId !== decoded.userId) {
         sendWsMessage("error", { code: "SESSION_NOT_FOUND", message: "Session not found" });
         socket.close(1008, "Session not found");
         return;
       }
+
+      // Mutable session state for tracking SDK session ID updates
+      let currentSdkSessionId = foundSession.sdkSessionId;
+      const sessionData = {
+        characterId: foundSession.characterId,
+        workingDirectory: foundSession.workingDirectory,
+        executor: foundSession.executor,
+      };
 
       const userId = decoded.userId;
       logger.info("WebSocket chat connection established", { sessionId, userId });
@@ -882,9 +890,9 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
             // Get character's system prompt
             let systemPrompt = "You are a helpful assistant.";
-            if (session.characterId !== "default") {
+            if (sessionData.characterId !== "default") {
               const character = await chatRepository.characters.findByIdAndUserId(
-                session.characterId,
+                sessionData.characterId,
                 userId,
               );
               if (character) {
@@ -893,18 +901,18 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
             }
 
             // Create executor
-            const executor = createChatExecutor(session.executor);
+            const executor = createChatExecutor(sessionData.executor);
 
             // Execute and stream events via WebSocket
             const result = await executor.execute(
               content,
               {
                 sessionId,
-                characterId: session.characterId,
+                characterId: sessionData.characterId,
                 systemPrompt,
-                workingDirectory: session.workingDirectory,
-                executor: session.executor,
-                sdkSessionId: session.sdkSessionId,
+                workingDirectory: sessionData.workingDirectory,
+                executor: sessionData.executor,
+                sdkSessionId: currentSdkSessionId,
               },
               (event: ChatStreamEvent) => {
                 // Send event via WebSocket
@@ -923,8 +931,10 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
             await chatRepository.messages.create(agentMessage);
 
             // Update SDK session ID if changed
-            if (result.sdkSessionId && result.sdkSessionId !== session.sdkSessionId) {
+            if (result.sdkSessionId && result.sdkSessionId !== currentSdkSessionId) {
               await chatRepository.sessions.updateSdkSessionId(sessionId, result.sdkSessionId);
+              // Also update in-memory for subsequent messages
+              currentSdkSessionId = result.sdkSessionId;
             }
 
             logger.info("Chat message processed via WebSocket", {

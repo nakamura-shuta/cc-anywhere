@@ -115,32 +115,67 @@ class ChatStore {
 			};
 			this.messages = [...this.messages, tempUserMessage];
 
-			// Process message and get response
-			const response = await chatApi.processMessage(this.currentSession.id, content);
+			// Get stream token for WebSocket authentication
+			const tokenResponse = await chatApi.getStreamToken(this.currentSession.id);
 
-			// Replace temp message with actual and add agent response
-			const userMessage = await chatApi.sendMessage(this.currentSession.id, content);
-			this.messages = this.messages.map(m =>
-				m.id === tempUserMessage.id ? userMessage : m
-			);
+			// Create promise to handle WebSocket response
+			return new Promise<boolean>((resolve) => {
+				let responseText = '';
+				let messageId = '';
 
-			// Add agent message
-			const agentMessage: ChatMessage = {
-				id: response.messageId,
-				role: 'agent',
-				content: response.content,
-				createdAt: new Date().toISOString()
-			};
-			this.messages = [...this.messages, agentMessage];
+				const ws = chatApi.createChatWebSocket(
+					this.currentSession!.id,
+					tokenResponse.token,
+					{
+						onConnect: () => {
+							// Send message after connection
+							chatApi.sendWebSocketMessage(ws, content);
+						},
+						onText: (text) => {
+							responseText += text;
+						},
+						onError: (error) => {
+							this.error = new Error(error);
+							this.messages = this.messages.filter(m => !m.id.startsWith('temp-'));
+							this.isStreaming = false;
+							ws.close();
+							resolve(false);
+						},
+						onDone: (msgId) => {
+							messageId = msgId;
+							// Server already saved messages via WebSocket handler
+							// Just update the temp message ID and add agent message
+							this.messages = this.messages.map(m =>
+								m.id === tempUserMessage.id
+									? { ...m, id: `user-${Date.now()}` }  // Update with proper ID
+									: m
+							);
 
-			return true;
+							// Add agent message
+							const agentMessage: ChatMessage = {
+								id: messageId,
+								role: 'agent',
+								content: responseText,
+								createdAt: new Date().toISOString()
+							};
+							this.messages = [...this.messages, agentMessage];
+
+							this.isStreaming = false;
+							ws.close();
+							resolve(true);
+						},
+						onClose: () => {
+							// Connection closed
+						}
+					}
+				);
+			});
 		} catch (err) {
 			this.error = err instanceof Error ? err : new Error('Failed to send message');
 			// Remove temp message on error
 			this.messages = this.messages.filter(m => !m.id.startsWith('temp-'));
-			return false;
-		} finally {
 			this.isStreaming = false;
+			return false;
 		}
 	}
 

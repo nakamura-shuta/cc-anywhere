@@ -11,6 +11,7 @@
 	let { onSend, disabled = false, placeholder = 'Type a message...' }: Props = $props();
 
 	let value = $state('');
+	let isComposing = $state(false);
 
 	function handleSubmit() {
 		const trimmed = value.trim();
@@ -21,10 +22,19 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey) {
+		// Ignore Enter during IME composition (e.g., Japanese input)
+		if (event.key === 'Enter' && !event.shiftKey && !isComposing) {
 			event.preventDefault();
 			handleSubmit();
 		}
+	}
+
+	function handleCompositionStart() {
+		isComposing = true;
+	}
+
+	function handleCompositionEnd() {
+		isComposing = false;
 	}
 </script>
 
@@ -34,6 +44,8 @@
 		{placeholder}
 		{disabled}
 		onkeydown={handleKeydown}
+		oncompositionstart={handleCompositionStart}
+		oncompositionend={handleCompositionEnd}
 		class="min-h-[60px] resize-none"
 		rows={2}
 	/>

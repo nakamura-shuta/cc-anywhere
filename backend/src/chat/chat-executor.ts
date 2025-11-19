@@ -4,7 +4,6 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
 import type {
@@ -13,7 +12,6 @@ import type {
   ChatExecutorResult,
   ChatStreamEvent,
 } from "./types.js";
-import type { QueryOptions } from "../claude/strategies/claude-code-strategy.interface.js";
 
 /**
  * Claude-based chat executor
@@ -36,33 +34,19 @@ export class ClaudeChatExecutor implements IChatExecutor {
       timestamp: new Date().toISOString(),
     });
 
-    // Create async generator for streaming input mode
-    const createMessageGenerator = () => {
-      async function* generate(): AsyncGenerator<SDKUserMessage> {
-        yield {
-          type: "user" as const,
-          message: {
-            role: "user" as const,
-            content: message,
-          },
-        } as SDKUserMessage;
-      }
-      return generate();
-    };
-
     try {
       // Set API key in environment
       const originalApiKey = process.env.CLAUDE_API_KEY;
       process.env.CLAUDE_API_KEY = config.claude.apiKey;
 
-      // Prepare query options with streaming input mode
-      const queryOptions: QueryOptions = {
-        prompt: createMessageGenerator(),
+      // Prepare query options with string prompt
+      const queryOptions = {
+        prompt: message,
         abortController: new AbortController(),
         options: {
           maxTurns: 10,
           customSystemPrompt: options.systemPrompt,
-          permissionMode: "bypassPermissions",
+          permissionMode: "bypassPermissions" as const,
           cwd: options.workingDirectory,
           resume: options.sdkSessionId,
         },

@@ -3,6 +3,7 @@
  */
 
 import { apiClient } from './client';
+import { getApiBaseUrl } from '$lib/config';
 
 // Types
 export interface ChatSession {
@@ -138,7 +139,7 @@ export async function processMessage(sessionId: string, content: string): Promis
  * Stream APIs
  */
 export async function getStreamToken(sessionId: string): Promise<StreamTokenResponse> {
-	return apiClient.post<StreamTokenResponse>(`/api/chat/sessions/${sessionId}/stream-token`);
+	return apiClient.post<StreamTokenResponse>(`/api/chat/sessions/${sessionId}/stream-token`, {});
 }
 
 /**
@@ -149,11 +150,14 @@ export function createChatWebSocket(
 	token: string,
 	callbacks: ChatWebSocketCallbacks
 ): WebSocket {
-	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-	const host = window.location.host;
-	const wsUrl = `${protocol}//${host}/api/chat/sessions/${sessionId}/ws?token=${encodeURIComponent(token)}`;
+	// Use API base URL to get correct backend host
+	const apiBaseUrl = getApiBaseUrl();
+	const wsUrl = apiBaseUrl
+		.replace(/^https:/, 'wss:')
+		.replace(/^http:/, 'ws:');
+	const fullWsUrl = `${wsUrl}/api/chat/sessions/${sessionId}/ws?token=${encodeURIComponent(token)}`;
 
-	const ws = new WebSocket(wsUrl);
+	const ws = new WebSocket(fullWsUrl);
 
 	ws.onopen = () => {
 		console.log('Chat WebSocket connected');
