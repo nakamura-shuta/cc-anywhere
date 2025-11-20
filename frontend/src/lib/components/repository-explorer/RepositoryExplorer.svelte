@@ -2,7 +2,9 @@
 	import type { RepositoryExplorerProps } from './types';
 	import FileTree from './FileTree.svelte';
 	import FileViewer from './FileViewer.svelte';
-	import { X, PanelRightClose, PanelRightOpen } from 'lucide-svelte';
+import { X, PanelRightClose, PanelRightOpen } from 'lucide-svelte';
+import { onDestroy } from 'svelte';
+import { repositoryExplorerService } from '$lib/services/repository-explorer.service';
 
 	interface Props extends RepositoryExplorerProps {}
 
@@ -82,9 +84,23 @@
 		selectedFile = undefined;
 	}
 
-	function toggleCollapse() {
-		collapsed = !collapsed;
+function toggleCollapse() {
+	collapsed = !collapsed;
+}
+
+// コンポーネント破棄時に監視を停止
+onDestroy(() => {
+	for (const repo of repositories) {
+		const result = repositoryExplorerService.stopWatching
+			? repositoryExplorerService.stopWatching(repo.path)
+			: undefined;
+		if (result && typeof (result as Promise<unknown>).catch === 'function') {
+			(result as Promise<unknown>).catch((err) =>
+				console.warn('Failed to stop watching repository:', err)
+			);
+		}
 	}
+});
 </script>
 
 <div 

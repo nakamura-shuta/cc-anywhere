@@ -160,7 +160,7 @@ class ChatStore {
 						this.isStreaming = false;
 						resolve(false);
 					}
-				}).catch((err) => {
+				}, 1 /* retry once on drop */).catch((err) => {
 					this.error = err instanceof Error ? err : new Error('Failed to send message');
 					this.messages = this.messages.filter(m =>
 						!m.id.startsWith('temp-') && !m.id.startsWith('streaming-')

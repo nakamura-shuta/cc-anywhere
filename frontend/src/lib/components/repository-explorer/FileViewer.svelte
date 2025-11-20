@@ -60,11 +60,22 @@
 		}
 	});
 
-	onDestroy(() => {
-		if (fileChangeCleanup) {
-			fileChangeCleanup();
-		}
-	});
+onDestroy(() => {
+	if (fileChangeCleanup) {
+		fileChangeCleanup();
+	}
+
+	// 停止し忘れ防止のため破棄時に監視を終了
+	const stopResult = repositoryExplorerService.stopWatching
+		? repositoryExplorerService.stopWatching(repository)
+		: undefined;
+
+	if (stopResult && typeof (stopResult as Promise<unknown>).catch === 'function') {
+		(stopResult as Promise<unknown>).catch((err) =>
+			console.warn('Failed to stop watching repository:', err)
+		);
+	}
+});
 
 	async function loadFileContent() {
 		loading = true;

@@ -140,19 +140,17 @@ describe('Chat API', () => {
 
 	describe('Stream APIs', () => {
 		it('should get stream token', async () => {
-			const mockResponse = {
-				token: 'jwt-token',
-				expiresAt: '2024-01-01T00:05:00Z'
-			};
-			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+		const mockResponse = {
+			token: 'jwt-token',
+			expiresAt: '2024-01-01T00:05:00Z'
+		};
+		vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
 
-			const result = await getStreamToken('session-123');
+		const result = await getStreamToken('session-123');
 
-			expect(apiClient.post).toHaveBeenCalledWith(
-				'/api/chat/sessions/session-123/stream-token'
-			);
-			expect(result).toEqual(mockResponse);
-		});
+		expect(apiClient.post).toHaveBeenCalledWith('/api/chat/sessions/session-123/stream-token', {});
+		expect(result).toEqual(mockResponse);
+	});
 	});
 
 	describe('Character APIs', () => {

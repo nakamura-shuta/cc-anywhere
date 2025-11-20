@@ -39,7 +39,14 @@
 
 	{#if isLoading}
 		<div class="flex items-center gap-2 text-muted-foreground">
-			<div class="animate-pulse">Thinking...</div>
+			<div class="flex items-center gap-1">
+				<span class="animate-[pulse_1.2s_ease-in-out_infinite]">Typing</span>
+				<span class="inline-flex gap-1">
+					<span class="w-1 h-1 rounded-full bg-muted-foreground animate-bounce"></span>
+					<span class="w-1 h-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.15s]"></span>
+					<span class="w-1 h-1 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.3s]"></span>
+				</span>
+			</div>
 		</div>
 	{/if}
 </div>

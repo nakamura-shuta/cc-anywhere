@@ -29,38 +29,51 @@ export interface WebSocketChatResult {
 export async function sendMessageViaWebSocket(
 	sessionId: string,
 	content: string,
-	callbacks: WebSocketChatCallbacks
+	callbacks: WebSocketChatCallbacks,
+	maxRetries = 1
 ): Promise<void> {
-	// Get stream token for WebSocket authentication
-	const tokenResponse = await chatApi.getStreamToken(sessionId);
-
 	let responseText = '';
+	let completed = false;
+	let retriesLeft = maxRetries;
 
-	const ws = chatApi.createChatWebSocket(sessionId, tokenResponse.token, {
-		onConnect: () => {
-			// Send message after connection established
-			chatApi.sendWebSocketMessage(ws, content);
-		},
-		onText: (text) => {
-			responseText += text;
-			callbacks.onTextChunk?.(text);
-		},
-		onError: (errorMessage) => {
-			ws.close();
-			callbacks.onError(new Error(errorMessage));
-		},
-		onComplete: (data: ChatCompleteData) => {
-			ws.close();
-			callbacks.onComplete({
-				userMessage: data.userMessage,
-				agentMessage: data.agentMessage,
-				content: responseText
-			});
-		},
-		onClose: () => {
-			// Connection closed - no action needed
-		}
-	});
+	const openConnection = async () => {
+		const tokenResponse = await chatApi.getStreamToken(sessionId);
+		const ws = chatApi.createChatWebSocket(sessionId, tokenResponse.token, {
+			onConnect: () => {
+				chatApi.sendWebSocketMessage(ws, content);
+			},
+			onText: (text) => {
+				responseText += text;
+				callbacks.onTextChunk?.(text);
+			},
+			onError: (errorMessage) => {
+				ws.close();
+				if (!completed) {
+					callbacks.onError(new Error(errorMessage));
+				}
+			},
+			onComplete: (data: ChatCompleteData) => {
+				completed = true;
+				ws.close();
+				callbacks.onComplete({
+					userMessage: data.userMessage,
+					agentMessage: data.agentMessage,
+					content: responseText
+				});
+			},
+			onClose: () => {
+				if (completed) return;
+				if (retriesLeft > 0) {
+					retriesLeft -= 1;
+					openConnection().catch((err) => callbacks.onError(err));
+				} else {
+					callbacks.onError(new Error('WebSocket closed before completion'));
+				}
+			}
+		});
+	};
+
+	return openConnection();
 }
 
 /**
