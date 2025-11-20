@@ -28,6 +28,24 @@ vi.mock("../../../../src/db/shared-instance", () => ({
     update: vi.fn(),
     delete: vi.fn(),
   })),
+  getSharedChatRepository: vi.fn().mockReturnValue({
+    sessions: {
+      create: vi.fn(),
+      findById: vi.fn(),
+      findByUserId: vi.fn(),
+      delete: vi.fn(),
+    },
+    messages: {
+      create: vi.fn(),
+      findBySessionId: vi.fn(),
+    },
+    characters: {
+      create: vi.fn(),
+      findById: vi.fn(),
+      findByUserId: vi.fn(),
+      findByIdAndUserId: vi.fn(),
+    },
+  }),
   closeSharedServices: vi.fn(),
 }));
 

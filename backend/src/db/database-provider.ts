@@ -358,6 +358,53 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_schedule_session_state_updated_at ON schedule_session_state(updated_at);
       `);
 
+      // Chat sessions table
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          character_id TEXT NOT NULL,
+          working_directory TEXT,
+          executor TEXT DEFAULT 'claude',
+          sdk_session_id TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Chat messages table
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('user', 'agent')),
+          content TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Custom characters table
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS custom_characters (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          avatar TEXT,
+          description TEXT,
+          system_prompt TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Create indexes for chat tables
+      this.db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
+        CREATE INDEX IF NOT EXISTS idx_custom_characters_user_id ON custom_characters(user_id);
+      `);
+
       logger.debug("Database migrations completed");
     } catch (error) {
       logger.error("Database migration failed", { error });
