@@ -121,6 +121,21 @@ export class ChatSessionRepository extends BaseRepository<ChatSession> {
       throw error;
     }
   }
+
+  /**
+   * Touch session to update updated_at timestamp
+   */
+  async touchSession(id: string): Promise<void> {
+    try {
+      const stmt = this.db.prepare(
+        `UPDATE ${this.tableName} SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      );
+      stmt.run(id);
+    } catch (error) {
+      logger.error("Error touching session", { id, error });
+      throw error;
+    }
+  }
 }
 
 /**

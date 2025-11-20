@@ -4,6 +4,12 @@
 
 import * as chatApi from '$lib/api/chat';
 import type { ChatSession, ChatMessage, Character } from '$lib/api/chat';
+import {
+	sendMessageViaWebSocket,
+	createTempUserMessage,
+	createUserMessageFromServer,
+	createAgentMessageFromServer
+} from '$lib/utils/websocket-chat';
 
 /**
  * Chat store class using Svelte 5 runes
@@ -38,7 +44,7 @@ class ChatStore {
 		}
 	}
 
-	async createSession(characterId: string, workingDirectory?: string, executor: 'claude' | 'codex' = 'claude'): Promise<ChatSession | null> {
+	async createSession(characterId: string, workingDirectory?: string, executor: 'claude' = 'claude'): Promise<ChatSession | null> {
 		try {
 			this.loading = true;
 			this.error = null;
@@ -102,78 +108,72 @@ class ChatStore {
 			return false;
 		}
 
+		const sessionId = this.currentSession.id;
+
 		try {
 			this.isStreaming = true;
 			this.error = null;
 
-			// Add user message immediately
-			const tempUserMessage: ChatMessage = {
-				id: `temp-${Date.now()}`,
-				role: 'user',
-				content,
-				createdAt: new Date().toISOString()
-			};
+			// Add user message immediately (optimistic update)
+			const tempUserMessage = createTempUserMessage(content);
 			this.messages = [...this.messages, tempUserMessage];
 
-			// Get stream token for WebSocket authentication
-			const tokenResponse = await chatApi.getStreamToken(this.currentSession.id);
+			// Add temporary agent message for streaming display
+			const tempAgentMessage: ChatMessage = {
+				id: `streaming-${Date.now()}`,
+				role: 'agent',
+				content: '',
+				createdAt: new Date().toISOString()
+			};
+			this.messages = [...this.messages, tempAgentMessage];
 
-			// Create promise to handle WebSocket response
 			return new Promise<boolean>((resolve) => {
-				let responseText = '';
-				let messageId = '';
+				sendMessageViaWebSocket(sessionId, content, {
+					onTextChunk: (text) => {
+						// Update the streaming agent message with new text
+						this.messages = this.messages.map(m =>
+							m.id === tempAgentMessage.id
+								? { ...m, content: m.content + text }
+								: m
+						);
+					},
+					onComplete: (result) => {
+						// Replace temp user message with server-confirmed data
+						this.messages = this.messages.map(m => {
+							if (m.id === tempUserMessage.id) {
+								return createUserMessageFromServer(result, content);
+							}
+							if (m.id === tempAgentMessage.id) {
+								return createAgentMessageFromServer(result);
+							}
+							return m;
+						});
 
-				const ws = chatApi.createChatWebSocket(
-					this.currentSession!.id,
-					tokenResponse.token,
-					{
-						onConnect: () => {
-							// Send message after connection
-							chatApi.sendWebSocketMessage(ws, content);
-						},
-						onText: (text) => {
-							responseText += text;
-						},
-						onError: (error) => {
-							this.error = new Error(error);
-							this.messages = this.messages.filter(m => !m.id.startsWith('temp-'));
-							this.isStreaming = false;
-							ws.close();
-							resolve(false);
-						},
-						onDone: (msgId) => {
-							messageId = msgId;
-							// Server already saved messages via WebSocket handler
-							// Just update the temp message ID and add agent message
-							this.messages = this.messages.map(m =>
-								m.id === tempUserMessage.id
-									? { ...m, id: `user-${Date.now()}` }  // Update with proper ID
-									: m
-							);
-
-							// Add agent message
-							const agentMessage: ChatMessage = {
-								id: messageId,
-								role: 'agent',
-								content: responseText,
-								createdAt: new Date().toISOString()
-							};
-							this.messages = [...this.messages, agentMessage];
-
-							this.isStreaming = false;
-							ws.close();
-							resolve(true);
-						},
-						onClose: () => {
-							// Connection closed
-						}
+						this.isStreaming = false;
+						resolve(true);
+					},
+					onError: (error) => {
+						this.error = error;
+						this.messages = this.messages.filter(m =>
+							!m.id.startsWith('temp-') && !m.id.startsWith('streaming-')
+						);
+						this.isStreaming = false;
+						resolve(false);
 					}
-				);
+				}).catch((err) => {
+					this.error = err instanceof Error ? err : new Error('Failed to send message');
+					this.messages = this.messages.filter(m =>
+						!m.id.startsWith('temp-') && !m.id.startsWith('streaming-')
+					);
+					this.isStreaming = false;
+					resolve(false);
+				});
 			});
 		} catch (err) {
 			this.error = err instanceof Error ? err : new Error('Failed to send message');
-			// Remove temp message on error
-			this.messages = this.messages.filter(m => !m.id.startsWith('temp-'));
+			this.messages = this.messages.filter(m =>
+				!m.id.startsWith('temp-') && !m.id.startsWith('streaming-')
+			);
 			this.isStreaming = false;
 			return false;
 		}

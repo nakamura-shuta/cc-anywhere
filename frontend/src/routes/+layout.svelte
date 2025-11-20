@@ -29,6 +29,7 @@
 		{ href: '/', label: 'ホーム' },
 		{ href: '/tasks', label: 'タスク一覧' },
 		{ href: '/scheduler', label: 'スケジューラー' },
+		{ href: '/chat', label: 'チャット' },
 		{ href: '/settings', label: '設定' },
 	];
 	

@@ -37,6 +37,7 @@ vi.mock("../../../../src/db/shared-instance", () => ({
       findSessionsByUserId: vi.fn(),
       delete: vi.fn(),
       updateSdkSessionId: vi.fn(),
+      touchSession: vi.fn(),
     },
     messages: {
       create: vi.fn(),

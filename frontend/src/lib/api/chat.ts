@@ -11,7 +11,8 @@ export interface ChatSession {
 	userId: string;
 	characterId: string;
 	workingDirectory?: string;
-	executor: 'claude' | 'codex';
+	// Note: Only 'claude' is currently supported
+	executor: 'claude';
 	sdkSessionId?: string;
 	createdAt: string;
 	updatedAt: string;
@@ -37,7 +38,8 @@ export interface Character {
 export interface CreateSessionRequest {
 	characterId: string;
 	workingDirectory?: string;
-	executor?: 'claude' | 'codex';
+	// Note: Only 'claude' is currently supported
+	executor?: 'claude';
 }
 
 export interface CreateCharacterRequest {
@@ -77,15 +79,21 @@ export interface StreamTokenResponse {
 	expiresAt: string;
 }
 
-export interface ProcessMessageResponse {
-	messageId: string;
-	content: string;
-}
-
 export interface ChatWebSocketMessage {
 	type: string;
 	data: unknown;
 	timestamp: string;
+}
+
+export interface MessageInfo {
+	id: string;
+	createdAt: string;
+}
+
+export interface ChatCompleteData {
+	userMessage: MessageInfo;
+	agentMessage: MessageInfo;
+	sdkSessionId?: string;
 }
 
 export interface ChatWebSocketCallbacks {
@@ -93,7 +101,7 @@ export interface ChatWebSocketCallbacks {
 	onText?: (text: string) => void;
 	onToolUse?: (tool: string, input: unknown) => void;
 	onError?: (error: string) => void;
-	onDone?: (messageId: string, content: string) => void;
+	onComplete?: (data: ChatCompleteData) => void;
 	onClose?: () => void;
 }
 
@@ -129,10 +137,6 @@ export async function getMessages(sessionId: string): Promise<MessagesResponse> 
 
 export async function sendMessage(sessionId: string, content: string): Promise<ChatMessage> {
 	return apiClient.post<ChatMessage>(`/api/chat/sessions/${sessionId}/messages`, { content });
-}
-
-export async function processMessage(sessionId: string, content: string): Promise<ProcessMessageResponse> {
-	return apiClient.post<ProcessMessageResponse>(`/api/chat/sessions/${sessionId}/process`, { content });
 }
 
 /**
@@ -181,9 +185,8 @@ export function createChatWebSocket(
 				case 'error':
 					callbacks.onError?.((message.data as { message: string }).message);
 					break;
-				case 'done':
-					const doneData = message.data as { messageId: string; sdkSessionId?: string };
-					callbacks.onDone?.(doneData.messageId, '');
+				case 'complete':
+					callbacks.onComplete?.(message.data as ChatCompleteData);
 					break;
 			}
 		} catch (error) {

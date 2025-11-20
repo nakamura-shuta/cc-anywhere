@@ -14,6 +14,38 @@ import type {
 } from "./types.js";
 
 /**
+ * Helper to create timestamped events
+ */
+function createEvent<T extends ChatStreamEvent["type"]>(
+  type: T,
+  data: ChatStreamEvent["data"],
+): ChatStreamEvent {
+  return {
+    type,
+    data,
+    timestamp: new Date().toISOString(),
+  } as ChatStreamEvent;
+}
+
+/**
+ * Helper to manage API key environment variable
+ */
+function withApiKey<T>(fn: () => T): T {
+  const originalApiKey = process.env.CLAUDE_API_KEY;
+  process.env.CLAUDE_API_KEY = config.claude.apiKey;
+
+  try {
+    return fn();
+  } finally {
+    if (originalApiKey !== undefined) {
+      process.env.CLAUDE_API_KEY = originalApiKey;
+    } else {
+      delete process.env.CLAUDE_API_KEY;
+    }
+  }
+}
+
+/**
  * Claude-based chat executor
  */
 export class ClaudeChatExecutor implements IChatExecutor {
@@ -24,129 +56,119 @@ export class ClaudeChatExecutor implements IChatExecutor {
   ): Promise<ChatExecutorResult> {
     const messageId = uuidv4();
 
-    // Emit start event
-    onEvent({
-      type: "start",
-      data: {
+    onEvent(
+      createEvent("start", {
         sessionId: options.sessionId,
         messageId,
-      },
-      timestamp: new Date().toISOString(),
-    });
+      }),
+    );
 
-    try {
-      // Set API key in environment
-      const originalApiKey = process.env.CLAUDE_API_KEY;
-      process.env.CLAUDE_API_KEY = config.claude.apiKey;
+    return withApiKey(async () => {
+      try {
+        const queryOptions = {
+          prompt: message,
+          stream: true,
+          abortController: new AbortController(),
+          options: {
+            maxTurns: 10,
+            includePartialMessages: true,
+            customSystemPrompt: options.systemPrompt,
+            permissionMode: "bypassPermissions" as const,
+            cwd: options.workingDirectory,
+            resume: options.sdkSessionId,
+          },
+        };
 
-      // Prepare query options with string prompt
-      const queryOptions = {
-        prompt: message,
-        abortController: new AbortController(),
-        options: {
-          maxTurns: 10,
-          customSystemPrompt: options.systemPrompt,
-          permissionMode: "bypassPermissions" as const,
-          cwd: options.workingDirectory,
-          resume: options.sdkSessionId,
-        },
-      };
+        let fullText = "";
+        let sdkSessionId: string | undefined;
 
-      // Collect response text
-      let fullText = "";
-      let sdkSessionId: string | undefined;
+        for await (const event of query(queryOptions)) {
+          // Log all events for debugging
+          logger.debug("SDK event received", {
+            type: event.type,
+            event: JSON.stringify(event).substring(0, 500),
+          });
 
-      // Process with streaming using query
-      for await (const event of query(queryOptions)) {
-        // Capture SDK session ID from init event
-        if (event.type === "system" && "sessionId" in event) {
-          sdkSessionId = event.sessionId as string;
-        }
+          // Capture SDK session ID
+          if (event.type === "system" && "sessionId" in event) {
+            sdkSessionId = event.sessionId as string;
+          }
 
-        // Handle assistant message events
-        if (event.type === "assistant" && event.message) {
-          // Process content blocks
-          for (const content of event.message.content || []) {
-            if (content.type === "text") {
-              fullText += content.text;
-              onEvent({
-                type: "text",
-                data: { text: content.text },
-                timestamp: new Date().toISOString(),
-              });
-            } else if (content.type === "tool_use") {
-              onEvent({
-                type: "tool_use",
-                data: {
-                  tool: content.name,
-                  toolInput: content.input,
-                },
-                timestamp: new Date().toISOString(),
-              });
+          // Handle stream_event for streaming text deltas
+          if (event.type === "stream_event") {
+            const streamEvent = event as any;
+            // Check for text delta in the stream event
+            if (
+              streamEvent.event?.type === "content_block_delta" &&
+              streamEvent.event?.delta?.type === "text_delta" &&
+              streamEvent.event?.delta?.text
+            ) {
+              const text = streamEvent.event.delta.text;
+              fullText += text;
+              onEvent(createEvent("text", { text }));
             }
           }
-        }
 
-        // Handle result events
-        if (event.type === "result") {
+          // Process assistant messages - stream each text block
+          if (event.type === "assistant" && event.message) {
+            for (const content of event.message.content || []) {
+              if (content.type === "text") {
+                // Send text events for assistant messages
+                const newText = content.text;
+                if (newText) {
+                  // Each assistant event contains the text to add
+                  fullText += newText;
+                  onEvent(createEvent("text", { text: newText }));
+                }
+              } else if (content.type === "tool_use") {
+                onEvent(
+                  createEvent("tool_use", {
+                    tool: content.name,
+                    toolInput: content.input,
+                  }),
+                );
+              }
+            }
+          }
+
           // Capture session ID from result if not already captured
-          if (!sdkSessionId && "sessionId" in event) {
+          if (event.type === "result" && !sdkSessionId && "sessionId" in event) {
             sdkSessionId = event.sessionId as string;
           }
         }
-      }
 
-      // Emit done event
-      onEvent({
-        type: "done",
-        data: {
-          sessionId: options.sessionId,
+        onEvent(
+          createEvent("done", {
+            sessionId: options.sessionId,
+            messageId,
+            sdkSessionId,
+          }),
+        );
+
+        return {
           messageId,
+          content: fullText,
           sdkSessionId,
-        },
-        timestamp: new Date().toISOString(),
-      });
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Restore original API key
-      if (originalApiKey !== undefined) {
-        process.env.CLAUDE_API_KEY = originalApiKey;
-      } else {
-        delete process.env.CLAUDE_API_KEY;
-      }
-
-      return {
-        messageId,
-        content: fullText,
-        sdkSessionId,
-      };
-    } catch (error) {
-      // Restore original API key on error
-      const originalApiKey = process.env.CLAUDE_API_KEY;
-      if (originalApiKey !== undefined) {
-        process.env.CLAUDE_API_KEY = originalApiKey;
-      } else {
-        delete process.env.CLAUDE_API_KEY;
-      }
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      logger.error("Chat execution failed", {
-        sessionId: options.sessionId,
-        error: errorMessage,
-      });
-
-      // Emit error event
-      onEvent({
-        type: "error",
-        data: {
-          error: errorMessage,
+        logger.error("Chat execution failed", {
           sessionId: options.sessionId,
-          messageId,
-        },
-        timestamp: new Date().toISOString(),
-      });
+          error: errorMessage,
+        });
 
-      throw error;
-    }
+        onEvent(
+          createEvent("error", {
+            error: errorMessage,
+            sessionId: options.sessionId,
+            messageId,
+          }),
+        );
+
+        throw error;
+      }
+    });
   }
 }
 

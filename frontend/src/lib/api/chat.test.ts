@@ -6,7 +6,6 @@ import {
 	deleteSession,
 	getMessages,
 	sendMessage,
-	processMessage,
 	getStreamToken,
 	getCharacters,
 	getCharacter,
@@ -131,28 +130,12 @@ describe('Chat API', () => {
 
 			const result = await sendMessage('session-123', 'Hello');
 
-			expect(apiClient.post).toHaveBeenCalledWith(
-				'/api/chat/sessions/session-123/messages',
-				{ content: 'Hello' }
-			);
-			expect(result).toEqual(mockMessage);
-		});
-
-		it('should process a message', async () => {
-			const mockResponse = {
-				messageId: 'msg-2',
-				content: 'Hi there!'
-			};
-			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
-
-			const result = await processMessage('session-123', 'Hello');
-
-			expect(apiClient.post).toHaveBeenCalledWith(
-				'/api/chat/sessions/session-123/process',
-				{ content: 'Hello' }
-			);
-			expect(result).toEqual(mockResponse);
-		});
+		expect(apiClient.post).toHaveBeenCalledWith(
+			'/api/chat/sessions/session-123/messages',
+			{ content: 'Hello' }
+		);
+		expect(result).toEqual(mockMessage);
+	});
 	});
 
 	describe('Stream APIs', () => {

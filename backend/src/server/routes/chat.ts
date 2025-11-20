@@ -24,7 +24,8 @@ import type { ChatStreamEvent } from "../../chat/types.js";
 const createSessionSchema = z.object({
   characterId: z.string().min(1),
   workingDirectory: z.string().optional(),
-  executor: z.enum(["claude", "codex"]).default("claude"),
+  // Note: Only 'claude' is currently supported. 'codex' will be added in a future release.
+  executor: z.literal("claude").default("claude"),
 });
 
 const sendMessageSchema = z.object({
@@ -418,6 +419,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
       };
 
       await chatRepository.messages.create(message);
+      await chatRepository.sessions.touchSession(sessionId);
 
       logger.info("Chat message created", { messageId: message.id, sessionId });
 
@@ -930,12 +932,41 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
             };
             await chatRepository.messages.create(agentMessage);
 
+            // Notify client that streaming completed with message metadata
+            sendWsMessage("complete", {
+              userMessage: {
+                id: userMessage.id,
+                createdAt: userMessage.createdAt.toISOString(),
+              },
+              agentMessage: {
+                id: agentMessage.id,
+                createdAt: agentMessage.createdAt.toISOString(),
+              },
+              sdkSessionId: result.sdkSessionId,
+            });
+
+            // Update session timestamp
+            await chatRepository.sessions.touchSession(sessionId);
+
             // Update SDK session ID if changed
             if (result.sdkSessionId && result.sdkSessionId !== currentSdkSessionId) {
               await chatRepository.sessions.updateSdkSessionId(sessionId, result.sdkSessionId);
               // Also update in-memory for subsequent messages
               currentSdkSessionId = result.sdkSessionId;
             }
+
+            // Send complete event with all message info for frontend sync
+            sendWsMessage("complete", {
+              userMessage: {
+                id: userMessage.id,
+                createdAt: userMessage.createdAt.toISOString(),
+              },
+              agentMessage: {
+                id: agentMessage.id,
+                createdAt: agentMessage.createdAt.toISOString(),
+              },
+              sdkSessionId: result.sdkSessionId,
+            });
 
             logger.info("Chat message processed via WebSocket", {
               sessionId,
