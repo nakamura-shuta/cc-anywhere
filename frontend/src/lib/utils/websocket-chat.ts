@@ -21,7 +21,7 @@ export interface WebSocketChatResult {
 		createdAt: string;
 	};
 	content: string;
-	mode?: 'resume' | 'history_fallback';
+	mode?: 'resume' | 'new_session';
 }
 
 /**

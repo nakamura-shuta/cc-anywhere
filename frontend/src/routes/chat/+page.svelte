@@ -145,7 +145,7 @@
 
 {#if chatStore.lastChatMode}
 	<div class="fixed bottom-4 left-4 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground shadow">
-		Mode: {chatStore.lastChatMode === 'resume' ? 'Session Resume (sdkSessionId)' : 'History Fallback'}
+		Mode: {chatStore.lastChatMode === 'resume' ? 'Session Resume' : 'New Session'}
 	</div>
 {/if}
 </div>

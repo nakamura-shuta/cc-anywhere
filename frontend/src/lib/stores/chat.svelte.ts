@@ -26,7 +26,7 @@ class ChatStore {
 	loading = $state(false);
 	error = $state<Error | null>(null);
 	isStreaming = $state(false);
-	lastChatMode = $state<'resume' | 'history_fallback' | null>(null);
+	lastChatMode = $state<'resume' | 'new_session' | null>(null);
 
 	// Derived state
 	allCharacters = $derived([...this.characters.builtIn, ...this.characters.custom]);
@@ -142,8 +142,8 @@ class ChatStore {
 						);
 					},
 					onComplete: (result) => {
-						// modeがhistory_fallbackならエラーでなく情報として保持
-						this.lastChatMode = result.mode || 'resume';
+						// modeを保持（resume or new_session）
+						this.lastChatMode = result.mode || null;
 						// Replace temp user message with server-confirmed data
 						this.messages = this.messages.map(m => {
 							if (m.id === tempUserMessage.id) {

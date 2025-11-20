@@ -95,7 +95,7 @@ export interface ChatCompleteData {
 	userMessage: MessageInfo;
 	agentMessage: MessageInfo;
 	sdkSessionId?: string;
-	mode?: 'resume' | 'history_fallback';
+	mode?: 'resume' | 'new_session';
 }
 
 export interface ChatWebSocketCallbacks {
