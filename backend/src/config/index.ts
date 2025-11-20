@@ -123,6 +123,11 @@ const envSchema = z.object({
     .string()
     .default("true")
     .transform((v) => v === "true"),
+  // Experimental features
+  USE_NEW_CHAT_CLIENT: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true"),
 });
 
 // Parse and validate environment variables
@@ -227,5 +232,8 @@ export const config = {
     allowedWorkingDirectories: env.ALLOWED_WORKING_DIRECTORIES,
     strictPathValidation: env.STRICT_PATH_VALIDATION,
     requireWhitelist: env.REQUIRE_WHITELIST,
+  },
+  experimental: {
+    useNewChatClient: env.USE_NEW_CHAT_CLIENT,
   },
 } as const;
