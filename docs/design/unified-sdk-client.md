@@ -314,32 +314,62 @@ class ChatSDKClient extends ClaudeSDKBase {
 
 ## 実装計画
 
-### Phase 1: 共通基盤の作成 ✅
+### Phase 1: 共通基盤の作成 🚧
 
 **目標**: `ClaudeSDKBase` クラスの実装
 
+**優先度とリスク評価**:
+- **優先度**: 高（全体の基盤となる）
+- **リスク**: 中
+  - 既存実装への影響: なし（新規作成）
+  - チャットは現在 resume/new_session で安定動作中
+  - Phase 2/3で既存コードを置き換える際にリスクが顕在化
+- **推奨アプローチ**: 慎重に設計し、十分なテストを実施
+
 **タスク**:
 - [ ] `backend/src/claude/sdk/base.ts` 作成
-- [ ] 共通オプション型定義
+- [ ] 共通オプション型定義（`types.ts`）
 - [ ] SDK呼び出しの共通ロジック
+  - [ ] `query()` ラッパー
+  - [ ] イベントストリーミング
 - [ ] セッション管理の共通化
-- [ ] API Key管理の共通化
+  - [ ] sessionId/session_id 両対応
+  - [ ] resume オプションの処理
+- [ ] API Key管理の統一（**withApiKey方式を採用**）
+  - [ ] 一時的な環境変数設定
+  - [ ] 実行後の復元処理
 - [ ] エラーハンドリングの共通化
+  - [ ] エラーラッピング
+  - [ ] ログ出力
+- [ ] イベント正規化の実装（詳細は後述）
 - [ ] ユニットテスト作成
+  - [ ] sessionId抽出テスト
+  - [ ] API Key管理テスト
+  - [ ] エラーハンドリングテスト
+  - [ ] イベント正規化テスト
 
 **成果物**:
 ```
 backend/src/claude/sdk/
 ├── base.ts              # ClaudeSDKBase
 ├── types.ts             # 共通型定義
+├── event-normalizer.ts  # イベント正規化
 └── __tests__/
-    └── base.test.ts
+    ├── base.test.ts
+    └── event-normalizer.test.ts
 ```
 
 **検証**:
-- [ ] 既存の`ClaudeCodeClient`と同等の機能
-- [ ] セッション継続が正常動作
-- [ ] エラーハンドリングが適切
+- [ ] sessionId抽出が両形式で動作
+- [ ] API Key管理が正常動作（設定・復元）
+- [ ] エラーが適切にラッピングされる
+- [ ] イベント正規化が正しく動作
+- [ ] ユニットテストカバレッジ >90%
+
+**完了基準**:
+- [ ] すべてのユニットテストがパス
+- [ ] コードレビュー完了
+- [ ] ドキュメント作成完了
 
 ### Phase 2: チャット実装の移行 🔄
 
@@ -366,19 +396,95 @@ backend/src/chat/
 ```
 
 **検証**:
-- [ ] チャット機能が正常動作
-- [ ] ストリーミングのレイテンシが許容範囲内（目標: <800ms）
-  - 測定: WebSocket接続～初回textイベント
-  - ツール: パフォーマンステストスクリプト
-- [ ] resume成功時は正常動作
-- [ ] **resume失敗時はエラーが返る**（新規セッションに切り替えない）
-- [ ] WebSocketイベントが正常配信（順序保証）
-- [ ] 既存の統合テストがパス
 
-**移行戦略**:
-- 段階的フラグ導入: `USE_NEW_CHAT_CLIENT` 環境変数
-- 移行期間: 両実装を並行稼働（1-2日）
-- ロールバック手順: フラグをfalseに戻す
+**機能検証**:
+- [ ] チャット機能が正常動作（基本フロー）
+- [ ] resume成功時は正常動作
+  - [ ] 目標: resume成功率 >99%
+  - [ ] 測定: 100回実行の成功率
+  - [ ] 失敗時: Sentry通知 + ログ記録
+- [ ] **resume失敗時はエラーが返る**（新規セッションに切り替えない）
+  - [ ] エラーメッセージが明確
+  - [ ] フロントエンドで適切にハンドリング可能
+- [ ] WebSocketイベントが正常配信
+  - [ ] 順序保証（text イベントが順番通り）
+  - [ ] 欠落なし（完全性）
+  - [ ] 重複なし
+
+**パフォーマンス検証**:
+- [ ] ストリーミングのレイテンシが許容範囲内
+  - [ ] 目標: WebSocket接続～初回textイベント <800ms
+  - [ ] 測定方法:
+    ```typescript
+    const start = Date.now();
+    const ws = createChatWebSocket(sessionId, token, {
+      onText: (text) => {
+        const latency = Date.now() - start;
+        metrics.record('chat.first_text.latency', latency);
+      }
+    });
+    ```
+  - [ ] 測定条件: 10回実行の平均値と95パーセンタイル
+  - [ ] 基準値: 既存実装との比較（平均±10%以内、P95±15%以内）
+  - [ ] 警告閾値: 平均 >1000ms または P95 >1500ms
+- [ ] スループットの低下なし
+  - [ ] 目標: 既存比95%以上
+  - [ ] 測定: 同時接続数10でのメッセージ処理時間
+
+**回帰テスト**:
+- [ ] 既存の統合テストがパス
+- [ ] E2Eテスト（フロントエンド～バックエンド）がパス
+
+**段階的移行戦略**:
+
+**1. Feature Flag の導入**:
+```typescript
+// config/index.ts
+export const config = {
+  experimental: {
+    useNewChatClient: process.env.USE_NEW_CHAT_CLIENT === 'true'
+  }
+};
+
+// chat/chat-executor.ts
+export function createChatExecutor(executorType: string): IChatExecutor {
+  if (config.experimental.useNewChatClient) {
+    return new ChatSDKClientExecutor(); // 新実装
+  }
+  return new ClaudeChatExecutor(); // 既存実装
+}
+```
+
+**2. 並行稼働期間**:
+- Day 1-2: 開発環境でテスト（`USE_NEW_CHAT_CLIENT=true`）
+- Day 3-4: ステージング環境で検証
+- Day 5: 本番環境で段階的ロールアウト
+  - 10% のトラフィックで新実装を試行
+  - メトリクス監視（レイテンシ、エラー率）
+  - 問題なければ 50% → 100% に拡大
+
+**3. ロールバック手順**:
+```bash
+# 即座にロールバック（環境変数変更）
+export USE_NEW_CHAT_CLIENT=false
+pm2 restart cc-anywhere
+
+# または設定ファイル経由
+echo 'USE_NEW_CHAT_CLIENT=false' >> .env
+pm2 restart cc-anywhere
+```
+
+**4. 監視項目**:
+- [ ] エラー率: 既存比+5%以内
+- [ ] レイテンシ: P50/P95/P99
+- [ ] resume成功率: >99%
+- [ ] WebSocketエラー: 再接続成功率 >95%
+
+**5. 完了基準**:
+- [ ] 本番環境で100%トラフィックが新実装
+- [ ] 1週間安定稼働
+- [ ] すべての監視項目が基準内
+- [ ] ユーザーからの問題報告なし
 
 ### Phase 3: タスク実装の移行 🔄
 
@@ -500,9 +606,16 @@ protected extractSessionId(event: any): string | undefined {
 - タスク: グローバル設定（`config.claude.apiKey`）
 - チャット: `withApiKey()` ヘルパーで一時設定
 
-**統合後**:
+**採用方針**: **withApiKey方式を正とする**
+
+**理由**:
+1. スレッドセーフ: 並行実行時に他の実行に影響しない
+2. テスト容易性: テストごとに異なるAPI Keyを使用可能
+3. 柔軟性: 将来的に複数のAPI Keyを使い分け可能
+
+**統合後の実装**:
 ```typescript
-class ClaudeSDKBase {
+abstract class ClaudeSDKBase {
   protected withApiKey<T>(fn: () => T): T {
     const originalApiKey = process.env.CLAUDE_API_KEY;
     process.env.CLAUDE_API_KEY = config.claude.apiKey;
@@ -510,6 +623,7 @@ class ClaudeSDKBase {
     try {
       return fn();
     } finally {
+      // 元の値を復元（undefinedの場合は削除）
       if (originalApiKey !== undefined) {
         process.env.CLAUDE_API_KEY = originalApiKey;
       } else {
@@ -517,8 +631,22 @@ class ClaudeSDKBase {
       }
     }
   }
+
+  protected async executeQuery(
+    options: SDKExecutionOptions,
+    onEvent: (event: NormalizedSDKEvent) => void | Promise<void>
+  ): Promise<SDKExecutionResult> {
+    // API Keyを一時的に設定して実行
+    return this.withApiKey(() => {
+      return this.executeQueryInternal(options, onEvent);
+    });
+  }
 }
 ```
+
+**移行影響**:
+- タスク実行: グローバル設定 → withApiKey に変更（動作は同じ）
+- チャット: 既にwithApiKeyを使用（変更なし）
 
 ### イベント変換フロー
 
@@ -550,15 +678,140 @@ class ClaudeSDKBase {
 └────────────────┘            └─────────────────┘
 ```
 
-**イベント変換の詳細**:
+**イベント正規化の詳細**:
 
-| SDK Event | TaskSDKClient → | ChatSDKClient → |
-|-----------|-----------------|-----------------|
-| `system` (sessionId) | sessionId保存 | sessionId保存 |
-| `stream_event` (text_delta) | Progress → `agent:progress` | `text` イベント |
-| `assistant` (text/tool_use) | Progress → `agent:progress` | `text` / `tool_use` イベント |
-| `result` | `agent:completed` | `done` イベント |
-| Error | `agent:failed` | `error` イベント |
+#### 共通基盤でのSDKイベント正規化
+
+**目的**: SDKの生イベントを標準化されたフォーマットに変換
+
+**正規化インターフェース**:
+```typescript
+// 共通基盤が提供する正規化済みイベント
+interface NormalizedSDKEvent {
+  type: 'session' | 'text_delta' | 'tool_use' | 'result' | 'error';
+  timestamp: string; // ISO 8601形式
+  data: {
+    sessionId?: string;
+    text?: string;
+    toolName?: string;
+    toolInput?: any;
+    error?: string;
+  };
+}
+```
+
+**正規化ルール**:
+
+| SDK生イベント | 検出条件 | 正規化後 | payload |
+|--------------|---------|---------|---------|
+| `system` | `event.type === 'system'` | `session` | `{ sessionId: event.sessionId ?? event.session_id }` |
+| `stream_event` | `event.type === 'stream_event'`<br>`event.event?.type === 'content_block_delta'`<br>`event.event?.delta?.type === 'text_delta'` | `text_delta` | `{ text: event.event.delta.text }` |
+| `assistant` (text) | `event.type === 'assistant'`<br>`content.type === 'text'` | `text_delta` | `{ text: content.text }` |
+| `assistant` (tool_use) | `event.type === 'assistant'`<br>`content.type === 'tool_use'` | `tool_use` | `{ toolName: content.name, toolInput: content.input }` |
+| `result` | `event.type === 'result'` | `result` | `{ sessionId: event.sessionId ?? event.session_id }` |
+| `error` / Exception | `event.type === 'error'` or catch | `error` | `{ error: errorMessage }` |
+
+**実装例**:
+```typescript
+class EventNormalizer {
+  normalize(sdkEvent: any): NormalizedSDKEvent | null {
+    const timestamp = new Date().toISOString();
+
+    // system イベント
+    if (sdkEvent.type === 'system') {
+      return {
+        type: 'session',
+        timestamp,
+        data: {
+          sessionId: sdkEvent.sessionId ?? sdkEvent.session_id
+        }
+      };
+    }
+
+    // stream_event (text_delta)
+    if (sdkEvent.type === 'stream_event' &&
+        sdkEvent.event?.type === 'content_block_delta' &&
+        sdkEvent.event?.delta?.type === 'text_delta') {
+      return {
+        type: 'text_delta',
+        timestamp,
+        data: { text: sdkEvent.event.delta.text }
+      };
+    }
+
+    // assistant (text)
+    if (sdkEvent.type === 'assistant' && sdkEvent.message?.content) {
+      for (const content of sdkEvent.message.content) {
+        if (content.type === 'text' && content.text) {
+          return {
+            type: 'text_delta',
+            timestamp,
+            data: { text: content.text }
+          };
+        }
+        if (content.type === 'tool_use') {
+          return {
+            type: 'tool_use',
+            timestamp,
+            data: {
+              toolName: content.name,
+              toolInput: content.input
+            }
+          };
+        }
+      }
+    }
+
+    // result
+    if (sdkEvent.type === 'result') {
+      return {
+        type: 'result',
+        timestamp,
+        data: {
+          sessionId: sdkEvent.sessionId ?? sdkEvent.session_id
+        }
+      };
+    }
+
+    return null; // 処理不要なイベント
+  }
+}
+```
+
+#### クライアント固有の変換
+
+**TaskSDKClient**:
+```typescript
+// NormalizedSDKEvent → AgentExecutionEvent
+text_delta → agent:progress { message: text }
+tool_use   → agent:progress { message: `Using tool: ${toolName}` }
+result     → agent:completed { output, sessionId, todos }
+error      → agent:failed { error }
+```
+
+**ChatSDKClient**:
+```typescript
+// NormalizedSDKEvent → ChatStreamEvent
+text_delta → { type: 'text', data: { text }, timestamp }
+tool_use   → { type: 'tool_use', data: { tool: toolName, toolInput }, timestamp }
+result     → { type: 'done', data: { sessionId, messageId }, timestamp }
+error      → { type: 'error', data: { error }, timestamp }
+```
+
+**シーケンス図**:
+```
+SDK → ClaudeSDKBase.executeQuery()
+         ↓
+      EventNormalizer.normalize()
+         ↓
+      NormalizedSDKEvent
+         ↓
+   ┌─────┴─────┐
+   ↓           ↓
+TaskSDK     ChatSDK
+   ↓           ↓
+AgentEvent  ChatEvent
+```
 
 ### イベント処理の統一
 
@@ -772,6 +1025,16 @@ logger.debug('Chat execution latency', { latency });
 - 各フェーズで段階的フラグ併用期間を設けて、安全に移行します
 - 問題発生時のロールバック手順を事前に確立します
 - パフォーマンステストで基準値を満たさない場合、最適化期間を追加します
+
+**追加考慮事項**:
+- **SDKイベント正規化**: 新規実装のため、想定外のイベント形式に注意
+  - 対策: 包括的なユニットテスト + モニタリング
+- **E2Eテスト**: フロントエンド～バックエンドの統合テストが必要
+  - 追加工数: Phase 2/3 各 +1日
+- **回帰テスト**: 既存機能への影響を確認
+  - 追加工数: Phase 2/3 各 +0.5日
+- **ドキュメント更新**: アーキテクチャドキュメント、API仕様書
+  - 追加工数: Phase 4 +0.5日
 
 **並行作業の可能性**:
 - Phase 1完了後、Phase 2とPhase 3の準備を並行可能
