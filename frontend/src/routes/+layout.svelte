@@ -91,7 +91,7 @@
 		
 		<!-- メインコンテンツエリア -->
 		<main class="flex-1 overflow-y-auto">
-			<div class="container mx-auto px-4 py-4 lg:py-8">
+			<div class="container mx-auto h-full px-4 py-4 lg:py-8">
 				{@render children?.()}
 			</div>
 		</main>

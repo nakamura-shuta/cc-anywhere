@@ -83,15 +83,9 @@ export class ClaudeChatExecutor implements IChatExecutor {
         let sdkSessionId: string | undefined;
 
         for await (const event of query(queryOptions)) {
-          // Log all events for debugging
-          logger.debug("SDK event received", {
-            type: event.type,
-            event: JSON.stringify(event).substring(0, 500),
-          });
-
           // Capture SDK session ID
-          if (event.type === "system" && "sessionId" in event) {
-            sdkSessionId = event.sessionId as string;
+          if (event.type === "system" && ("sessionId" in event || "session_id" in event)) {
+            sdkSessionId = (event as any).sessionId ?? (event as any).session_id;
           }
 
           // Handle stream_event for streaming text deltas
@@ -132,8 +126,8 @@ export class ClaudeChatExecutor implements IChatExecutor {
           }
 
           // Capture session ID from result if not already captured
-          if (event.type === "result" && !sdkSessionId && "sessionId" in event) {
-            sdkSessionId = event.sessionId as string;
+          if (event.type === "result" && !sdkSessionId && ("sessionId" in event || "session_id" in event)) {
+            sdkSessionId = (event as any).sessionId ?? (event as any).session_id;
           }
         }
 

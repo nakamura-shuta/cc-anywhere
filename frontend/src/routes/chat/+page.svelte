@@ -50,7 +50,7 @@
 		</Button>
 	</div>
 
-	<div class="grid min-h-0 flex-1 grid-cols-1 gap-2 sm:gap-4 md:grid-cols-4">
+  <div class="grid flex-1 min-h-0 grid-cols-1 gap-2 sm:gap-4 md:grid-cols-4">
 		<!-- Sidebar - hidden on mobile when in chat -->
 		<div class="hidden md:col-span-1 md:flex md:flex-col {chatStore.currentSession || showNewSession ? '' : 'flex flex-col'}">
 			<Card.Root class="flex min-h-0 flex-1 flex-col">

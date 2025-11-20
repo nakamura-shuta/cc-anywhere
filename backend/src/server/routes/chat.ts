@@ -18,7 +18,7 @@ import type {
   CustomCharacter,
 } from "../../repositories/chat-repository.js";
 import { createChatExecutor } from "../../chat/index.js";
-import type { ChatStreamEvent } from "../../chat/types.js";
+import type { ChatStreamEvent, ChatExecutorResult } from "../../chat/types.js";
 import { getAllPresetCharacters, getPresetCharacter } from "../../chat/preset-characters.js";
 
 // Request schemas
@@ -895,13 +895,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
             };
             await chatRepository.messages.create(userMessage);
 
-            // Build lightweight conversation history (last 20) only if resume fails
-            const historyMessages = await chatRepository.messages.findBySessionId(sessionId);
-            const formattedHistory = historyMessages
-              .slice(-20)
-              .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-              .join("\n");
-
             // Get character's system prompt
             let systemPrompt = "";
 
@@ -924,9 +917,35 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
             const executor = createChatExecutor(sessionData.executor);
 
             // Execute and stream events via WebSocket
-            let usedResume = false;
-            let result;
-            try {
+            const canResume = Boolean(currentSdkSessionId);
+            let mode: "resume" | "new_session" = "new_session";
+            let result: ChatExecutorResult;
+
+            if (canResume) {
+              try {
+                result = await executor.execute(
+                  content,
+                  {
+                    sessionId,
+                    characterId: sessionData.characterId,
+                    systemPrompt,
+                    workingDirectory: sessionData.workingDirectory,
+                    executor: sessionData.executor,
+                    sdkSessionId: currentSdkSessionId,
+                  },
+                  (event: ChatStreamEvent) => {
+                    sendWsMessage(event.type, event.data);
+                  },
+                );
+                mode = "resume";
+              } catch (resumeError) {
+                sendWsMessage("error", {
+                  code: "RESUME_FAILED",
+                  message: resumeError instanceof Error ? resumeError.message : String(resumeError),
+                });
+                throw resumeError;
+              }
+            } else {
               result = await executor.execute(
                 content,
                 {
@@ -935,33 +954,13 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
                   systemPrompt,
                   workingDirectory: sessionData.workingDirectory,
                   executor: sessionData.executor,
-                  sdkSessionId: currentSdkSessionId,
+                  sdkSessionId: undefined,
                 },
                 (event: ChatStreamEvent) => {
                   sendWsMessage(event.type, event.data);
                 },
               );
-              usedResume = true;
-            } catch (resumeError) {
-              // Fallback to history prompt if resume failed or sessionId missing
-              // formattedHistory already contains the current user message (saved above)
-              const fallbackPrompt = formattedHistory || content;
-
-              result = await executor.execute(
-                fallbackPrompt,
-                {
-                  sessionId,
-                  characterId: sessionData.characterId,
-                  systemPrompt,
-                  workingDirectory: sessionData.workingDirectory,
-                  executor: sessionData.executor,
-                  sdkSessionId: undefined, // reset
-                },
-                (event: ChatStreamEvent) => {
-                  sendWsMessage(event.type, event.data);
-                },
-              );
-              usedResume = false;
+              mode = "new_session";
             }
 
             // Save agent message
@@ -985,7 +984,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
                 createdAt: agentMessage.createdAt.toISOString(),
               },
               sdkSessionId: result.sdkSessionId,
-              mode: usedResume ? "resume" : "history_fallback",
+              mode,
             });
 
             // Update session timestamp
