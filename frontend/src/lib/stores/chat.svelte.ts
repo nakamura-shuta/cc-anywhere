@@ -26,6 +26,7 @@ class ChatStore {
 	loading = $state(false);
 	error = $state<Error | null>(null);
 	isStreaming = $state(false);
+	lastChatMode = $state<'resume' | 'history_fallback' | null>(null);
 
 	// Derived state
 	allCharacters = $derived([...this.characters.builtIn, ...this.characters.custom]);
@@ -56,6 +57,7 @@ class ChatStore {
 			this.sessions = [session, ...this.sessions];
 			this.currentSession = session;
 			this.messages = [];
+			this.lastChatMode = null;
 			return session;
 		} catch (err) {
 			this.error = err instanceof Error ? err : new Error('Failed to create session');
@@ -75,6 +77,7 @@ class ChatStore {
 
 			const messagesResponse = await chatApi.getMessages(sessionId);
 			this.messages = messagesResponse.messages;
+			this.lastChatMode = null;
 		} catch (err) {
 			this.error = err instanceof Error ? err : new Error('Failed to load session');
 		} finally {
@@ -91,6 +94,7 @@ class ChatStore {
 			if (this.currentSession?.id === sessionId) {
 				this.currentSession = null;
 				this.messages = [];
+				this.lastChatMode = null;
 			}
 			return true;
 		} catch (err) {
@@ -138,6 +142,8 @@ class ChatStore {
 						);
 					},
 					onComplete: (result) => {
+						// modeがhistory_fallbackならエラーでなく情報として保持
+						this.lastChatMode = result.mode || 'resume';
 						// Replace temp user message with server-confirmed data
 						this.messages = this.messages.map(m => {
 							if (m.id === tempUserMessage.id) {

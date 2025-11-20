@@ -28,6 +28,7 @@ export interface ChatMessage {
 export interface Character {
 	id: string;
 	name: string;
+	model: 'claude' | 'codex';
 	avatar?: string;
 	description?: string;
 	systemPrompt?: string;
@@ -94,6 +95,7 @@ export interface ChatCompleteData {
 	userMessage: MessageInfo;
 	agentMessage: MessageInfo;
 	sdkSessionId?: string;
+	mode?: 'resume' | 'history_fallback';
 }
 
 export interface ChatWebSocketCallbacks {

@@ -23,19 +23,37 @@
 					onclick={() => onSelect(character.id)}
 				>
 					<Card.Header class="pb-2">
-						<Card.Title class="text-base">{character.name}</Card.Title>
-						{#if character.description}
-							<Card.Description class="text-xs">
-								{character.description}
-							</Card.Description>
-						{/if}
+						<div class="flex items-center gap-3">
+							{#if character.avatar}
+								<img
+									src={character.avatar}
+									alt={character.name}
+									class="h-10 w-10 rounded-full object-cover"
+								/>
+							{:else}
+								<div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+									<span class="text-lg">🤖</span>
+								</div>
+							{/if}
+							<div>
+								<Card.Title class="text-base">{character.name}</Card.Title>
+								{#if character.description}
+									<Card.Description class="text-xs">
+										{character.description}
+									</Card.Description>
+								{/if}
+							</div>
+						</div>
 					</Card.Header>
 					<Card.Content class="pt-0">
-						{#if character.isBuiltIn}
-							<span class="text-muted-foreground text-xs">Built-in</span>
-						{:else}
-							<span class="text-muted-foreground text-xs">Custom</span>
-						{/if}
+						<div class="flex items-center gap-2">
+							{#if character.isBuiltIn}
+								<span class="text-muted-foreground text-xs">Built-in</span>
+							{:else}
+								<span class="text-muted-foreground text-xs">Custom</span>
+							{/if}
+							<span class="text-muted-foreground text-xs">• {character.model}</span>
+						</div>
 					</Card.Content>
 				</button>
 			</Card.Root>

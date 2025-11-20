@@ -21,6 +21,7 @@ export interface WebSocketChatResult {
 		createdAt: string;
 	};
 	content: string;
+	mode?: 'resume' | 'history_fallback';
 }
 
 /**
@@ -58,7 +59,8 @@ export async function sendMessageViaWebSocket(
 				callbacks.onComplete({
 					userMessage: data.userMessage,
 					agentMessage: data.agentMessage,
-					content: responseText
+					content: responseText,
+					mode: (data as any).mode
 				});
 			},
 			onClose: () => {

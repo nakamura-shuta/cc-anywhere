@@ -19,6 +19,7 @@ import type {
 } from "../../repositories/chat-repository.js";
 import { createChatExecutor } from "../../chat/index.js";
 import type { ChatStreamEvent } from "../../chat/types.js";
+import { getAllPresetCharacters, getPresetCharacter } from "../../chat/preset-characters.js";
 
 // Request schemas
 const createSessionSchema = z.object({
@@ -452,6 +453,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
                   properties: {
                     id: { type: "string" },
                     name: { type: "string" },
+                    model: { type: "string" },
                     avatar: { type: "string", nullable: true },
                     description: { type: "string", nullable: true },
                     isBuiltIn: { type: "boolean" },
@@ -465,6 +467,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
                   properties: {
                     id: { type: "string" },
                     name: { type: "string" },
+                    model: { type: "string" },
                     avatar: { type: "string", nullable: true },
                     description: { type: "string", nullable: true },
                     isBuiltIn: { type: "boolean" },
@@ -479,16 +482,16 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
     async (request) => {
       const userId = getUserId(request);
 
-      // Built-in characters
-      const builtInCharacters = [
-        {
-          id: "default",
-          name: "Claude",
-          avatar: null,
-          description: "Default Claude assistant",
-          isBuiltIn: true,
-        },
-      ];
+      // Built-in characters from preset
+      const presetCharacters = getAllPresetCharacters();
+      const builtInCharacters = presetCharacters.map((c) => ({
+        id: c.id,
+        name: c.name,
+        model: c.model,
+        avatar: c.avatar || null,
+        description: c.description || null,
+        isBuiltIn: true,
+      }));
 
       // Custom characters
       const customCharacters = await chatRepository.characters.findByUserId(userId);
@@ -498,6 +501,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         custom: customCharacters.map((c) => ({
           id: c.id,
           name: c.name,
+          model: "claude", // Custom characters default to claude for now
           avatar: c.avatar || null,
           description: c.description || null,
           isBuiltIn: false,
@@ -590,13 +594,14 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
       const { characterId } = request.params;
 
       // Check for built-in character
-      if (characterId === "default") {
+      const presetCharacter = getPresetCharacter(characterId);
+      if (presetCharacter) {
         return {
-          id: "default",
-          name: "Claude",
-          avatar: null,
-          description: "Default Claude assistant",
-          systemPrompt: "You are a helpful assistant.",
+          id: presetCharacter.id,
+          name: presetCharacter.name,
+          avatar: presetCharacter.avatar || null,
+          description: presetCharacter.description || null,
+          systemPrompt: presetCharacter.systemPrompt,
           isBuiltIn: true,
           createdAt: null,
         };
@@ -890,15 +895,28 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
             };
             await chatRepository.messages.create(userMessage);
 
+            // Build lightweight conversation history (last 20) only if resume fails
+            const historyMessages = await chatRepository.messages.findBySessionId(sessionId);
+            const formattedHistory = historyMessages
+              .slice(-20)
+              .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+              .join("\n");
+
             // Get character's system prompt
-            let systemPrompt = "You are a helpful assistant.";
-            if (sessionData.characterId !== "default") {
-              const character = await chatRepository.characters.findByIdAndUserId(
+            let systemPrompt = "";
+
+            // First check if it's a preset character
+            const presetChar = getPresetCharacter(sessionData.characterId);
+            if (presetChar) {
+              systemPrompt = presetChar.systemPrompt;
+            } else {
+              // Otherwise check custom characters
+              const customChar = await chatRepository.characters.findByIdAndUserId(
                 sessionData.characterId,
                 userId,
               );
-              if (character) {
-                systemPrompt = character.systemPrompt;
+              if (customChar) {
+                systemPrompt = customChar.systemPrompt;
               }
             }
 
@@ -906,21 +924,45 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
             const executor = createChatExecutor(sessionData.executor);
 
             // Execute and stream events via WebSocket
-            const result = await executor.execute(
-              content,
-              {
-                sessionId,
-                characterId: sessionData.characterId,
-                systemPrompt,
-                workingDirectory: sessionData.workingDirectory,
-                executor: sessionData.executor,
-                sdkSessionId: currentSdkSessionId,
-              },
-              (event: ChatStreamEvent) => {
-                // Send event via WebSocket
-                sendWsMessage(event.type, event.data);
-              },
-            );
+            let usedResume = false;
+            let result;
+            try {
+              result = await executor.execute(
+                content,
+                {
+                  sessionId,
+                  characterId: sessionData.characterId,
+                  systemPrompt,
+                  workingDirectory: sessionData.workingDirectory,
+                  executor: sessionData.executor,
+                  sdkSessionId: currentSdkSessionId,
+                },
+                (event: ChatStreamEvent) => {
+                  sendWsMessage(event.type, event.data);
+                },
+              );
+              usedResume = true;
+            } catch (resumeError) {
+              // Fallback to history prompt if resume failed or sessionId missing
+              // formattedHistory already contains the current user message (saved above)
+              const fallbackPrompt = formattedHistory || content;
+
+              result = await executor.execute(
+                fallbackPrompt,
+                {
+                  sessionId,
+                  characterId: sessionData.characterId,
+                  systemPrompt,
+                  workingDirectory: sessionData.workingDirectory,
+                  executor: sessionData.executor,
+                  sdkSessionId: undefined, // reset
+                },
+                (event: ChatStreamEvent) => {
+                  sendWsMessage(event.type, event.data);
+                },
+              );
+              usedResume = false;
+            }
 
             // Save agent message
             const agentMessage: ChatMessage = {
@@ -943,6 +985,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
                 createdAt: agentMessage.createdAt.toISOString(),
               },
               sdkSessionId: result.sdkSessionId,
+              mode: usedResume ? "resume" : "history_fallback",
             });
 
             // Update session timestamp
@@ -954,19 +997,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
               // Also update in-memory for subsequent messages
               currentSdkSessionId = result.sdkSessionId;
             }
-
-            // Send complete event with all message info for frontend sync
-            sendWsMessage("complete", {
-              userMessage: {
-                id: userMessage.id,
-                createdAt: userMessage.createdAt.toISOString(),
-              },
-              agentMessage: {
-                id: agentMessage.id,
-                createdAt: agentMessage.createdAt.toISOString(),
-              },
-              sdkSessionId: result.sdkSessionId,
-            });
 
             logger.info("Chat message processed via WebSocket", {
               sessionId,

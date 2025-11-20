@@ -354,8 +354,9 @@ describe("Chat Routes", () => {
 
         expect(response.statusCode).toBe(200);
         const body = JSON.parse(response.body);
-        expect(body.builtIn).toHaveLength(1);
+        expect(body.builtIn).toHaveLength(2);
         expect(body.builtIn[0].id).toBe("default");
+        expect(body.builtIn[1].id).toBe("ai-robot");
         expect(body.custom).toHaveLength(1);
         expect(body.custom[0].name).toBe("My Character");
       });

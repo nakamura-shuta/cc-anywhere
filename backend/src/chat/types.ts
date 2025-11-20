@@ -5,6 +5,19 @@
 import type { ExecutorType } from "../agents/types.js";
 
 /**
+ * Agent character definition
+ */
+export interface AgentCharacter {
+  id: string;
+  name: string;
+  model: ExecutorType;
+  avatar: string;
+  description: string;
+  systemPrompt: string;
+  isBuiltIn: boolean;
+}
+
+/**
  * Chat stream event types
  */
 export type ChatStreamEventType = "start" | "text" | "tool_use" | "tool_result" | "done" | "error";

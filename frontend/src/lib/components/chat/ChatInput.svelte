@@ -46,13 +46,14 @@
 		onkeydown={handleKeydown}
 		oncompositionstart={handleCompositionStart}
 		oncompositionend={handleCompositionEnd}
-		class="min-h-[60px] resize-none"
+		class="min-h-[44px] resize-none text-sm sm:min-h-[60px] sm:text-base"
 		rows={2}
 	/>
 	<Button
 		onclick={handleSubmit}
 		{disabled}
-		class="self-end"
+		class="self-end px-3 sm:px-4"
+		size="sm"
 	>
 		Send
 	</Button>

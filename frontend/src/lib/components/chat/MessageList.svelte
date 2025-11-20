@@ -6,9 +6,10 @@
 	interface Props {
 		messages: ChatMessage[];
 		isLoading?: boolean;
+		characterAvatar?: string;
 	}
 
-	let { messages, isLoading = false }: Props = $props();
+	let { messages, isLoading = false, characterAvatar }: Props = $props();
 	let scrollContainer: HTMLDivElement;
 
 	// Auto-scroll to bottom when new messages arrive
@@ -25,7 +26,7 @@
 
 <div
 	bind:this={scrollContainer}
-	class="h-full overflow-y-auto p-4 space-y-4"
+	class="h-full overflow-y-auto p-2 sm:p-4 space-y-3 sm:space-y-4"
 >
 	{#if messages.length === 0}
 		<div class="flex h-full items-center justify-center">
@@ -33,7 +34,7 @@
 		</div>
 	{:else}
 		{#each messages as message (message.id)}
-			<MessageBubble {message} />
+			<MessageBubble {message} {characterAvatar} />
 		{/each}
 	{/if}
 
