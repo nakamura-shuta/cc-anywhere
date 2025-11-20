@@ -80,6 +80,7 @@ export class ChatSDKClient extends ClaudeSDKBase implements IChatExecutor {
 
         let fullText = "";
         let sdkSessionId: string | undefined;
+        let hasStreamEvents = false;
 
         for await (const event of query(queryOptions)) {
           // Minimal event normalization (3 types only)
@@ -100,13 +101,16 @@ export class ChatSDKClient extends ClaudeSDKBase implements IChatExecutor {
               const text = streamEvent.event.delta.text;
               fullText += text;
               onEvent(createEvent("text", { text }));
+              hasStreamEvents = true;
             }
           }
 
           // Process assistant messages
+          // Only process text if we haven't received stream events (to avoid duplicates)
           if (event.type === "assistant" && event.message) {
             for (const content of event.message.content || []) {
-              if (content.type === "text") {
+              if (content.type === "text" && !hasStreamEvents) {
+                // Only add text if we didn't get stream_event deltas
                 const newText = content.text;
                 if (newText) {
                   fullText += newText;
