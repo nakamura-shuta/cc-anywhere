@@ -1,19 +1,27 @@
-# Claude SDK統合設計書 - 要約
+# Claude SDK統合設計書 - 要約（最小実装版）
 
 ## 📋 設計書の概要
 
-このドキュメントは、タスク実行とチャット機能で分散しているClaude Code SDKの利用を統合するための設計書です。
+タスク実行とチャット機能で**重複している最小限の処理だけを共通化**する設計書です。
+過度な抽象化を避け、実際の価値を早期に提供することを重視します。
 
-**設計書本体**: `docs/design/unified-sdk-client.md` (1050行)
+**設計書本体**: `docs/design/unified-sdk-client.md` (415行)
 
 ## 🎯 設計の目的
 
-1. **コードの重複削減**: タスク/チャットで類似した処理を共通化
-2. **保守性向上**: SDK呼び出しロジックを一元管理
-3. **機能の再利用**: 各実装の強みを相互に活用可能に
-4. **一貫性の確保**: セッション管理、エラーハンドリングの統一
+### やること
+- **3つのヘルパー関数のみ共通化**: API Key切替、sessionId両対応、基本オプション生成
+- **Chat側のみ新実装に切替**: 2-3日で完了
+- **低リスク・早期価値提供**: 小さな変更で確実な改善
 
-## 🏗️ アーキテクチャ（3層構造）
+### やらないこと（スコープ外）
+- イベント正規化の大規模な統一
+- TaskTracker/MessageTracker の共通化
+- hooks, webSearch, mcpConfig の統一
+- WebSocket/SSE の通信方式統合
+- Task側の統合（後続フェーズ）
+
+## 🏗️ アーキテクチャ（薄い2層構造）
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -21,134 +29,101 @@
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
-│  TaskSDKClient  │  ChatSDKClient           │ ← 固有機能層
-│  - TaskTracker  │  - WebSocket統合         │
-│  - TodoManager  │  - ストリーミング最適化    │
+│          ChatSDKClient (薄いラッパー)        │ ← Chat固有ロジック
+│  - WebSocket統合                            │
+│  - 最小限のイベント正規化（3種類のみ）      │
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
-│          ClaudeSDKBase (共通基盤)           │ ← 共通基盤層
-│  - SDK query()呼び出し                      │
-│  - セッション管理 (sessionId/session_id)   │
-│  - イベント正規化 (NormalizedSDKEvent)     │
-│  - API Key管理 (withApiKey)                │
-│  - エラーハンドリング                       │
+│        ClaudeSDKBase (薄い共通基盤)         │ ← 3つのヘルパーのみ
+│  1. withApiKey(fn): API Key一時切替         │
+│  2. extractSessionId(event): 両対応         │
+│  3. createQueryOptions(): 基本オプション生成 │
 └─────────────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────────────┐
-│  @anthropic-ai/claude-agent-sdk (SDK)      │ ← SDK層
+│  @anthropic-ai/claude-agent-sdk (SDK)      │
 └─────────────────────────────────────────────┘
 ```
 
 ## 🔑 重要な設計決定
 
-### 1. イベント正規化
-
-SDK生イベントを統一フォーマットに変換:
+### 1. 共通基盤は最小限（3つのヘルパーのみ）
 
 ```typescript
-interface NormalizedSDKEvent {
-  type: 'session' | 'text_delta' | 'tool_use' | 'result' | 'error';
-  timestamp: string;
-  data: {
-    sessionId?: string;
-    text?: string;
-    toolName?: string;
-    toolInput?: any;
-    error?: string;
-  };
-}
-```
+export abstract class ClaudeSDKBase {
+  // 1. API Key 一時切替
+  protected withApiKey<T>(fn: () => T): T { /* ... */ }
 
-### 2. sessionId 両対応
-
-camelCase (`sessionId`) と snake_case (`session_id`) の両方をサポート:
-
-```typescript
-protected extractSessionId(event: any): string | undefined {
-  return event.sessionId ?? event.session_id;
-}
-```
-
-### 3. API Key管理の統一
-
-`withApiKey()` メソッドで環境変数を一時的に設定:
-
-```typescript
-protected withApiKey<T>(fn: () => T): T {
-  const originalApiKey = process.env.CLAUDE_API_KEY;
-  process.env.CLAUDE_API_KEY = config.claude.apiKey;
-  try {
-    return fn();
-  } finally {
-    if (originalApiKey !== undefined) {
-      process.env.CLAUDE_API_KEY = originalApiKey;
-    } else {
-      delete process.env.CLAUDE_API_KEY;
-    }
+  // 2. sessionId 両対応（camelCase/snake_case）
+  protected extractSessionId(event: any): string | undefined {
+    return event.sessionId ?? event.session_id;
   }
+
+  // 3. 基本オプション生成（resume, systemPrompt, cwd のみ）
+  protected createQueryOptions(prompt: string, opts: { /* ... */ }) { /* ... */ }
 }
 ```
 
-**採用理由**: スレッドセーフ、テスト容易、柔軟性
+### 2. イベント正規化は最小セット（3種類のみ）
 
-### 4. Resume動作の明確化
+正規化するのは以下の3種類だけ:
+1. **session**: sessionId 抽出（両対応）
+2. **text_delta**: テキストストリーミング
+3. **tool_use**: ツール実行
 
-**重要**: resume失敗時は**エラーをスロー**（履歴フォールバックなし）
+それ以外（reasoning, todo等）は**透過**で後回し。
 
-- タスク: 既存の動作を維持
-- チャット: 既に実装済み（`chat-executor.ts:129-130`）
+### 3. 通信方式の統合はスコープ外
 
-## 📊 パフォーマンス目標
+- **Task側の進捗配信**: HTTP + SSE/WebSocket 混在 → **そのまま維持**
+- WebSocket 完全移行は将来的な理想だが、今回は対象外
+- **原則**: 共通基盤は通信方式に依存しない純粋な SDK 操作のみ
 
-| 指標 | 目標値 | 測定方法 |
-|------|--------|---------|
-| チャット初回応答遅延 | <800ms | first_text イベントまでの時間 |
-| Resume成功率 | >99% | 100回実行の成功率 |
-| メモリオーバーヘッド | ±10% | 既存実装との比較 |
+### 4. Chat側のモード表示（実装済み）
 
-## 🚀 実装計画（4フェーズ、10-16日）
+```svelte
+<!-- frontend/src/routes/chat/+page.svelte:146-150 -->
+{#if chatStore.lastChatMode}
+  <div class="fixed bottom-4 left-4 rounded-lg bg-muted px-3 py-2 text-xs">
+    Mode: {chatStore.lastChatMode === 'resume' ? 'Session Resume' : 'New Session'}
+  </div>
+{/if}
+```
 
-### Phase 1: 共通基盤の作成（2-3日）
-- `ClaudeSDKBase` クラス実装
-- イベント正規化の実装
-- sessionId/session_id 両対応
-- API Key管理の統一
-- ユニットテスト（カバレッジ >90%）
+## 🚀 実装計画（2フェーズ、2-3日）
 
-### Phase 2: チャット移行（3-5日）
-- `ChatSDKClient` 実装
-- 既存実装との並行運用（Feature Flag）
-- パフォーマンステスト
-- 段階的ロールアウト（10% → 50% → 100%）
+### Phase 1: 共通薄基盤 + Chat切替（2-3日）
 
-### Phase 3: タスク移行（4-6日）
-- `TaskSDKClient` 実装
-- 既存実装との並行運用（Feature Flag）
-- パフォーマンステスト
-- 段階的ロールアウト（10% → 50% → 100%）
+**タスク**:
+- [ ] `ClaudeSDKBase` 作成（3つのヘルパーのみ）
+- [ ] `ChatSDKClient` 作成（薄いラッパー）
+- [ ] Feature Flag 追加: `USE_NEW_CHAT_CLIENT`
+- [ ] ユニットテスト（**3ケースのみ**）
+- [ ] 統合テスト（**2ケースのみ**）
 
-### Phase 4: クリーンアップ（1-2日）
-- 旧実装削除
-- ドキュメント更新
-- 最終テスト
+**完了基準**:
+- 既存のChatテストが全てパス
+- 新規テストが全てパス（カバレッジ >80% でOK）
 
-**追加考慮事項**:
-- E2Eテスト: Phase 2/3 各 +1日
-- 回帰テスト: Phase 2/3 各 +0.5日
+### Phase 2: Task切替（後日、スコープ外）
 
-## 🎚️ 移行戦略
+Task側の統合は後続フェーズとして切り離し。
 
-### Feature Flag実装
+## 🎚️ 移行戦略（簡略版）
+
+### Feature Flag
 
 ```typescript
+// backend/src/config/index.ts
 export const config = {
   experimental: {
     useNewChatClient: process.env.USE_NEW_CHAT_CLIENT === 'true'
   }
 };
 
-export function createChatExecutor(executorType: string): IChatExecutor {
+// backend/src/chat/chat-executor-factory.ts
+export function createChatExecutor(): IChatExecutor {
   if (config.experimental.useNewChatClient) {
     return new ChatSDKClientExecutor(); // 新実装
   }
@@ -156,67 +131,64 @@ export function createChatExecutor(executorType: string): IChatExecutor {
 }
 ```
 
-### ロールアウト計画
+### ロールアウト
 
-1. **10%ロールアウト** (1-2日)
-   - 新規ユーザーの10%に新実装を適用
-   - エラー率、レイテンシを監視
+1. **開発環境で検証**（1日）
+   - `USE_NEW_CHAT_CLIENT=true` で動作確認
+   - 既存テスト全てパス
 
-2. **50%ロールアウト** (1-2日)
-   - 問題なければ50%に拡大
-   - 継続監視
+2. **本番環境で展開**（1-2日）
+   - Feature Flag を `true` に切り替え
+   - エラーログ監視
+   - 問題あれば即座に `false` に戻す
 
-3. **100%ロールアウト** (1日)
-   - 全ユーザーに展開
-   - 旧実装削除準備
+## 📝 テストケース
 
-### ロールバック手順
+### ユニットテスト（3ケース）
 
-問題発生時:
-1. Feature Flag を即座に `false` に切り替え
-2. エラーログとメトリクスを収集
-3. 原因分析と修正
-4. 再度段階的ロールアウト
+1. `extractSessionId: camelCase` - `sessionId` の抽出
+2. `extractSessionId: snake_case` - `session_id` の抽出
+3. `createQueryOptions: resume` - resume オプションの生成
 
-### 監視メトリクス
+### 統合テスト（2ケース）
 
-- エラー率（target: <0.1%）
-- レイテンシ（P50/P95/P99）
-- Resume成功率（target: >99%）
+1. `new_session: sdkSessionId が保存される`
+2. `resume: 2ターン目が resume になる`
+
+## 📊 監視メトリクス（最小限）
+
+- エラー率
+- Resume成功率
 - WebSocketエラー率
 
-## 📝 レビューポイント
+## ✅ レビューポイント
 
-### 設計書確認事項
-
-1. ✅ **アーキテクチャ**: 3層構造は明確か？
-2. ✅ **イベント正規化**: NormalizedSDKEvent仕様は完全か？
-3. ✅ **sessionId対応**: 両形式のサポート方法は適切か？
-4. ✅ **API Key管理**: withApiKey方式の採用は妥当か？
-5. ✅ **Resume動作**: エラースロー方式は適切か？
-6. ✅ **パフォーマンス**: 目標値と測定方法は明確か？
-7. ✅ **移行戦略**: Feature Flagとロールアウト計画は現実的か？
-8. ✅ **タイムライン**: 10-16日の見積もりは妥当か？
+1. ✅ **最小限の共通化**: 3つのヘルパーのみで十分か？
+2. ✅ **イベント正規化**: 3種類（session, text_delta, tool_use）で十分か？
+3. ✅ **通信方式**: Task側のHTTP+SSE/WebSocket混在をそのまま維持でOK？
+4. ✅ **タイムライン**: 2-3日の見積もりは妥当か？
+5. ✅ **スコープ**: Task側を後回しでOK？
 
 ## 🔍 次のステップ
 
 設計レビュー承認後:
 
-1. **Phase 1開始**: `backend/src/claude/sdk/base.ts` 作成
-2. **並行作業可能**:
-   - イベント正規化実装
-   - テストコード作成
-   - 型定義整備
+1. **Phase 1開始**: `backend/src/claude/sdk/base.ts` 作成（3つのヘルパーのみ）
+2. **並行作業**:
+   - `ChatSDKClient` 実装
+   - テストコード作成（3+2ケース）
+   - Feature Flag 追加
 
 ## 📚 参考資料
 
-- **設計書本体**: `docs/design/unified-sdk-client.md`
-- **現在のチャット実装**: `backend/src/chat/chat-executor.ts`
-- **現在のタスク実装**: `backend/src/agents/claude-agent-executor.ts`
-- **Claude Code Client**: `backend/src/claude/claude-code-client.ts`
+### 実装済みの関連コード
+
+- **sessionId 両対応**: `backend/src/chat/chat-executor.ts:87-89`
+- **モード表示**: `frontend/src/routes/chat/+page.svelte:146-150`
+- **withApiKey パターン**: `backend/src/chat/chat-executor.ts:58-71`
 
 ---
 
 **作成日**: 2025-11-20
 **ブランチ**: `feature/unified-sdk-client`
-**設計書バージョン**: v2.0（第2回レビューフィードバック反映済み）
+**設計書バージョン**: v3.0（最小実装版）
