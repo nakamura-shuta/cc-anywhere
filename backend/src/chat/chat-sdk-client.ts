@@ -1,11 +1,14 @@
 /**
- * Chat executor for handling chat interactions with Claude Code SDK
+ * Chat SDK Client
+ *
+ * Thin wrapper around Claude SDK for chat-specific operations
+ * Extends ClaudeSDKBase with minimal chat-specific logic
  */
 
 import { v4 as uuidv4 } from "uuid";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { logger } from "../utils/logger.js";
-import { config } from "../config/index.js";
+import { ClaudeSDKBase } from "../claude/sdk/base.js";
 import type {
   IChatExecutor,
   ChatExecutorOptions,
@@ -28,27 +31,14 @@ function createEvent<T extends ChatStreamEvent["type"]>(
 }
 
 /**
- * Helper to manage API key environment variable
+ * Chat SDK Client implementation using unified SDK base
+ *
+ * Responsibilities:
+ * - WebSocket-specific streaming
+ * - Minimal event normalization (3 types: session, text_delta, tool_use)
+ * - Other events (reasoning, todo, etc.) are passed through transparently
  */
-function withApiKey<T>(fn: () => T): T {
-  const originalApiKey = process.env.CLAUDE_API_KEY;
-  process.env.CLAUDE_API_KEY = config.claude.apiKey;
-
-  try {
-    return fn();
-  } finally {
-    if (originalApiKey !== undefined) {
-      process.env.CLAUDE_API_KEY = originalApiKey;
-    } else {
-      delete process.env.CLAUDE_API_KEY;
-    }
-  }
-}
-
-/**
- * Claude-based chat executor
- */
-export class ClaudeChatExecutor implements IChatExecutor {
+export class ChatSDKClient extends ClaudeSDKBase implements IChatExecutor {
   async execute(
     message: string,
     options: ChatExecutorOptions,
@@ -63,19 +53,28 @@ export class ClaudeChatExecutor implements IChatExecutor {
       }),
     );
 
-    return withApiKey(async () => {
+    return this.withApiKey(async () => {
       try {
+        // Use createQueryOptions for basic options
+        const baseOptions = this.createQueryOptions(message, {
+          resume: !!options.sdkSessionId,
+          sdkSessionId: options.sdkSessionId,
+          systemPrompt: options.systemPrompt,
+          cwd: options.workingDirectory,
+        });
+
+        // Add chat-specific options
         const queryOptions = {
-          prompt: message,
+          prompt: baseOptions.prompt,
           stream: true,
           abortController: new AbortController(),
           options: {
             maxTurns: 10,
             includePartialMessages: true,
-            customSystemPrompt: options.systemPrompt,
+            customSystemPrompt: baseOptions.systemPrompt,
             permissionMode: "bypassPermissions" as const,
-            cwd: options.workingDirectory,
-            resume: options.sdkSessionId,
+            cwd: baseOptions.cwd,
+            resume: baseOptions.sdkSessionId,
           },
         };
 
@@ -83,15 +82,16 @@ export class ClaudeChatExecutor implements IChatExecutor {
         let sdkSessionId: string | undefined;
 
         for await (const event of query(queryOptions)) {
-          // Capture SDK session ID
-          if (event.type === "system" && ("sessionId" in event || "session_id" in event)) {
-            sdkSessionId = (event as any).sessionId ?? (event as any).session_id;
+          // Minimal event normalization (3 types only)
+
+          // 1. session: Extract sessionId (both formats supported)
+          if (event.type === "system") {
+            sdkSessionId = this.extractSessionId(event);
           }
 
-          // Handle stream_event for streaming text deltas
+          // 2. text_delta: Text streaming
           if (event.type === "stream_event") {
             const streamEvent = event as any;
-            // Check for text delta in the stream event
             if (
               streamEvent.event?.type === "content_block_delta" &&
               streamEvent.event?.delta?.type === "text_delta" &&
@@ -103,18 +103,17 @@ export class ClaudeChatExecutor implements IChatExecutor {
             }
           }
 
-          // Process assistant messages - stream each text block
+          // Process assistant messages
           if (event.type === "assistant" && event.message) {
             for (const content of event.message.content || []) {
               if (content.type === "text") {
-                // Send text events for assistant messages
                 const newText = content.text;
                 if (newText) {
-                  // Each assistant event contains the text to add
                   fullText += newText;
                   onEvent(createEvent("text", { text: newText }));
                 }
               } else if (content.type === "tool_use") {
+                // 3. tool_use: Tool execution
                 onEvent(
                   createEvent("tool_use", {
                     tool: content.name,
@@ -126,8 +125,8 @@ export class ClaudeChatExecutor implements IChatExecutor {
           }
 
           // Capture session ID from result if not already captured
-          if (event.type === "result" && !sdkSessionId && ("sessionId" in event || "session_id" in event)) {
-            sdkSessionId = (event as any).sessionId ?? (event as any).session_id;
+          if (event.type === "result" && !sdkSessionId) {
+            sdkSessionId = this.extractSessionId(event);
           }
         }
 
@@ -163,28 +162,5 @@ export class ClaudeChatExecutor implements IChatExecutor {
         throw error;
       }
     });
-  }
-}
-
-/**
- * Chat executor factory with Feature Flag support
- */
-export function createChatExecutor(executorType: string): IChatExecutor {
-  // Feature Flag: Use new ChatSDKClient if enabled
-  if (config.experimental.useNewChatClient && executorType === "claude") {
-    logger.info("Using new ChatSDKClient implementation (experimental)");
-    // Lazy-load to avoid circular dependency
-    const { ChatSDKClient } = require("./chat-sdk-client.js");
-    return new ChatSDKClient();
-  }
-
-  switch (executorType) {
-    case "claude":
-      return new ClaudeChatExecutor();
-    // TODO: Add codex executor support
-    // case "codex":
-    //   return new CodexChatExecutor();
-    default:
-      return new ClaudeChatExecutor();
   }
 }
