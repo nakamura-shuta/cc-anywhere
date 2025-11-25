@@ -74,6 +74,12 @@ export const executorRoutes: FastifyPluginAsync = async (fastify) => {
           description: "OpenAI Codex SDK - AI coding assistant",
           capabilities: EXECUTOR_CAPABILITIES.codex,
         },
+        {
+          type: "gemini" as const,
+          available: availableTypes.includes("gemini"),
+          description: "Google Gemini 3 Pro - Advanced AI with thinking and tools",
+          capabilities: EXECUTOR_CAPABILITIES.gemini,
+        },
       ];
 
       logger.debug("Available executors", { availableTypes, count: availableTypes.length });
