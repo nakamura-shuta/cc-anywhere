@@ -12,7 +12,7 @@ import type { RetryOptions, TaskContext, ClaudeCodeSDKOptions } from "../claude/
 /**
  * Agent executor type
  */
-export type ExecutorType = "claude" | "codex";
+export type ExecutorType = "claude" | "codex" | "gemini";
 
 /**
  * Executor type constants
@@ -21,6 +21,7 @@ export type ExecutorType = "claude" | "codex";
 export const EXECUTOR_TYPES = {
   CLAUDE: "claude" as const,
   CODEX: "codex" as const,
+  GEMINI: "gemini" as const,
 } as const;
 
 /**
@@ -29,6 +30,7 @@ export const EXECUTOR_TYPES = {
 export const ALL_EXECUTOR_TYPES: readonly ExecutorType[] = [
   EXECUTOR_TYPES.CLAUDE,
   EXECUTOR_TYPES.CODEX,
+  EXECUTOR_TYPES.GEMINI,
 ] as const;
 
 /**
@@ -142,6 +144,21 @@ export const EXECUTOR_CAPABILITIES: Record<ExecutorType, ExecutorCapabilities> =
     networkAccess: true, // ✅ v0.57.0で追加 (networkAccessEnabled)
     webSearch: true, // ✅ v0.57.0で追加 (webSearchEnabled)
     modelSelection: true,
+  },
+  gemini: {
+    sessionContinuation: false, // Gemini APIはステートレス
+    sessionResume: false, // セッション管理は未サポート
+    crossRepositorySession: false,
+    maxTurnsLimit: false, // SDK未サポート（シングルターン）
+    toolFiltering: false, // SDK未サポート
+    permissionModes: false, // SDK未サポート
+    customSystemPrompt: true, // ✅ システムプロンプト指定可能
+    outputFormatting: true, // ✅ JSON出力サポート
+    verboseMode: false,
+    sandboxControl: false,
+    networkAccess: false,
+    webSearch: true, // ✅ Google Search tool
+    modelSelection: true, // ✅ モデル選択可能
   },
 };
 
@@ -334,6 +351,49 @@ export interface CodexAgentOptions extends CommonExecutorOptions {
 }
 
 /**
+ * Gemini SDK specific options
+ * Gemini 3 Pro API対応
+ */
+export interface GeminiAgentOptions extends CommonExecutorOptions {
+  /**
+   * モデル指定
+   * @default "gemini-3-pro-preview"
+   */
+  model?: string;
+
+  /**
+   * 思考レベル制御
+   * thinkingBudgetでトークン数を指定
+   * @see https://ai.google.dev/gemini-api/docs/gemini-3
+   */
+  thinkingBudget?: number;
+
+  /**
+   * Google Search ツールを有効化
+   * @default false
+   */
+  enableGoogleSearch?: boolean;
+
+  /**
+   * Code Execution ツールを有効化
+   * @default false
+   */
+  enableCodeExecution?: boolean;
+
+  /**
+   * ストリーミングモード
+   * @default true
+   */
+  streaming?: boolean;
+
+  /**
+   * カスタムシステムプロンプト
+   * Gemini APIのsystem instructionとして設定
+   */
+  systemPrompt?: string;
+}
+
+/**
  * Agent task request
  * 既存の TaskRequest を拡張し、executor 選択をサポート
  */
@@ -367,6 +427,9 @@ export interface AgentTaskRequest {
 
     /** Codex SDK固有のオプション */
     codex?: CodexAgentOptions;
+
+    /** Gemini SDK固有のオプション */
+    gemini?: GeminiAgentOptions;
 
     /** 進捗コールバック */
     onProgress?: (event: AgentExecutionEvent) => void | Promise<void>;
@@ -677,6 +740,14 @@ export interface ExecutorMetadata {
     skipGitRepoCheck?: boolean;
     threadId?: string;
     codexVersion?: string;
+  };
+
+  /** Gemini-specific fields */
+  gemini?: {
+    model?: string;
+    thinkingBudget?: number;
+    enableGoogleSearch?: boolean;
+    enableCodeExecution?: boolean;
   };
 
   /** Performance metrics (common) */

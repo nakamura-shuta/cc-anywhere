@@ -34,6 +34,10 @@ export class AgentExecutorFactory {
         const { CodexAgentExecutor } = await import("./codex-agent-executor.js");
         return new CodexAgentExecutor();
       }
+      case EXECUTOR_TYPES.GEMINI: {
+        const { GeminiAgentExecutor } = await import("./gemini-agent-executor.js");
+        return new GeminiAgentExecutor();
+      }
       default: {
         const error = `Unknown executor type: ${executorType}`;
         logger.error(error);
@@ -69,6 +73,17 @@ export class AgentExecutorFactory {
       }
     } catch (error) {
       logger.debug("Codex executor not available", { error });
+    }
+
+    // Check Gemini - check config without importing
+    try {
+      // Check if Gemini API key is configured (same logic as GeminiAgentExecutor.isAvailable())
+      if (config.gemini?.apiKey) {
+        available.push(EXECUTOR_TYPES.GEMINI);
+        logger.debug("Gemini executor available (API key configured)");
+      }
+    } catch (error) {
+      logger.debug("Gemini executor not available", { error });
     }
 
     logger.debug("Available executors", { available });
