@@ -549,7 +549,11 @@
 							<Input
 								id="geminiThinkingBudget"
 								type="number"
-								bind:value={geminiThinkingBudget}
+								value={geminiThinkingBudget ?? ''}
+								oninput={(e) => {
+									const val = e.currentTarget.valueAsNumber;
+									geminiThinkingBudget = Number.isNaN(val) ? undefined : val;
+								}}
 								placeholder="例: 1024"
 								min={0}
 								class="font-mono text-sm"
