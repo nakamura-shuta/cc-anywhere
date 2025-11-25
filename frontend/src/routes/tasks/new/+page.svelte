@@ -81,6 +81,13 @@
 	let codexNetworkAccess = $state(true); // デフォルトtrue
 	let codexWebSearch = $state(true); // デフォルトtrue
 
+	// Geminiオプション
+	let geminiModel = $state<string>(''); // default: gemini-3-pro-preview
+	let geminiThinkingBudget = $state<number | undefined>(undefined);
+	let geminiEnableGoogleSearch = $state(false);
+	let geminiEnableCodeExecution = $state(false);
+	let geminiSystemPrompt = $state<string>('');
+
 	// 詳細設定の表示/非表示（SDK Continueモードではデフォルトで非表示）
 	let showAdvancedSettings = $state(false);
 	
@@ -232,6 +239,16 @@
 							continueSession: true,
 							resumeSession: codexResumeSession
 						} : {})
+					}
+				} : {}),
+				// Gemini SDK オプション
+				...(selectedExecutor === 'gemini' ? {
+					gemini: {
+						...(geminiModel ? { model: geminiModel } : {}),
+						...(geminiThinkingBudget !== undefined ? { thinkingBudget: geminiThinkingBudget } : {}),
+						enableGoogleSearch: geminiEnableGoogleSearch,
+						enableCodeExecution: geminiEnableCodeExecution,
+						...(geminiSystemPrompt ? { systemPrompt: geminiSystemPrompt } : {})
 					}
 				} : {}),
 				// Worktree設定
@@ -501,6 +518,87 @@
 							<Switch
 								id="codexWebSearch"
 								bind:checked={codexWebSearch}
+							/>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Gemini専用オプション -->
+				{#if selectedExecutor === 'gemini'}
+					<div class="space-y-4 border rounded-lg p-4 bg-emerald-50/50 dark:bg-emerald-950/20">
+						<h3 class="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Gemini Executor オプション</h3>
+
+						<!-- Model -->
+						<div class="space-y-2">
+							<Label for="geminiModel">Model (オプション)</Label>
+							<Input
+								id="geminiModel"
+								type="text"
+								bind:value={geminiModel}
+								placeholder="例: gemini-2.5-pro"
+								class="font-mono text-sm"
+							/>
+							<p class="text-xs text-muted-foreground">
+								使用するモデルを指定します。空欄の場合はデフォルトモデル（gemini-3-pro-preview）が使用されます。
+							</p>
+						</div>
+
+						<!-- Thinking Budget -->
+						<div class="space-y-2">
+							<Label for="geminiThinkingBudget">Thinking Budget (オプション)</Label>
+							<Input
+								id="geminiThinkingBudget"
+								type="number"
+								bind:value={geminiThinkingBudget}
+								placeholder="例: 1024"
+								min={0}
+								class="font-mono text-sm"
+							/>
+							<p class="text-xs text-muted-foreground">
+								思考トークンの予算を設定します。大きい値ほど深い思考が可能です。
+							</p>
+						</div>
+
+						<!-- System Prompt -->
+						<div class="space-y-2">
+							<Label for="geminiSystemPrompt">System Prompt (オプション)</Label>
+							<Textarea
+								id="geminiSystemPrompt"
+								bind:value={geminiSystemPrompt}
+								placeholder="例: You are a helpful coding assistant..."
+								rows={3}
+								class="resize-none text-sm"
+							/>
+							<p class="text-xs text-muted-foreground">
+								カスタムシステムプロンプトを設定します。
+							</p>
+						</div>
+
+						<!-- Google Search -->
+						<div class="flex items-center justify-between">
+							<div class="space-y-0.5">
+								<Label for="geminiEnableGoogleSearch" class="text-sm font-medium">Google Search</Label>
+								<p class="text-xs text-muted-foreground">
+									Google検索機能を有効化します
+								</p>
+							</div>
+							<Switch
+								id="geminiEnableGoogleSearch"
+								bind:checked={geminiEnableGoogleSearch}
+							/>
+						</div>
+
+						<!-- Code Execution -->
+						<div class="flex items-center justify-between">
+							<div class="space-y-0.5">
+								<Label for="geminiEnableCodeExecution" class="text-sm font-medium">Code Execution</Label>
+								<p class="text-xs text-muted-foreground">
+									コード実行機能を有効化します
+								</p>
+							</div>
+							<Switch
+								id="geminiEnableCodeExecution"
+								bind:checked={geminiEnableCodeExecution}
 							/>
 						</div>
 					</div>

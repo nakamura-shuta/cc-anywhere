@@ -54,7 +54,8 @@
 			// Fallback to default executors
 			executors = [
 				{ type: 'claude', available: true, description: 'Claude Agent SDK - Official Anthropic agent framework' },
-				{ type: 'codex', available: false, description: 'OpenAI Codex SDK - AI coding assistant' }
+				{ type: 'codex', available: false, description: 'OpenAI Codex SDK - AI coding assistant' },
+				{ type: 'gemini', available: false, description: 'Google Gemini 3 Pro - Advanced AI with thinking and tools' }
 			];
 		} finally {
 			loading = false;
@@ -69,8 +70,16 @@
 	});
 
 	function getExecutorLabel(executor: ExecutorInfo): string {
-		const label = executor.type === 'claude' ? 'Claude' : executor.type === 'codex' ? 'Codex' : executor.type;
-		return label;
+		switch (executor.type) {
+			case 'claude':
+				return 'Claude';
+			case 'codex':
+				return 'Codex';
+			case 'gemini':
+				return 'Gemini';
+			default:
+				return executor.type;
+		}
 	}
 
 	function handleValueChange(newValue: string | undefined) {

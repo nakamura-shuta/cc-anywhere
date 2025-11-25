@@ -23,21 +23,46 @@
 	// Executorラベルを取得
 	function getExecutorLabel(executor: string | undefined): string {
 		if (!executor) return 'Claude'; // デフォルトはClaude
-		return executor === 'claude' ? 'Claude' : executor === 'codex' ? 'Codex' : executor;
+		switch (executor) {
+			case 'claude':
+				return 'Claude';
+			case 'codex':
+				return 'Codex';
+			case 'gemini':
+				return 'Gemini';
+			default:
+				return executor;
+		}
 	}
 
 	// Executorアイコンパスを取得
 	function getExecutorIcon(executor: string | undefined): string {
 		const type = executor || 'claude';
-		return type === 'claude' ? '/claude.png' : type === 'codex' ? '/codex.png' : '/claude.png';
+		switch (type) {
+			case 'claude':
+				return '/claude.png';
+			case 'codex':
+				return '/codex.png';
+			case 'gemini':
+				return '/gemini.png';
+			default:
+				return '/claude.png';
+		}
 	}
 
 	// Executor色を取得
 	function getExecutorColor(executor: string | undefined): string {
 		const type = executor || 'claude';
-		return type === 'claude' ? 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-400'
-		     : type === 'codex' ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-400'
-		     : 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-950 dark:border-gray-800 dark:text-gray-400';
+		switch (type) {
+			case 'claude':
+				return 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-400';
+			case 'codex':
+				return 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-400';
+			case 'gemini':
+				return 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400';
+			default:
+				return 'bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-950 dark:border-gray-800 dark:text-gray-400';
+		}
 	}
 </script>
 

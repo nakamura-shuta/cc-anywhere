@@ -9,7 +9,7 @@
 
 	interface Props {
 		tokenUsage: TokenUsage;
-		executor?: 'claude' | 'codex';
+		executor?: 'claude' | 'codex' | 'gemini';
 	}
 
 	let { tokenUsage, executor }: Props = $props();

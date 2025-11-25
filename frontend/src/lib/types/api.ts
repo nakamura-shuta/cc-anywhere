@@ -37,7 +37,7 @@ export interface TaskContext {
 }
 
 // Executor type
-export type ExecutorType = "claude" | "codex";
+export type ExecutorType = "claude" | "codex" | "gemini";
 
 // Claude Code SDKオプション
 export interface ClaudeCodeSDKOptions {
@@ -66,6 +66,16 @@ export interface CodexExecutorOptions {
 	resumeSession?: string; // Codex thread ID
 }
 
+// Gemini SDKオプション
+export interface GeminiExecutorOptions {
+	model?: string; // default: gemini-3-pro-preview
+	thinkingBudget?: number; // 思考トークン制御
+	enableGoogleSearch?: boolean; // Google Search有効化
+	enableCodeExecution?: boolean; // Code Execution有効化
+	streaming?: boolean; // default: true
+	systemPrompt?: string; // システムプロンプト
+}
+
 // Worktreeオプション
 export interface WorktreeOptions {
 	enabled: boolean;
@@ -89,6 +99,7 @@ export interface TaskRequest {
 		retry?: RetryOptions;
 		sdk?: ClaudeCodeSDKOptions;
 		codex?: CodexExecutorOptions;
+		gemini?: GeminiExecutorOptions;
 		useWorktree?: boolean;
 		worktree?: WorktreeOptions;
 		executor?: ExecutorType;

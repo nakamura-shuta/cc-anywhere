@@ -3,7 +3,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { AgentTaskRequest, AgentExecutionOptions, AgentExecutionEvent } from "../../../src/agents/types.js";
+import type {
+  AgentTaskRequest,
+  AgentExecutionOptions,
+  AgentExecutionEvent,
+} from "../../../src/agents/types.js";
 
 // Mock config
 const mockConfig = {
@@ -216,7 +220,8 @@ describe("GeminiAgentExecutor", () => {
       };
 
       const iterator = executor.executeTask(request, options);
-      for await (const _event of { [Symbol.asyncIterator]: () => iterator }) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of { [Symbol.asyncIterator]: () => iterator }) {
         // Consume all events
       }
 
@@ -247,7 +252,8 @@ describe("GeminiAgentExecutor", () => {
       };
 
       const iterator = executor.executeTask(request, options);
-      for await (const _event of { [Symbol.asyncIterator]: () => iterator }) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of { [Symbol.asyncIterator]: () => iterator }) {
         // Consume all events
       }
 
@@ -278,7 +284,8 @@ describe("GeminiAgentExecutor", () => {
       };
 
       const iterator = executor.executeTask(request, options);
-      for await (const _event of { [Symbol.asyncIterator]: () => iterator }) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of { [Symbol.asyncIterator]: () => iterator }) {
         // Consume all events
       }
 
@@ -311,7 +318,8 @@ describe("GeminiAgentExecutor", () => {
       };
 
       const iterator = executor.executeTask(request, options);
-      for await (const _event of { [Symbol.asyncIterator]: () => iterator }) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of { [Symbol.asyncIterator]: () => iterator }) {
         // Consume all events
       }
 
@@ -345,7 +353,8 @@ describe("GeminiAgentExecutor", () => {
       };
 
       const iterator = executor.executeTask(request, options);
-      for await (const _event of { [Symbol.asyncIterator]: () => iterator }) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of { [Symbol.asyncIterator]: () => iterator }) {
         // Consume all events
       }
 
@@ -378,7 +387,8 @@ describe("GeminiAgentExecutor", () => {
       };
 
       const iterator = executor.executeTask(request, options);
-      for await (const _event of { [Symbol.asyncIterator]: () => iterator }) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of { [Symbol.asyncIterator]: () => iterator }) {
         // Consume all events
       }
 
@@ -413,7 +423,8 @@ describe("GeminiAgentExecutor", () => {
       };
 
       const iterator = executor.executeTask(request, options);
-      for await (const _event of { [Symbol.asyncIterator]: () => iterator }) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of { [Symbol.asyncIterator]: () => iterator }) {
         // Consume all events
       }
 
