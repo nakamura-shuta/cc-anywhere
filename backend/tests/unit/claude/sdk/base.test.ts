@@ -26,7 +26,7 @@ class TestSDKBase extends ClaudeSDKBase {
       sdkSessionId?: string;
       systemPrompt?: string;
       cwd?: string;
-    }
+    },
   ) {
     return this.createQueryOptions(prompt, opts);
   }

@@ -36,13 +36,9 @@ describeOrSkip("ChatSDKClient Integration", () => {
       executor: "claude",
     };
 
-    const result = await client.execute(
-      "Say hello",
-      options,
-      (event) => {
-        events.push(event);
-      }
-    );
+    const result = await client.execute("Say hello", options, (event) => {
+      events.push(event);
+    });
 
     // Verify result
     expect(result.sdkSessionId).toBeDefined();
@@ -77,13 +73,9 @@ describeOrSkip("ChatSDKClient Integration", () => {
       executor: "claude",
     };
 
-    const result1 = await client.execute(
-      "Say hello briefly",
-      options1,
-      (event) => {
-        events1.push(event);
-      }
-    );
+    const result1 = await client.execute("Say hello briefly", options1, (event) => {
+      events1.push(event);
+    });
 
     expect(result1.sdkSessionId).toBeDefined();
     const firstSessionId = result1.sdkSessionId!;
@@ -103,13 +95,9 @@ describeOrSkip("ChatSDKClient Integration", () => {
       sdkSessionId: firstSessionId, // Resume with previous session
     };
 
-    const result2 = await client.execute(
-      "Say goodbye briefly",
-      options2,
-      (event) => {
-        events2.push(event);
-      }
-    );
+    const result2 = await client.execute("Say goodbye briefly", options2, (event) => {
+      events2.push(event);
+    });
 
     // Verify resume worked
     expect(result2.sdkSessionId).toBeDefined();

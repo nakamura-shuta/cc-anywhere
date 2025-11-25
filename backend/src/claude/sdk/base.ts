@@ -87,7 +87,7 @@ export abstract class ClaudeSDKBase {
       sdkSessionId?: string;
       systemPrompt?: string;
       cwd?: string;
-    }
+    },
   ): SDKQueryOptions {
     return {
       prompt,
