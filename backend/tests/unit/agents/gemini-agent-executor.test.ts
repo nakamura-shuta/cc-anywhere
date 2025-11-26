@@ -130,8 +130,15 @@ describe("GeminiAgentExecutor", () => {
     });
 
     it("should emit completed event with output on success", async () => {
+      // New API structure with candidates and parts
       mockGenerateContent.mockResolvedValue({
-        text: "Test response",
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "Test response" }],
+            },
+          },
+        ],
         usageMetadata: {
           promptTokenCount: 10,
           candidatesTokenCount: 20,
@@ -140,11 +147,6 @@ describe("GeminiAgentExecutor", () => {
 
       const request: AgentTaskRequest = {
         instruction: "Test instruction",
-        options: {
-          gemini: {
-            streaming: false,
-          },
-        },
       };
 
       const options: AgentExecutionOptions = {
@@ -481,20 +483,24 @@ describe("GeminiAgentExecutor", () => {
       });
     });
 
-    it("should use streaming mode by default", async () => {
-      // Mock async iterator for streaming
-      const mockAsyncIterator = {
-        async *[Symbol.asyncIterator]() {
-          yield { text: "chunk1" };
-          yield { text: "chunk2" };
+    it("should always use generateContent (not streaming)", async () => {
+      // New implementation always uses non-streaming generateContent
+      mockGenerateContent.mockResolvedValue({
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "Response text" }],
+            },
+          },
+        ],
+        usageMetadata: {
+          promptTokenCount: 10,
+          candidatesTokenCount: 20,
         },
-      };
-
-      mockGenerateContentStream.mockResolvedValue(mockAsyncIterator);
+      });
 
       const request: AgentTaskRequest = {
-        instruction: "Test streaming",
-        // No streaming option specified - should default to true
+        instruction: "Test non-streaming",
       };
 
       const options: AgentExecutionOptions = {
@@ -508,24 +514,26 @@ describe("GeminiAgentExecutor", () => {
         events.push(event);
       }
 
-      expect(mockGenerateContentStream).toHaveBeenCalled();
-      expect(mockGenerateContent).not.toHaveBeenCalled();
+      expect(mockGenerateContent).toHaveBeenCalled();
+      expect(mockGenerateContentStream).not.toHaveBeenCalled();
     });
   });
 
   describe("cancelTask", () => {
     it("should cancel a running task", async () => {
-      // Create a long-running task by using a delayed stream
-      const mockAsyncIterator = {
-        async *[Symbol.asyncIterator]() {
-          yield { text: "chunk1" };
-          // This would normally continue
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          yield { text: "chunk2" };
-        },
-      };
-
-      mockGenerateContentStream.mockResolvedValue(mockAsyncIterator);
+      // Create a delayed task
+      mockGenerateContent.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  candidates: [{ content: { parts: [{ text: "Response" }] } }],
+                }),
+              1000,
+            ),
+          ),
+      );
 
       const request: AgentTaskRequest = {
         instruction: "Long running task",

@@ -25,6 +25,7 @@ const addToQueueSchema = z.object({
           thinkingBudget: z.number().positive().optional(),
           enableGoogleSearch: z.boolean().optional(),
           enableCodeExecution: z.boolean().optional(),
+          enableFileOperations: z.boolean().optional(),
           streaming: z.boolean().optional(),
           systemPrompt: z.string().optional(),
         })

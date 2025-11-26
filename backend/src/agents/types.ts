@@ -381,6 +381,13 @@ export interface GeminiAgentOptions extends CommonExecutorOptions {
   enableCodeExecution?: boolean;
 
   /**
+   * ファイル操作ツールを有効化 (Function Calling)
+   * CRUD操作（createFile, readFile, updateFile, deleteFile, listDir, createDir）
+   * @default false
+   */
+  enableFileOperations?: boolean;
+
+  /**
    * ストリーミングモード
    * @default true
    */

@@ -430,6 +430,10 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                       type: "boolean",
                       description: "Enable code execution tool",
                     },
+                    enableFileOperations: {
+                      type: "boolean",
+                      description: "Enable file operations (CRUD) via Function Calling",
+                    },
                     streaming: {
                       type: "boolean",
                       description: "Enable streaming mode",
@@ -528,8 +532,13 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      // Set default workingDirectory if not provided (skip for Gemini - no FS access)
-      if (!taskRequest.context?.workingDirectory && executorType !== "gemini") {
+      // Set default workingDirectory if not provided
+      // Skip for Gemini without file operations (no FS access needed)
+      const geminiNeedsWorkingDir =
+        executorType === "gemini" && taskRequest.options?.gemini?.enableFileOperations === true;
+      const needsWorkingDir = executorType !== "gemini" || geminiNeedsWorkingDir;
+
+      if (!taskRequest.context?.workingDirectory && needsWorkingDir) {
         taskRequest = {
           ...taskRequest,
           context: {
