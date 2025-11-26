@@ -11,7 +11,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { taskStore } from '$lib/stores/api.svelte';
 	import { taskService } from '$lib/services/task.service';
-	import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp, AlertCircle } from 'lucide-svelte';
+	import { ArrowLeft, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-svelte';
 	import type { TaskRequest, ExecutorType, ExecutorInfo, ExecutorCapabilities } from '$lib/types/api';
 	import * as Badge from '$lib/components/ui/badge';
 	import DirectorySelector from '$lib/components/directory-selector.svelte';
@@ -44,10 +44,9 @@
 	let permissionMode = $state<string>('allow');
 	let selectedExecutor = $state<ExecutorType | undefined>(undefined);
 
-	// Gemini制限チェック（Gemini APIはステートレスでファイルシステムアクセスなし）
+	// Executor制限チェック
 	let isGeminiExecutor = $derived(selectedExecutor === 'gemini');
-	let isRepositorySelectionSupported = $derived(!isGeminiExecutor); // Geminiはリポジトリ選択非対応
-	let isSessionContinuationSupported = $derived(!isGeminiExecutor); // Geminiはセッション継続非対応
+	let isSessionContinuationSupported = $derived(!isGeminiExecutor); // Geminiはセッション継続非対応（ステートレスAPI）
 
 	// Worktree設定
 	let useWorktree = $state(false);
@@ -91,7 +90,6 @@
 	let geminiThinkingBudget = $state<number | undefined>(undefined);
 	let geminiEnableGoogleSearch = $state(false);
 	let geminiEnableCodeExecution = $state(false);
-	let geminiEnableFileOperations = $state(true); // デフォルトON
 	let geminiSystemPrompt = $state<string>('');
 
 	// 詳細設定の表示/非表示（SDK Continueモードではデフォルトで非表示）
@@ -189,10 +187,8 @@
 			return;
 		}
 
-		// Gemini以外ではディレクトリ選択が必須
-		// GeminiでもFile Operations有効時はディレクトリ必須
-		const geminiNeedsDirectory = selectedExecutor === 'gemini' && geminiEnableFileOperations;
-		if (selectedDirectories.length === 0 && (selectedExecutor !== 'gemini' || geminiNeedsDirectory)) {
+		// すべてのExecutorでディレクトリ選択が必須
+		if (selectedDirectories.length === 0) {
 			alert('作業ディレクトリを選択してください');
 			return;
 		}
@@ -215,13 +211,10 @@
 
 		const request: TaskRequest = {
 			instruction: instruction.trim(),
-			// Gemini選択時はcontextを空にする（ただしFile Operations有効時は必要）
-			...(selectedExecutor === 'gemini' && !geminiEnableFileOperations ? {} : {
-				context: {
-					workingDirectory: selectedDirectories[0], // 最初に選択されたディレクトリを使用
-					files: [] // 必要に応じてファイルを指定
-				}
-			}),
+			context: {
+				workingDirectory: selectedDirectories[0], // 最初に選択されたディレクトリを使用
+				files: [] // 必要に応じてファイルを指定
+			},
 			options: {
 				timeout,
 				async: useAsync,
@@ -260,7 +253,7 @@
 						...(geminiThinkingBudget !== undefined ? { thinkingBudget: geminiThinkingBudget } : {}),
 						enableGoogleSearch: geminiEnableGoogleSearch,
 						enableCodeExecution: geminiEnableCodeExecution,
-						enableFileOperations: geminiEnableFileOperations,
+						enableFileOperations: true, // 常にtrue（ファイル操作機能を有効化）
 						...(geminiSystemPrompt ? { systemPrompt: geminiSystemPrompt } : {})
 					}
 				} : {}),
@@ -372,23 +365,13 @@
 					<Card.Title>作業ディレクトリ</Card.Title>
 				</Card.Header>
 				<Card.Content>
-					{#if isRepositorySelectionSupported}
-						<DirectorySelector
-							bind:selectedDirectories={selectedDirectories}
-							singleSelect={true}
-							onSelectionChange={(selected) => {
-								selectedDirectories = selected;
-							}}
-						/>
-					{:else}
-						<Alert.Root variant="default" class="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
-							<AlertCircle class="h-4 w-4 text-amber-600 dark:text-amber-400" />
-							<Alert.Title class="text-amber-800 dark:text-amber-200">リポジトリ選択は利用できません</Alert.Title>
-							<Alert.Description class="text-amber-700 dark:text-amber-300">
-								Gemini executorは現在、ファイルシステムアクセス機能を持たないため、リポジトリ選択は無効です。
-							</Alert.Description>
-						</Alert.Root>
-					{/if}
+					<DirectorySelector
+						bind:selectedDirectories={selectedDirectories}
+						singleSelect={true}
+						onSelectionChange={(selected) => {
+							selectedDirectories = selected;
+						}}
+					/>
 				</Card.Content>
 			</Card.Root>
 		{/if}
@@ -432,31 +415,19 @@
 				</div>
 
 				<!-- 作業ディレクトリセレクター -->
-				{#if isRepositorySelectionSupported}
-					<DirectorySelector
-						bind:selectedDirectories={selectedDirectories}
-						onSelectionChange={(selected) => {
-							// CLIセッションID使用時は最初の1つのみ選択
-							if (resumeSessionId && selected.length > 1) {
-								selectedDirectories = [selected[0]];
-								alert('CLIセッションIDを使用する場合は、単一のリポジトリのみ選択可能です');
-							} else {
-								selectedDirectories = selected;
-							}
-						}}
-						readonly={isSdkContinueMode}
-					/>
-				{:else}
-					<Alert.Root variant="default" class="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
-						<AlertCircle class="h-4 w-4 text-amber-600 dark:text-amber-400" />
-						<Alert.Title class="text-amber-800 dark:text-amber-200">リポジトリ選択は利用できません</Alert.Title>
-						<Alert.Description class="text-amber-700 dark:text-amber-300">
-							Gemini executorは現在、ファイルシステムアクセス機能を持たないため、リポジトリ選択は無効です。
-							<br />
-							指示内容のみで実行されます（コード生成、質問回答など）。
-						</Alert.Description>
-					</Alert.Root>
-				{/if}
+				<DirectorySelector
+					bind:selectedDirectories={selectedDirectories}
+					onSelectionChange={(selected) => {
+						// CLIセッションID使用時は最初の1つのみ選択
+						if (resumeSessionId && selected.length > 1) {
+							selectedDirectories = [selected[0]];
+							alert('CLIセッションIDを使用する場合は、単一のリポジトリのみ選択可能です');
+						} else {
+							selectedDirectories = selected;
+						}
+					}}
+					readonly={isSdkContinueMode}
+				/>
 				
 				<!-- CLIセッションID入力（Claude用） -->
 				{#if selectedExecutor === 'claude' || !selectedExecutor}
@@ -642,19 +613,6 @@
 							/>
 						</div>
 
-						<!-- File Operations -->
-						<div class="flex items-center justify-between">
-							<div class="space-y-0.5">
-								<Label for="geminiEnableFileOperations" class="text-sm font-medium">File Operations</Label>
-								<p class="text-xs text-muted-foreground">
-									ファイル操作機能（CRUD）を有効化します
-								</p>
-							</div>
-							<Switch
-								id="geminiEnableFileOperations"
-								bind:checked={geminiEnableFileOperations}
-							/>
-						</div>
 					</div>
 				{/if}
 
