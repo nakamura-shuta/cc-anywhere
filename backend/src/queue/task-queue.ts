@@ -5,6 +5,7 @@ import { TaskStatus } from "../claude/types";
 import type { QueuedTask, QueueOptions, QueueStats, TaskQueue } from "./types";
 import { TaskExecutorImpl } from "../claude/executor";
 import type { CodexTaskExecutorAdapter } from "../agents/codex-task-executor-adapter.js";
+import type { GeminiTaskExecutorAdapter } from "../agents/gemini-task-executor-adapter.js";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { getSharedRepository } from "../db/shared-instance";
@@ -26,6 +27,7 @@ export class TaskQueueImpl implements TaskQueue {
   private tasks: Map<string, QueuedTask> = new Map();
   private executor: TaskExecutorImpl;
   private codexExecutor: CodexTaskExecutorAdapter | null = null;
+  private geminiExecutor: GeminiTaskExecutorAdapter | null = null;
   private completedCount = 0;
   private failedCount = 0;
   private repository: TaskRepositoryAdapter;
@@ -93,6 +95,18 @@ export class TaskQueueImpl implements TaskQueue {
       this.codexExecutor = new CodexTaskExecutorAdapter();
     }
     return this.codexExecutor;
+  }
+
+  /**
+   * Lazy-load Gemini executor only when needed
+   */
+  private async getGeminiExecutor(): Promise<GeminiTaskExecutorAdapter> {
+    if (!this.geminiExecutor) {
+      logger.debug("Lazy-loading Gemini executor");
+      const { GeminiTaskExecutorAdapter } = await import("../agents/gemini-task-executor-adapter.js");
+      this.geminiExecutor = new GeminiTaskExecutorAdapter();
+    }
+    return this.geminiExecutor;
   }
 
   /**
@@ -367,9 +381,16 @@ export class TaskQueueImpl implements TaskQueue {
         },
       };
 
-      // Select executor based on options (lazy-load codex if needed)
-      const executor =
-        task.request.options?.executor === "codex" ? await this.getCodexExecutor() : this.executor;
+      // Select executor based on options (lazy-load codex/gemini if needed)
+      const executorType = task.request.options?.executor;
+      let executor: TaskExecutorImpl | CodexTaskExecutorAdapter | GeminiTaskExecutorAdapter;
+      if (executorType === "codex") {
+        executor = await this.getCodexExecutor();
+      } else if (executorType === "gemini") {
+        executor = await this.getGeminiExecutor();
+      } else {
+        executor = this.executor; // Default: Claude
+      }
 
       logger.info("Executing task with selected executor", {
         taskId: task.id,
@@ -421,6 +442,15 @@ export class TaskQueueImpl implements TaskQueue {
         try {
           this.repository.updateResult(task.id, task.result);
           this.repository.updateStatus(task.id, TaskStatus.COMPLETED);
+
+          // Merge tokenUsage from result into progressData.statistics (for Gemini etc.)
+          if (result.tokenUsage) {
+            progressData.statistics.tokenUsage = {
+              input: result.tokenUsage.input ?? 0,
+              output: result.tokenUsage.output ?? 0,
+              cached: undefined,
+            };
+          }
 
           // Save final progress data
           this.repository.updateProgressData(task.id, progressData);
@@ -813,9 +843,16 @@ export class TaskQueueImpl implements TaskQueue {
 
     // If task is running, cancel it through the appropriate executor
     if (task.status === TaskStatus.RUNNING) {
-      const executor =
-        task.request.options?.executor === "codex" ? await this.getCodexExecutor() : this.executor;
-      await executor.cancel(taskId);
+      const executorType = task.request.options?.executor;
+      if (executorType === "codex") {
+        const codexExecutor = await this.getCodexExecutor();
+        await codexExecutor.cancel(taskId);
+      } else if (executorType === "gemini") {
+        const geminiExecutor = await this.getGeminiExecutor();
+        await geminiExecutor.cancel(taskId);
+      } else {
+        await this.executor.cancel(taskId);
+      }
     }
 
     // Update task status

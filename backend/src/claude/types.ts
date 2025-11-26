@@ -1,7 +1,7 @@
 import type { TimeoutOptions } from "../types/timeout.js";
 import type { WorktreeOptions } from "../services/worktree/types.js";
 import type { TodoItem } from "../types/todo.js";
-import type { CommonExecutorOptions, CodexAgentOptions } from "../agents/types.js";
+import type { CommonExecutorOptions, CodexAgentOptions, GeminiAgentOptions } from "../agents/types.js";
 import type { ProgressEvent } from "../types/progress-events.js";
 import type { HookConfig } from "./types/hooks.js";
 
@@ -100,7 +100,7 @@ export interface TaskRequest {
   options?: {
     timeout?: number | TimeoutOptions;
     async?: boolean;
-    executor?: "claude" | "codex"; // Executor type selection
+    executor?: "claude" | "codex" | "gemini"; // Executor type selection
     allowedTools?: string[]; // 後方互換性のため残す
     retry?: RetryOptions; // Retry options
     onProgress?: (progress: ProgressEvent) => void | Promise<void>; // Progress callback
@@ -111,6 +111,8 @@ export interface TaskRequest {
     sdk?: ClaudeCodeSDKOptions;
     // Codex SDK options
     codex?: CodexAgentOptions;
+    // Gemini SDK options
+    gemini?: GeminiAgentOptions;
     // Cross-repository continuation
     allowCrossRepository?: boolean; // Allow continuation in different repository
   };
@@ -213,6 +215,12 @@ export interface ClaudeExecutionResult {
   todos?: TodoItem[];
   /** Conversation history (SDK messages) */
   conversationHistory?: unknown[];
+  /** Token usage statistics (for Gemini and other models) */
+  tokenUsage?: {
+    input?: number;
+    output?: number;
+    thought?: number;
+  };
 }
 
 /**

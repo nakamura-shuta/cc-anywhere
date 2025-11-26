@@ -42,6 +42,12 @@ export interface TaskRecord {
       createdFiles?: number;
       modifiedFiles?: number;
       totalExecutions?: number;
+      tokenUsage?: {
+        input: number;
+        output: number;
+        cached?: number;
+        thought?: number;
+      };
     };
     todos?: Array<{
       content: string;

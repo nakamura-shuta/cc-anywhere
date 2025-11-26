@@ -44,6 +44,11 @@
 	let permissionMode = $state<string>('allow');
 	let selectedExecutor = $state<ExecutorType | undefined>(undefined);
 
+	// Gemini制限チェック（Gemini APIはステートレスでファイルシステムアクセスなし）
+	let isGeminiExecutor = $derived(selectedExecutor === 'gemini');
+	let isRepositorySelectionSupported = $derived(!isGeminiExecutor); // Geminiはリポジトリ選択非対応
+	let isSessionContinuationSupported = $derived(!isGeminiExecutor); // Geminiはセッション継続非対応
+
 	// Worktree設定
 	let useWorktree = $state(false);
 	let keepWorktreeAfterCompletion = $state(false);
@@ -177,17 +182,18 @@
 	// フォームの送信
 	async function handleSubmit(event: Event) {
 		event.preventDefault();
-		
+
 		if (!instruction.trim()) {
 			alert('指示内容を入力してください');
 			return;
 		}
-		
-		if (selectedDirectories.length === 0) {
+
+		// Gemini以外ではディレクトリ選択が必須
+		if (selectedDirectories.length === 0 && selectedExecutor !== 'gemini') {
 			alert('作業ディレクトリを選択してください');
 			return;
 		}
-		
+
 		// CLIセッションID使用時は単一リポジトリのみ許可
 		if (resumeSessionId && selectedDirectories.length > 1) {
 			alert('CLIセッションIDを指定する場合は、単一のリポジトリのみ選択可能です');
@@ -206,10 +212,13 @@
 
 		const request: TaskRequest = {
 			instruction: instruction.trim(),
-			context: {
-				workingDirectory: selectedDirectories[0], // 最初に選択されたディレクトリを使用
-				files: [] // 必要に応じてファイルを指定
-			},
+			// Gemini選択時はcontextを空にする（ファイルシステムアクセス非対応）
+			...(selectedExecutor === 'gemini' ? {} : {
+				context: {
+					workingDirectory: selectedDirectories[0], // 最初に選択されたディレクトリを使用
+					files: [] // 必要に応じてファイルを指定
+				}
+			}),
 			options: {
 				timeout,
 				async: useAsync,
@@ -359,13 +368,23 @@
 					<Card.Title>作業ディレクトリ</Card.Title>
 				</Card.Header>
 				<Card.Content>
-					<DirectorySelector 
-						bind:selectedDirectories={selectedDirectories}
-						singleSelect={true}
-						onSelectionChange={(selected) => {
-							selectedDirectories = selected;
-						}}
-					/>
+					{#if isRepositorySelectionSupported}
+						<DirectorySelector
+							bind:selectedDirectories={selectedDirectories}
+							singleSelect={true}
+							onSelectionChange={(selected) => {
+								selectedDirectories = selected;
+							}}
+						/>
+					{:else}
+						<Alert.Root variant="default" class="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+							<AlertCircle class="h-4 w-4 text-amber-600 dark:text-amber-400" />
+							<Alert.Title class="text-amber-800 dark:text-amber-200">リポジトリ選択は利用できません</Alert.Title>
+							<Alert.Description class="text-amber-700 dark:text-amber-300">
+								Gemini executorは現在、ファイルシステムアクセス機能を持たないため、リポジトリ選択は無効です。
+							</Alert.Description>
+						</Alert.Root>
+					{/if}
 				</Card.Content>
 			</Card.Root>
 		{/if}
@@ -387,6 +406,7 @@
 						bind:value={selectedExecutor}
 						showLabel={true}
 						disabled={isSdkContinueMode || !!resumeSessionId || !!codexResumeSession}
+						disableGemini={isSdkContinueMode || !!resumeSessionId || !!codexResumeSession}
 					/>
 					{#if (isSdkContinueMode || !!resumeSessionId || !!codexResumeSession) && selectedExecutor}
 						<p class="text-xs text-muted-foreground">
@@ -408,19 +428,31 @@
 				</div>
 
 				<!-- 作業ディレクトリセレクター -->
-				<DirectorySelector 
-					bind:selectedDirectories={selectedDirectories}
-					onSelectionChange={(selected) => {
-						// CLIセッションID使用時は最初の1つのみ選択
-						if (resumeSessionId && selected.length > 1) {
-							selectedDirectories = [selected[0]];
-							alert('CLIセッションIDを使用する場合は、単一のリポジトリのみ選択可能です');
-						} else {
-							selectedDirectories = selected;
-						}
-					}}
-					readonly={isSdkContinueMode}
-				/>
+				{#if isRepositorySelectionSupported}
+					<DirectorySelector
+						bind:selectedDirectories={selectedDirectories}
+						onSelectionChange={(selected) => {
+							// CLIセッションID使用時は最初の1つのみ選択
+							if (resumeSessionId && selected.length > 1) {
+								selectedDirectories = [selected[0]];
+								alert('CLIセッションIDを使用する場合は、単一のリポジトリのみ選択可能です');
+							} else {
+								selectedDirectories = selected;
+							}
+						}}
+						readonly={isSdkContinueMode}
+					/>
+				{:else}
+					<Alert.Root variant="default" class="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+						<AlertCircle class="h-4 w-4 text-amber-600 dark:text-amber-400" />
+						<Alert.Title class="text-amber-800 dark:text-amber-200">リポジトリ選択は利用できません</Alert.Title>
+						<Alert.Description class="text-amber-700 dark:text-amber-300">
+							Gemini executorは現在、ファイルシステムアクセス機能を持たないため、リポジトリ選択は無効です。
+							<br />
+							指示内容のみで実行されます（コード生成、質問回答など）。
+						</Alert.Description>
+					</Alert.Root>
+				{/if}
 				
 				<!-- CLIセッションID入力（Claude用） -->
 				{#if selectedExecutor === 'claude' || !selectedExecutor}

@@ -405,6 +405,42 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                   },
                   additionalProperties: false,
                 },
+                executor: {
+                  type: "string",
+                  enum: ["claude", "codex", "gemini"],
+                  description: "Executor type to use for task execution",
+                },
+                gemini: {
+                  type: "object",
+                  properties: {
+                    model: {
+                      type: "string",
+                      description: "Gemini model to use (e.g., gemini-3-pro-preview)",
+                    },
+                    thinkingBudget: {
+                      type: "number",
+                      minimum: 1,
+                      description: "Token budget for thinking",
+                    },
+                    enableGoogleSearch: {
+                      type: "boolean",
+                      description: "Enable Google Search tool",
+                    },
+                    enableCodeExecution: {
+                      type: "boolean",
+                      description: "Enable code execution tool",
+                    },
+                    streaming: {
+                      type: "boolean",
+                      description: "Enable streaming mode",
+                    },
+                    systemPrompt: {
+                      type: "string",
+                      description: "System prompt for Gemini",
+                    },
+                  },
+                  additionalProperties: false,
+                },
                 useWorktree: {
                   type: "boolean",
                   description: "Enable Git worktree for isolated execution",
@@ -479,8 +515,21 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       // Handle continueFromTaskId option
       let taskRequest = request.body;
 
-      // Set default workingDirectory if not provided
-      if (!taskRequest.context?.workingDirectory) {
+      // Check executor type
+      const executorType = taskRequest.options?.executor;
+
+      // Early validation: Check GEMINI_API_KEY for Gemini executor
+      if (executorType === "gemini") {
+        const { config } = await import("../../config/index.js");
+        if (!config.gemini?.apiKey) {
+          throw new InvalidTaskRequestError(
+            "Gemini API key is not configured. Please set GEMINI_API_KEY environment variable.",
+          );
+        }
+      }
+
+      // Set default workingDirectory if not provided (skip for Gemini - no FS access)
+      if (!taskRequest.context?.workingDirectory && executorType !== "gemini") {
         taskRequest = {
           ...taskRequest,
           context: {

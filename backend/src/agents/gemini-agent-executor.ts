@@ -102,25 +102,54 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
         tools.push({ googleSearch: {} });
       }
 
-      // Build config
-      const generateConfig: {
-        tools?: Array<{ codeExecution?: object; googleSearch?: object }>;
+      // Build contents in proper Gemini API format
+      const contents = [
+        {
+          role: "user" as const,
+          parts: [{ text: request.instruction }],
+        },
+      ];
+
+      // Build generation config (thinkingConfig goes in generationConfig)
+      const generationConfig: {
         thinkingConfig?: { thinkingBudget: number };
-        systemInstruction?: string;
       } = {};
 
-      if (tools.length > 0) {
-        generateConfig.tools = tools;
-      }
-
       if (geminiOptions.thinkingBudget) {
-        generateConfig.thinkingConfig = {
+        generationConfig.thinkingConfig = {
           thinkingBudget: geminiOptions.thinkingBudget,
         };
       }
 
-      if (geminiOptions.systemPrompt) {
-        generateConfig.systemInstruction = geminiOptions.systemPrompt;
+      // Build generate parameters
+      const generateParams: {
+        model: string;
+        contents: typeof contents;
+        config?: {
+          tools?: Array<{ codeExecution?: object; googleSearch?: object }>;
+          systemInstruction?: string;
+          generationConfig?: typeof generationConfig;
+        };
+      } = {
+        model,
+        contents,
+      };
+
+      // Add config if there are any options
+      if (tools.length > 0 || geminiOptions.systemPrompt || geminiOptions.thinkingBudget) {
+        generateParams.config = {};
+
+        if (tools.length > 0) {
+          generateParams.config.tools = tools;
+        }
+
+        if (geminiOptions.systemPrompt) {
+          generateParams.config.systemInstruction = geminiOptions.systemPrompt;
+        }
+
+        if (Object.keys(generationConfig).length > 0) {
+          generateParams.config.generationConfig = generationConfig;
+        }
       }
 
       logger.debug("Gemini request options", {
@@ -144,22 +173,18 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
       let tokenUsage: { input: number; output: number; thought?: number } | undefined;
 
       if (streaming) {
-        // Streaming mode
-        output = await this.executeStreaming(
+        // Streaming mode - returns output and token usage
+        const result = await this.executeStreaming(
           ai,
-          model,
-          request.instruction,
-          generateConfig,
+          generateParams,
           abortController,
           taskId,
         );
+        output = result.output;
+        tokenUsage = result.tokenUsage;
       } else {
         // Non-streaming mode
-        const response = await ai.models.generateContent({
-          model,
-          contents: request.instruction,
-          config: generateConfig,
-        });
+        const response = await ai.models.generateContent(generateParams);
 
         output = response.text || "";
 
@@ -225,23 +250,25 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
   }
 
   /**
-   * Execute with streaming and collect output
+   * Execute with streaming and collect output and token usage
    */
   private async executeStreaming(
     ai: GoogleGenAI,
-    model: string,
-    instruction: string,
-    generateConfig: object,
+    generateParams: {
+      model: string;
+      contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+      config?: object;
+    },
     abortController: AbortController,
     taskId: string,
-  ): Promise<string> {
-    const response = await ai.models.generateContentStream({
-      model,
-      contents: instruction,
-      config: generateConfig,
-    });
+  ): Promise<{
+    output: string;
+    tokenUsage?: { input: number; output: number; thought?: number };
+  }> {
+    const response = await ai.models.generateContentStream(generateParams);
 
     const chunks: string[] = [];
+    let tokenUsage: { input: number; output: number; thought?: number } | undefined;
 
     for await (const chunk of response) {
       // Check for cancellation
@@ -254,9 +281,21 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
         chunks.push(text);
         logger.debug("Gemini streaming chunk", { taskId, chunkLength: text.length });
       }
+
+      // Collect token usage from the last chunk (usageMetadata is typically in final chunk)
+      if (chunk.usageMetadata) {
+        tokenUsage = {
+          input: chunk.usageMetadata.promptTokenCount || 0,
+          output: chunk.usageMetadata.candidatesTokenCount || 0,
+          thought: chunk.usageMetadata.thoughtsTokenCount,
+        };
+      }
     }
 
-    return chunks.join("");
+    return {
+      output: chunks.join(""),
+      tokenUsage,
+    };
   }
 
   async cancelTask(taskId: string): Promise<void> {

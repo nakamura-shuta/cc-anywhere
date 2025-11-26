@@ -11,6 +11,8 @@
 		disabled?: boolean;
 		showLabel?: boolean;
 		apiKey?: string;
+		/** Disable Gemini option (e.g., for session continuation mode) */
+		disableGemini?: boolean;
 	}
 
 	let {
@@ -18,7 +20,8 @@
 		onchange,
 		disabled = false,
 		showLabel = true,
-		apiKey
+		apiKey,
+		disableGemini = false
 	}: Props = $props();
 
 	let executors = $state<ExecutorInfo[]>([]);
@@ -109,16 +112,19 @@
 		{/if}
 
 		{#each executors as executor}
+			{@const isGeminiDisabled = executor.type === 'gemini' && disableGemini}
 			<Select.Item
 				value={executor.type}
 				label={getExecutorLabel(executor)}
-				disabled={!executor.available}
+				disabled={!executor.available || isGeminiDisabled}
 			>
 				<div class="flex flex-col w-full">
 					<div class="flex items-center justify-between">
 						<span>{getExecutorLabel(executor)}</span>
 						{#if !executor.available}
 							<Badge variant="outline" class="ml-2 text-xs">利用不可</Badge>
+						{:else if isGeminiDisabled}
+							<Badge variant="outline" class="ml-2 text-xs">継続非対応</Badge>
 						{/if}
 					</div>
 					<div class="text-xs text-muted-foreground mt-1">

@@ -17,7 +17,18 @@ const addToQueueSchema = z.object({
     .object({
       timeout: z.number().positive().optional(),
       allowedTools: z.array(z.string()).optional(),
-      executor: z.enum(["claude", "codex"]).optional(),
+      executor: z.enum(["claude", "codex", "gemini"]).optional(),
+      // Gemini SDK options
+      gemini: z
+        .object({
+          model: z.string().optional(),
+          thinkingBudget: z.number().positive().optional(),
+          enableGoogleSearch: z.boolean().optional(),
+          enableCodeExecution: z.boolean().optional(),
+          streaming: z.boolean().optional(),
+          systemPrompt: z.string().optional(),
+        })
+        .optional(),
     })
     .optional(),
   priority: z.number().default(0),

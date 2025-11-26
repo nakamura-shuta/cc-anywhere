@@ -227,8 +227,7 @@ describe("GeminiAgentExecutor", () => {
 
       expect(mockGenerateContent).toHaveBeenCalledWith({
         model: "gemini-3-pro-preview",
-        contents: "Test instruction",
-        config: {},
+        contents: [{ role: "user", parts: [{ text: "Test instruction" }] }],
       });
     });
 
@@ -259,8 +258,7 @@ describe("GeminiAgentExecutor", () => {
 
       expect(mockGenerateContent).toHaveBeenCalledWith({
         model: "gemini-2.5-pro",
-        contents: "Test instruction",
-        config: {},
+        contents: [{ role: "user", parts: [{ text: "Test instruction" }] }],
       });
     });
 
@@ -291,7 +289,7 @@ describe("GeminiAgentExecutor", () => {
 
       expect(mockGenerateContent).toHaveBeenCalledWith({
         model: "gemini-3-pro-preview",
-        contents: "Search for something",
+        contents: [{ role: "user", parts: [{ text: "Search for something" }] }],
         config: {
           tools: [{ googleSearch: {} }],
         },
@@ -325,7 +323,7 @@ describe("GeminiAgentExecutor", () => {
 
       expect(mockGenerateContent).toHaveBeenCalledWith({
         model: "gemini-3-pro-preview",
-        contents: "Execute some code",
+        contents: [{ role: "user", parts: [{ text: "Execute some code" }] }],
         config: {
           tools: [{ codeExecution: {} }],
         },
@@ -360,7 +358,7 @@ describe("GeminiAgentExecutor", () => {
 
       expect(mockGenerateContent).toHaveBeenCalledWith({
         model: "gemini-3-pro-preview",
-        contents: "Test both tools",
+        contents: [{ role: "user", parts: [{ text: "Test both tools" }] }],
         config: {
           tools: [{ codeExecution: {} }, { googleSearch: {} }],
         },
@@ -394,10 +392,12 @@ describe("GeminiAgentExecutor", () => {
 
       expect(mockGenerateContent).toHaveBeenCalledWith({
         model: "gemini-3-pro-preview",
-        contents: "Think about this",
+        contents: [{ role: "user", parts: [{ text: "Think about this" }] }],
         config: {
-          thinkingConfig: {
-            thinkingBudget: 1024,
+          generationConfig: {
+            thinkingConfig: {
+              thinkingBudget: 1024,
+            },
           },
         },
       });
@@ -430,7 +430,7 @@ describe("GeminiAgentExecutor", () => {
 
       expect(mockGenerateContent).toHaveBeenCalledWith({
         model: "gemini-3-pro-preview",
-        contents: "Test instruction",
+        contents: [{ role: "user", parts: [{ text: "Test instruction" }] }],
         config: {
           systemInstruction: "You are a helpful assistant.",
         },
