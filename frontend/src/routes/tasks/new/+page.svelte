@@ -91,6 +91,7 @@
 	let geminiThinkingBudget = $state<number | undefined>(undefined);
 	let geminiEnableGoogleSearch = $state(false);
 	let geminiEnableCodeExecution = $state(false);
+	let geminiEnableFileOperations = $state(true); // デフォルトON
 	let geminiSystemPrompt = $state<string>('');
 
 	// 詳細設定の表示/非表示（SDK Continueモードではデフォルトで非表示）
@@ -189,7 +190,9 @@
 		}
 
 		// Gemini以外ではディレクトリ選択が必須
-		if (selectedDirectories.length === 0 && selectedExecutor !== 'gemini') {
+		// GeminiでもFile Operations有効時はディレクトリ必須
+		const geminiNeedsDirectory = selectedExecutor === 'gemini' && geminiEnableFileOperations;
+		if (selectedDirectories.length === 0 && (selectedExecutor !== 'gemini' || geminiNeedsDirectory)) {
 			alert('作業ディレクトリを選択してください');
 			return;
 		}
@@ -212,8 +215,8 @@
 
 		const request: TaskRequest = {
 			instruction: instruction.trim(),
-			// Gemini選択時はcontextを空にする（ファイルシステムアクセス非対応）
-			...(selectedExecutor === 'gemini' ? {} : {
+			// Gemini選択時はcontextを空にする（ただしFile Operations有効時は必要）
+			...(selectedExecutor === 'gemini' && !geminiEnableFileOperations ? {} : {
 				context: {
 					workingDirectory: selectedDirectories[0], // 最初に選択されたディレクトリを使用
 					files: [] // 必要に応じてファイルを指定
@@ -257,6 +260,7 @@
 						...(geminiThinkingBudget !== undefined ? { thinkingBudget: geminiThinkingBudget } : {}),
 						enableGoogleSearch: geminiEnableGoogleSearch,
 						enableCodeExecution: geminiEnableCodeExecution,
+						enableFileOperations: geminiEnableFileOperations,
 						...(geminiSystemPrompt ? { systemPrompt: geminiSystemPrompt } : {})
 					}
 				} : {}),
@@ -635,6 +639,20 @@
 							<Switch
 								id="geminiEnableCodeExecution"
 								bind:checked={geminiEnableCodeExecution}
+							/>
+						</div>
+
+						<!-- File Operations -->
+						<div class="flex items-center justify-between">
+							<div class="space-y-0.5">
+								<Label for="geminiEnableFileOperations" class="text-sm font-medium">File Operations</Label>
+								<p class="text-xs text-muted-foreground">
+									ファイル操作機能（CRUD）を有効化します
+								</p>
+							</div>
+							<Switch
+								id="geminiEnableFileOperations"
+								bind:checked={geminiEnableFileOperations}
 							/>
 						</div>
 					</div>

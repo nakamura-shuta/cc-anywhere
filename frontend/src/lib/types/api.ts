@@ -72,6 +72,7 @@ export interface GeminiExecutorOptions {
 	thinkingBudget?: number; // 思考トークン制御
 	enableGoogleSearch?: boolean; // Google Search有効化
 	enableCodeExecution?: boolean; // Code Execution有効化
+	enableFileOperations?: boolean; // ファイル操作（CRUD）有効化
 	streaming?: boolean; // default: true
 	systemPrompt?: string; // システムプロンプト
 }
