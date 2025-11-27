@@ -180,10 +180,11 @@ export function createChatWebSocket(
 				case 'text':
 					callbacks.onText?.((message.data as { text: string }).text);
 					break;
-				case 'tool_use':
+				case 'tool_use': {
 					const toolData = message.data as { tool: string; toolInput: unknown };
 					callbacks.onToolUse?.(toolData.tool, toolData.toolInput);
 					break;
+				}
 				case 'error':
 					callbacks.onError?.((message.data as { message: string }).message);
 					break;

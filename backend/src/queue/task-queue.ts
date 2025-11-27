@@ -103,7 +103,9 @@ export class TaskQueueImpl implements TaskQueue {
   private async getGeminiExecutor(): Promise<GeminiTaskExecutorAdapter> {
     if (!this.geminiExecutor) {
       logger.debug("Lazy-loading Gemini executor");
-      const { GeminiTaskExecutorAdapter } = await import("../agents/gemini-task-executor-adapter.js");
+      const { GeminiTaskExecutorAdapter } = await import(
+        "../agents/gemini-task-executor-adapter.js"
+      );
       this.geminiExecutor = new GeminiTaskExecutorAdapter();
     }
     return this.geminiExecutor;

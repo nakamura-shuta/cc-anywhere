@@ -19,11 +19,7 @@ import { EXECUTOR_TYPES } from "./types.js";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
 import { BaseTaskExecutor } from "./base-task-executor.js";
-import {
-  FILE_TOOL_DECLARATIONS,
-  isFileTool,
-  executeFileFunction,
-} from "./gemini-file-tools.js";
+import { FILE_TOOL_DECLARATIONS, isFileTool, executeFileFunction } from "./gemini-file-tools.js";
 
 /**
  * Default model for Gemini executor
@@ -183,7 +179,7 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
       let totalTurns = 0;
       let totalToolCalls = 0;
       const toolStats: Record<string, ToolStatistics> = {};
-      let totalTokenUsage: { input: number; output: number; thought?: number } = {
+      const totalTokenUsage: { input: number; output: number; thought?: number } = {
         input: 0,
         output: 0,
       };
@@ -217,9 +213,7 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
         const parts = candidate?.content?.parts || [];
 
         // Check for function calls
-        const functionCalls = parts.filter(
-          (p: { functionCall?: unknown }) => p.functionCall,
-        );
+        const functionCalls = parts.filter((p: { functionCall?: unknown }) => p.functionCall);
 
         if (functionCalls.length === 0) {
           // No function calls - extract final text response

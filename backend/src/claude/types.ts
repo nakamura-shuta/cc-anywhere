@@ -1,7 +1,11 @@
 import type { TimeoutOptions } from "../types/timeout.js";
 import type { WorktreeOptions } from "../services/worktree/types.js";
 import type { TodoItem } from "../types/todo.js";
-import type { CommonExecutorOptions, CodexAgentOptions, GeminiAgentOptions } from "../agents/types.js";
+import type {
+  CommonExecutorOptions,
+  CodexAgentOptions,
+  GeminiAgentOptions,
+} from "../agents/types.js";
 import type { ProgressEvent } from "../types/progress-events.js";
 import type { HookConfig } from "./types/hooks.js";
 
