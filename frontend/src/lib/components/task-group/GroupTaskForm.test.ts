@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, fireEvent, waitFor } from '@testing-library/svelte';
 import GroupTaskForm from './GroupTaskForm.svelte';
+import type { GroupTaskSubmitData } from './GroupTaskForm.svelte';
 
 describe('GroupTaskForm', () => {
-  let mockOnSubmit: ReturnType<typeof vi.fn>;
+  let mockOnSubmit: Mock<(data: GroupTaskSubmitData) => void>;
 
   beforeEach(() => {
     mockOnSubmit = vi.fn();
@@ -12,7 +13,7 @@ describe('GroupTaskForm', () => {
   it('should render initial task form', () => {
     const { getByText, getByLabelText } = render(GroupTaskForm, {
       props: {
-        onSubmit: mockOnSubmit
+        onSubmit: mockOnSubmit as (data: GroupTaskSubmitData) => void
       }
     });
 
@@ -24,7 +25,7 @@ describe('GroupTaskForm', () => {
   it('should add new task when clicking add button', async () => {
     const { getByText, container } = render(GroupTaskForm, {
       props: {
-        onSubmit: mockOnSubmit
+        onSubmit: mockOnSubmit as (data: GroupTaskSubmitData) => void
       }
     });
 
@@ -44,7 +45,7 @@ describe('GroupTaskForm', () => {
   it('should remove task when clicking remove button', async () => {
     const { getByText, container, queryByText } = render(GroupTaskForm, {
       props: {
-        onSubmit: mockOnSubmit
+        onSubmit: mockOnSubmit as (data: GroupTaskSubmitData) => void
       }
     });
 
@@ -65,7 +66,7 @@ describe('GroupTaskForm', () => {
   it('should update task dependencies', async () => {
     const { getByText, container } = render(GroupTaskForm, {
       props: {
-        onSubmit: mockOnSubmit
+        onSubmit: mockOnSubmit as (data: GroupTaskSubmitData) => void
       }
     });
 
@@ -87,7 +88,7 @@ describe('GroupTaskForm', () => {
   it('should validate required fields before submission', async () => {
     const { getByText, getByLabelText, container } = render(GroupTaskForm, {
       props: {
-        onSubmit: mockOnSubmit
+        onSubmit: mockOnSubmit as (data: GroupTaskSubmitData) => void
       }
     });
 
@@ -132,7 +133,7 @@ describe('GroupTaskForm', () => {
   it('should detect circular dependencies', async () => {
     const { getByText, container } = render(GroupTaskForm, {
       props: {
-        onSubmit: mockOnSubmit
+        onSubmit: mockOnSubmit as (data: GroupTaskSubmitData) => void
       }
     });
 
@@ -157,7 +158,7 @@ describe('GroupTaskForm', () => {
   it.skip('should switch execution modes', async () => {
     const { container } = render(GroupTaskForm, {
       props: {
-        onSubmit: mockOnSubmit
+        onSubmit: mockOnSubmit as (data: GroupTaskSubmitData) => void
       }
     });
 

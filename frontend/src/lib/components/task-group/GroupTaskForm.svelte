@@ -1,23 +1,13 @@
-<script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Select from '$lib/components/ui/select';
-	import RadioGroup from '$lib/components/ui/radio-group/radio-group.svelte';
-	import RadioGroupItem from '$lib/components/ui/radio-group/radio-group-item.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Trash2, Plus, AlertCircle, ChevronDown, ChevronUp } from 'lucide-svelte';
-	
-	interface TaskDefinition {
+<script lang="ts" module>
+	// Exported types for external use
+	export interface TaskDefinition {
 		id: string;
 		name: string;
 		instruction: string;
 		dependencies: string[];
 	}
-	
-	interface GroupTaskSubmitData {
+
+	export interface GroupTaskSubmitData {
 		name: string;
 		tasks: TaskDefinition[];
 		execution: {
@@ -29,6 +19,19 @@
 			workingDirectory?: string;
 		};
 	}
+</script>
+
+<script lang="ts">
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import * as Select from '$lib/components/ui/select';
+	import RadioGroup from '$lib/components/ui/radio-group/radio-group.svelte';
+	import RadioGroupItem from '$lib/components/ui/radio-group/radio-group-item.svelte';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Trash2, Plus, AlertCircle, ChevronDown, ChevronUp } from 'lucide-svelte';
 	
 	interface Props {
 		onSubmit: (data: GroupTaskSubmitData) => void | Promise<void>;
