@@ -113,7 +113,7 @@ else
         fi
     else
         echo -e "${YELLOW}CC-Anywhereが起動していません${NC}"
-        echo "起動: npm run dev"
+        echo "起動: pnpm dev"
     fi
 fi
 

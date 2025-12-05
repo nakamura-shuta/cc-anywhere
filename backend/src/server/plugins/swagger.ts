@@ -59,7 +59,7 @@ export default fp(async function swaggerPlugin(fastify: FastifyInstance) {
 
     fastify.log.info("OpenAPI documentation registered at /api/docs");
   } catch (error) {
-    fastify.log.error("Failed to load OpenAPI specification:", error);
+    fastify.log.error({ err: error }, "Failed to load OpenAPI specification");
     throw error;
   }
 });

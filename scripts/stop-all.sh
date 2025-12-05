@@ -35,11 +35,11 @@ echo -e "${YELLOW}2. 開発プロセスを停止中...${NC}"
 
 # バックエンド開発サーバー
 pkill -f "tsx watch" 2>/dev/null && echo "   tsx watch: 停止" || echo "   tsx watch: 未起動"
-pkill -f "npm run dev.*backend" 2>/dev/null && echo "   backend dev: 停止" || true
+pkill -f "pnpm.*dev.*backend" 2>/dev/null && echo "   backend dev: 停止" || true
 
 # フロントエンド開発サーバー
 pkill -f "vite" 2>/dev/null && echo "   vite: 停止" || echo "   vite: 未起動"
-pkill -f "npm run dev.*frontend" 2>/dev/null && echo "   frontend dev: 停止" || true
+pkill -f "pnpm.*dev.*frontend" 2>/dev/null && echo "   frontend dev: 停止" || true
 
 echo -e "${GREEN}✓ 開発プロセス停止完了${NC}"
 echo ""

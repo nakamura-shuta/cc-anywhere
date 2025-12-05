@@ -79,7 +79,7 @@
 
 **事前準備**:
 1. ビルド済みであること（`./scripts/build-all.sh`）
-2. PM2インストール済み（`npm install -g pm2`）
+2. PM2インストール済み（`pnpm install -g pm2`）
 3. `.env`ファイル設定済み
 
 ---
@@ -185,7 +185,7 @@ chmod +x scripts/*.sh
 ```
 
 ### 依存関係
-- PM2: `npm install -g pm2`
+- PM2: `pnpm install -g pm2`
 - tmux（オプション）: `brew install tmux`
 - ngrok（オプション）: `brew install ngrok`
 
@@ -209,7 +209,7 @@ kill -9 <PID>
 ### Q: PM2が見つからない
 A:
 ```bash
-npm install -g pm2
+pnpm install -g pm2
 ```
 
 ### Q: ngrokのURLが表示されない

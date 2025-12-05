@@ -37,7 +37,7 @@ cd "$FRONTEND_DIR"
 # node_modulesが存在しない場合はインストール
 if [ ! -d "node_modules" ]; then
     echo -e "${YELLOW}   依存関係をインストール中...${NC}"
-    npm install
+    pnpm install
 fi
 
 # ビルドディレクトリをクリーンアップ
@@ -48,7 +48,7 @@ fi
 
 # フロントエンドをビルド
 echo "   ビルド実行中..."
-npm run build
+pnpm run build
 
 if [ ! -d "build" ]; then
     echo -e "${RED}エラー: フロントエンドのビルドに失敗しました${NC}"
@@ -67,7 +67,7 @@ cd "$BACKEND_DIR"
 # node_modulesが存在しない場合はインストール
 if [ ! -d "node_modules" ]; then
     echo -e "${YELLOW}   依存関係をインストール中...${NC}"
-    npm install
+    pnpm install
 fi
 
 # ビルドディレクトリとキャッシュをクリーンアップ
@@ -81,7 +81,10 @@ fi
 
 # バックエンドをビルド
 echo "   ビルド実行中..."
-npm run build
+# TypeScriptコンパイラがメモリ不足になる場合があるため、ヒープサイズを増やす
+export NODE_OPTIONS="--max-old-space-size=8192"
+pnpm run build
+unset NODE_OPTIONS
 
 if [ ! -d "dist" ]; then
     echo -e "${RED}エラー: バックエンドのビルドに失敗しました${NC}"
@@ -143,7 +146,7 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 echo -e "${BLUE}次のステップ:${NC}"
 echo "1. 開発環境で起動:"
-echo "   cd backend && npm run dev"
+echo "   cd backend && pnpm dev"
 echo ""
 echo "2. 本番環境で起動:"
 echo "   ./scripts/start-production.sh"

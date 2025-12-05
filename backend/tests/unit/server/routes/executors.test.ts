@@ -130,9 +130,8 @@ describe("Executors Routes", () => {
 
     it("should handle case when some executors are not available", async () => {
       // Mock only Claude as available
-      const { AgentExecutorFactory } = await import(
-        "../../../../src/agents/agent-executor-factory.js"
-      );
+      const { AgentExecutorFactory } =
+        await import("../../../../src/agents/agent-executor-factory.js");
       vi.mocked(AgentExecutorFactory.getAvailableExecutors).mockResolvedValueOnce(["claude"]);
 
       const response = await app.inject({

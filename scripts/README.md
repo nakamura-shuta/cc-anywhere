@@ -47,9 +47,9 @@ PM2を使用して本番環境でサーバーを起動します。
 - ログローテーション対応
 
 **事前準備:**
-1. `npm run build`または`./scripts/build-all.sh`でビルド済みであること
+1. `pnpm run build`または`./scripts/build-all.sh`でビルド済みであること
 2. `.env`ファイルに必要な環境変数が設定されていること
-3. PM2がインストールされていること（`npm install -g pm2`）
+3. PM2がインストールされていること（`pnpm install -g pm2`）
 
 ### `start-dev.sh`
 開発環境でフロントエンドとバックエンドを同時起動します。
@@ -103,8 +103,8 @@ pm2 start ecosystem.config.js --env production
 ### 2. フロントエンドの静的ホスティング
 ```bash
 cd frontend
-npm run build
-npx serve build -p 4444 -s
+pnpm run build
+pnpm dlx serve build -p 4444 -s
 ```
 
 ### 3. Nginxリバースプロキシ設定例
@@ -168,7 +168,7 @@ API_KEY=your-cc-anywhere-api-key
 EOF
 
 # 2. 依存関係のインストール
-npm install
+pnpm install
 
 # 3. ビルド
 ./scripts/build-all.sh
@@ -229,11 +229,11 @@ chmod +x backend/scripts/*.sh
 
 ## 注意事項
 
-- PM2がインストールされていない場合は`npm install -g pm2`でインストール
+- PM2がインストールされていない場合は`pnpm install -g pm2`でインストール
 - tmuxがあるとより便利に開発できます（`brew install tmux`でインストール可能）
 - 本番環境では必ず`.env`ファイルを適切に設定してください
 - ポート5000が既に使用されている場合は、`stop-all.sh`を実行してから起動してください
-- 初回起動時は必ず`npm install`で依存関係をインストールしてください
+- 初回起動時は必ず`pnpm install`で依存関係をインストールしてください
 
 ## よくある問題と解決方法
 
@@ -247,13 +247,13 @@ kill -9 <PID>  # プロセスを強制終了
 
 ### PM2が見つからない
 ```bash
-npm install -g pm2
+pnpm install -g pm2
 ```
 
 ### ビルドエラー
 ```bash
 # クリーンビルド
 rm -rf backend/dist backend/web frontend/build
-npm install
+pnpm install
 ./scripts/build-all.sh
 ```

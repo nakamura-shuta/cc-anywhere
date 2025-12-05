@@ -297,10 +297,10 @@ SDKセッション管理:
 ### テスト実行
 
 ```bash
-npm run test:unit          # ユニットテストのみ
-npm run test:integration   # 統合テストのみ
-npm run type-check         # 型チェック
-npm run lint               # Lint
+pnpm run test:unit          # ユニットテストのみ
+pnpm run test:integration   # 統合テストのみ
+pnpm run type-check         # 型チェック
+pnpm run lint               # Lint
 ```
 
 ## 開発ワークフロー

@@ -38,7 +38,7 @@ echo -e "   Node.js: ${GREEN}${NODE_VERSION}${NC}"
 if ! command -v pm2 &> /dev/null; then
     echo -e "${RED}エラー: PM2がインストールされていません${NC}"
     echo "以下のコマンドでインストールしてください:"
-    echo "  npm install -g pm2"
+    echo "  pnpm install -g pm2"
     exit 1
 fi
 PM2_VERSION=$(pm2 --version)
@@ -76,7 +76,7 @@ pm2 delete cc-anywhere-backend 2>/dev/null || true
 
 # 開発モードのプロセスも停止
 pkill -f "tsx watch" 2>/dev/null || true
-pkill -f "npm run dev" 2>/dev/null || true
+pkill -f "pnpm.*dev" 2>/dev/null || true
 
 echo -e "${GREEN}✓ クリーンアップ完了${NC}"
 echo ""

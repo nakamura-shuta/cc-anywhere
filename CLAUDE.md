@@ -40,15 +40,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `./scripts/stop-all.sh` - すべてのプロセス停止
 
 ### テスト・品質管理
-- `npm run test:unit` - ユニットテストを一度実行
-- `npm run test:integration` - 統合テストを一度実行
-- `npm run test:watch` - テストをwatchモードで実行（必要な場合のみ）
-- `npm run lint` - ESLintによるコード品質チェック
-- `npm run lint:fix` - Lintエラーの自動修正
-- `npm run type-check` - TypeScript型チェック
+- `pnpm run test:unit` - ユニットテストを一度実行
+- `pnpm run test:integration` - 統合テストを一度実行
+- `pnpm run test:watch` - テストをwatchモードで実行（必要な場合のみ）
+- `pnpm run lint` - ESLintによるコード品質チェック
+- `pnpm run lint:fix` - Lintエラーの自動修正
+- `pnpm run type-check` - TypeScript型チェック
 
 **注意**:
-- `npm test`は誤ってwatchモードでテストが実行されることを防ぐため、エラーメッセージを表示します。常に`npm run test:unit`や`npm run test:integration`を使用してください。
+- `pnpm test`は誤ってwatchモードでテストが実行されることを防ぐため、エラーメッセージを表示します。常に`pnpm run test:unit`や`pnpm run test:integration`を使用してください。
 - テスト実行後は必ずプロセスが正常に終了したことを確認してください。異常終了した場合、vitestプロセスが残ることがあります。
 - もしvitestプロセスが残った場合は `pkill -f vitest` で停止してください。
 

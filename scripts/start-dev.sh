@@ -30,13 +30,13 @@ echo -e "${YELLOW}1. 依存関係を確認中...${NC}"
 # バックエンドの依存関係
 if [ ! -d "$BACKEND_DIR/node_modules" ]; then
     echo -e "${YELLOW}   バックエンドの依存関係をインストール中...${NC}"
-    cd "$BACKEND_DIR" && npm install
+    cd "$BACKEND_DIR" && pnpm install
 fi
 
 # フロントエンドの依存関係
 if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
     echo -e "${YELLOW}   フロントエンドの依存関係をインストール中...${NC}"
-    cd "$FRONTEND_DIR" && npm install
+    cd "$FRONTEND_DIR" && pnpm install
 fi
 
 # .envファイル確認
@@ -59,13 +59,13 @@ echo -e "${YELLOW}2. 既存のプロセスを停止中...${NC}"
 
 # バックエンドのプロセスを停止
 pkill -f "tsx watch" 2>/dev/null || true
-pkill -f "npm run dev.*backend" 2>/dev/null || true
+pkill -f "pnpm.*dev.*backend" 2>/dev/null || true
 pm2 stop cc-anywhere-backend 2>/dev/null || true
 pm2 delete cc-anywhere-backend 2>/dev/null || true
 
 # フロントエンドのプロセスを停止
 pkill -f "vite" 2>/dev/null || true
-pkill -f "npm run dev.*frontend" 2>/dev/null || true
+pkill -f "pnpm.*dev.*frontend" 2>/dev/null || true
 
 echo -e "${GREEN}✓ クリーンアップ完了${NC}"
 echo ""
@@ -84,18 +84,19 @@ if command -v tmux &> /dev/null; then
     # 新しいセッションを作成
     tmux new-session -d -s $SESSION_NAME -n backend
     
-    # バックエンドを起動（明示的にNode.jsパス設定）
-    NODE_PATH=$(which node)
+    # pnpmの絶対パスを取得
+    PNPM_PATH=$(which pnpm)
+
+    # バックエンドを起動
     tmux send-keys -t $SESSION_NAME:backend "cd $BACKEND_DIR" C-m
-    tmux send-keys -t $SESSION_NAME:backend "export PATH=\"$(dirname $NODE_PATH):\$PATH\"" C-m
-    tmux send-keys -t $SESSION_NAME:backend "node --version" C-m
-    tmux send-keys -t $SESSION_NAME:backend "npm run dev" C-m
-    
-    # フロントエンド用の新しいウィンドウを作成（明示的にNode.jsパス設定）
+    tmux send-keys -t $SESSION_NAME:backend "source ~/.zshrc" C-m
+    tmux send-keys -t $SESSION_NAME:backend "$PNPM_PATH dev" C-m
+
+    # フロントエンド用の新しいウィンドウを作成
     tmux new-window -t $SESSION_NAME -n frontend
     tmux send-keys -t $SESSION_NAME:frontend "cd $FRONTEND_DIR" C-m
-    tmux send-keys -t $SESSION_NAME:frontend "export PATH=\"$(dirname $NODE_PATH):\$PATH\"" C-m
-    tmux send-keys -t $SESSION_NAME:frontend "npm run dev" C-m
+    tmux send-keys -t $SESSION_NAME:frontend "source ~/.zshrc" C-m
+    tmux send-keys -t $SESSION_NAME:frontend "$PNPM_PATH dev" C-m
     
     # ログ用の新しいウィンドウを作成
     tmux new-window -t $SESSION_NAME -n logs
@@ -118,16 +119,16 @@ else
     echo -e "${YELLOW}※ 別々のターミナルで以下のコマンドを実行してください:${NC}"
     echo ""
     echo "ターミナル1（バックエンド）:"
-    echo "  cd $BACKEND_DIR && npm run dev"
+    echo "  cd $BACKEND_DIR && pnpm dev"
     echo ""
     echo "ターミナル2（フロントエンド）:"
-    echo "  cd $FRONTEND_DIR && npm run dev"
+    echo "  cd $FRONTEND_DIR && pnpm dev"
     echo ""
-    
+
     # バックエンドのみ起動
     echo -e "${BLUE}バックエンドを起動しています...${NC}"
     cd "$BACKEND_DIR"
-    npm run dev
+    pnpm dev
 fi
 
 # 4. アクセス情報

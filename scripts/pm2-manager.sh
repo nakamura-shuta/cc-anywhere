@@ -59,13 +59,13 @@ start_app() {
     # フロントエンドビルドチェック
     if [ ! -d "$PROJECT_DIR/frontend/build" ]; then
         echo -e "${YELLOW}フロントエンドのビルドが必要です...${NC}"
-        cd "$PROJECT_DIR/frontend" && npm run build
+        cd "$PROJECT_DIR/frontend" && pnpm run build
     fi
-    
+
     # バックエンドビルドチェック
     if [ ! -d "$BACKEND_DIR/dist" ]; then
         echo -e "${YELLOW}バックエンドのビルドが必要です...${NC}"
-        cd "$BACKEND_DIR" && npm run build
+        cd "$BACKEND_DIR" && pnpm run build
     fi
     
     # PM2で起動
@@ -90,7 +90,7 @@ start_app() {
     
     # トンネル情報を表示
     sleep 3
-    if grep -q "ENABLE_NGROK=true" "$BACKEND_DIR/.env" 2>/dev/null; then
+    if grep -q "ENABLE_NGROK=true" "$PROJECT_DIR/.env" 2>/dev/null; then
         echo -e "${MAGENTA}ngrokが有効です。ログでURLを確認してください${NC}"
         pm2 logs $APP_NAME_BACKEND --lines 50 | grep -i "ngrok\|tunnel" || true
     fi
@@ -126,7 +126,7 @@ show_info() {
         pm2 describe $APP_NAME_FRONTEND | grep -E "status|cpu|memory" || true
         
         # URLを表示
-        PORT=$(grep "^PORT=" "$BACKEND_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "5000")
+        PORT=$(grep "^PORT=" "$PROJECT_DIR/.env" 2>/dev/null | cut -d'=' -f2 || echo "5000")
         echo ""
         echo -e "${CYAN}ローカルURL:${NC}"
         echo "  - バックエンド: http://localhost:$PORT"

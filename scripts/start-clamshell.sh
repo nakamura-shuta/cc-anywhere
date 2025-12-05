@@ -113,7 +113,7 @@ echo -e "${YELLOW}2. ビルドを確認中...${NC}"
 if [ ! -d "$FRONTEND_DIR/build" ]; then
     echo -e "${YELLOW}フロントエンドをビルド中...${NC}"
     cd "$FRONTEND_DIR"
-    npm run build
+    pnpm run build
     cd "$PROJECT_DIR"
 fi
 
@@ -121,7 +121,10 @@ fi
 if [ ! -d "$BACKEND_DIR/dist" ]; then
     echo -e "${YELLOW}バックエンドをビルド中...${NC}"
     cd "$BACKEND_DIR"
-    npm run build
+    # TypeScriptコンパイラがメモリ不足になる場合があるため、ヒープサイズを増やす
+    export NODE_OPTIONS="--max-old-space-size=8192"
+    pnpm run build
+    unset NODE_OPTIONS
     cd "$PROJECT_DIR"
 fi
 echo -e "${GREEN}✓ ビルド完了${NC}"
@@ -132,7 +135,7 @@ echo -e "${YELLOW}3. 既存のプロセスを停止中...${NC}"
 
 # 開発モードのプロセスを停止
 pkill -f "tsx watch" 2>/dev/null || true
-pkill -f "npm run dev" 2>/dev/null || true
+pkill -f "pnpm.*dev" 2>/dev/null || true
 pkill -f "vite" 2>/dev/null || true
 
 # PM2プロセスを停止

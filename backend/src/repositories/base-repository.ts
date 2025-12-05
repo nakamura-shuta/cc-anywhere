@@ -10,9 +10,10 @@ import { logger } from "../utils/logger.js";
 /**
  * Base repository implementation for SQLite
  */
-export abstract class BaseRepository<T extends { id: string }, ID = string>
-  implements IQueryableRepository<T, ID>
-{
+export abstract class BaseRepository<
+  T extends { id: string },
+  ID = string,
+> implements IQueryableRepository<T, ID> {
   protected abstract tableName: string;
 
   constructor(protected db: Database) {}
