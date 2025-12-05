@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Gemini Executor** (2025-12-05)
+  - Google Gemini API（Gemini 2.5 Pro/Flash）を使用した新しいExecutor
+  - Function Callingによるファイル操作対応
+    - `readFile`: ファイル読み取り
+    - `createFile`: ファイル作成
+    - `updateFile`: ファイル更新
+    - `deleteFile`: ファイル削除
+    - `listDirectory`: ディレクトリ一覧
+  - 相対パス/絶対パスの柔軟な処理
+  - リアルタイムストリーミング応答
+  - フロントエンドUIでGemini選択可能
+  - File Operations ON/OFF切り替え対応
+  - 実装ファイル:
+    - `backend/src/agents/gemini-agent-executor.ts` - メインExecutor
+    - `backend/src/agents/gemini-file-tools.ts` - ファイル操作ツール
+    - `backend/src/agents/gemini-task-executor-adapter.ts` - タスクアダプター
+
+### Changed
+
+- **pnpm移行** (2025-12-05)
+  - パッケージマネージャをnpmからpnpmに移行
+  - すべてのスクリプト（`./scripts`）をpnpm対応に更新
+  - `backend/.npmrc` 追加（node-linker=hoisted設定）
+  - ドキュメント更新（README, CLAUDE.md, docs）
+  - TypeScript 5.5.3にバージョン固定（ビルド性能最適化）
+
 - **Codex SDK 0.58.0アップデート & GPT-5.1-Codexモデル対応** (2025-11-13)
   - Codex SDK v0.58.0へアップグレード（v0.57.0から）
   - GPT-5.1-Codexモデルのサポート追加

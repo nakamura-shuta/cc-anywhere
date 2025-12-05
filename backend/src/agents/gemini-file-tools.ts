@@ -141,14 +141,35 @@ export interface FileOperationResult {
 }
 
 /**
+ * Resolve file path, handling both absolute and relative paths
+ * @param filePath Path to resolve
+ * @param workingDirectory Optional base directory for relative paths
+ * @returns Resolved absolute path
+ */
+function resolvePath(filePath: string, workingDirectory?: string): string {
+  // If path is absolute, use it directly
+  if (path.isAbsolute(filePath)) {
+    return path.resolve(filePath);
+  }
+
+  // If working directory is provided, resolve relative to it
+  if (workingDirectory) {
+    return path.resolve(workingDirectory, filePath);
+  }
+
+  // Otherwise resolve relative to process cwd
+  return path.resolve(filePath);
+}
+
+/**
  * Validate that a path is within allowed directories
  * @param filePath Path to validate
  * @param workingDirectory Optional working directory constraint
  * @returns true if path is allowed
  */
 function validatePath(filePath: string, workingDirectory?: string): boolean {
-  // Resolve to absolute path
-  const resolvedPath = path.resolve(filePath);
+  // Resolve to absolute path (relative to working directory if provided)
+  const resolvedPath = resolvePath(filePath, workingDirectory);
 
   // If working directory is specified, ensure path is within it
   if (workingDirectory) {
@@ -187,17 +208,24 @@ export function executeFileFunction(
   args: Record<string, unknown>,
   workingDirectory?: string,
 ): FileOperationResult {
-  const filePath = args.path as string;
+  const inputPath = args.path as string;
 
   // Validate path
-  if (!validatePath(filePath, workingDirectory)) {
+  if (!validatePath(inputPath, workingDirectory)) {
     return {
       success: false,
-      error: `Path not allowed: ${filePath}`,
+      error: `Path not allowed: ${inputPath}`,
     };
   }
 
-  logger.debug(`Executing file tool: ${name}`, { path: filePath, workingDirectory });
+  // Resolve path to absolute (handles relative paths correctly)
+  const filePath = resolvePath(inputPath, workingDirectory);
+
+  logger.debug(`Executing file tool: ${name}`, {
+    inputPath,
+    resolvedPath: filePath,
+    workingDirectory,
+  });
 
   try {
     switch (name) {

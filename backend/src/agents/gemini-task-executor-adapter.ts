@@ -225,9 +225,57 @@ export class GeminiTaskExecutorAdapter {
             },
           });
           break;
+
+        case "agent:tool:start":
+          // Forward tool start event for WebSocket broadcast
+          await onProgress({
+            type: "tool:start",
+            message: `Tool started: ${event.tool}`,
+            data: {
+              tool: event.tool,
+              input: event.input,
+            },
+          });
+          break;
+
+        case "agent:tool:end":
+          // Forward tool end event for WebSocket broadcast
+          // Include file path information for file operations
+          await onProgress({
+            type: "tool:end",
+            message: `Tool completed: ${event.tool}`,
+            data: {
+              tool: event.tool,
+              output: event.output,
+              error: event.error,
+              duration: event.duration,
+              success: event.success,
+              // Include file path for file change notifications
+              filePath: this.extractFilePath(event.tool, event.output),
+            },
+          });
+          break;
       }
     } catch (error) {
       logger.error("Error handling progress event", { error, eventType: event.type });
     }
+  }
+
+  /**
+   * Extract file path from tool output for file change notifications
+   */
+  private extractFilePath(tool: string, output: unknown): string | undefined {
+    const fileTools = ["createFile", "updateFile", "deleteFile", "readFile"];
+    if (!fileTools.includes(tool)) return undefined;
+
+    if (output && typeof output === "object") {
+      const result = output as { message?: string; success?: boolean };
+      // Extract path from message like "File created: /path/to/file.txt"
+      if (result.message) {
+        const match = result.message.match(/: (.+)$/);
+        if (match) return match[1];
+      }
+    }
+    return undefined;
   }
 }

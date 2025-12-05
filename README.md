@@ -4,7 +4,7 @@ Claude CodeとCodexをHTTP API経由で利用できるサーバーアプリケ�
 
 ## 特徴
 
-- **マルチExecutor対応**: Claude Agent SDK、OpenAI Codex SDKから選択可能
+- **マルチExecutor対応**: Claude Agent SDK、OpenAI Codex SDK、Google Gemini APIから選択可能
 - **リアルタイム表示**: ログ、ファイル変更（[+]/[M]/[D]/[R]）をWebSocketで配信
 - **ファイルパスリンク**: AI応答内のファイルパスを自動的にクリック可能なリンクに変換
 - **Web UI & REST API**: ブラウザまたはAPIから操作
@@ -17,7 +17,7 @@ Claude CodeとCodexをHTTP API経由で利用できるサーバーアプリケ�
 ```bash
 git clone https://github.com/nakamura-shuta/cc-anywhere
 cd cc-anywhere
-npm install
+pnpm install
 cp .env.example .env
 # .envを編集してCLAUDE_API_KEYを設定
 
@@ -29,7 +29,7 @@ cp .env.example .env
 ## 必要な環境
 
 - Node.js v20以上
-- npm 10以上
+- pnpm 9以上
 - Claude API キー（[Anthropic Console](https://console.anthropic.com/)で取得）
 
 ## 起動スクリプト
@@ -51,6 +51,7 @@ cp .env.example .env
 # 必須（いずれか）
 CLAUDE_API_KEY=your-api-key    # Claude API（Claude Executorに必要）
 OPENAI_API_KEY=your-api-key    # OpenAI API（Codex Executorに必要）
+GOOGLE_API_KEY=your-api-key    # Google API（Gemini Executorに必要）
 
 # 推奨
 API_KEY=your-secret-key        # API認証
@@ -60,7 +61,10 @@ ENABLE_WORKTREE=true           # Git worktree使用
 
 **Codex Executor設定**:
 - `OPENAI_API_KEY`: OpenAI APIキー（[OpenAI Platform](https://platform.openai.com/)で取得）
-- Codex Executorを使用する場合はこのAPIキーが必要です
+
+**Gemini Executor設定**:
+- `GOOGLE_API_KEY`: Google APIキー（[Google AI Studio](https://aistudio.google.com/)で取得）
+- Gemini 2.5 Pro/Flashモデルを使用、Function Callingによるファイル操作に対応
 
 詳細は[環境変数リファレンス](docs/environment-variables.md)を参照。
 
@@ -69,7 +73,7 @@ ENABLE_WORKTREE=true           # Git worktree使用
 ### Web UI
 1. http://localhost:5000 を開く
 2. リポジトリを選択
-3. Executorを選択（Claude/Codex）
+3. Executorを選択（Claude/Codex/Gemini）
 4. 指示を入力して実行
 
 ### REST API
@@ -88,12 +92,13 @@ API詳細: http://localhost:5000/api/docs
 
 ## Executor比較
 
-| 機能 | Claude Agent SDK | OpenAI Codex SDK |
-|------|-----------------|------------------|
-| セッション継続 | ✅ | ✅ |
-| 実行モード選択 | ✅ | ❌ |
-| ファイル変更通知 | ✅ | ✅ |
-| ストリーミング | ✅ | ✅ |
+| 機能 | Claude Agent SDK | OpenAI Codex SDK | Google Gemini |
+|------|-----------------|------------------|---------------|
+| セッション継続 | ✅ | ✅ | ❌ |
+| 実行モード選択 | ✅ | ❌ | ❌ |
+| ファイル変更通知 | ✅ | ✅ | ✅ |
+| ストリーミング | ✅ | ✅ | ✅ |
+| Function Calling | ✅ | ✅ | ✅ |
 
 詳細: [ファイル変更検知ドキュメント](docs/file-watcher-websocket.md)
 
@@ -101,13 +106,13 @@ API詳細: http://localhost:5000/api/docs
 
 ```bash
 # テスト
-npm run test:unit           # ユニットテスト
-npm run test:integration    # 統合テスト
+pnpm run test:unit           # ユニットテスト
+pnpm run test:integration    # 統合テスト
 
 # コード品質
-npm run lint
-npm run type-check
-npm run build
+pnpm run lint
+pnpm run type-check
+pnpm run build
 ```
 
 ## アーキテクチャ
@@ -121,6 +126,7 @@ ClaudeとCodex両SDKに対応したExecutorアーキテクチャ：
   - ヘルパーメソッド（ログ、ID生成等）
 - **ClaudeAgentExecutor**: Claude Agent SDK実装
 - **CodexAgentExecutor**: OpenAI Codex SDK実装
+- **GeminiAgentExecutor**: Google Gemini API実装（Function Calling対応）
 - **ProgressEventConverter**: イベント変換の統一インターフェース
 
 詳細: [Agent Execution Events](docs/architecture/agent-execution-events.md), [Progress Events](docs/architecture/progress-events.md)

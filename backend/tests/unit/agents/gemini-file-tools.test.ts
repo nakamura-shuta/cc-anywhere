@@ -306,5 +306,97 @@ describe("gemini-file-tools", () => {
         expect(result.success).toBe(true);
       });
     });
+
+    describe("relative path resolution", () => {
+      it("should resolve relative path to workingDirectory for createFile", () => {
+        // Gemini might pass a relative path like "test.txt"
+        const result = executeFileFunction(
+          "createFile",
+          { path: "relative-test.txt", content: "Created with relative path" },
+          TEST_DIR, // workingDirectory
+        );
+
+        expect(result.success).toBe(true);
+        // File should be created in TEST_DIR, not process cwd
+        const expectedPath = path.join(TEST_DIR, "relative-test.txt");
+        expect(fs.existsSync(expectedPath)).toBe(true);
+        expect(fs.readFileSync(expectedPath, "utf-8")).toBe("Created with relative path");
+      });
+
+      it("should resolve relative path to workingDirectory for listDir", () => {
+        // Create a subdirectory first
+        const subDir = path.join(TEST_DIR, "sub");
+        fs.mkdirSync(subDir);
+        fs.writeFileSync(path.join(subDir, "file.txt"), "content");
+
+        // List using relative path
+        const result = executeFileFunction("listDir", { path: "sub" }, TEST_DIR);
+
+        expect(result.success).toBe(true);
+        expect(result.items).toBeDefined();
+        expect(result.items?.find((i) => i.name === "file.txt")).toBeDefined();
+      });
+
+      it("should resolve relative path to workingDirectory for readFile", () => {
+        // Create a file first
+        const filePath = path.join(TEST_DIR, "read-relative.txt");
+        fs.writeFileSync(filePath, "Relative content", "utf-8");
+
+        // Read using relative path
+        const result = executeFileFunction("readFile", { path: "read-relative.txt" }, TEST_DIR);
+
+        expect(result.success).toBe(true);
+        expect(result.content).toBe("Relative content");
+      });
+
+      it("should resolve nested relative path", () => {
+        const result = executeFileFunction(
+          "createFile",
+          { path: "nested/deep/file.txt", content: "Deep nested" },
+          TEST_DIR,
+        );
+
+        expect(result.success).toBe(true);
+        const expectedPath = path.join(TEST_DIR, "nested", "deep", "file.txt");
+        expect(fs.existsSync(expectedPath)).toBe(true);
+      });
+
+      it("should handle dot-prefixed relative paths", () => {
+        const result = executeFileFunction(
+          "createFile",
+          { path: "./dot-relative.txt", content: "Dot relative" },
+          TEST_DIR,
+        );
+
+        expect(result.success).toBe(true);
+        const expectedPath = path.join(TEST_DIR, "dot-relative.txt");
+        expect(fs.existsSync(expectedPath)).toBe(true);
+      });
+
+      it("should still work with absolute paths within workingDirectory", () => {
+        const absolutePath = path.join(TEST_DIR, "absolute.txt");
+
+        const result = executeFileFunction(
+          "createFile",
+          { path: absolutePath, content: "Absolute path" },
+          TEST_DIR,
+        );
+
+        expect(result.success).toBe(true);
+        expect(fs.existsSync(absolutePath)).toBe(true);
+      });
+
+      it("should reject relative paths that would escape workingDirectory", () => {
+        // Try to escape using parent directory reference
+        const result = executeFileFunction(
+          "createFile",
+          { path: "../escape.txt", content: "Should fail" },
+          TEST_DIR,
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Path not allowed");
+      });
+    });
   });
 });
