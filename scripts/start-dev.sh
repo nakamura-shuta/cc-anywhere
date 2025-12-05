@@ -84,19 +84,30 @@ if command -v tmux &> /dev/null; then
     # 新しいセッションを作成
     tmux new-session -d -s $SESSION_NAME -n backend
     
-    # pnpmの絶対パスを取得
-    PNPM_PATH=$(which pnpm)
+    # pnpmの絶対パスを取得（nodenvを考慮）
+    # pnpmが存在するNode.jsバージョンを探す
+    PNPM_PATH=""
+    if [ -d "$HOME/.nodenv/versions" ]; then
+        for version in $(ls -1 "$HOME/.nodenv/versions" | sort -rV); do
+            if [ -x "$HOME/.nodenv/versions/$version/bin/pnpm" ]; then
+                PNPM_PATH="$HOME/.nodenv/versions/$version/bin/pnpm"
+                break
+            fi
+        done
+    fi
+    # 見つからない場合はwhichを使用
+    if [ -z "$PNPM_PATH" ]; then
+        PNPM_PATH=$(which pnpm 2>/dev/null || echo "pnpm")
+    fi
 
     # バックエンドを起動
     tmux send-keys -t $SESSION_NAME:backend "cd $BACKEND_DIR" C-m
-    tmux send-keys -t $SESSION_NAME:backend "source ~/.zshrc" C-m
-    tmux send-keys -t $SESSION_NAME:backend "$PNPM_PATH dev" C-m
+    tmux send-keys -t $SESSION_NAME:backend "$PNPM_PATH run dev" C-m
 
     # フロントエンド用の新しいウィンドウを作成
     tmux new-window -t $SESSION_NAME -n frontend
     tmux send-keys -t $SESSION_NAME:frontend "cd $FRONTEND_DIR" C-m
-    tmux send-keys -t $SESSION_NAME:frontend "source ~/.zshrc" C-m
-    tmux send-keys -t $SESSION_NAME:frontend "$PNPM_PATH dev" C-m
+    tmux send-keys -t $SESSION_NAME:frontend "$PNPM_PATH run dev" C-m
     
     # ログ用の新しいウィンドウを作成
     tmux new-window -t $SESSION_NAME -n logs
