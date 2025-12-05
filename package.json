@@ -34,7 +34,7 @@
     "@swc/core-darwin-arm64": "^1.13.20",
     "concurrently": "^8.2.2",
     "playwright": "^1.56.1",
-    "typescript": "5.9"
+    "typescript": "5.7.3"
   },
   "dependencies": {
     "@openai/codex-sdk": "^0.58.0",
