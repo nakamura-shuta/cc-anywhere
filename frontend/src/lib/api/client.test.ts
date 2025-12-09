@@ -13,7 +13,7 @@ describe('ApiClient', () => {
 	describe('request', () => {
 		it('成功時にデータを返す', async () => {
 			const mockData = { id: '1', name: 'Test' };
-			global.fetch = vi.fn().mockResolvedValueOnce({
+			(globalThis as any).fetch = vi.fn().mockResolvedValueOnce({
 				ok: true,
 				status: 200,
 				json: async () => mockData
@@ -22,7 +22,7 @@ describe('ApiClient', () => {
 			const result = await client.get('/api/test');
 			
 			expect(result).toEqual(mockData);
-			expect(global.fetch).toHaveBeenCalledWith(
+			expect((globalThis as any).fetch).toHaveBeenCalledWith(
 				'http://localhost:5000/api/test',
 				expect.objectContaining({
 					method: 'GET',
@@ -34,7 +34,7 @@ describe('ApiClient', () => {
 		});
 		
 		it('エラーレスポンスの場合はApiErrorをスロー', async () => {
-			global.fetch = vi.fn().mockResolvedValueOnce({
+			(globalThis as any).fetch = vi.fn().mockResolvedValueOnce({
 				ok: false,
 				status: 404,
 				statusText: 'Not Found',
@@ -45,7 +45,7 @@ describe('ApiClient', () => {
 		});
 		
 		it('タイムアウトの場合はエラーをスロー', async () => {
-			global.fetch = vi.fn().mockImplementation(() => 
+			(globalThis as any).fetch = vi.fn().mockImplementation(() => 
 				new Promise((_, reject) => {
 					setTimeout(() => reject(new Error('AbortError')), 100);
 				})
@@ -62,7 +62,7 @@ describe('ApiClient', () => {
 			const mockData = { success: true };
 			const postData = { name: 'Test' };
 			
-			global.fetch = vi.fn().mockResolvedValueOnce({
+			(globalThis as any).fetch = vi.fn().mockResolvedValueOnce({
 				ok: true,
 				status: 200,
 				json: async () => mockData
@@ -70,7 +70,7 @@ describe('ApiClient', () => {
 			
 			await client.post('/api/test', postData);
 			
-			expect(global.fetch).toHaveBeenCalledWith(
+			expect((globalThis as any).fetch).toHaveBeenCalledWith(
 				'http://localhost:5000/api/test',
 				expect.objectContaining({
 					method: 'POST',
@@ -80,14 +80,14 @@ describe('ApiClient', () => {
 		});
 		
 		it('DELETEリクエストを送信', async () => {
-			global.fetch = vi.fn().mockResolvedValueOnce({
+			(globalThis as any).fetch = vi.fn().mockResolvedValueOnce({
 				ok: true,
 				status: 204
 			} as Response);
 			
 			await client.delete('/api/test/1');
 			
-			expect(global.fetch).toHaveBeenCalledWith(
+			expect((globalThis as any).fetch).toHaveBeenCalledWith(
 				'http://localhost:5000/api/test/1',
 				expect.objectContaining({
 					method: 'DELETE'
@@ -98,7 +98,7 @@ describe('ApiClient', () => {
 	
 	describe('URLパラメータ', () => {
 		it('パラメータをURLに追加', async () => {
-			global.fetch = vi.fn().mockResolvedValueOnce({
+			(globalThis as any).fetch = vi.fn().mockResolvedValueOnce({
 				ok: true,
 				status: 200,
 				json: async () => ({})
@@ -108,7 +108,7 @@ describe('ApiClient', () => {
 				params: { page: 1, limit: 10 }
 			});
 			
-			expect(global.fetch).toHaveBeenCalledWith(
+			expect((globalThis as any).fetch).toHaveBeenCalledWith(
 				'http://localhost:5000/api/test?page=1&limit=10',
 				expect.any(Object)
 			);

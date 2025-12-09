@@ -1,4 +1,5 @@
 import "fastify";
+import type { Database } from "better-sqlite3";
 import type { TaskQueueImpl } from "../queue/task-queue";
 import type { WebSocketServer } from "../websocket/websocket-server";
 import type { WorkerManager } from "../worker/worker-manager";
@@ -11,6 +12,7 @@ declare module "fastify" {
     wsServer?: WebSocketServer;
     workerManager?: WorkerManager;
     dbProvider: DatabaseProvider;
+    db: Database;
     repository: TaskRepositoryAdapter;
   }
 }

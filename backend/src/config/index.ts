@@ -111,8 +111,16 @@ const envSchema = z.object({
       // プロジェクトルート
       const projectRoot = path.resolve(process.cwd());
 
+      // ワークツリーベースパス（compare modeで使用）
+      const worktreeBasePath = process.env.WORKTREE_BASE_PATH || ".worktrees";
+      const absoluteWorktreeBasePath = path.isAbsolute(worktreeBasePath)
+        ? worktreeBasePath
+        : path.resolve(process.cwd(), worktreeBasePath);
+
       // すべてを結合して重複を削除
-      const allPaths = [...new Set([projectRoot, ...envPaths, ...repoPaths])];
+      const allPaths = [
+        ...new Set([projectRoot, absoluteWorktreeBasePath, ...envPaths, ...repoPaths]),
+      ];
 
       return allPaths;
     }),

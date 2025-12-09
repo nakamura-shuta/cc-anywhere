@@ -152,3 +152,43 @@ export interface WorktreeEntity {
   updatedAt: Date;
   lastUsedAt: Date;
 }
+
+/**
+ * Compare task status
+ */
+export type CompareTaskStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "partial_success"
+  | "failed"
+  | "cancelling"
+  | "cancelled";
+
+/**
+ * Compare task entity for LLM comparison mode
+ */
+export interface CompareTaskEntity {
+  id: string;
+  instruction: string;
+  repositoryId: string;
+  repositoryPath: string;
+  baseCommit: string;
+  claudeTaskId: string | null;
+  codexTaskId: string | null;
+  geminiTaskId: string | null;
+  status: CompareTaskStatus;
+  createdAt: Date;
+  completedAt: Date | null;
+}
+
+/**
+ * Compare task repository interface
+ */
+export interface ICompareTaskRepository extends IQueryableRepository<CompareTaskEntity, string> {
+  findByStatus(status: CompareTaskStatus): Promise<CompareTaskEntity[]>;
+  findRunningTasks(): Promise<CompareTaskEntity[]>;
+  countRunningTasks(): Promise<number>;
+  updateStatus(id: string, status: CompareTaskStatus): Promise<void>;
+  markCompleted(id: string, status: CompareTaskStatus): Promise<void>;
+}

@@ -77,7 +77,7 @@ describe('Task Store with Svelte 5 Runes', () => {
 		// 各テストの前に新しいストアを作成
 		store = createTaskStore();
 		// fetchのモック
-		global.fetch = vi.fn();
+		(globalThis as any).fetch = vi.fn();
 	});
 	
 	describe('基本的な状態管理', () => {

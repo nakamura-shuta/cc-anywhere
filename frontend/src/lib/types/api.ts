@@ -461,3 +461,70 @@ export interface ExecutorInfo {
 export interface ListExecutorsResponse {
 	executors: ExecutorInfo[];
 }
+
+// ========== Compare Mode Types ==========
+
+// 比較タスクステータス
+export type CompareTaskStatus =
+	| 'pending'
+	| 'running'
+	| 'completed'
+	| 'partial_success'
+	| 'failed'
+	| 'cancelling'
+	| 'cancelled';
+
+// 比較タスク作成リクエスト
+export interface CreateCompareTaskRequest {
+	instruction: string;
+	repositoryId: string;
+}
+
+// 比較タスク作成レスポンス
+export interface CreateCompareTaskResponse {
+	compareId: string;
+	claudeTaskId: string;
+	codexTaskId: string;
+	geminiTaskId: string;
+	status: CompareTaskStatus;
+}
+
+// 比較タスク詳細レスポンス（バックエンドから返される形式）
+export interface CompareTaskDetailResponse {
+	compareId: string;
+	instruction: string;
+	repositoryId: string;
+	baseCommit: string;
+	status: CompareTaskStatus;
+	claudeTaskId: string | null;
+	codexTaskId: string | null;
+	geminiTaskId: string | null;
+	createdAt: string;
+	completedAt: string | null;
+}
+
+// ファイル変更ステータス
+export type FileChangeStatus = 'A' | 'M' | 'D' | null;
+
+// 比較ファイル情報
+export interface CompareFileInfo {
+	path: string;
+	claude: FileChangeStatus;
+	codex: FileChangeStatus;
+	gemini: FileChangeStatus;
+}
+
+// 比較ファイルレスポンス
+export interface CompareFilesResponse {
+	files: CompareFileInfo[];
+	truncated: boolean;
+	totalCount: number;
+}
+
+// 比較タスク一覧レスポンス
+export interface CompareTaskListResponse {
+	tasks: CompareTaskDetailResponse[];
+	total: number;
+	limit: number;
+	offset: number;
+}

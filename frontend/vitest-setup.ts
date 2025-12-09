@@ -44,15 +44,15 @@ vi.mock('$app/stores', () => {
 });
 
 // グローバルなfetchのモック
-global.fetch = vi.fn();
+(globalThis as any).fetch = vi.fn();
 
 // WebSocketのモック
-global.WebSocket = vi.fn(() => ({
+(globalThis as any).WebSocket = vi.fn(() => ({
 	send: vi.fn(),
 	close: vi.fn(),
 	addEventListener: vi.fn(),
 	removeEventListener: vi.fn(),
-})) as any;
+}));
 
 // localStorageのモック
 const localStorageMock = {
@@ -61,4 +61,4 @@ const localStorageMock = {
 	removeItem: vi.fn(),
 	clear: vi.fn(),
 };
-global.localStorage = localStorageMock as any;
+(globalThis as any).localStorage = localStorageMock;

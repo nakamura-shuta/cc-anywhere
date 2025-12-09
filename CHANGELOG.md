@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Compare Mode（LLM比較モード）** (2025-12-09)
+  - 複数のLLM（Claude, Codex, Gemini）に同一タスクを同時実行させ、結果を比較する機能
+  - **バックエンド機能:**
+    - `POST /api/compare` - 比較タスク作成
+    - `GET /api/compare` - 比較タスク一覧取得
+    - `GET /api/compare/:id` - 比較タスク詳細取得
+    - `GET /api/compare/:id/files` - 変更ファイル一覧取得
+    - `DELETE /api/compare/:id` - 比較タスクキャンセル
+    - 並列worktree作成によるLLM間の隔離実行
+    - `bypassPermissions`モードによる自動実行（許可確認なし）
+    - タスク完了時のステータス自動更新（EventBus連携）
+    - worktree自動クリーンアップ（24時間後または手動削除時）
+  - **フロントエンド機能:**
+    - `/compare` - 比較タスク一覧画面
+    - `/compare/:id` - 3カラム比較結果表示画面
+    - リアルタイム進捗表示（WebSocket）
+    - リポジトリ選択・タスク指示入力フォーム
+  - **実装ファイル:**
+    - `backend/src/services/compare/` - CompareService, CleanupJob, types
+    - `backend/src/repositories/compare-task-repository.ts` - データベースリポジトリ
+    - `backend/src/server/routes/compare.ts` - APIルート
+    - `frontend/src/routes/compare/` - 比較画面UI
+    - `frontend/src/lib/stores/compare.svelte.ts` - 状態管理
+    - `frontend/src/lib/services/compare.service.ts` - APIクライアント
+
 - **Gemini Executor** (2025-12-05)
   - Google Gemini API（Gemini 2.5 Pro/Flash）を使用した新しいExecutor
   - Function Callingによるファイル操作対応

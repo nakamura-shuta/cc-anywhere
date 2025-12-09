@@ -5,7 +5,7 @@ import ExecutorSelector from './executor-selector.svelte';
 describe('ExecutorSelector', () => {
 	beforeEach(() => {
 		// Mock fetch for API calls
-		global.fetch = vi.fn(() =>
+		(globalThis as any).fetch = vi.fn(() =>
 			Promise.resolve({
 				ok: true,
 				json: () =>
@@ -56,7 +56,7 @@ describe('ExecutorSelector', () => {
 
 		// Wait for API call
 		await vi.waitFor(() => {
-			expect(global.fetch).toHaveBeenCalledWith(
+			expect((globalThis as any).fetch).toHaveBeenCalledWith(
 				'/api/executors',
 				expect.objectContaining({
 					headers: expect.objectContaining({

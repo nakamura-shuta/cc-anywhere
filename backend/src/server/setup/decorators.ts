@@ -23,6 +23,7 @@ export interface AppServices {
 export function decorateApp(app: FastifyInstance, services: AppServices): void {
   app.decorate("queue", services.taskQueue);
   app.decorate("dbProvider", services.dbProvider);
+  app.decorate("db", services.dbProvider.getDb());
   app.decorate("repository", services.repository);
   app.decorate("schedulerService", services.schedulerService);
 
