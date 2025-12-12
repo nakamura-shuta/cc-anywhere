@@ -128,6 +128,7 @@ describe("CodexAgentExecutor", () => {
         networkAccessEnabled: false,
         webSearchEnabled: true,
         workingDirectory: undefined,
+        model: "gpt-5.2",
       });
     });
 
@@ -166,6 +167,7 @@ describe("CodexAgentExecutor", () => {
         networkAccessEnabled: false,
         webSearchEnabled: true,
         workingDirectory: undefined,
+        model: "gpt-5.2",
       });
     });
 
@@ -197,6 +199,7 @@ describe("CodexAgentExecutor", () => {
         networkAccessEnabled: false,
         webSearchEnabled: true,
         workingDirectory: undefined,
+        model: "gpt-5.2",
       });
     });
 
@@ -234,6 +237,7 @@ describe("CodexAgentExecutor", () => {
         networkAccessEnabled: true,
         webSearchEnabled: true,
         workingDirectory: undefined,
+        model: "gpt-5.2",
       });
     });
 
@@ -270,6 +274,8 @@ describe("CodexAgentExecutor", () => {
         sandboxMode: "workspace-write",
         networkAccessEnabled: false,
         webSearchEnabled: true,
+        workingDirectory: undefined,
+        model: "gpt-5.2",
       });
     });
 
@@ -307,6 +313,8 @@ describe("CodexAgentExecutor", () => {
         sandboxMode: "workspace-write",
         networkAccessEnabled: true,
         webSearchEnabled: true,
+        workingDirectory: undefined,
+        model: "gpt-5.2",
       });
     });
 

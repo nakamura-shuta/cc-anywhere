@@ -59,9 +59,12 @@
 	
 	// タブの選択状態
 	let selectedTab = $state('logs');
-	
+
 	// タブ切り替え時のデバッグ
-	
+
+	// Executor タイプ（継続コマンド表示用）
+	let executorType = $derived(currentTask?.executor || currentTask?.options?.executor);
+
 	// Executorアイコンパスを取得
 	function getExecutorIcon(executor: string | undefined): string {
 		const type = executor || 'claude';
@@ -484,10 +487,10 @@
 						</Button>
 					</div>
 				{/if}
-				{#if currentTask.sdkSessionId}
+				{#if currentTask.sdkSessionId && executorType !== 'gemini'}
 					<div>
 						<p class="text-sm text-muted-foreground">
-							{#if currentTask.executor === 'codex'}
+							{#if executorType === 'codex'}
 								Thread ID（継続で使用可能）
 							{:else}
 								セッションID（CLIで使用可能）
@@ -518,8 +521,8 @@
 							</Button>
 						</div>
 						<p class="text-xs text-muted-foreground mt-1">
-							{#if currentTask.executor === 'codex'}
-								CLIで <code class="px-1 py-0.5 bg-muted rounded">codex exec resume {currentTask.sdkSessionId}</code> を実行して継続
+							{#if executorType === 'codex'}
+								CLIで <code class="px-1 py-0.5 bg-muted rounded">codex resume {currentTask.sdkSessionId}</code> を実行して継続
 							{:else}
 								CLIで <code class="px-1 py-0.5 bg-muted rounded">claude --resume {currentTask.sdkSessionId} "次の指示"</code> を実行して継続
 							{/if}
@@ -603,14 +606,35 @@
 						<div class="space-y-4">
 							<h4 class="text-sm font-semibold">継続オプション</h4>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-								{#if currentTask.sdkSessionId}
+								{#if executorType === 'gemini'}
+									<!-- Geminiはセッション継続非対応 -->
+									<div class="p-4 border rounded-lg opacity-50">
+										<div class="space-y-3">
+											<div class="flex items-center gap-2">
+												<MessageSquare class="h-5 w-5 text-muted-foreground" />
+												<h5 class="font-medium">会話を継続</h5>
+											</div>
+											<p class="text-sm text-muted-foreground">
+												Geminiはセッション継続に対応していません
+											</p>
+											<Button
+												variant="outline"
+												disabled
+												class="w-full gap-2"
+											>
+												<MessageSquare class="h-4 w-4" />
+												継続非対応
+											</Button>
+										</div>
+									</div>
+								{:else if currentTask.sdkSessionId}
 									<!-- 会話を継続 / スレッドを継続 -->
 									<div class="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
 										<div class="space-y-3">
 											<div class="flex items-center gap-2">
 												<MessageSquare class="h-5 w-5 text-primary" />
 												<h5 class="font-medium">
-													{#if currentTask.executor === 'codex'}
+													{#if executorType === 'codex'}
 														スレッドを継続
 													{:else}
 														会話を継続
@@ -619,7 +643,7 @@
 												<Badge variant="default" class="text-xs">利用可能</Badge>
 											</div>
 											<p class="text-sm text-muted-foreground">
-												{#if currentTask.executor === 'codex'}
+												{#if executorType === 'codex'}
 													前回のCodexスレッドを継続して作業します
 												{:else}
 													前回の会話セッションを継続して作業します
@@ -640,13 +664,13 @@
 											</Button>
 											<div class="pt-2 border-t">
 												<p class="text-xs text-muted-foreground mb-1">CLIからも継続可能:</p>
-												{#if currentTask.executor === 'codex'}
+												{#if executorType === 'codex'}
 													<code class="text-xs bg-muted px-2 py-1 rounded block overflow-x-auto">
-														codex exec resume {currentTask.sdkSessionId}
+														codex resume {currentTask.sdkSessionId}
 													</code>
 												{:else}
 													<code class="text-xs bg-muted px-2 py-1 rounded block overflow-x-auto">
-														claude code continue --session-id {currentTask.sdkSessionId}
+														claude --resume {currentTask.sdkSessionId} "次の指示"
 													</code>
 												{/if}
 											</div>
@@ -663,8 +687,8 @@
 											<p class="text-sm text-muted-foreground">
 												セッションIDがないため利用できません
 											</p>
-											<Button 
-												variant="outline" 
+											<Button
+												variant="outline"
 												disabled
 												class="w-full gap-2"
 											>

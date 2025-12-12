@@ -93,9 +93,9 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
       const networkAccess = codexOptions?.networkAccess ?? false;
       const webSearch = codexOptions?.webSearch ?? true;
 
-      // Model selection (Codex SDK v0.58.0+)
-      // デフォルト: gpt-5.1-codex (macOS/Linux)
-      const model = codexOptions?.model;
+      // Model selection (Codex SDK v0.71.0+)
+      // gpt-5.2がリリースされたのでデフォルトに設定
+      const model = codexOptions?.model || "gpt-5.2";
 
       const threadOptions = {
         skipGitRepoCheck,
@@ -103,12 +103,12 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
         workingDirectory,
         networkAccessEnabled: networkAccess,
         webSearchEnabled: webSearch,
-        ...(model && { model }), // modelが指定されている場合のみ追加
+        model,
       };
 
       logger.debug("Codex thread options", {
         taskId,
-        model: model || "gpt-5.1-codex (default)",
+        model,
         networkAccessEnabled: networkAccess,
         webSearchEnabled: webSearch,
         sandboxMode,
