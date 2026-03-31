@@ -540,7 +540,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           const crypto = await import("crypto");
           const apiKey = (request as any).apiKey as string | undefined;
           const userId = apiKey
-            ? crypto.createHash("sha256").update(apiKey).digest("hex").slice(0, 16)
+            ? `user-${crypto.createHash("sha256").update(apiKey).digest("hex").substring(0, 16)}`
             : "default-user";
           const wsPath = resolveWorkspace(workspaceId, userId);
           if (wsPath) {

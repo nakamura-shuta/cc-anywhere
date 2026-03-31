@@ -117,9 +117,13 @@ const envSchema = z.object({
         ? worktreeBasePath
         : path.resolve(process.cwd(), worktreeBasePath);
 
+      // ワークスペースルート
+      const workspaceRoot = process.env.WORKSPACE_ROOT
+        || path.resolve(process.cwd(), "../workspaces");
+
       // すべてを結合して重複を削除
       const allPaths = [
-        ...new Set([projectRoot, absoluteWorktreeBasePath, ...envPaths, ...repoPaths]),
+        ...new Set([projectRoot, absoluteWorktreeBasePath, workspaceRoot, ...envPaths, ...repoPaths]),
       ];
 
       return allPaths;

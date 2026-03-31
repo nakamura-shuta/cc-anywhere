@@ -18,7 +18,8 @@ export const workspaceRoutes: FastifyPluginAsync<{
   const getUserId = (request: any): string => {
     if (request.apiKey) {
       const crypto = require("crypto");
-      return crypto.createHash("sha256").update(request.apiKey).digest("hex").slice(0, 16);
+      const hash = crypto.createHash("sha256").update(request.apiKey).digest("hex");
+      return `user-${hash.substring(0, 16)}`;
     }
     return "default-user";
   };
