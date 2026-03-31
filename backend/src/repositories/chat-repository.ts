@@ -51,7 +51,8 @@ export interface CustomCharacter {
  * Chat session repository
  */
 export class ChatSessionRepository extends BaseRepository<ChatSession> {
-  protected tableName = "chat_sessions";
+  // Now backed by unified sessions table
+  protected tableName = "sessions";
 
   protected mapRowToEntity(row: any): ChatSession {
     return {
@@ -77,6 +78,9 @@ export class ChatSessionRepository extends BaseRepository<ChatSession> {
     if (entity.sdkSessionId !== undefined) data.sdk_session_id = entity.sdkSessionId;
     if (entity.createdAt !== undefined) data.created_at = entity.createdAt.toISOString();
     if (entity.updatedAt !== undefined) data.updated_at = entity.updatedAt.toISOString();
+    // Unified sessions table requires session_type
+    data.session_type = "chat";
+    data.status = "active";
 
     return data;
   }
@@ -88,7 +92,10 @@ export class ChatSessionRepository extends BaseRepository<ChatSession> {
     userId: string,
     options?: PaginationOptions,
   ): Promise<PaginatedResult<ChatSession>> {
-    return this.findMany([{ field: "user_id", operator: "eq", value: userId }], options);
+    return this.findMany([
+      { field: "user_id", operator: "eq", value: userId },
+      { field: "session_type", operator: "eq", value: "chat" },
+    ], options);
   }
 
   /**
@@ -97,7 +104,7 @@ export class ChatSessionRepository extends BaseRepository<ChatSession> {
   async findSessionsByUserId(userId: string): Promise<ChatSession[]> {
     try {
       const stmt = this.db.prepare(
-        `SELECT * FROM ${this.tableName} WHERE user_id = ? ORDER BY updated_at DESC`,
+        `SELECT * FROM ${this.tableName} WHERE user_id = ? AND session_type = 'chat' ORDER BY updated_at DESC`,
       );
       const rows = stmt.all(userId);
       return rows.map((row) => this.mapRowToEntity(row));
@@ -142,7 +149,8 @@ export class ChatSessionRepository extends BaseRepository<ChatSession> {
  * Chat message repository
  */
 export class ChatMessageRepository extends BaseRepository<ChatMessage> {
-  protected tableName = "chat_messages";
+  // Now backed by unified session_messages table
+  protected tableName = "session_messages";
 
   protected mapRowToEntity(row: any): ChatMessage {
     return {

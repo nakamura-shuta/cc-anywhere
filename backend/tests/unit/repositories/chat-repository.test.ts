@@ -17,24 +17,32 @@ describe("ChatRepository", () => {
 
     // Create tables
     db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_sessions (
+      CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        character_id TEXT NOT NULL,
+        user_id TEXT,
+        session_type TEXT NOT NULL DEFAULT 'task',
+        status TEXT NOT NULL DEFAULT 'active',
+        executor TEXT NOT NULL DEFAULT 'claude',
+        character_id TEXT,
         working_directory TEXT,
-        executor TEXT DEFAULT 'claude',
         sdk_session_id TEXT,
+        sdk_session_state TEXT DEFAULT 'idle',
+        context TEXT,
+        metadata TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME
       );
 
-      CREATE TABLE IF NOT EXISTS chat_messages (
+      CREATE TABLE IF NOT EXISTS session_messages (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('user', 'agent')),
+        turn_number INTEGER,
+        role TEXT NOT NULL CHECK(role IN ('user', 'agent', 'system')),
         content TEXT NOT NULL,
+        metadata TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
+        FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS custom_characters (
@@ -48,8 +56,8 @@ describe("ChatRepository", () => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
-      CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
+      CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_session_messages_session_id ON session_messages(session_id);
       CREATE INDEX IF NOT EXISTS idx_custom_characters_user_id ON custom_characters(user_id);
     `);
 
