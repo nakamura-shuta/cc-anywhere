@@ -118,12 +118,20 @@ export class ApiClient {
 
 
 		const authHeaders = authStore.getAuthHeaders();
-		
+		const apiHeaders = getApiHeaders() as Record<string, string>;
+		const headers: Record<string, string> = {
+			...apiHeaders,
+			...authHeaders
+		};
+
+		// Remove Content-Type for bodyless methods to avoid Fastify FST_ERR_CTP_EMPTY_JSON_BODY
+		const method = (fetchOptions.method || 'GET').toUpperCase();
+		if ((method === 'GET' || method === 'DELETE' || method === 'HEAD') && !fetchOptions.body) {
+			delete headers['Content-Type'];
+		}
+
 		const defaultOptions: RequestInit = {
-			headers: {
-				...getApiHeaders(),
-				...authHeaders
-			},
+			headers,
 			...fetchOptions
 		};
 
