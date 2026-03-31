@@ -35,9 +35,15 @@
 	let isMaxTurnsSupported = $derived(selectedExecutorCapabilities?.maxTurnsLimit ?? true);
 	let isPermissionModeSupported = $derived(selectedExecutorCapabilities?.permissionModes ?? true);
 
+	import * as workspaceApi from '$lib/api/workspace';
+	import type { Workspace } from '$lib/api/workspace';
+	import WorkspaceSelector from '$lib/components/chat/WorkspaceSelector.svelte';
+
 	// フォームの状態
 	let instruction = $state('');
 	let selectedDirectories = $state<string[]>([]);
+	let selectedWorkspaceId = $state<string | undefined>(undefined);
+	let workspaces = $state<Workspace[]>([]);
 	let maxTurns = $state(30);
 	let timeout = $state(300000);
 	let useAsync = $state(true);
@@ -114,6 +120,12 @@
 			console.error('Failed to load executors:', error);
 		}
 
+		// Load workspaces
+		try {
+			const result = await workspaceApi.getWorkspaces();
+			workspaces = result.workspaces;
+		} catch { /* workspace API may not be available */ }
+
 		const searchParams = new URLSearchParams($page.url.searchParams);
 		continueFromTaskId = searchParams.get('continueFromTaskId') || '';
 		isSdkContinueMode = searchParams.get('mode') === 'sdk-continue';
@@ -187,9 +199,9 @@
 			return;
 		}
 
-		// すべてのExecutorでディレクトリ選択が必須
-		if (selectedDirectories.length === 0) {
-			alert('作業ディレクトリを選択してください');
+		// ワークスペースまたはディレクトリ選択が必須
+		if (selectedDirectories.length === 0 && !selectedWorkspaceId) {
+			alert('作業ディレクトリまたはワークスペースを選択してください');
 			return;
 		}
 
@@ -209,12 +221,13 @@
 			isSdkContinueMode
 		});
 
-		const request: TaskRequest = {
+		const request: TaskRequest & { workspaceId?: string } = {
 			instruction: instruction.trim(),
 			context: {
-				workingDirectory: selectedDirectories[0], // 最初に選択されたディレクトリを使用
-				files: [] // 必要に応じてファイルを指定
+				workingDirectory: selectedDirectories[0],
+				files: [],
 			},
+			...(selectedWorkspaceId ? { workspaceId: selectedWorkspaceId } : {}),
 			options: {
 				timeout,
 				async: useAsync,

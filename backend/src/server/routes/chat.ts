@@ -50,8 +50,8 @@ const updateCharacterSchema = z.object({
   systemPrompt: z.string().min(1).max(10000).optional(),
 });
 
-const chatRoutes: FastifyPluginAsync<{ sessionService: UnifiedSessionService; workspaceService?: any }> = async (fastify, opts) => {
-  const { sessionService, workspaceService } = opts;
+const chatRoutes: FastifyPluginAsync<{ sessionService: UnifiedSessionService }> = async (fastify, opts) => {
+  const { sessionService } = opts;
   const chatSessionService = sessionService.runtime;
   const chatRepository = getSharedChatRepository();
 
@@ -111,12 +111,14 @@ const chatRoutes: FastifyPluginAsync<{ sessionService: UnifiedSessionService; wo
 
       // Resolve workspaceId → workingDirectory (with ownership check)
       let workingDirectory = rawWorkingDir;
-      if (workspaceId && workspaceService) {
-        const ws = workspaceService.getByUserAndId(userId, workspaceId);
-        if (!ws) {
+      if (workspaceId) {
+        try {
+          const { resolveWorkspace } = await import("../../services/workspace-resolver.js");
+          const wsPath = resolveWorkspace(workspaceId, userId);
+          if (wsPath) workingDirectory = wsPath;
+        } catch {
           return reply.code(403).send({ error: "Workspace not found or not owned by user" });
         }
-        workingDirectory = ws.path;
       }
 
       // Resolve sdkSessionId from fork token (server-validated, one-time use)

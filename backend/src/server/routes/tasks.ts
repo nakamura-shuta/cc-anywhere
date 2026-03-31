@@ -11,6 +11,7 @@ import {
   TaskCancellationError,
 } from "../../utils/task-errors.js";
 import type { TaskFilter } from "../../db/types.js";
+import { resolveWorkspace } from "../../services/workspace-resolver.js";
 
 // eslint-disable-next-line @typescript-eslint/require-await
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
@@ -532,8 +533,29 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
+      // Resolve workspaceId to workingDirectory (if provided)
+      const workspaceId = (request.body as any).workspaceId as string | undefined;
+      if (workspaceId) {
+        try {
+          const crypto = await import("crypto");
+          const apiKey = (request as any).apiKey as string | undefined;
+          const userId = apiKey
+            ? crypto.createHash("sha256").update(apiKey).digest("hex").slice(0, 16)
+            : "default-user";
+          const wsPath = resolveWorkspace(workspaceId, userId);
+          if (wsPath) {
+            taskRequest = {
+              ...taskRequest,
+              context: { ...taskRequest.context, workingDirectory: wsPath },
+            };
+          }
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : "Workspace access denied";
+          throw new InvalidTaskRequestError(msg);
+        }
+      }
+
       // Set default workingDirectory if not provided
-      // Skip for Gemini without file operations (no FS access needed)
       const geminiNeedsWorkingDir =
         executorType === "gemini" && taskRequest.options?.gemini?.enableFileOperations === true;
       const needsWorkingDir = executorType !== "gemini" || geminiNeedsWorkingDir;
