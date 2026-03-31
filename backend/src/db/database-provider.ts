@@ -140,12 +140,18 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_worktrees_status ON worktrees(status);
       `);
 
-      // Create sessions table
+      // Unified sessions table (Task + Chat)
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           user_id TEXT,
-          status TEXT DEFAULT 'active' CHECK(status IN ('active', 'paused', 'completed', 'expired')),
+          session_type TEXT NOT NULL DEFAULT 'task',
+          status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'paused', 'completed', 'expired')),
+          executor TEXT NOT NULL DEFAULT 'claude',
+          character_id TEXT,
+          working_directory TEXT,
+          sdk_session_id TEXT,
+          sdk_session_state TEXT DEFAULT 'idle',
           context TEXT,
           metadata TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -154,14 +160,14 @@ export class DatabaseProvider {
         )
       `);
 
-      // Create conversation_turns table
+      // Unified session_messages table (replaces conversation_turns + chat_messages)
       this.db.exec(`
-        CREATE TABLE IF NOT EXISTS conversation_turns (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS session_messages (
+          id TEXT PRIMARY KEY,
           session_id TEXT NOT NULL,
-          turn_number INTEGER NOT NULL,
-          instruction TEXT NOT NULL,
-          response TEXT,
+          turn_number INTEGER,
+          role TEXT NOT NULL CHECK(role IN ('user', 'agent', 'system')),
+          content TEXT NOT NULL,
           metadata TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
@@ -210,12 +216,14 @@ export class DatabaseProvider {
         // Column may already exist
       }
 
-      // Create indexes for sessions and executor
+      // Create indexes for sessions and messages
       this.db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_sessions_session_type ON sessions(session_type);
+        CREATE INDEX IF NOT EXISTS idx_sessions_sdk_session_id ON sessions(sdk_session_id);
         CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
         CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
         CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
-        CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_id ON conversation_turns(session_id);
+        CREATE INDEX IF NOT EXISTS idx_session_messages_session_id ON session_messages(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_has_conversation ON tasks(id) WHERE conversation_history IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_tasks_executor ON tasks(executor);
@@ -358,31 +366,6 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_schedule_session_state_updated_at ON schedule_session_state(updated_at);
       `);
 
-      // Chat sessions table
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          character_id TEXT NOT NULL,
-          working_directory TEXT,
-          executor TEXT DEFAULT 'claude',
-          sdk_session_id TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-      // Chat messages table
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS chat_messages (
-          id TEXT PRIMARY KEY,
-          session_id TEXT NOT NULL,
-          role TEXT NOT NULL CHECK(role IN ('user', 'agent')),
-          content TEXT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-        )
-      `);
 
       // Custom characters table
       this.db.exec(`
@@ -398,10 +381,8 @@ export class DatabaseProvider {
         )
       `);
 
-      // Create indexes for chat tables
+      // Create indexes for custom characters
       this.db.exec(`
-        CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
-        CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
         CREATE INDEX IF NOT EXISTS idx_custom_characters_user_id ON custom_characters(user_id);
       `);
 
