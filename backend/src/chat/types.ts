@@ -36,7 +36,7 @@ export interface ChatStreamEvent {
     sessionId?: string;
     messageId?: string;
     sdkSessionId?: string;
-    state?: string;
+    state?: "idle" | "running" | "requires_action";
   };
   timestamp: string;
 }

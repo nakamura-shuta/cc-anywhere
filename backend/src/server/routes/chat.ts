@@ -21,6 +21,7 @@ import { createChatExecutor } from "../../chat/index.js";
 import type { ChatStreamEvent, ChatExecutorResult } from "../../chat/types.js";
 import { getAllPresetCharacters, getPresetCharacter } from "../../chat/preset-characters.js";
 import type { ChatSessionService } from "../../claude/session/chat-session-service.js";
+import { forkedSessionTokens } from "../../claude/session/fork-token-store.js";
 
 // Request schemas
 const createSessionSchema = z.object({
@@ -28,8 +29,8 @@ const createSessionSchema = z.object({
   workingDirectory: z.string().optional(),
   // Note: Only 'claude' is currently supported. 'codex' will be added in a future release.
   executor: z.literal("claude").default("claude"),
-  // Optional: pre-set SDK session ID (used when forking)
-  sdkSessionId: z.string().optional(),
+  // One-time token from fork API. Validated server-side to resolve sdkSessionId.
+  forkToken: z.string().optional(),
 });
 
 const sendMessageSchema = z.object({
@@ -105,7 +106,17 @@ const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }>
     },
     async (request, reply) => {
       const userId = getUserId(request);
-      const { characterId, workingDirectory, executor, sdkSessionId } = createSessionSchema.parse(request.body);
+      const { characterId, workingDirectory, executor, forkToken } = createSessionSchema.parse(request.body);
+
+      // Resolve sdkSessionId from fork token (server-validated, one-time use)
+      let sdkSessionId: string | undefined;
+      if (forkToken) {
+        const resolved = forkedSessionTokens.consume(forkToken);
+        if (!resolved) {
+          return reply.code(400).send({ error: "Invalid or expired fork token" });
+        }
+        sdkSessionId = resolved;
+      }
 
       const session: ChatSession = {
         id: uuidv4(),
@@ -128,6 +139,7 @@ const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }>
         characterId: session.characterId,
         workingDirectory: session.workingDirectory || null,
         executor: session.executor,
+        sdkSessionId: session.sdkSessionId || null,
         createdAt: session.createdAt.toISOString(),
         updatedAt: session.updatedAt.toISOString(),
       });
@@ -159,6 +171,7 @@ const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }>
                     characterId: { type: "string" },
                     workingDirectory: { type: "string", nullable: true },
                     executor: { type: "string" },
+                    sdkSessionId: { type: "string", nullable: true },
                     createdAt: { type: "string", format: "date-time" },
                     updatedAt: { type: "string", format: "date-time" },
                   },

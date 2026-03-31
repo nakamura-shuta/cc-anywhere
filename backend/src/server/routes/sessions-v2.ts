@@ -10,6 +10,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { SessionV2Service } from "../../claude/session/session-v2-service.js";
 import type { ChatSessionService } from "../../claude/session/chat-session-service.js";
 import { logger } from "../../utils/logger.js";
+import { forkedSessionTokens } from "../../claude/session/fork-token-store.js";
 
 export const sessionV2Routes: FastifyPluginAsync<{
   chatSessionService: ChatSessionService;
@@ -121,7 +122,10 @@ export const sessionV2Routes: FastifyPluginAsync<{
       response: {
         200: {
           type: "object",
-          properties: { sdkSessionId: { type: "string" } },
+          properties: {
+            sdkSessionId: { type: "string" },
+            forkToken: { type: "string" },
+          },
         },
       },
     },
@@ -131,7 +135,9 @@ export const sessionV2Routes: FastifyPluginAsync<{
         upToMessageId: request.body?.upToMessageId,
         title: request.body?.title,
       });
-      return result;
+      // Issue a one-time fork token for createSession validation
+      const forkToken = forkedSessionTokens.issue(result.sdkSessionId);
+      return { ...result, forkToken };
     } catch (error) {
       logger.error("Failed to fork session", { error, sdkSessionId: request.params.sdkSessionId });
       return reply.code(500).send({ error: "Failed to fork session" });

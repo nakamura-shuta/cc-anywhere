@@ -41,7 +41,8 @@ export interface CreateSessionRequest {
 	workingDirectory?: string;
 	// Note: Only 'claude' is currently supported
 	executor?: 'claude';
-	sdkSessionId?: string;
+	// One-time token from fork API for linking forked SDK session
+	forkToken?: string;
 }
 
 export interface CreateCharacterRequest {
@@ -269,6 +270,6 @@ export async function getSDKSessionInfo(sdkSessionId: string): Promise<SDKSessio
 	return apiClient.get<SDKSessionInfo>(`/api/sdk-sessions/${sdkSessionId}/info`);
 }
 
-export async function forkSDKSession(sdkSessionId: string, opts?: { title?: string }): Promise<{ sdkSessionId: string }> {
-	return apiClient.post<{ sdkSessionId: string }>(`/api/sdk-sessions/${sdkSessionId}/fork`, opts || {});
+export async function forkSDKSession(sdkSessionId: string, opts?: { title?: string }): Promise<{ sdkSessionId: string; forkToken: string }> {
+	return apiClient.post<{ sdkSessionId: string; forkToken: string }>(`/api/sdk-sessions/${sdkSessionId}/fork`, opts || {});
 }

@@ -284,16 +284,16 @@ class ChatStore {
 		}
 		try {
 			this.loading = true;
-			// 1. Fork the SDK session
+			// 1. Fork the SDK session (returns sdkSessionId + one-time forkToken)
 			const forkResult = await chatApi.forkSDKSession(this.currentSession.sdkSessionId, {
 				title: `Fork of ${this.sdkSessionInfo?.summary || this.currentSession.id}`,
 			});
-			// 2. Create a new chat session pre-linked to the forked SDK session
+			// 2. Create a new chat session using forkToken (server-validated linkage)
 			const newSession = await chatApi.createSession({
 				characterId: this.currentSession.characterId,
 				workingDirectory: this.currentSession.workingDirectory,
 				executor: this.currentSession.executor,
-				sdkSessionId: forkResult.sdkSessionId,
+				forkToken: forkResult.forkToken,
 			});
 			this.sessions = [newSession, ...this.sessions];
 			// 3. Switch to the forked session
