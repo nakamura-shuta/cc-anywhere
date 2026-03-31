@@ -109,36 +109,44 @@
 				<Card.Root class="flex min-h-0 flex-1 flex-col">
 					<Card.Header class="flex-shrink-0">
 						<Card.Title>New Chat Session</Card.Title>
-						<Card.Description>Select a character and optionally upload a workspace</Card.Description>
 					</Card.Header>
-					<Card.Content class="min-h-0 flex-1 overflow-y-auto space-y-6">
-						<!-- Step 1: Character -->
+					<Card.Content class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+						<!-- Character selection (compact dropdown) -->
 						<div>
-							<div class="mb-2 text-sm font-medium">1. Character</div>
-							<CharacterSelector
-								characters={chatStore.allCharacters}
-								onSelect={handleCharacterSelect}
-								onCancel={() => showNewSession = false}
-							/>
+							<div class="mb-1 text-sm font-medium">Character</div>
+							<select
+								class="w-full rounded-md border bg-background px-3 py-2 text-sm"
+								onchange={(e) => handleCharacterSelect((e.target as HTMLSelectElement).value)}
+								value={selectedCharacterId || ''}
+							>
+								<option value="" disabled>Select a character...</option>
+								{#each chatStore.allCharacters as char (char.id)}
+									<option value={char.id}>{char.name}</option>
+								{/each}
+							</select>
 						</div>
 
-						<!-- Step 2: Workspace (optional) -->
-						{#if selectedCharacterId}
-							<div>
-								<div class="mb-2 text-sm font-medium">2. Workspace (optional)</div>
-								<WorkspaceSelector
-									workspaces={chatStore.workspaces}
-									{selectedWorkspaceId}
-									onSelect={(id) => selectedWorkspaceId = id}
-									onUploadComplete={() => chatStore.loadWorkspaces()}
-								/>
-							</div>
+						<!-- Workspace (optional) -->
+						<WorkspaceSelector
+							workspaces={chatStore.workspaces}
+							{selectedWorkspaceId}
+							onSelect={(id) => selectedWorkspaceId = id}
+							onUploadComplete={() => chatStore.loadWorkspaces()}
+						/>
 
-							<!-- Start button -->
-							<Button class="w-full" onclick={handleStartChat}>
+						<!-- Start / Cancel -->
+						<div class="flex gap-2">
+							<Button
+								class="flex-1"
+								onclick={handleStartChat}
+								disabled={!selectedCharacterId}
+							>
 								Start Chat
 							</Button>
-						{/if}
+							<Button variant="outline" onclick={() => showNewSession = false}>
+								Cancel
+							</Button>
+						</div>
 					</Card.Content>
 				</Card.Root>
 			{:else if chatStore.currentSession}
