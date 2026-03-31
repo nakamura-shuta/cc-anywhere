@@ -97,6 +97,7 @@ const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }>
               characterId: { type: "string" },
               workingDirectory: { type: "string", nullable: true },
               executor: { type: "string" },
+              sdkSessionId: { type: "string", nullable: true },
               createdAt: { type: "string", format: "date-time" },
               updatedAt: { type: "string", format: "date-time" },
             },
