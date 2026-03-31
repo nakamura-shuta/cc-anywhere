@@ -30,6 +30,7 @@ export interface ManagedSession {
 
 export interface CreateSessionParams {
   model?: string;
+  cwd?: string;
   systemPrompt?: string;
   permissionMode?: PermissionMode;
   allowedTools?: string[];
@@ -212,6 +213,17 @@ export class ChatSessionService {
   }
 
   /**
+   * sdkSessionId で pool 内のセッションを terminate する。
+   * pool に存在しない場合は false を返す。
+   */
+  terminateById(sdkSessionId: string): boolean {
+    const managed = this.pool.get(sdkSessionId);
+    if (!managed) return false;
+    this.terminate(managed);
+    return true;
+  }
+
+  /**
    * pool サイズ取得（テスト・監視用）
    */
   getPoolSize(): number {
@@ -222,13 +234,24 @@ export class ChatSessionService {
    * SDKSessionOptions を構築
    */
   private buildSessionOptions(params: CreateSessionParams): SDKSessionOptions {
-    return {
+    const options: SDKSessionOptions = {
       model: params.model || process.env.CLAUDE_MODEL || DEFAULT_MODEL,
       allowedTools: params.allowedTools,
       disallowedTools: params.disallowedTools,
       hooks: this.buildHooksWithSystemPrompt(params.hooks, params.systemPrompt),
       permissionMode: params.permissionMode,
     };
+
+    // V2 SDKSessionOptions には cwd がないため、env 経由で渡す
+    if (params.cwd) {
+      options.env = {
+        ...process.env,
+        CLAUDE_CODE_DEFAULT_CWD: params.cwd,
+        PWD: params.cwd,
+      };
+    }
+
+    return options;
   }
 
   /**

@@ -2358,16 +2358,17 @@ paths:
 
   # ===== Session V2 API =====
 
-  /api/sessions/{id}/sdk-info:
+  /api/sdk-sessions/{sdkSessionId}/info:
     get:
       summary: Get SDK session info
       tags: [Sessions V2]
       parameters:
-        - name: id
+        - name: sdkSessionId
           in: path
           required: true
           schema:
             type: string
+          description: SDK session ID (not app session ID)
       responses:
         '200':
           description: Session info
@@ -2378,12 +2379,12 @@ paths:
         '404':
           description: Session not found
 
-  /api/sessions/{id}/sdk-messages:
+  /api/sdk-sessions/{sdkSessionId}/messages:
     get:
       summary: Get SDK session messages
       tags: [Sessions V2]
       parameters:
-        - name: id
+        - name: sdkSessionId
           in: path
           required: true
           schema:
@@ -2401,7 +2402,7 @@ paths:
                     items:
                       type: object
 
-  /api/sessions/sdk-list:
+  /api/sdk-sessions:
     get:
       summary: List SDK sessions
       tags: [Sessions V2]
@@ -2423,12 +2424,12 @@ paths:
                     items:
                       $ref: '#/components/schemas/SDKSessionInfo'
 
-  /api/sessions/{id}/fork:
+  /api/sdk-sessions/{sdkSessionId}/fork:
     post:
       summary: Fork session
       tags: [Sessions V2]
       parameters:
-        - name: id
+        - name: sdkSessionId
           in: path
           required: true
           schema:
@@ -2454,12 +2455,12 @@ paths:
                   sdkSessionId:
                     type: string
 
-  /api/sessions/{id}/terminate:
+  /api/sdk-sessions/{sdkSessionId}/terminate:
     post:
       summary: Terminate session
       tags: [Sessions V2]
       parameters:
-        - name: id
+        - name: sdkSessionId
           in: path
           required: true
           schema:
@@ -2475,12 +2476,12 @@ paths:
                   status:
                     type: string
 
-  /api/sessions/{id}/rename:
+  /api/sdk-sessions/{sdkSessionId}/rename:
     post:
       summary: Rename session
       tags: [Sessions V2]
       parameters:
-        - name: id
+        - name: sdkSessionId
           in: path
           required: true
           schema:
@@ -2499,12 +2500,12 @@ paths:
         '200':
           description: Session renamed
 
-  /api/sessions/{id}/tag:
+  /api/sdk-sessions/{sdkSessionId}/tag:
     post:
       summary: Tag session
       tags: [Sessions V2]
       parameters:
-        - name: id
+        - name: sdkSessionId
           in: path
           required: true
           schema:

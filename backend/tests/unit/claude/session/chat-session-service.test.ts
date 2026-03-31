@@ -146,6 +146,28 @@ describe("ChatSessionService", () => {
       expect(callArgs.hooks!.SessionStart!.length).toBeGreaterThan(0);
     });
 
+    it("should pass cwd via env", () => {
+      const mockSession = createMockSDKSession({ sessionIdThrows: true });
+      mockCreateSession.mockReturnValue(mockSession);
+
+      service.create({ cwd: "/my/project" });
+
+      const callArgs = mockCreateSession.mock.calls[0][0];
+      expect(callArgs.env).toBeDefined();
+      expect(callArgs.env!.PWD).toBe("/my/project");
+      expect(callArgs.env!.CLAUDE_CODE_DEFAULT_CWD).toBe("/my/project");
+    });
+
+    it("should not set env if no cwd", () => {
+      const mockSession = createMockSDKSession({ sessionIdThrows: true });
+      mockCreateSession.mockReturnValue(mockSession);
+
+      service.create({});
+
+      const callArgs = mockCreateSession.mock.calls[0][0];
+      expect(callArgs.env).toBeUndefined();
+    });
+
     it("should not add hooks if no systemPrompt", () => {
       const mockSession = createMockSDKSession({ sessionIdThrows: true });
       mockCreateSession.mockReturnValue(mockSession);
@@ -399,6 +421,27 @@ describe("ChatSessionService", () => {
 
       expect(mockClose).toHaveBeenCalled();
       expect(service.getPoolSize()).toBe(0);
+    });
+  });
+
+  describe("terminateById", () => {
+    it("should terminate session by sdkSessionId", () => {
+      const mockSession = createMockSDKSession({ sessionId: "by-id-test" });
+      mockResumeSession.mockReturnValue(mockSession);
+
+      service.resume("by-id-test", {});
+      expect(service.getPoolSize()).toBe(1);
+
+      const result = service.terminateById("by-id-test");
+
+      expect(result).toBe(true);
+      expect(mockClose).toHaveBeenCalled();
+      expect(service.getPoolSize()).toBe(0);
+    });
+
+    it("should return false for unknown sdkSessionId", () => {
+      const result = service.terminateById("nonexistent");
+      expect(result).toBe(false);
     });
   });
 

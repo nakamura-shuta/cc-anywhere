@@ -17,6 +17,7 @@ import { executorRoutes } from "../routes/executors";
 import chatRoutes from "../routes/chat";
 import { compareRoutes } from "../routes/compare";
 import { sessionV2Routes } from "../routes/sessions-v2";
+import { ChatSessionService } from "../../claude/session/chat-session-service.js";
 
 /**
  * Register all API routes for the application
@@ -44,7 +45,7 @@ export async function registerRoutes(
   await app.register(executorRoutes, { prefix: "/api" });
   await app.register(chatRoutes, { prefix: "/api" });
   await app.register(compareRoutes, { prefix: "/api" });
-  await app.register(sessionV2Routes);
+  await app.register(sessionV2Routes, { chatSessionService: new ChatSessionService() });
 
   // Register worker routes only in managed mode
   if (workerMode === "managed") {
