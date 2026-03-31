@@ -59,6 +59,38 @@ components:
       description: API key for authentication
 
   schemas:
+    SDKSessionInfo:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        summary:
+          type: string
+        lastModified:
+          type: number
+        customTitle:
+          type: string
+          nullable: true
+        firstPrompt:
+          type: string
+          nullable: true
+        gitBranch:
+          type: string
+          nullable: true
+        cwd:
+          type: string
+          nullable: true
+        tag:
+          type: string
+          nullable: true
+        createdAt:
+          type: number
+          nullable: true
+      required:
+        - sessionId
+        - summary
+        - lastModified
+
     Error:
       type: object
       properties:
@@ -2323,3 +2355,171 @@ paths:
           description: Task group not found
         '500':
           $ref: '#/components/responses/InternalServerError'
+
+  # ===== Session V2 API =====
+
+  /api/sessions/{id}/sdk-info:
+    get:
+      summary: Get SDK session info
+      tags: [Sessions V2]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SDKSessionInfo'
+        '404':
+          description: Session not found
+
+  /api/sessions/{id}/sdk-messages:
+    get:
+      summary: Get SDK session messages
+      tags: [Sessions V2]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+
+  /api/sessions/sdk-list:
+    get:
+      summary: List SDK sessions
+      tags: [Sessions V2]
+      parameters:
+        - name: dir
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SDKSessionInfo'
+
+  /api/sessions/{id}/fork:
+    post:
+      summary: Fork session
+      tags: [Sessions V2]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                upToMessageId:
+                  type: string
+                title:
+                  type: string
+      responses:
+        '200':
+          description: Forked session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sdkSessionId:
+                    type: string
+
+  /api/sessions/{id}/terminate:
+    post:
+      summary: Terminate session
+      tags: [Sessions V2]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session terminated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+
+  /api/sessions/{id}/rename:
+    post:
+      summary: Rename session
+      tags: [Sessions V2]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+      responses:
+        '200':
+          description: Session renamed
+
+  /api/sessions/{id}/tag:
+    post:
+      summary: Tag session
+      tags: [Sessions V2]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tag]
+              properties:
+                tag:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Session tagged
