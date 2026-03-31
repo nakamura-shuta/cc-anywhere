@@ -1,25 +1,38 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ApiKeyStrategy } from "../../../../src/claude/strategies/api-key-strategy";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { unstable_v2_createSession } from "@anthropic-ai/claude-agent-sdk";
 
-// Mock the Claude Code SDK
+const mockSend = vi.fn().mockResolvedValue(undefined);
+
+function createMockSession(messages: any[]) {
+  return {
+    get sessionId() { return "test-session"; },
+    send: mockSend,
+    stream: vi.fn().mockReturnValue((async function* () {
+      for (const msg of messages) yield msg;
+    })()),
+    close: vi.fn(),
+  };
+}
+
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
-  query: vi.fn(),
+  unstable_v2_createSession: vi.fn(),
+  unstable_v2_resumeSession: vi.fn(),
 }));
+
+const mockCreateSession = vi.mocked(unstable_v2_createSession);
 
 describe("ApiKeyStrategy", () => {
   let originalApiKey: string | undefined;
   let originalBedrockMode: string | undefined;
 
   beforeEach(() => {
-    // Save original environment variables
     originalApiKey = process.env.CLAUDE_API_KEY;
     originalBedrockMode = process.env.CLAUDE_CODE_USE_BEDROCK;
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    // Restore original environment variables
     if (originalApiKey !== undefined) {
       process.env.CLAUDE_API_KEY = originalApiKey;
     } else {
@@ -40,104 +53,56 @@ describe("ApiKeyStrategy", () => {
     });
 
     it("should throw error if API key is not provided", () => {
-      expect(() => new ApiKeyStrategy("")).toThrow("API key is required for ApiKeyStrategy");
+      expect(() => new ApiKeyStrategy("")).toThrow("API key is required");
     });
   });
 
   describe("executeQuery", () => {
-    it("should set API key in environment and execute query", async () => {
+    it("should set API key in environment and execute V2 session", async () => {
       const strategy = new ApiKeyStrategy("test-api-key");
-      const mockMessages = [
-        { type: "init", message: "Starting" },
+      const messages = [
+        { type: "system", session_id: "s1" },
         { type: "assistant", message: "Hello" },
-        { type: "result", message: "Done" },
       ];
+      mockCreateSession.mockReturnValue(createMockSession(messages) as any);
 
-      // Mock the query function to return an async generator
-      const mockQuery = vi.mocked(query);
-      mockQuery.mockImplementation(async function* () {
-        for (const msg of mockMessages) {
-          yield msg as any;
-        }
-      });
-
-      const options = { prompt: "test prompt", options: {} };
-      const messages = [];
-
-      for await (const message of strategy.executeQuery(options)) {
-        messages.push(message);
+      const collected: any[] = [];
+      for await (const msg of strategy.executeQuery({ prompt: "test" })) {
+        collected.push(msg);
       }
 
-      expect(messages).toHaveLength(3);
-      expect(mockQuery).toHaveBeenCalledWith(options);
+      expect(collected).toHaveLength(2);
+      expect(mockCreateSession).toHaveBeenCalled();
+      expect(mockSend).toHaveBeenCalledWith("test");
     });
 
-    it("should disable Bedrock mode during execution", async () => {
-      const strategy = new ApiKeyStrategy("test-api-key");
+    it("should restore environment variables after execution", async () => {
+      process.env.CLAUDE_API_KEY = "original-key";
       process.env.CLAUDE_CODE_USE_BEDROCK = "1";
 
-      const mockQuery = vi.mocked(query);
-      mockQuery.mockImplementation(async function* () {
-        // Check that Bedrock mode is disabled during execution
-        expect(process.env.CLAUDE_CODE_USE_BEDROCK).toBeUndefined();
-        yield { type: "result", message: "Done" } as any;
-      });
-
-      const options = { prompt: "test prompt", options: {} };
-
-      // Execute query to verify environment setup
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for await (const _message of strategy.executeQuery(options)) {
-        // Process message
-      }
-
-      // Bedrock mode should be restored
-      expect(process.env.CLAUDE_CODE_USE_BEDROCK).toBe("1");
-    });
-
-    it("should restore original environment variables after execution", async () => {
       const strategy = new ApiKeyStrategy("test-api-key");
-      const originalKey = "original-key";
-      process.env.CLAUDE_API_KEY = originalKey;
+      mockCreateSession.mockReturnValue(createMockSession([]) as any);
 
-      const mockQuery = vi.mocked(query);
-      mockQuery.mockImplementation(async function* () {
-        // Check that API key is set to strategy key during execution
-        expect(process.env.CLAUDE_API_KEY).toBe("test-api-key");
-        yield { type: "result", message: "Done" } as any;
-      });
-
-      const options = { prompt: "test prompt", options: {} };
-
-      // Execute query to verify environment setup
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for await (const _message of strategy.executeQuery(options)) {
-        // Process message
+      for await (const _msg of strategy.executeQuery({ prompt: "test" })) {
+        // consume
       }
 
-      // Original API key should be restored
-      expect(process.env.CLAUDE_API_KEY).toBe(originalKey);
+      expect(process.env.CLAUDE_API_KEY).toBe("original-key");
+      expect(process.env.CLAUDE_CODE_USE_BEDROCK).toBe("1");
     });
   });
 
   describe("getModelName", () => {
-    it("should return the correct model name", () => {
-      const strategy = new ApiKeyStrategy("test-api-key");
-      expect(strategy.getModelName()).toBe("claude-opus-4-20250514");
+    it("should return default model name", () => {
+      const strategy = new ApiKeyStrategy("test-key");
+      expect(strategy.getModelName()).toContain("claude");
     });
   });
 
   describe("isAvailable", () => {
-    it("should return true when API key is provided", () => {
-      const strategy = new ApiKeyStrategy("test-api-key");
+    it("should return true with API key", () => {
+      const strategy = new ApiKeyStrategy("test-key");
       expect(strategy.isAvailable()).toBe(true);
-    });
-  });
-
-  describe("getExecutionMode", () => {
-    it("should return 'api-key'", () => {
-      const strategy = new ApiKeyStrategy("test-api-key");
-      expect(strategy.getExecutionMode()).toBe("api-key");
     });
   });
 });

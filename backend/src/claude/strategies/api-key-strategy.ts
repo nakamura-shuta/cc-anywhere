@@ -1,5 +1,8 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import {
+  unstable_v2_createSession,
+  unstable_v2_resumeSession,
+} from "@anthropic-ai/claude-agent-sdk";
 import type {
   ClaudeCodeStrategy,
   ExecutionMode,
@@ -15,28 +18,60 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
   }
 
   async *executeQuery(options: QueryOptions): AsyncIterable<SDKMessage> {
-    // Store original environment variables
     const originalApiKey = process.env.CLAUDE_API_KEY;
     const originalBedrockMode = process.env.CLAUDE_CODE_USE_BEDROCK;
 
     try {
-      // Set API key in environment
       process.env.CLAUDE_API_KEY = this.apiKey;
-
-      // Explicitly disable Bedrock mode
       delete process.env.CLAUDE_CODE_USE_BEDROCK;
 
-      logger.debug("Executing query with API key strategy", {
+      logger.debug("Executing V2 session with API key strategy", {
         hasApiKey: !!this.apiKey,
-        mode: this.getExecutionMode(),
+        hasResume: !!options.options?.resume,
       });
 
-      // Execute query
-      for await (const message of query(options)) {
-        yield message;
+      // Build V2 session options from QueryOptions
+      const sessionOptions = {
+        model: this.getModelName(),
+        allowedTools: options.options?.allowedTools,
+        disallowedTools: options.options?.disallowedTools,
+        hooks: options.options?.hooks,
+        permissionMode: options.options?.permissionMode as any,
+        ...(options.options?.cwd ? {
+          env: { ...process.env, CLAUDE_CODE_DEFAULT_CWD: options.options.cwd, PWD: options.options.cwd },
+        } : {}),
+      };
+
+      // Inject systemPrompt via SessionStart hook
+      if (options.options?.customSystemPrompt) {
+        const systemPrompt = options.options.customSystemPrompt;
+        sessionOptions.hooks = {
+          ...sessionOptions.hooks,
+          SessionStart: [
+            ...(sessionOptions.hooks?.SessionStart || []),
+            { hooks: [async () => ({ decision: "approve" as const, systemPrompt })] },
+          ],
+        };
+      }
+
+      // Create or resume session
+      const session = options.options?.resume
+        ? unstable_v2_resumeSession(options.options.resume, sessionOptions)
+        : unstable_v2_createSession(sessionOptions);
+
+      // Send prompt
+      const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
+      await session.send(prompt);
+
+      // Stream messages (same SDKMessage type as query())
+      try {
+        for await (const message of session.stream()) {
+          yield message;
+        }
+      } finally {
+        // Don't close session - allow resume later
       }
     } finally {
-      // Restore original environment variables
       if (originalApiKey !== undefined) {
         process.env.CLAUDE_API_KEY = originalApiKey;
       } else {
@@ -50,8 +85,7 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
   }
 
   getModelName(): string {
-    // Default model for API key mode
-    return "claude-opus-4-20250514";
+    return process.env.CLAUDE_MODEL || "claude-opus-4-20250514";
   }
 
   isAvailable(): boolean {

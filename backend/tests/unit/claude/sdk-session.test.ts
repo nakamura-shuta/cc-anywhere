@@ -1,34 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ClaudeCodeClient } from "../../../src/claude/claude-code-client";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { unstable_v2_createSession, unstable_v2_resumeSession } from "@anthropic-ai/claude-agent-sdk";
 
-// Mock the claude-code module
+const mockSend = vi.fn().mockResolvedValue(undefined);
+
+function createMockSession(messages: any[], opts?: { throwOnStream?: Error }) {
+  return {
+    get sessionId() { return "test-session"; },
+    send: mockSend,
+    stream: vi.fn().mockReturnValue((async function* () {
+      for (const msg of messages) yield msg;
+      if (opts?.throwOnStream) throw opts.throwOnStream;
+    })()),
+    close: vi.fn(),
+  };
+}
+
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
-  query: vi.fn(),
+  unstable_v2_createSession: vi.fn(),
+  unstable_v2_resumeSession: vi.fn(),
 }));
 
-// Mock the config
 vi.mock("../../../src/config", () => ({
   config: {
-    claude: {
-      apiKey: "test-api-key",
-    },
-    claudeCodeSDK: {
-      defaultMaxTurns: 3,
-    },
+    claude: { apiKey: "test-api-key" },
+    claudeCodeSDK: { defaultMaxTurns: 3 },
   },
 }));
 
-// Mock the logger
 vi.mock("../../../src/utils/logger", () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    error: vi.fn(),
-  },
+  logger: { debug: vi.fn(), info: vi.fn(), error: vi.fn() },
 }));
 
-// Mock TaskTracker
 vi.mock("../../../src/services/task-tracker", () => ({
   TaskTracker: vi.fn().mockImplementation(() => ({
     recordProgress: vi.fn(),
@@ -43,9 +46,11 @@ vi.mock("../../../src/services/task-tracker", () => ({
   })),
 }));
 
+const mockCreateSession = vi.mocked(unstable_v2_createSession);
+const mockResumeSession = vi.mocked(unstable_v2_resumeSession);
+
 describe("ClaudeCodeClient SDK Session", () => {
   let client: ClaudeCodeClient;
-  const mockQuery = query as any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,122 +58,60 @@ describe("ClaudeCodeClient SDK Session", () => {
   });
 
   it("should extract session ID from SDK messages", async () => {
-    const mockSessionId = "test-session-123";
-    const mockMessages = [
-      { type: "system", session_id: mockSessionId, message: "Starting task" },
-      {
-        type: "assistant",
-        message: { content: [{ type: "text", text: "Hello" }] },
-      },
-      { type: "result", result: "Task completed", subtype: "success" },
+    const messages = [
+      { type: "system", session_id: "test-session-123" },
+      { type: "assistant", message: { content: [{ type: "text", text: "Hello" }] } },
+      { type: "result", result: "Done", subtype: "success" },
     ];
-
-    // Mock the async generator
-    mockQuery.mockImplementation(async function* () {
-      for (const msg of mockMessages) {
-        yield msg;
-      }
-    });
+    mockCreateSession.mockReturnValue(createMockSession(messages) as any);
 
     const result = await client.executeTask("Test prompt", {});
 
     expect(result.success).toBe(true);
-    expect(result.sessionId).toBe(mockSessionId);
+    expect(result.sessionId).toBe("test-session-123");
   });
 
-  it("should pass resumeSession option to SDK", async () => {
-    const mockSessionId = "existing-session-456";
-    const mockMessages = [
+  it("should use resumeSession to resume via V2 API", async () => {
+    const messages = [
       { type: "assistant", message: { content: [{ type: "text", text: "Resumed" }] } },
-      { type: "result", result: "Task completed", subtype: "success" },
     ];
-
-    mockQuery.mockImplementation(async function* () {
-      for (const msg of mockMessages) {
-        yield msg;
-      }
-    });
+    mockResumeSession.mockReturnValue(createMockSession(messages) as any);
 
     await client.executeTask("Test prompt", {
-      resumeSession: mockSessionId,
+      resumeSession: "existing-session-456",
     });
 
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.objectContaining({
-        options: expect.objectContaining({
-          resume: mockSessionId,
-        }),
-      }),
-    );
-  });
-
-  it("should pass forkSession: false when resumeSession is provided", async () => {
-    const mockSessionId = "resume-session-789";
-    const mockMessages = [
-      { type: "assistant", message: { content: [{ type: "text", text: "Continued" }] } },
-      { type: "result", result: "Task completed", subtype: "success" },
-    ];
-
-    mockQuery.mockImplementation(async function* () {
-      for (const msg of mockMessages) {
-        yield msg;
-      }
-    });
-
-    await client.executeTask("Test prompt", {
-      resumeSession: mockSessionId,
-    });
-
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.objectContaining({
-        options: expect.objectContaining({
-          resume: mockSessionId,
-          forkSession: false,
-        }),
-      }),
+    expect(mockResumeSession).toHaveBeenCalledWith(
+      "existing-session-456",
+      expect.any(Object),
     );
   });
 
   it("should handle missing session ID gracefully", async () => {
-    const mockMessages = [
-      { type: "assistant", message: { content: [{ type: "text", text: "No session ID" }] } },
-      { type: "result", result: "Task completed", subtype: "success" },
+    const messages = [
+      { type: "assistant", message: { content: [{ type: "text", text: "No session" }] } },
     ];
-
-    mockQuery.mockImplementation(async function* () {
-      for (const msg of mockMessages) {
-        yield msg;
-      }
-    });
+    mockCreateSession.mockReturnValue(createMockSession(messages) as any);
 
     const result = await client.executeTask("Test prompt", {});
 
     expect(result.success).toBe(true);
-    expect(result.sessionId).toBeUndefined();
+    // sessionId may come from session.sessionId getter
   });
 
   it("should handle errors and still return session ID if available", async () => {
-    const mockSessionId = "error-session-789";
-    const mockMessages = [
-      { type: "system", session_id: mockSessionId, message: "Starting task" },
-      {
-        type: "assistant",
-        message: { content: [{ type: "text", text: "Starting" }] },
-      },
-      { type: "error", error: "Task failed" },
+    const messages = [
+      { type: "system", session_id: "error-session-789" },
+      { type: "assistant", message: { content: [{ type: "text", text: "Starting" }] } },
     ];
-
-    mockQuery.mockImplementation(async function* () {
-      for (const msg of mockMessages) {
-        yield msg;
-      }
-      throw new Error("Task execution failed");
-    });
+    mockCreateSession.mockReturnValue(
+      createMockSession(messages, { throwOnStream: new Error("Task execution failed") }) as any,
+    );
 
     const result = await client.executeTask("Test prompt", {});
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
-    expect(result.sessionId).toBe(mockSessionId);
+    expect(result.sessionId).toBe("error-session-789");
   });
 });

@@ -1,5 +1,8 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import {
+  unstable_v2_createSession,
+  unstable_v2_resumeSession,
+} from "@anthropic-ai/claude-agent-sdk";
 import type {
   ClaudeCodeStrategy,
   ExecutionMode,
@@ -21,14 +24,12 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
       );
     }
 
-    // Validate region - Claude models are only available in us-east-1
     if (awsRegion !== "us-east-1") {
       throw new BedrockRegionError(awsRegion);
     }
   }
 
   async *executeQuery(options: QueryOptions): AsyncIterable<SDKMessage> {
-    // Store original environment variables
     const originalEnv = {
       CLAUDE_CODE_USE_BEDROCK: process.env.CLAUDE_CODE_USE_BEDROCK,
       AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
@@ -38,26 +39,58 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
     };
 
     try {
-      // Enable Bedrock mode
       process.env.CLAUDE_CODE_USE_BEDROCK = "1";
       process.env.AWS_ACCESS_KEY_ID = this.awsAccessKeyId;
       process.env.AWS_SECRET_ACCESS_KEY = this.awsSecretAccessKey;
       process.env.AWS_REGION = this.awsRegion;
-
-      // Remove API key (not needed for Bedrock mode)
       delete process.env.CLAUDE_API_KEY;
 
-      logger.debug("Executing query with Bedrock strategy", {
+      logger.debug("Executing V2 session with Bedrock strategy", {
         region: this.awsRegion,
-        mode: this.getExecutionMode(),
+        hasResume: !!options.options?.resume,
       });
 
-      // Execute query
-      for await (const message of query(options)) {
-        yield message;
+      const sessionOptions = {
+        model: this.getModelName(),
+        allowedTools: options.options?.allowedTools,
+        disallowedTools: options.options?.disallowedTools,
+        hooks: options.options?.hooks,
+        permissionMode: options.options?.permissionMode as any,
+        env: {
+          ...process.env,
+          ...(options.options?.cwd ? {
+            CLAUDE_CODE_DEFAULT_CWD: options.options.cwd,
+            PWD: options.options.cwd,
+          } : {}),
+        },
+      };
+
+      if (options.options?.customSystemPrompt) {
+        const systemPrompt = options.options.customSystemPrompt;
+        sessionOptions.hooks = {
+          ...sessionOptions.hooks,
+          SessionStart: [
+            ...(sessionOptions.hooks?.SessionStart || []),
+            { hooks: [async () => ({ decision: "approve" as const, systemPrompt })] },
+          ],
+        };
+      }
+
+      const session = options.options?.resume
+        ? unstable_v2_resumeSession(options.options.resume, sessionOptions)
+        : unstable_v2_createSession(sessionOptions);
+
+      const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
+      await session.send(prompt);
+
+      try {
+        for await (const message of session.stream()) {
+          yield message;
+        }
+      } finally {
+        // Don't close session - allow resume later
       }
     } catch (error) {
-      // Enhance error messages for common Bedrock issues
       if (error instanceof Error) {
         if (
           error.message.includes("UnrecognizedClientException") ||
@@ -75,7 +108,6 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
       }
       throw error;
     } finally {
-      // Restore original environment variables
       Object.entries(originalEnv).forEach(([key, value]) => {
         if (value !== undefined) {
           process.env[key] = value;
@@ -87,7 +119,6 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
   }
 
   getModelName(): string {
-    // Use model ID from environment variable or default
     return this.modelId || "us.anthropic.claude-opus-4-20250514-v1:0";
   }
 
