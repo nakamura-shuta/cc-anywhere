@@ -109,6 +109,11 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
     }
     sessionOptions.env = { ...process.env, ...envOverrides };
 
+    // V2 SDKSessionOptions lacks cwd, pass via executableArgs
+    if (opts?.cwd) {
+      sessionOptions.executableArgs = [...(sessionOptions.executableArgs || []), "--cwd", opts.cwd];
+    }
+
     // Inject systemPrompt via SessionStart hook
     if (opts?.customSystemPrompt) {
       const systemPrompt = opts.customSystemPrompt;

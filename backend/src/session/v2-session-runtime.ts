@@ -191,6 +191,11 @@ export class V2SessionRuntime {
     }
     options.env = { ...process.env, ...envOverrides };
 
+    // V2 SDKSessionOptions lacks cwd, pass via executableArgs
+    if (params.cwd) {
+      options.executableArgs = [...(options.executableArgs || []), "--cwd", params.cwd];
+    }
+
     return options;
   }
 

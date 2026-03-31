@@ -66,6 +66,10 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
         },
       };
 
+      if (opts?.cwd) {
+        sessionOptions.executableArgs = [...(sessionOptions.executableArgs || []), "--cwd", opts.cwd];
+      }
+
       if (opts?.customSystemPrompt) {
         const systemPrompt = opts.customSystemPrompt;
         sessionOptions.hooks = {
