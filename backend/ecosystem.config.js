@@ -13,7 +13,7 @@ module.exports = {
   apps: [
     {
       name: 'cc-anywhere-backend',
-      script: '../node_modules/.bin/tsx',
+      script: './node_modules/.bin/tsx',
       args: './src/index.ts',
       instances: 1,              // インスタンス数（'max'でCPUコア数分起動）
       exec_mode: 'fork',         // tsxはclusterモードに非対応のためforkモードに変更
