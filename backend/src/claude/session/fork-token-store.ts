@@ -19,6 +19,7 @@ class ForkTokenStore {
 
   /** Issue a one-time token for a forked sdkSessionId */
   issue(sdkSessionId: string): string {
+    this.cleanup(); // purge expired tokens on each issue
     const token = crypto.randomUUID();
     this.tokens.set(token, {
       sdkSessionId,

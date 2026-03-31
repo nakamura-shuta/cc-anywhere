@@ -203,6 +203,7 @@ const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }>
           characterId: s.characterId,
           workingDirectory: s.workingDirectory || null,
           executor: s.executor,
+          sdkSessionId: s.sdkSessionId || null,
           createdAt: s.createdAt.toISOString(),
           updatedAt: s.updatedAt.toISOString(),
         })),
