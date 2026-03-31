@@ -20,19 +20,7 @@ import type {
 import { createChatExecutor } from "../../chat/index.js";
 import type { ChatStreamEvent, ChatExecutorResult } from "../../chat/types.js";
 import { getAllPresetCharacters, getPresetCharacter } from "../../chat/preset-characters.js";
-import { ChatSessionService } from "../../claude/session/chat-session-service.js";
-
-// Application-shared singleton for V2 session management
-const chatSessionService = new ChatSessionService();
-
-// TTL eviction interval (every 5 minutes)
-const EVICTION_INTERVAL_MS = 5 * 60 * 1000;
-setInterval(() => {
-  const evicted = chatSessionService.evictIdle();
-  if (evicted > 0) {
-    logger.info(`Evicted ${evicted} idle V2 sessions`);
-  }
-}, EVICTION_INTERVAL_MS);
+import type { ChatSessionService } from "../../claude/session/chat-session-service.js";
 
 // Request schemas
 const createSessionSchema = z.object({
@@ -60,7 +48,8 @@ const updateCharacterSchema = z.object({
   systemPrompt: z.string().min(1).max(10000).optional(),
 });
 
-const chatRoutes: FastifyPluginAsync = async (fastify) => {
+const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }> = async (fastify, opts) => {
+  const chatSessionService = opts.chatSessionService;
   const chatRepository = getSharedChatRepository();
 
   // Helper to get user ID from request

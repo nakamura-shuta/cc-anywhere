@@ -18,6 +18,20 @@ import chatRoutes from "../routes/chat";
 import { compareRoutes } from "../routes/compare";
 import { sessionV2Routes } from "../routes/sessions-v2";
 import { ChatSessionService } from "../../claude/session/chat-session-service.js";
+import { logger } from "../../utils/logger.js";
+
+// Application-shared singleton for V2 session management.
+// Shared between chat WebSocket handler and Session V2 API routes.
+const sharedChatSessionService = new ChatSessionService();
+
+// TTL eviction interval (every 5 minutes)
+const EVICTION_INTERVAL_MS = 5 * 60 * 1000;
+setInterval(() => {
+  const evicted = sharedChatSessionService.evictIdle();
+  if (evicted > 0) {
+    logger.info(`Evicted ${evicted} idle V2 sessions`);
+  }
+}, EVICTION_INTERVAL_MS);
 
 /**
  * Register all API routes for the application
@@ -43,9 +57,11 @@ export async function registerRoutes(
   await app.register(repositoryExplorerRoutes, { prefix: "/api" });
   await app.register(taskGroupsRoute, { prefix: "/api/task-groups" });
   await app.register(executorRoutes, { prefix: "/api" });
-  await app.register(chatRoutes, { prefix: "/api" });
+
+  // Chat and Session V2 share the same ChatSessionService singleton
+  await app.register(chatRoutes, { prefix: "/api", chatSessionService: sharedChatSessionService });
   await app.register(compareRoutes, { prefix: "/api" });
-  await app.register(sessionV2Routes, { chatSessionService: new ChatSessionService() });
+  await app.register(sessionV2Routes, { chatSessionService: sharedChatSessionService });
 
   // Register worker routes only in managed mode
   if (workerMode === "managed") {

@@ -139,6 +139,10 @@ export const sessionV2Routes: FastifyPluginAsync<{
   });
 
   // セッション終了（terminate）
+  // Note: active pool に存在するセッションのみ terminate 可能。
+  // detach 済み（WS 切断後）のセッションは pool 管理外のため 404 を返す。
+  // detach 済みセッションの終了が必要な場合は、再接続後に terminate するか、
+  // TTL eviction による自動終了を待つ。
   fastify.post<{
     Params: { sdkSessionId: string };
   }>("/api/sdk-sessions/:sdkSessionId/terminate", {
@@ -153,6 +157,10 @@ export const sessionV2Routes: FastifyPluginAsync<{
           type: "object",
           properties: { status: { type: "string" } },
         },
+        404: {
+          type: "object",
+          properties: { error: { type: "string" } },
+        },
       },
     },
   }, async (request, reply) => {
@@ -160,9 +168,8 @@ export const sessionV2Routes: FastifyPluginAsync<{
       const { sdkSessionId } = request.params;
       const terminated = chatSessionService.terminateById(sdkSessionId);
       if (!terminated) {
-        // pool に存在しない（detach 済み or 未管理）
         return reply.code(404).send({
-          error: "Session not found in active pool (may be detached or not managed)",
+          error: "Session not in active pool. It may have been detached (WS disconnected) or was never managed by this server.",
         });
       }
       logger.info("Session terminated via API", { sdkSessionId });
