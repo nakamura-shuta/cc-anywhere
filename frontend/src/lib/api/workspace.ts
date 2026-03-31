@@ -3,6 +3,9 @@
  */
 
 import { apiClient } from './client';
+import { getApiBaseUrl } from '$lib/config';
+import { getApiHeaders } from '$lib/config/api';
+import { authStore } from '$lib/stores/auth.svelte';
 
 export interface Workspace {
 	id: string;
@@ -24,13 +27,14 @@ export async function uploadWorkspace(file: File, name?: string): Promise<Worksp
 	formData.append('file', file);
 	if (name) formData.append('name', name);
 
-	const baseUrl = apiClient['baseUrl'] || '';
+	const baseUrl = getApiBaseUrl();
+	const authHeaders = authStore.getAuthHeaders();
 	const response = await fetch(`${baseUrl}/api/workspaces`, {
 		method: 'POST',
 		body: formData,
 		headers: {
 			// Don't set Content-Type - browser sets it with boundary for multipart
-			'X-API-Key': localStorage.getItem('api-key') || '',
+			...authHeaders,
 		},
 	});
 
