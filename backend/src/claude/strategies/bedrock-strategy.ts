@@ -9,6 +9,7 @@ import type {
   QueryOptions,
 } from "./claude-code-strategy.interface";
 import { logger } from "../../utils/logger";
+import { withCwd } from "../../utils/cwd-mutex.js";
 import { BedrockRegionError, BedrockAuthError } from "../errors";
 
 export class BedrockStrategy implements ClaudeCodeStrategy {
@@ -78,14 +79,11 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
       }
 
       const cwd = opts?.cwd;
-      const originalCwd = process.cwd();
-      if (cwd) process.chdir(cwd);
-
-      const session = opts?.resume
-        ? unstable_v2_resumeSession(opts.resume, sessionOptions)
-        : unstable_v2_createSession(sessionOptions);
-
-      if (cwd) process.chdir(originalCwd);
+      const session = await withCwd(cwd, () =>
+        opts?.resume
+          ? unstable_v2_resumeSession(opts.resume!, sessionOptions)
+          : unstable_v2_createSession(sessionOptions),
+      );
 
       const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
 

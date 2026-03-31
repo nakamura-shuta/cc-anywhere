@@ -9,6 +9,7 @@ import type {
   QueryOptions,
 } from "./claude-code-strategy.interface";
 import { logger } from "../../utils/logger";
+import { withCwd } from "../../utils/cwd-mutex.js";
 
 export class ApiKeyStrategy implements ClaudeCodeStrategy {
   constructor(private apiKey: string) {
@@ -32,16 +33,13 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
 
       const sessionOptions = this.buildSessionOptions(options);
 
-      // V2 SDKSessionOptions lacks cwd; temporarily chdir for session creation
+      // V2 SDKSessionOptions lacks cwd; use mutex-protected chdir
       const cwd = options.options?.cwd;
-      const originalCwd = process.cwd();
-      if (cwd) process.chdir(cwd);
-
-      const session = options.options?.resume
-        ? unstable_v2_resumeSession(options.options.resume, sessionOptions)
-        : unstable_v2_createSession(sessionOptions);
-
-      if (cwd) process.chdir(originalCwd);
+      const session = await withCwd(cwd, () =>
+        options.options?.resume
+          ? unstable_v2_resumeSession(options.options!.resume!, sessionOptions)
+          : unstable_v2_createSession(sessionOptions),
+      );
 
       const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
 

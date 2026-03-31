@@ -23,6 +23,7 @@ import {
   type PermissionMode,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { SessionState } from "./types.js";
+import { withCwd } from "../utils/cwd-mutex.js";
 
 const DEFAULT_MODEL = "claude-opus-4-20250514";
 
@@ -53,15 +54,15 @@ export class V2SessionRuntime {
 
   // === SDKSession pool ===
 
-  createSession(params: V2CreateParams): ManagedSession {
-    const session = this.withCwd(params.cwd, () =>
+  async createSession(params: V2CreateParams): Promise<ManagedSession> {
+    const session = await withCwd(params.cwd, () =>
       unstable_v2_createSession(this.buildOptions(params)),
     );
     return { session, sdkSessionId: null, state: "idle", lastActivityAt: new Date() };
   }
 
-  resumeSession(sdkSessionId: string, params: V2CreateParams): ManagedSession {
-    const session = this.withCwd(params.cwd, () =>
+  async resumeSession(sdkSessionId: string, params: V2CreateParams): Promise<ManagedSession> {
+    const session = await withCwd(params.cwd, () =>
       unstable_v2_resumeSession(sdkSessionId, this.buildOptions(params)),
     );
     const managed: ManagedSession = { session, sdkSessionId, state: "idle", lastActivityAt: new Date() };
@@ -69,17 +70,6 @@ export class V2SessionRuntime {
     return managed;
   }
 
-  /** Temporarily change process.cwd() for session creation (V2 lacks cwd option) */
-  private withCwd<T>(cwd: string | undefined, fn: () => T): T {
-    if (!cwd) return fn();
-    const original = process.cwd();
-    try {
-      process.chdir(cwd);
-      return fn();
-    } finally {
-      process.chdir(original);
-    }
-  }
 
   async *sendAndStream(
     managed: ManagedSession,

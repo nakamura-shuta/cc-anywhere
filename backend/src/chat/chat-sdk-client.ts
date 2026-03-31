@@ -68,13 +68,13 @@ export class ChatSDKClient implements IChatExecutor {
     try {
       // resume or create
       if (options.sdkSessionId) {
-        this.currentManaged = this.service.resumeSession(options.sdkSessionId, {
+        this.currentManaged = await this.service.resumeSession(options.sdkSessionId, {
           cwd: options.workingDirectory,
           systemPrompt: options.systemPrompt,
           permissionMode: "bypassPermissions" as any,
         });
       } else {
-        this.currentManaged = this.service.createSession({
+        this.currentManaged = await this.service.createSession({
           cwd: options.workingDirectory,
           systemPrompt: options.systemPrompt,
           permissionMode: "bypassPermissions" as any,
