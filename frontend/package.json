@@ -53,6 +53,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "esm-env": "^1.2.2",
+    "jszip": "^3.10.1",
     "lucide-svelte": "^0.563.0",
     "tailwind-merge": "^3.5.0"
   }

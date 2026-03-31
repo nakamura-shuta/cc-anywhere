@@ -39,10 +39,9 @@ export interface Character {
 export interface CreateSessionRequest {
 	characterId: string;
 	workingDirectory?: string;
-	// Note: Only 'claude' is currently supported
 	executor?: 'claude';
-	// One-time token from fork API for linking forked SDK session
 	forkToken?: string;
+	workspaceId?: string;
 }
 
 export interface CreateCharacterRequest {

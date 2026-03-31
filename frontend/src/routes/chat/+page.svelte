@@ -4,21 +4,32 @@
 	import ChatContainer from '$lib/components/chat/ChatContainer.svelte';
 	import SessionList from '$lib/components/chat/SessionList.svelte';
 	import CharacterSelector from '$lib/components/chat/CharacterSelector.svelte';
+	import WorkspaceSelector from '$lib/components/chat/WorkspaceSelector.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 
 	let showNewSession = $state(false);
+	let selectedCharacterId = $state<string | null>(null);
+	let selectedWorkspaceId = $state<string | undefined>(undefined);
 
 	onMount(async () => {
 		await Promise.all([
 			chatStore.loadSessions(),
-			chatStore.loadCharacters()
+			chatStore.loadCharacters(),
+			chatStore.loadWorkspaces(),
 		]);
 	});
 
-	async function handleCreateSession(characterId: string) {
-		await chatStore.createSession(characterId);
+	function handleCharacterSelect(characterId: string) {
+		selectedCharacterId = characterId;
+	}
+
+	async function handleStartChat() {
+		if (!selectedCharacterId) return;
+		await chatStore.createSession(selectedCharacterId, undefined, 'claude', selectedWorkspaceId);
 		showNewSession = false;
+		selectedCharacterId = null;
+		selectedWorkspaceId = undefined;
 	}
 
 	async function handleSelectSession(sessionId: string) {
@@ -98,14 +109,36 @@
 				<Card.Root class="flex min-h-0 flex-1 flex-col">
 					<Card.Header class="flex-shrink-0">
 						<Card.Title>New Chat Session</Card.Title>
-						<Card.Description>Select a character to start chatting</Card.Description>
+						<Card.Description>Select a character and optionally upload a workspace</Card.Description>
 					</Card.Header>
-					<Card.Content class="min-h-0 flex-1 overflow-y-auto">
-						<CharacterSelector
-							characters={chatStore.allCharacters}
-							onSelect={handleCreateSession}
-							onCancel={() => showNewSession = false}
-						/>
+					<Card.Content class="min-h-0 flex-1 overflow-y-auto space-y-6">
+						<!-- Step 1: Character -->
+						<div>
+							<div class="mb-2 text-sm font-medium">1. Character</div>
+							<CharacterSelector
+								characters={chatStore.allCharacters}
+								onSelect={handleCharacterSelect}
+								onCancel={() => showNewSession = false}
+							/>
+						</div>
+
+						<!-- Step 2: Workspace (optional) -->
+						{#if selectedCharacterId}
+							<div>
+								<div class="mb-2 text-sm font-medium">2. Workspace (optional)</div>
+								<WorkspaceSelector
+									workspaces={chatStore.workspaces}
+									{selectedWorkspaceId}
+									onSelect={(id) => selectedWorkspaceId = id}
+									onUploadComplete={() => chatStore.loadWorkspaces()}
+								/>
+							</div>
+
+							<!-- Start button -->
+							<Button class="w-full" onclick={handleStartChat}>
+								Start Chat
+							</Button>
+						{/if}
 					</Card.Content>
 				</Card.Root>
 			{:else if chatStore.currentSession}

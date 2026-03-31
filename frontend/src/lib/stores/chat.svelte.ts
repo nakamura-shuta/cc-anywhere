@@ -3,7 +3,9 @@
  */
 
 import * as chatApi from '$lib/api/chat';
+import * as workspaceApi from '$lib/api/workspace';
 import type { ChatSession, ChatMessage, Character, SDKSessionInfo } from '$lib/api/chat';
+import type { Workspace } from '$lib/api/workspace';
 import {
 	sendMessageViaWebSocket,
 	createTempUserMessage,
@@ -29,6 +31,7 @@ class ChatStore {
 	lastChatMode = $state<'resume' | 'new_session' | null>(null);
 	sessionState = $state<'idle' | 'running' | 'requires_action' | null>(null);
 	sdkSessionInfo = $state<SDKSessionInfo | null>(null);
+	workspaces = $state<Workspace[]>([]);
 
 	// Derived state
 	allCharacters = $derived([...this.characters.builtIn, ...this.characters.custom]);
@@ -47,14 +50,24 @@ class ChatStore {
 		}
 	}
 
-	async createSession(characterId: string, workingDirectory?: string, executor: 'claude' = 'claude'): Promise<ChatSession | null> {
+	async loadWorkspaces(): Promise<void> {
+		try {
+			const result = await workspaceApi.getWorkspaces();
+			this.workspaces = result.workspaces;
+		} catch {
+			// Workspace API may not be available
+		}
+	}
+
+	async createSession(characterId: string, workingDirectory?: string, executor: 'claude' = 'claude', workspaceId?: string): Promise<ChatSession | null> {
 		try {
 			this.loading = true;
 			this.error = null;
 			const session = await chatApi.createSession({
 				characterId,
 				workingDirectory,
-				executor
+				executor,
+				workspaceId,
 			});
 			this.sessions = [session, ...this.sessions];
 			this.currentSession = session;
