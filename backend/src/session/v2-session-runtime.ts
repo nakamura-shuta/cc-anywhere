@@ -54,15 +54,31 @@ export class V2SessionRuntime {
   // === SDKSession pool ===
 
   createSession(params: V2CreateParams): ManagedSession {
-    const session = unstable_v2_createSession(this.buildOptions(params));
+    const session = this.withCwd(params.cwd, () =>
+      unstable_v2_createSession(this.buildOptions(params)),
+    );
     return { session, sdkSessionId: null, state: "idle", lastActivityAt: new Date() };
   }
 
   resumeSession(sdkSessionId: string, params: V2CreateParams): ManagedSession {
-    const session = unstable_v2_resumeSession(sdkSessionId, this.buildOptions(params));
+    const session = this.withCwd(params.cwd, () =>
+      unstable_v2_resumeSession(sdkSessionId, this.buildOptions(params)),
+    );
     const managed: ManagedSession = { session, sdkSessionId, state: "idle", lastActivityAt: new Date() };
     this.pool.set(sdkSessionId, managed);
     return managed;
+  }
+
+  /** Temporarily change process.cwd() for session creation (V2 lacks cwd option) */
+  private withCwd<T>(cwd: string | undefined, fn: () => T): T {
+    if (!cwd) return fn();
+    const original = process.cwd();
+    try {
+      process.chdir(cwd);
+      return fn();
+    } finally {
+      process.chdir(original);
+    }
   }
 
   async *sendAndStream(
@@ -190,11 +206,6 @@ export class V2SessionRuntime {
       envOverrides.PWD = params.cwd;
     }
     options.env = { ...process.env, ...envOverrides };
-
-    // V2 SDKSessionOptions lacks cwd, pass via executableArgs
-    if (params.cwd) {
-      options.executableArgs = [...(options.executableArgs || []), "--cwd", params.cwd];
-    }
 
     return options;
   }

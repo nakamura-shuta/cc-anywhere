@@ -66,10 +66,6 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
         },
       };
 
-      if (opts?.cwd) {
-        sessionOptions.executableArgs = [...(sessionOptions.executableArgs || []), "--cwd", opts.cwd];
-      }
-
       if (opts?.customSystemPrompt) {
         const systemPrompt = opts.customSystemPrompt;
         sessionOptions.hooks = {
@@ -81,9 +77,15 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
         };
       }
 
+      const cwd = opts?.cwd;
+      const originalCwd = process.cwd();
+      if (cwd) process.chdir(cwd);
+
       const session = opts?.resume
         ? unstable_v2_resumeSession(opts.resume, sessionOptions)
         : unstable_v2_createSession(sessionOptions);
+
+      if (cwd) process.chdir(originalCwd);
 
       const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
 

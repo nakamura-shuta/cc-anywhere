@@ -32,9 +32,16 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
 
       const sessionOptions = this.buildSessionOptions(options);
 
+      // V2 SDKSessionOptions lacks cwd; temporarily chdir for session creation
+      const cwd = options.options?.cwd;
+      const originalCwd = process.cwd();
+      if (cwd) process.chdir(cwd);
+
       const session = options.options?.resume
         ? unstable_v2_resumeSession(options.options.resume, sessionOptions)
         : unstable_v2_createSession(sessionOptions);
+
+      if (cwd) process.chdir(originalCwd);
 
       const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
 
@@ -108,11 +115,6 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
       envOverrides.PWD = opts.cwd;
     }
     sessionOptions.env = { ...process.env, ...envOverrides };
-
-    // V2 SDKSessionOptions lacks cwd, pass via executableArgs
-    if (opts?.cwd) {
-      sessionOptions.executableArgs = [...(sessionOptions.executableArgs || []), "--cwd", opts.cwd];
-    }
 
     // Inject systemPrompt via SessionStart hook
     if (opts?.customSystemPrompt) {
