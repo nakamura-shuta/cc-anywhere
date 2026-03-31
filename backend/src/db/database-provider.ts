@@ -140,11 +140,7 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_worktrees_status ON worktrees(status);
       `);
 
-      // Recreate sessions with unified schema (data loss OK per SoW)
-      this.db.exec(`DROP TABLE IF EXISTS conversation_turns`);
-      this.db.exec(`DROP TABLE IF EXISTS sessions`);
-
-      // Unified sessions table (Task + Chat)
+      // Unified sessions table
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
@@ -164,6 +160,17 @@ export class DatabaseProvider {
         )
       `);
 
+      // Add new columns to existing sessions table if missing (idempotent migration)
+      const addColumnIfMissing = (table: string, column: string, definition: string) => {
+        try { this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`); } catch { /* already exists */ }
+      };
+      addColumnIfMissing("sessions", "session_type", "TEXT NOT NULL DEFAULT 'task'");
+      addColumnIfMissing("sessions", "executor", "TEXT NOT NULL DEFAULT 'claude'");
+      addColumnIfMissing("sessions", "character_id", "TEXT");
+      addColumnIfMissing("sessions", "working_directory", "TEXT");
+      addColumnIfMissing("sessions", "sdk_session_id", "TEXT");
+      addColumnIfMissing("sessions", "sdk_session_state", "TEXT DEFAULT 'idle'");
+
       // Unified session_messages table
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS session_messages (
@@ -177,6 +184,11 @@ export class DatabaseProvider {
           FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
         )
       `);
+
+      // Drop legacy tables that are no longer referenced
+      this.db.exec(`DROP TABLE IF EXISTS chat_messages`);
+      this.db.exec(`DROP TABLE IF EXISTS chat_sessions`);
+      this.db.exec(`DROP TABLE IF EXISTS conversation_turns`);
 
       // Drop legacy chat tables (data in unified sessions/session_messages now)
       this.db.exec(`DROP TABLE IF EXISTS chat_messages`);
