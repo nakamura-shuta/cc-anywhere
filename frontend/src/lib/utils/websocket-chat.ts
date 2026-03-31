@@ -23,6 +23,7 @@ export interface WebSocketChatResult {
 	};
 	content: string;
 	mode?: 'resume' | 'new_session';
+	sdkSessionId?: string;
 }
 
 /**
@@ -64,7 +65,8 @@ export async function sendMessageViaWebSocket(
 					userMessage: data.userMessage,
 					agentMessage: data.agentMessage,
 					content: responseText,
-					mode: (data as any).mode
+					mode: data.mode,
+					sdkSessionId: data.sdkSessionId,
 				});
 			},
 			onClose: () => {

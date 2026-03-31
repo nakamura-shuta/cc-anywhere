@@ -28,6 +28,8 @@ const createSessionSchema = z.object({
   workingDirectory: z.string().optional(),
   // Note: Only 'claude' is currently supported. 'codex' will be added in a future release.
   executor: z.literal("claude").default("claude"),
+  // Optional: pre-set SDK session ID (used when forking)
+  sdkSessionId: z.string().optional(),
 });
 
 const sendMessageSchema = z.object({
@@ -103,7 +105,7 @@ const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }>
     },
     async (request, reply) => {
       const userId = getUserId(request);
-      const { characterId, workingDirectory, executor } = createSessionSchema.parse(request.body);
+      const { characterId, workingDirectory, executor, sdkSessionId } = createSessionSchema.parse(request.body);
 
       const session: ChatSession = {
         id: uuidv4(),
@@ -111,6 +113,7 @@ const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }>
         characterId,
         workingDirectory,
         executor,
+        sdkSessionId,
         createdAt: new Date(),
         updatedAt: new Date(),
       };

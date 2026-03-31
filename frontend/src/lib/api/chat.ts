@@ -41,6 +41,7 @@ export interface CreateSessionRequest {
 	workingDirectory?: string;
 	// Note: Only 'claude' is currently supported
 	executor?: 'claude';
+	sdkSessionId?: string;
 }
 
 export interface CreateCharacterRequest {

@@ -20,7 +20,7 @@ export interface AgentCharacter {
 /**
  * Chat stream event types
  */
-export type ChatStreamEventType = "start" | "text" | "tool_use" | "tool_result" | "done" | "error";
+export type ChatStreamEventType = "start" | "text" | "tool_use" | "tool_result" | "done" | "error" | "session_state";
 
 /**
  * Chat stream event
@@ -36,6 +36,7 @@ export interface ChatStreamEvent {
     sessionId?: string;
     messageId?: string;
     sdkSessionId?: string;
+    state?: string;
   };
   timestamp: string;
 }

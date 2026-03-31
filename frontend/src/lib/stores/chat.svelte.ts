@@ -157,7 +157,7 @@ class ChatStore {
 								: m
 						);
 					},
-					onComplete: (result) => {
+					onComplete: async (result) => {
 						// modeを保持（resume or new_session）
 						this.lastChatMode = result.mode || null;
 						// Replace temp user message with server-confirmed data
@@ -170,6 +170,27 @@ class ChatStore {
 							}
 							return m;
 						});
+
+						// Update sdkSessionId on currentSession and sessions list
+						if (result.sdkSessionId && this.currentSession) {
+							this.currentSession = {
+								...this.currentSession,
+								sdkSessionId: result.sdkSessionId,
+							};
+							this.sessions = this.sessions.map(s =>
+								s.id === this.currentSession?.id
+									? { ...s, sdkSessionId: result.sdkSessionId }
+									: s
+							);
+							// Fetch SDK session info for header display
+							if (!this.sdkSessionInfo) {
+								try {
+									this.sdkSessionInfo = await chatApi.getSDKSessionInfo(result.sdkSessionId);
+								} catch {
+									// SDK info not available
+								}
+							}
+						}
 
 						this.isStreaming = false;
 						resolve(true);
@@ -255,7 +276,7 @@ class ChatStore {
 		}
 	}
 
-	// Fork current session
+	// Fork current session: SDK fork + create new chat session with forked sdkSessionId
 	async forkSession(): Promise<boolean> {
 		if (!this.currentSession?.sdkSessionId) {
 			this.error = new Error('No SDK session to fork');
@@ -263,16 +284,20 @@ class ChatStore {
 		}
 		try {
 			this.loading = true;
-			const result = await chatApi.forkSDKSession(this.currentSession.sdkSessionId, {
+			// 1. Fork the SDK session
+			const forkResult = await chatApi.forkSDKSession(this.currentSession.sdkSessionId, {
 				title: `Fork of ${this.sdkSessionInfo?.summary || this.currentSession.id}`,
 			});
-			// Create a new chat session pointing to the forked SDK session
+			// 2. Create a new chat session pre-linked to the forked SDK session
 			const newSession = await chatApi.createSession({
 				characterId: this.currentSession.characterId,
 				workingDirectory: this.currentSession.workingDirectory,
 				executor: this.currentSession.executor,
+				sdkSessionId: forkResult.sdkSessionId,
 			});
 			this.sessions = [newSession, ...this.sessions];
+			// 3. Switch to the forked session
+			await this.selectSession(newSession.id);
 			return true;
 		} catch (err) {
 			this.error = err instanceof Error ? err : new Error('Failed to fork session');

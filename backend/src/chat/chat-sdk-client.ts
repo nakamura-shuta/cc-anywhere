@@ -100,9 +100,8 @@ export class ChatSDKClient implements IChatExecutor {
               }),
             );
           },
-          onStateChanged: (state) => {
-            // State changes are tracked internally; no need to emit for now
-            logger.debug("Session state changed", { state });
+          onStateChanged: async (state) => {
+            await onEvent(createEvent("session_state", { state }));
           },
         },
       )) {
