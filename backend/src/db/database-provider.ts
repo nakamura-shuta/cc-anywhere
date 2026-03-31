@@ -140,6 +140,10 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_worktrees_status ON worktrees(status);
       `);
 
+      // Recreate sessions with unified schema (data loss OK per SoW)
+      // conversation_turns is kept for SessionManager until Phase 3
+      this.db.exec(`DROP TABLE IF EXISTS sessions`);
+
       // Unified sessions table (Task + Chat)
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS sessions (
@@ -160,7 +164,7 @@ export class DatabaseProvider {
         )
       `);
 
-      // Unified session_messages table (replaces conversation_turns + chat_messages)
+      // Unified session_messages table
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS session_messages (
           id TEXT PRIMARY KEY,
@@ -171,6 +175,44 @@ export class DatabaseProvider {
           metadata TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Keep conversation_turns for SessionManager until Phase 3
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS conversation_turns (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id TEXT NOT NULL,
+          turn_number INTEGER NOT NULL,
+          instruction TEXT NOT NULL,
+          response TEXT,
+          metadata TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Keep chat_sessions + chat_messages for now (Phase 2 will remove)
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          character_id TEXT NOT NULL,
+          working_directory TEXT,
+          executor TEXT DEFAULT 'claude',
+          sdk_session_id TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('user', 'agent')),
+          content TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
         )
       `);
 
@@ -224,6 +266,7 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
         CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
         CREATE INDEX IF NOT EXISTS idx_session_messages_session_id ON session_messages(session_id);
+        CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_id ON conversation_turns(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_has_conversation ON tasks(id) WHERE conversation_history IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_tasks_executor ON tasks(executor);
@@ -381,8 +424,10 @@ export class DatabaseProvider {
         )
       `);
 
-      // Create indexes for custom characters
+      // Create indexes for chat tables (kept for Phase 2 migration)
       this.db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
         CREATE INDEX IF NOT EXISTS idx_custom_characters_user_id ON custom_characters(user_id);
       `);
 
