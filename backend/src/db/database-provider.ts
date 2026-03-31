@@ -405,6 +405,23 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_custom_characters_user_id ON custom_characters(user_id);
       `);
 
+      // Workspaces table
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS workspaces (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          path TEXT NOT NULL,
+          file_count INTEGER DEFAULT 0,
+          total_size INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          expires_at DATETIME
+        )
+      `);
+      this.db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_workspaces_user_id ON workspaces(user_id);
+      `);
+
       logger.debug("Database migrations completed");
     } catch (error) {
       logger.error("Database migration failed", { error });

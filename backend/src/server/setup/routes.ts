@@ -17,7 +17,9 @@ import { executorRoutes } from "../routes/executors";
 import chatRoutes from "../routes/chat";
 import { compareRoutes } from "../routes/compare";
 import { sessionV2Routes } from "../routes/sessions-v2";
+import { workspaceRoutes } from "../routes/workspaces";
 import { UnifiedSessionService } from "../../session/unified-session-service.js";
+import { WorkspaceService } from "../../services/workspace-service.js";
 import { getSharedDbProvider } from "../../db/shared-instance.js";
 import { logger } from "../../utils/logger.js";
 
@@ -64,7 +66,12 @@ export async function registerRoutes(
   await app.register(taskGroupsRoute, { prefix: "/api/task-groups" });
   await app.register(executorRoutes, { prefix: "/api" });
 
-  await app.register(chatRoutes, { prefix: "/api", sessionService });
+  // Workspace routes (multipart upload)
+  const db = getSharedDbProvider().getDb();
+  const workspaceService = new WorkspaceService(db);
+  await app.register(workspaceRoutes, { prefix: "/api", workspaceService });
+
+  await app.register(chatRoutes, { prefix: "/api", sessionService, workspaceService });
   await app.register(compareRoutes, { prefix: "/api" });
   await app.register(sessionV2Routes, { chatSessionService: sessionService.runtime });
 

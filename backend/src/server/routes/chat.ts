@@ -27,10 +27,9 @@ import { forkedSessionTokens } from "../../session/fork-token-store.js";
 const createSessionSchema = z.object({
   characterId: z.string().min(1),
   workingDirectory: z.string().optional(),
-  // Note: Only 'claude' is currently supported. 'codex' will be added in a future release.
   executor: z.literal("claude").default("claude"),
-  // One-time token from fork API. Validated server-side to resolve sdkSessionId.
   forkToken: z.string().optional(),
+  workspaceId: z.string().optional(),
 });
 
 const sendMessageSchema = z.object({
@@ -51,8 +50,8 @@ const updateCharacterSchema = z.object({
   systemPrompt: z.string().min(1).max(10000).optional(),
 });
 
-const chatRoutes: FastifyPluginAsync<{ sessionService: UnifiedSessionService }> = async (fastify, opts) => {
-  const { sessionService } = opts;
+const chatRoutes: FastifyPluginAsync<{ sessionService: UnifiedSessionService; workspaceService?: any }> = async (fastify, opts) => {
+  const { sessionService, workspaceService } = opts;
   const chatSessionService = sessionService.runtime;
   const chatRepository = getSharedChatRepository();
 
@@ -108,7 +107,17 @@ const chatRoutes: FastifyPluginAsync<{ sessionService: UnifiedSessionService }> 
     },
     async (request, reply) => {
       const userId = getUserId(request);
-      const { characterId, workingDirectory, executor, forkToken } = createSessionSchema.parse(request.body);
+      const { characterId, workingDirectory: rawWorkingDir, executor, forkToken, workspaceId } = createSessionSchema.parse(request.body);
+
+      // Resolve workspaceId → workingDirectory (with ownership check)
+      let workingDirectory = rawWorkingDir;
+      if (workspaceId && workspaceService) {
+        const ws = workspaceService.getByUserAndId(userId, workspaceId);
+        if (!ws) {
+          return reply.code(403).send({ error: "Workspace not found or not owned by user" });
+        }
+        workingDirectory = ws.path;
+      }
 
       // Resolve sdkSessionId from fork token (server-validated, one-time use)
       let sdkSessionId: string | undefined;
