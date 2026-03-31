@@ -65,9 +65,9 @@ export async function registerRoutes(
   await app.register(executorRoutes, { prefix: "/api" });
 
   // Chat routes still use ChatSessionService-compatible interface via runtime
-  await app.register(chatRoutes, { prefix: "/api", chatSessionService: sessionService.runtime as any });
+  await app.register(chatRoutes, { prefix: "/api", chatSessionService: sessionService.runtime });
   await app.register(compareRoutes, { prefix: "/api" });
-  await app.register(sessionV2Routes, { chatSessionService: sessionService.runtime as any });
+  await app.register(sessionV2Routes, { chatSessionService: sessionService.runtime });
 
   if (workerMode === "managed") {
     await app.register(workerRoutes, { prefix: "/api" });

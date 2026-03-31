@@ -20,8 +20,8 @@ import type {
 import { createChatExecutor } from "../../chat/index.js";
 import type { ChatStreamEvent, ChatExecutorResult } from "../../chat/types.js";
 import { getAllPresetCharacters, getPresetCharacter } from "../../chat/preset-characters.js";
-import type { ChatSessionService } from "../../claude/session/chat-session-service.js";
-import { forkedSessionTokens } from "../../claude/session/fork-token-store.js";
+import type { V2SessionRuntime } from "../../session/v2-session-runtime.js";
+import { forkedSessionTokens } from "../../session/fork-token-store.js";
 
 // Request schemas
 const createSessionSchema = z.object({
@@ -51,7 +51,7 @@ const updateCharacterSchema = z.object({
   systemPrompt: z.string().min(1).max(10000).optional(),
 });
 
-const chatRoutes: FastifyPluginAsync<{ chatSessionService: ChatSessionService }> = async (fastify, opts) => {
+const chatRoutes: FastifyPluginAsync<{ chatSessionService: V2SessionRuntime }> = async (fastify, opts) => {
   const chatSessionService = opts.chatSessionService;
   const chatRepository = getSharedChatRepository();
 

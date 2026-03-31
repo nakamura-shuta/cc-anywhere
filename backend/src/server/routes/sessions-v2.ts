@@ -7,16 +7,14 @@
  */
 
 import type { FastifyPluginAsync } from "fastify";
-import { SessionV2Service } from "../../claude/session/session-v2-service.js";
-import type { ChatSessionService } from "../../claude/session/chat-session-service.js";
+import type { V2SessionRuntime } from "../../session/v2-session-runtime.js";
 import { logger } from "../../utils/logger.js";
-import { forkedSessionTokens } from "../../claude/session/fork-token-store.js";
+import { forkedSessionTokens } from "../../session/fork-token-store.js";
 
 export const sessionV2Routes: FastifyPluginAsync<{
-  chatSessionService: ChatSessionService;
+  chatSessionService: V2SessionRuntime;
 }> = async (fastify, opts) => {
-  const v2Service = new SessionV2Service();
-  const chatSessionService = opts.chatSessionService;
+  const runtime = opts.chatSessionService;
 
   // SDK セッション情報取得
   fastify.get<{
@@ -47,7 +45,7 @@ export const sessionV2Routes: FastifyPluginAsync<{
     },
   }, async (request, reply) => {
     try {
-      const info = await v2Service.getInfo(request.params.sdkSessionId);
+      const info = await runtime.getInfo(request.params.sdkSessionId);
       if (!info) {
         return reply.code(404).send({ error: "SDK session not found" });
       }
@@ -71,7 +69,7 @@ export const sessionV2Routes: FastifyPluginAsync<{
     },
   }, async (request, reply) => {
     try {
-      const messages = await v2Service.getMessages(request.params.sdkSessionId);
+      const messages = await runtime.getMessages(request.params.sdkSessionId);
       return { messages };
     } catch (error) {
       logger.error("Failed to get SDK session messages", { error, sdkSessionId: request.params.sdkSessionId });
@@ -91,7 +89,7 @@ export const sessionV2Routes: FastifyPluginAsync<{
     },
   }, async (request, reply) => {
     try {
-      const sessions = await v2Service.list(
+      const sessions = await runtime.listSessions(
         request.query.dir ? { dir: request.query.dir } : undefined,
       );
       return { sessions };
@@ -131,7 +129,7 @@ export const sessionV2Routes: FastifyPluginAsync<{
     },
   }, async (request, reply) => {
     try {
-      const result = await v2Service.fork(request.params.sdkSessionId, {
+      const result = await runtime.fork(request.params.sdkSessionId, {
         upToMessageId: request.body?.upToMessageId,
         title: request.body?.title,
       });
@@ -172,7 +170,7 @@ export const sessionV2Routes: FastifyPluginAsync<{
   }, async (request, reply) => {
     try {
       const { sdkSessionId } = request.params;
-      const terminated = chatSessionService.terminateById(sdkSessionId);
+      const terminated = runtime.terminateById(sdkSessionId);
       if (!terminated) {
         return reply.code(404).send({
           error: "Session not in active pool. It may have been detached (WS disconnected) or was never managed by this server.",
@@ -211,7 +209,7 @@ export const sessionV2Routes: FastifyPluginAsync<{
     },
   }, async (request, reply) => {
     try {
-      await v2Service.rename(request.params.sdkSessionId, request.body.title);
+      await runtime.rename(request.params.sdkSessionId, request.body.title);
       return { status: "renamed" };
     } catch (error) {
       logger.error("Failed to rename session", { error, sdkSessionId: request.params.sdkSessionId });
@@ -244,7 +242,7 @@ export const sessionV2Routes: FastifyPluginAsync<{
     },
   }, async (request, reply) => {
     try {
-      await v2Service.tag(request.params.sdkSessionId, request.body.tag);
+      await runtime.tag(request.params.sdkSessionId, request.body.tag);
       return { status: "tagged" };
     } catch (error) {
       logger.error("Failed to tag session", { error, sdkSessionId: request.params.sdkSessionId });

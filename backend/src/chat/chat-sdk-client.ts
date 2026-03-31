@@ -7,8 +7,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../utils/logger.js";
-import { ChatSessionService } from "../claude/session/chat-session-service.js";
-import type { ManagedSession } from "../claude/session/chat-session-service.js";
+import type { V2SessionRuntime, ManagedSession } from "../session/v2-session-runtime.js";
 import type {
   IChatExecutor,
   ChatExecutorOptions,
@@ -41,10 +40,10 @@ function createEvent<T extends ChatStreamEvent["type"]>(
  * - Session detach/terminate lifecycle
  */
 export class ChatSDKClient implements IChatExecutor {
-  private service: ChatSessionService;
+  private service: V2SessionRuntime;
   private currentManaged: ManagedSession | null = null;
 
-  constructor(service: ChatSessionService) {
+  constructor(service: V2SessionRuntime) {
     this.service = service;
   }
 
@@ -69,13 +68,13 @@ export class ChatSDKClient implements IChatExecutor {
     try {
       // resume or create
       if (options.sdkSessionId) {
-        this.currentManaged = this.service.resume(options.sdkSessionId, {
+        this.currentManaged = this.service.resumeSession(options.sdkSessionId, {
           cwd: options.workingDirectory,
           systemPrompt: options.systemPrompt,
           permissionMode: "bypassPermissions" as any,
         });
       } else {
-        this.currentManaged = this.service.create({
+        this.currentManaged = this.service.createSession({
           cwd: options.workingDirectory,
           systemPrompt: options.systemPrompt,
           permissionMode: "bypassPermissions" as any,

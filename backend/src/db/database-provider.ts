@@ -141,7 +141,7 @@ export class DatabaseProvider {
       `);
 
       // Recreate sessions with unified schema (data loss OK per SoW)
-      // conversation_turns is kept for SessionManager until Phase 3
+      this.db.exec(`DROP TABLE IF EXISTS conversation_turns`);
       this.db.exec(`DROP TABLE IF EXISTS sessions`);
 
       // Unified sessions table (Task + Chat)
@@ -178,21 +178,7 @@ export class DatabaseProvider {
         )
       `);
 
-      // Keep conversation_turns for SessionManager until Phase 3
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS conversation_turns (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          session_id TEXT NOT NULL,
-          turn_number INTEGER NOT NULL,
-          instruction TEXT NOT NULL,
-          response TEXT,
-          metadata TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
-        )
-      `);
-
-      // Keep chat_sessions + chat_messages for now (Phase 2 will remove)
+      // Legacy chat tables kept for ChatRepository adapter (Phase 4 will remove)
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS chat_sessions (
           id TEXT PRIMARY KEY,
@@ -266,7 +252,6 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
         CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
         CREATE INDEX IF NOT EXISTS idx_session_messages_session_id ON session_messages(session_id);
-        CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_id ON conversation_turns(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_has_conversation ON tasks(id) WHERE conversation_history IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_tasks_executor ON tasks(executor);

@@ -24,7 +24,7 @@ import {
   tagSession,
   forkSession,
 } from "@anthropic-ai/claude-agent-sdk";
-import { SessionV2Service } from "../../../../src/claude/session/session-v2-service.js";
+import { V2SessionRuntime } from "../../../../src/session/v2-session-runtime.js";
 
 const mockGetSessionInfo = vi.mocked(getSessionInfo);
 const mockGetSessionMessages = vi.mocked(getSessionMessages);
@@ -33,12 +33,12 @@ const mockRenameSession = vi.mocked(renameSession);
 const mockTagSession = vi.mocked(tagSession);
 const mockForkSession = vi.mocked(forkSession);
 
-describe("SessionV2Service", () => {
-  let service: SessionV2Service;
+describe("V2SessionRuntime SDK utils", () => {
+  let service: V2SessionRuntime;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new SessionV2Service();
+    service = new V2SessionRuntime();
   });
 
   describe("getInfo", () => {
@@ -88,7 +88,7 @@ describe("SessionV2Service", () => {
       ];
       mockListSessions.mockResolvedValue(mockSessions as any);
 
-      const result = await service.list();
+      const result = await service.listSessions();
 
       expect(mockListSessions).toHaveBeenCalled();
       expect(result).toHaveLength(2);
@@ -97,7 +97,7 @@ describe("SessionV2Service", () => {
     it("should pass dir option", async () => {
       mockListSessions.mockResolvedValue([]);
 
-      await service.list({ dir: "/some/path" });
+      await service.listSessions({ dir: "/some/path" });
 
       expect(mockListSessions).toHaveBeenCalledWith({ dir: "/some/path" });
     });
