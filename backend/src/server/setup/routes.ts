@@ -64,8 +64,7 @@ export async function registerRoutes(
   await app.register(taskGroupsRoute, { prefix: "/api/task-groups" });
   await app.register(executorRoutes, { prefix: "/api" });
 
-  // Chat routes still use ChatSessionService-compatible interface via runtime
-  await app.register(chatRoutes, { prefix: "/api", chatSessionService: sessionService.runtime });
+  await app.register(chatRoutes, { prefix: "/api", sessionService });
   await app.register(compareRoutes, { prefix: "/api" });
   await app.register(sessionV2Routes, { chatSessionService: sessionService.runtime });
 

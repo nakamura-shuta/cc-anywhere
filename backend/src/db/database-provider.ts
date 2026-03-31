@@ -178,29 +178,9 @@ export class DatabaseProvider {
         )
       `);
 
-      // Legacy chat tables kept for ChatRepository adapter (Phase 4 will remove)
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS chat_sessions (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          character_id TEXT NOT NULL,
-          working_directory TEXT,
-          executor TEXT DEFAULT 'claude',
-          sdk_session_id TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS chat_messages (
-          id TEXT PRIMARY KEY,
-          session_id TEXT NOT NULL,
-          role TEXT NOT NULL CHECK(role IN ('user', 'agent')),
-          content TEXT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-        )
-      `);
+      // Drop legacy chat tables (data in unified sessions/session_messages now)
+      this.db.exec(`DROP TABLE IF EXISTS chat_messages`);
+      this.db.exec(`DROP TABLE IF EXISTS chat_sessions`);
 
       // Add session_id to tasks table if not exists
       try {
@@ -409,10 +389,7 @@ export class DatabaseProvider {
         )
       `);
 
-      // Create indexes for chat tables (kept for Phase 2 migration)
       this.db.exec(`
-        CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
-        CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
         CREATE INDEX IF NOT EXISTS idx_custom_characters_user_id ON custom_characters(user_id);
       `);
 

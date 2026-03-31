@@ -15,7 +15,7 @@ export const sessionRoutes: FastifyPluginAsync<{
   const { sessionService } = opts;
   const taskExecutor = new TaskExecutorImpl();
 
-  // セッション作成（Task 用。Chat は /api/chat/sessions を使用）
+  // セッション作成
   fastify.post("/api/sessions", async (request, reply) => {
     try {
       const body = request.body as any;

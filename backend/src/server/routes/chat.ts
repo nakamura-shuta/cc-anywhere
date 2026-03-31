@@ -20,7 +20,7 @@ import type {
 import { createChatExecutor } from "../../chat/index.js";
 import type { ChatStreamEvent, ChatExecutorResult } from "../../chat/types.js";
 import { getAllPresetCharacters, getPresetCharacter } from "../../chat/preset-characters.js";
-import type { V2SessionRuntime } from "../../session/v2-session-runtime.js";
+import type { UnifiedSessionService } from "../../session/unified-session-service.js";
 import { forkedSessionTokens } from "../../session/fork-token-store.js";
 
 // Request schemas
@@ -51,8 +51,9 @@ const updateCharacterSchema = z.object({
   systemPrompt: z.string().min(1).max(10000).optional(),
 });
 
-const chatRoutes: FastifyPluginAsync<{ chatSessionService: V2SessionRuntime }> = async (fastify, opts) => {
-  const chatSessionService = opts.chatSessionService;
+const chatRoutes: FastifyPluginAsync<{ sessionService: UnifiedSessionService }> = async (fastify, opts) => {
+  const { sessionService } = opts;
+  const chatSessionService = sessionService.runtime;
   const chatRepository = getSharedChatRepository();
 
   // Helper to get user ID from request
