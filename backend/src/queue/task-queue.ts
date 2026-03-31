@@ -35,7 +35,6 @@ export class TaskQueueImpl implements TaskQueue {
   private broadcaster?: WebSocketBroadcaster;
   private eventBus: TypedEventBus;
 
-  // Legacy event handlers (deprecated - will be removed)
   private onCompleteHandlers: Array<(task: QueuedTask) => void> = [];
   private onErrorHandlers: Array<(task: QueuedTask, error: Error) => void> = [];
 
@@ -298,14 +297,7 @@ export class TaskQueueImpl implements TaskQueue {
               retryCount: 0,
             });
 
-            // Notify error handlers
-            this.onErrorHandlers.forEach((handler) => {
-              try {
-                handler(task, error);
-              } catch (handlerError) {
-                logger.error("Error in error handler", { error: handlerError });
-              }
-            });
+            this.onErrorHandlers.forEach((h) => { try { h(task, error); } catch { /* ignore */ } });
 
             // Schedule task cleanup from memory
             this.scheduleTaskCleanup(task.id);
@@ -494,14 +486,7 @@ export class TaskQueueImpl implements TaskQueue {
           completedAt: task.completedAt,
         });
 
-        // Notify complete handlers (backward compatibility)
-        this.onCompleteHandlers.forEach((handler) => {
-          try {
-            handler(task);
-          } catch (error) {
-            logger.error("Error in complete handler", { error });
-          }
-        });
+        this.onCompleteHandlers.forEach((h) => { try { h(task); } catch { /* ignore */ } });
 
         logger.info("Task completed successfully", {
           duration: result.duration,
@@ -627,14 +612,8 @@ export class TaskQueueImpl implements TaskQueue {
           retryCount: task.retryMetadata?.currentAttempt,
         });
 
-        // Notify error handlers (backward compatibility)
-        this.onErrorHandlers.forEach((handler) => {
-          try {
-            handler(task, error);
-          } catch (handlerError) {
-            logger.error("Error in error handler", { error: handlerError });
-          }
-        });
+        this.onErrorHandlers.forEach((h) => { try { h(task, error instanceof Error ? error : new Error(String(error))); } catch { /* ignore */ } });
+
 
         logger.error("Task failed", {
           error,
@@ -714,14 +693,7 @@ export class TaskQueueImpl implements TaskQueue {
         willRetry: false,
       });
 
-      // Notify error handlers (backward compatibility)
-      this.onErrorHandlers.forEach((handler) => {
-        try {
-          handler(task, task.error!);
-        } catch (err) {
-          logger.error("Error in error handler", { error: err });
-        }
-      });
+      this.onErrorHandlers.forEach((h) => { try { h(task, task.error!); } catch { /* ignore */ } });
 
       // Schedule task cleanup from memory
       this.scheduleTaskCleanup(task.id);

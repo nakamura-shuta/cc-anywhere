@@ -59,7 +59,7 @@ export class ProgressFormatter {
         break;
 
       case "tool_usage":
-        message = this.formatLegacyToolUsage(progress);
+        message = progress.message || "";
         break;
 
       case "todo_update":
@@ -134,37 +134,6 @@ export class ProgressFormatter {
       return `✓ Command output:\n${preview}${hasMore ? "\n..." : ""}`;
     }
     return `✓ Tool completed: ${toolName}`;
-  }
-
-  /**
-   * Format legacy tool usage message (backward compatibility)
-   * @param progress Progress message with tool usage data
-   * @returns Formatted tool usage message
-   */
-  static formatLegacyToolUsage(progress: ProgressMessage): string {
-    const toolData = progress.data;
-    if (!toolData) {
-      return progress.message || "";
-    }
-
-    const toolStatus =
-      toolData.status === "success" ? "✓" : toolData.status === "failure" ? "✗" : "⚡";
-
-    if (toolData.tool === "bash") {
-      return `[Bash] ${toolStatus} ${toolData.command || ""}`;
-    } else if (toolData.tool === "read") {
-      return `[Read] ${toolStatus} ${toolData.filePath || ""}`;
-    } else if (toolData.tool === "write" || toolData.tool === "edit") {
-      return `[${toolData.tool}] ${toolStatus} ${toolData.filePath || ""}`;
-    } else {
-      let message = `[${toolData.tool}] ${toolStatus} ${
-        toolData.status === "start" ? "開始" : toolData.status === "success" ? "成功" : "失敗"
-      }`;
-      if (toolData.filePath) message += `: ${toolData.filePath}`;
-      else if (toolData.command) message += `: ${toolData.command}`;
-      else if (toolData.pattern) message += `: ${toolData.pattern}`;
-      return message;
-    }
   }
 
   /**

@@ -208,60 +208,6 @@ describe("ProgressFormatter", () => {
     });
   });
 
-  describe("formatLegacyToolUsage", () => {
-    it("should format bash tool usage", () => {
-      const progress: ProgressMessage = {
-        type: "tool_usage",
-        data: {
-          tool: "bash",
-          status: "success",
-          command: "npm test",
-        },
-      };
-      const result = ProgressFormatter.formatLegacyToolUsage(progress);
-      expect(result).toBe("[Bash] ✓ npm test");
-    });
-
-    it("should format read tool usage", () => {
-      const progress: ProgressMessage = {
-        type: "tool_usage",
-        data: {
-          tool: "read",
-          status: "failure",
-          filePath: "test.txt",
-        },
-      };
-      const result = ProgressFormatter.formatLegacyToolUsage(progress);
-      expect(result).toBe("[Read] ✗ test.txt");
-    });
-
-    it("should format write tool usage", () => {
-      const progress: ProgressMessage = {
-        type: "tool_usage",
-        data: {
-          tool: "write",
-          status: "start",
-          filePath: "output.txt",
-        },
-      };
-      const result = ProgressFormatter.formatLegacyToolUsage(progress);
-      expect(result).toBe("[write] ⚡ output.txt");
-    });
-
-    it("should handle unknown tool with pattern", () => {
-      const progress: ProgressMessage = {
-        type: "tool_usage",
-        data: {
-          tool: "search",
-          status: "success",
-          pattern: "TODO",
-        },
-      };
-      const result = ProgressFormatter.formatLegacyToolUsage(progress);
-      expect(result).toBe("[search] ✓ 成功: TODO");
-    });
-  });
-
   describe("helper methods", () => {
     it("should format error messages", () => {
       const result = ProgressFormatter.formatError(new Error("Test error"));

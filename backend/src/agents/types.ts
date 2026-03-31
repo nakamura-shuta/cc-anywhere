@@ -297,57 +297,8 @@ export interface CodexAgentOptions extends CommonExecutorOptions {
   webSearch?: boolean;
 
   // ⚠️ 以下のパラメータは CommonExecutorOptions から継承されているが、
-  // Codex SDK では未サポートのため実行時に無視されます
-  // 詳細は docs/codex-parameter-limitations.md を参照
-
-  /**
-   * @deprecated Codex SDK では未サポート - 無視されます
-   * @see EXECUTOR_CAPABILITIES.codex.maxTurnsLimit
-   */
-  maxTurns?: number;
-
-  /**
-   * @deprecated Codex SDK では未サポート - 無視されます
-   * @see EXECUTOR_CAPABILITIES.codex.toolFiltering
-   */
-  allowedTools?: string[];
-
-  /**
-   * @deprecated Codex SDK では未サポート - 無視されます
-   * @see EXECUTOR_CAPABILITIES.codex.toolFiltering
-   */
-  disallowedTools?: string[];
-
-  /**
-   * @deprecated Codex SDK では未サポート - 無視されます
-   * @see EXECUTOR_CAPABILITIES.codex.customSystemPrompt
-   */
-  systemPrompt?: string;
-
-  /**
-   * @deprecated Codex SDK では未サポート - resumeSession を使用してください
-   * @see EXECUTOR_CAPABILITIES.codex.sessionContinuation
-   */
-  continueSession?: boolean;
-
-  /**
-   * セッション再開用のスレッドID
-   * codex.resumeThread(id) で使用されます
-   * @see EXECUTOR_CAPABILITIES.codex.sessionResume
-   */
+  /** セッション再開用のスレッドID */
   resumeSession?: string;
-
-  /**
-   * @deprecated Codex SDK では未サポート - 無視されます
-   * @see EXECUTOR_CAPABILITIES.codex.verboseMode
-   */
-  verbose?: boolean;
-
-  /**
-   * @deprecated Codex SDK では未サポート - 無視されます
-   * @see EXECUTOR_CAPABILITIES.codex.outputFormatting
-   */
-  outputFormat?: "text" | "json" | "stream-json";
 }
 
 /**

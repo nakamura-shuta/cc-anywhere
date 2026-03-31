@@ -152,7 +152,7 @@ export interface StatisticsProgressEvent extends BaseProgressEvent {
 }
 
 /**
- * Legacy tool usage event (backward compatibility)
+ * Tool usage event
  */
 export interface ToolUsageProgressEvent extends BaseProgressEvent {
   type: "tool_usage";
@@ -160,7 +160,7 @@ export interface ToolUsageProgressEvent extends BaseProgressEvent {
   data?: {
     tool?: string;
     status?: string;
-    [key: string]: unknown; // Allow any additional properties for backward compatibility
+    [key: string]: unknown;
   };
 }
 
@@ -271,24 +271,3 @@ export function isStatisticsEvent(event: ProgressEvent): event is StatisticsProg
   return event.type === "statistics";
 }
 
-// ==================== Legacy Compatibility ====================
-
-/**
- * Legacy progress event type for backward compatibility
- * @deprecated Use ProgressEvent instead
- */
-export interface LegacyProgressEvent {
-  type: string;
-  message: string;
-  data?: any;
-}
-
-/**
- * Convert legacy progress event to typed progress event
- * Provides runtime validation and type narrowing
- */
-export function convertLegacyProgressEvent(legacy: LegacyProgressEvent): ProgressEvent {
-  // This function provides a conversion path from any-typed events
-  // to strongly-typed events, performing runtime validation
-  return legacy as ProgressEvent;
-}

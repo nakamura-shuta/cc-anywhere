@@ -95,3 +95,4 @@ backend/package.json
 # SQLite files in backend root
 backend/*.sqlite
 backend/*.sqlite-*
+db/database.db

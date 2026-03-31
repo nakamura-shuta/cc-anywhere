@@ -164,68 +164,6 @@ describe("TaskWorker", () => {
     });
   });
 
-  describe("task handling", () => {
-    it("should handle completed tasks", async () => {
-      worker = new TaskWorker();
-      await worker.start();
-
-      const mockTask = {
-        id: "test-123",
-        request: { instruction: "Test instruction" },
-        status: TaskStatus.COMPLETED,
-        priority: 0,
-        addedAt: new Date(),
-        startedAt: new Date(),
-        completedAt: new Date(Date.now() + 1000),
-      };
-
-      // Get the queue instance and simulate task completion
-      const queue = (worker as any).queue;
-      queue.simulateTaskComplete(mockTask);
-
-      // Verify logging was called
-      const { logger } = await import("../../../src/utils/logger");
-      expect(logger.info).toHaveBeenCalledWith(
-        "[Worker] Task completed",
-        expect.objectContaining({
-          taskId: "test-123",
-          instruction: "Test instruction",
-          duration: expect.any(Number),
-        }),
-      );
-    });
-
-    it("should handle failed tasks", async () => {
-      worker = new TaskWorker();
-      await worker.start();
-
-      const mockTask = {
-        id: "test-456",
-        request: { instruction: "Test instruction" },
-        status: TaskStatus.FAILED,
-        priority: 0,
-        addedAt: new Date(),
-      };
-
-      const error = new Error("Test error");
-
-      // Get the queue instance and simulate task error
-      const queue = (worker as any).queue;
-      queue.simulateTaskError(mockTask, error);
-
-      // Verify logging was called
-      const { logger } = await import("../../../src/utils/logger");
-      expect(logger.error).toHaveBeenCalledWith(
-        "[Worker] Task failed",
-        expect.objectContaining({
-          taskId: "test-456",
-          instruction: "Test instruction",
-          error: "Test error",
-        }),
-      );
-    });
-  });
-
   describe("getStats", () => {
     it("should return queue statistics", async () => {
       worker = new TaskWorker();

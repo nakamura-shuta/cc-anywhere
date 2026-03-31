@@ -16,11 +16,7 @@ class TunnelManager {
       return null;
     }
 
-    // 後方互換性：ENABLE_NGROK=trueの場合
-    const tunnelType =
-      config.ngrok.enabled && config.tunnel.type === "none" ? "ngrok" : config.tunnel.type;
-
-    switch (tunnelType) {
+    switch (config.tunnel.type) {
       case "ngrok":
         this.provider = new NgrokTunnelProvider();
         break;
@@ -35,10 +31,8 @@ class TunnelManager {
     const url = await this.provider.start(port);
     if (url) {
       this.currentUrl = url;
-      if (tunnelType === "ngrok" || tunnelType === "cloudflare") {
-        this.displayAccessInfo(url, tunnelType);
-        return { url, type: tunnelType };
-      }
+      this.displayAccessInfo(url, config.tunnel.type);
+      return { url, type: config.tunnel.type };
     }
 
     return null;

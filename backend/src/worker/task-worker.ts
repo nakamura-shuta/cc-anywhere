@@ -1,7 +1,6 @@
 import { TaskQueueImpl } from "../queue/task-queue";
 import { logger } from "../utils/logger";
 import { config } from "../config";
-import type { QueuedTask } from "../queue/types";
 import { TaskStatus } from "../claude/types";
 import { RetryWorker } from "./retry-worker";
 
@@ -45,22 +44,7 @@ export class TaskWorker {
   }
 
   private setupEventHandlers(): void {
-    this.queue.onTaskComplete((task: QueuedTask) => {
-      logger.info("[Worker] Task completed", {
-        taskId: task.id,
-        instruction: task.request.instruction,
-        duration: this.calculateDuration(task),
-      });
-    });
-
-    this.queue.onTaskError((task: QueuedTask, error: Error) => {
-      logger.error("[Worker] Task failed", {
-        taskId: task.id,
-        instruction: task.request.instruction,
-        error: error.message,
-        stack: error.stack,
-      });
-    });
+    // Task completion/error logging is handled by TaskQueue's EventBus
   }
 
   private setupShutdownHandlers(): void {
@@ -237,13 +221,6 @@ export class TaskWorker {
       clearInterval(this.pollTimer);
       this.pollTimer = undefined;
     }
-  }
-
-  private calculateDuration(task: QueuedTask): number {
-    if (task.completedAt && task.startedAt) {
-      return task.completedAt.getTime() - task.startedAt.getTime();
-    }
-    return 0;
   }
 
   // Utility methods for monitoring

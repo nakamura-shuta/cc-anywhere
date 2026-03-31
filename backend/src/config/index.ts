@@ -202,11 +202,11 @@ export const config = {
   },
   tunnel: {
     type: env.TUNNEL_TYPE,
-    enabled: env.TUNNEL_TYPE !== "none" || env.ENABLE_NGROK, // 後方互換性
+    enabled: env.TUNNEL_TYPE !== "none",
     showQRCode: env.SHOW_QR_CODE,
   },
   ngrok: {
-    enabled: env.ENABLE_NGROK || env.TUNNEL_TYPE === "ngrok",
+    enabled: env.TUNNEL_TYPE === "ngrok",
   },
   cloudflare: {
     enabled: env.TUNNEL_TYPE === "cloudflare",

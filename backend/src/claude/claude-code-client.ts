@@ -343,7 +343,7 @@ export class ClaudeCodeClient {
             tracker.recordToolUsage(detail);
           }
 
-          // Legacy tool_usage event (for backward compatibility)
+          // tool_usage event for WebSocket broadcasting
           if (toolDetail.tool !== "TodoWrite" && toolDetail.action === "end") {
             if (options.onProgress) {
               await options.onProgress({

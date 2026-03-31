@@ -72,25 +72,6 @@ export async function setupWorkerMode(
         autoStart: true,
       });
 
-      // Set up queue event handlers for inline mode
-      taskQueue.onTaskComplete((task) => {
-        logger.info("Queue task completed", {
-          taskId: task.id,
-          instruction: task.request.instruction,
-          duration:
-            task.completedAt && task.startedAt
-              ? task.completedAt.getTime() - task.startedAt.getTime()
-              : 0,
-        });
-      });
-
-      taskQueue.onTaskError((task, error) => {
-        logger.error("Queue task failed", {
-          taskId: task.id,
-          instruction: task.request.instruction,
-          error: error.message,
-        });
-      });
       break;
   }
 
