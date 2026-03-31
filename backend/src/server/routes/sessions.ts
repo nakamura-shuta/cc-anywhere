@@ -1,29 +1,32 @@
+/**
+ * Session routes - unified session management (Task + Chat)
+ */
+
 import type { FastifyPluginAsync } from "fastify";
-import { SessionManager } from "../../services/session-manager";
 import { TaskExecutorImpl } from "../../claude/executor";
-import type {
-  CreateSessionRequest,
-  CreateSessionResponse,
-  ContinueSessionRequest,
-  ContinueSessionResponse,
-  GetSessionHistoryResponse,
-  ListSessionsResponse,
-} from "../../types/session";
 import type { TaskRequest } from "../../claude/types";
+import type { UnifiedSessionService } from "../../session/unified-session-service.js";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../utils/logger";
 
-export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
-  const sessionManager = new SessionManager();
+export const sessionRoutes: FastifyPluginAsync<{
+  sessionService: UnifiedSessionService;
+}> = async (fastify, opts) => {
+  const { sessionService } = opts;
   const taskExecutor = new TaskExecutorImpl();
 
-  // セッション作成
-  fastify.post<{
-    Body: CreateSessionRequest;
-    Reply: CreateSessionResponse;
-  }>("/api/sessions", async (request, reply) => {
+  // セッション作成（Task 用。Chat は /api/chat/sessions を使用）
+  fastify.post("/api/sessions", async (request, reply) => {
     try {
-      const session = await sessionManager.createSession(request.body);
+      const body = request.body as any;
+      const session = sessionService.sessions.create({
+        type: body.type || "task",
+        userId: body.userId,
+        workingDirectory: body.context?.workingDirectory,
+        context: body.context,
+        metadata: body.metadata,
+        expiresIn: body.expiresIn,
+      });
       return reply.code(201).send({ session });
     } catch (error) {
       logger.error("Failed to create session", { error });
@@ -35,11 +38,9 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // セッション取得
-  fastify.get<{
-    Params: { id: string };
-  }>("/api/sessions/:id", async (request, reply) => {
+  fastify.get<{ Params: { id: string } }>("/api/sessions/:id", async (request, reply) => {
     try {
-      const session = await sessionManager.getSession(request.params.id);
+      const session = sessionService.sessions.get(request.params.id);
       if (!session) {
         return reply.code(404).send({ error: "Session not found" } as any);
       }
@@ -53,33 +54,28 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // セッション継続
+  // セッション継続（Task 用）
   fastify.post<{
     Params: { id: string };
-    Body: ContinueSessionRequest;
-    Reply: ContinueSessionResponse;
+    Body: { instruction: string; options?: any };
   }>("/api/sessions/:id/continue", async (request, reply) => {
     try {
       const sessionId = request.params.id;
 
-      // セッションの存在確認
-      const session = await sessionManager.getSession(sessionId);
+      const session = sessionService.sessions.get(sessionId);
       if (!session) {
         return reply.code(404).send({ error: "Session not found" } as any);
       }
-
-      // セッションがアクティブか確認
       if (session.status !== "active") {
         return reply.code(400).send({ error: "Session is not active" } as any);
       }
 
-      // 次のターン番号を取得
-      const turnNumber = await sessionManager.getNextTurnNumber(sessionId);
-
-      // タスクIDを生成
+      const turnNumber = sessionService.messages.getNextTurnNumber(sessionId);
       const taskId = uuidv4();
 
-      // タスクリクエストを構築
+      // Use sdkSessionId from DB for resume (if available)
+      const resumeId = session.sdkSessionId || sessionId;
+
       const taskRequest: TaskRequest = {
         instruction: request.body.instruction,
         context: session.context as any,
@@ -87,24 +83,32 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
           ...request.body.options,
           sdk: {
             ...(request.body.options as any)?.sdk,
-            // セッションを再開する場合は resumeSession のみを使用
-            resumeSession: sessionId,
+            resumeSession: resumeId,
           },
         },
       };
 
-      // タスクを実行
       const result = await taskExecutor.execute(taskRequest, taskId);
 
-      // 会話ターンを保存
-      await sessionManager.addConversationTurn({
+      // Save user message
+      sessionService.messages.add({
         sessionId,
+        role: "user",
+        content: request.body.instruction,
         turnNumber,
-        instruction: request.body.instruction,
-        response:
-          typeof result.output === "string"
-            ? result.output
-            : JSON.stringify(result.output || result),
+        metadata: { taskId },
+      });
+
+      // Save agent response
+      const responseText = typeof result.output === "string"
+        ? result.output
+        : JSON.stringify(result.output || result);
+
+      sessionService.messages.add({
+        sessionId,
+        role: "agent",
+        content: responseText,
+        turnNumber,
         metadata: {
           taskId,
           duration: result.duration,
@@ -113,6 +117,11 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
           error: result.error,
         },
       });
+
+      // Save sdkSessionId if returned
+      if (result.sdkSessionId) {
+        sessionService.sessions.updateSdkSessionId(sessionId, result.sdkSessionId);
+      }
 
       return {
         turnNumber,
@@ -130,11 +139,9 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // セッション削除
-  fastify.delete<{
-    Params: { id: string };
-  }>("/api/sessions/:id", async (request, reply) => {
+  fastify.delete<{ Params: { id: string } }>("/api/sessions/:id", async (request, reply) => {
     try {
-      await sessionManager.deleteSession(request.params.id);
+      sessionService.sessions.delete(request.params.id);
       return reply.code(204).send();
     } catch (error) {
       logger.error("Failed to delete session", { error });
@@ -145,26 +152,24 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // 会話履歴取得
+  // メッセージ履歴取得（Task + Chat 共通）
   fastify.get<{
     Params: { id: string };
     Querystring: { limit?: string; offset?: string };
-    Reply: GetSessionHistoryResponse;
   }>("/api/sessions/:id/history", async (request, reply) => {
     try {
       const sessionId = request.params.id;
       const limit = request.query.limit ? parseInt(request.query.limit, 10) : 50;
       const offset = request.query.offset ? parseInt(request.query.offset, 10) : 0;
 
-      const turns = await sessionManager.getConversationHistory(sessionId, limit, offset);
-      const allTurns = await sessionManager.getConversationHistory(sessionId);
-      const totalTurns = allTurns.length;
+      const messages = sessionService.messages.list(sessionId, limit, offset);
+      const allMessages = sessionService.messages.list(sessionId);
 
       return {
         sessionId,
-        turns,
-        totalTurns,
-        hasMore: offset + limit < totalTurns,
+        messages,
+        totalMessages: allMessages.length,
+        hasMore: offset + limit < allMessages.length,
       };
     } catch (error) {
       logger.error("Failed to get session history", { error });
@@ -177,30 +182,17 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
 
   // セッション一覧取得
   fastify.get<{
-    Querystring: {
-      status?: string;
-      userId?: string;
-      limit?: string;
-      offset?: string;
-    };
-    Reply: ListSessionsResponse;
+    Querystring: { type?: string; status?: string; userId?: string };
   }>("/api/sessions", async (request, reply) => {
     try {
-      // statusがactiveの場合のみ、getActiveSessionsを使用
-      if (request.query.status === "active") {
-        const sessions = await sessionManager.getActiveSessions(request.query.userId);
-        return {
-          sessions,
-          total: sessions.length,
-          hasMore: false,
-        };
-      }
-
-      // その他のステータスの場合は、今後実装予定
-      // TODO: getAllSessionsメソッドを実装
+      const sessions = sessionService.sessions.list({
+        type: request.query.type,
+        userId: request.query.userId,
+        status: request.query.status || "active",
+      });
       return {
-        sessions: [],
-        total: 0,
+        sessions,
+        total: sessions.length,
         hasMore: false,
       };
     } catch (error) {
