@@ -61,6 +61,7 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
         executableArgs: opts?.executableArgs,
         env: {
           ...process.env,
+          CLAUDE_AGENT_SDK_CLIENT_APP: "cc-anywhere/1.0.0",
           ...(opts?.cwd ? { CLAUDE_CODE_DEFAULT_CWD: opts.cwd, PWD: opts.cwd } : {}),
         },
       };

@@ -99,14 +99,15 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
       // - mcpServers (not in SDKSessionOptions; MCP configured at CLI level)
     };
 
-    // Pass cwd via env (SDKSessionOptions lacks cwd parameter)
+    // Pass cwd and app identifier via env
+    const envOverrides: Record<string, string> = {
+      CLAUDE_AGENT_SDK_CLIENT_APP: "cc-anywhere/1.0.0",
+    };
     if (opts?.cwd) {
-      sessionOptions.env = {
-        ...process.env,
-        CLAUDE_CODE_DEFAULT_CWD: opts.cwd,
-        PWD: opts.cwd,
-      };
+      envOverrides.CLAUDE_CODE_DEFAULT_CWD = opts.cwd;
+      envOverrides.PWD = opts.cwd;
     }
+    sessionOptions.env = { ...process.env, ...envOverrides };
 
     // Inject systemPrompt via SessionStart hook
     if (opts?.customSystemPrompt) {

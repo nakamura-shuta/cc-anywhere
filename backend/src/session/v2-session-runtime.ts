@@ -182,9 +182,14 @@ export class V2SessionRuntime {
       permissionMode: params.permissionMode,
     };
 
+    const envOverrides: Record<string, string> = {
+      CLAUDE_AGENT_SDK_CLIENT_APP: "cc-anywhere/1.0.0",
+    };
     if (params.cwd) {
-      options.env = { ...process.env, CLAUDE_CODE_DEFAULT_CWD: params.cwd, PWD: params.cwd };
+      envOverrides.CLAUDE_CODE_DEFAULT_CWD = params.cwd;
+      envOverrides.PWD = params.cwd;
     }
+    options.env = { ...process.env, ...envOverrides };
 
     return options;
   }
