@@ -71,6 +71,6 @@ export interface IChatExecutor {
   execute(
     message: string,
     options: ChatExecutorOptions,
-    onEvent: (event: ChatStreamEvent) => void,
+    onEvent: (event: ChatStreamEvent) => void | Promise<void>,
   ): Promise<ChatExecutorResult>;
 }

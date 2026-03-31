@@ -20,6 +20,19 @@ import type {
 import { createChatExecutor } from "../../chat/index.js";
 import type { ChatStreamEvent, ChatExecutorResult } from "../../chat/types.js";
 import { getAllPresetCharacters, getPresetCharacter } from "../../chat/preset-characters.js";
+import { ChatSessionService } from "../../claude/session/chat-session-service.js";
+
+// Application-shared singleton for V2 session management
+const chatSessionService = new ChatSessionService();
+
+// TTL eviction interval (every 5 minutes)
+const EVICTION_INTERVAL_MS = 5 * 60 * 1000;
+setInterval(() => {
+  const evicted = chatSessionService.evictIdle();
+  if (evicted > 0) {
+    logger.info(`Evicted ${evicted} idle V2 sessions`);
+  }
+}, EVICTION_INTERVAL_MS);
 
 // Request schemas
 const createSessionSchema = z.object({
@@ -871,6 +884,9 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         executor: foundSession.executor,
       };
 
+      // V2: Create executor at connection level (persists across messages)
+      const connectionExecutor = createChatExecutor(sessionData.executor, chatSessionService);
+
       const userId = decoded.userId;
       logger.info("WebSocket chat connection established", { sessionId, userId });
 
@@ -913,9 +929,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
               }
             }
 
-            // Create executor
-            const executor = createChatExecutor(sessionData.executor);
-
             // Execute and stream events via WebSocket
             const canResume = Boolean(currentSdkSessionId);
             let mode: "resume" | "new_session" = "new_session";
@@ -923,7 +936,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
             if (canResume) {
               try {
-                result = await executor.execute(
+                result = await connectionExecutor.execute(
                   content,
                   {
                     sessionId,
@@ -933,7 +946,13 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
                     executor: sessionData.executor,
                     sdkSessionId: currentSdkSessionId,
                   },
-                  (event: ChatStreamEvent) => {
+                  async (event: ChatStreamEvent) => {
+                    // V2: session_materialized は特殊な done イベントで届く
+                    if (event.data.messageId === "__session_materialized__" && event.data.sdkSessionId) {
+                      await chatRepository.sessions.updateSdkSessionId(sessionId, event.data.sdkSessionId);
+                      currentSdkSessionId = event.data.sdkSessionId;
+                      return;
+                    }
                     sendWsMessage(event.type, event.data);
                   },
                 );
@@ -946,7 +965,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
                 throw resumeError;
               }
             } else {
-              result = await executor.execute(
+              result = await connectionExecutor.execute(
                 content,
                 {
                   sessionId,
@@ -956,7 +975,13 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
                   executor: sessionData.executor,
                   sdkSessionId: undefined,
                 },
-                (event: ChatStreamEvent) => {
+                async (event: ChatStreamEvent) => {
+                  // V2: session_materialized は特殊な done イベントで届く
+                  if (event.data.messageId === "__session_materialized__" && event.data.sdkSessionId) {
+                    await chatRepository.sessions.updateSdkSessionId(sessionId, event.data.sdkSessionId);
+                    currentSdkSessionId = event.data.sdkSessionId;
+                    return;
+                  }
                   sendWsMessage(event.type, event.data);
                 },
               );
@@ -1010,8 +1035,12 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         }
       });
 
-      // Handle disconnect
+      // Handle disconnect: detach (not terminate) to allow resume
       socket.on("close", () => {
+        // V2: detach executor session from pool (session stays resumable)
+        if ("detach" in connectionExecutor && typeof (connectionExecutor as any).detach === "function") {
+          (connectionExecutor as any).detach();
+        }
         logger.info("WebSocket chat connection closed", { sessionId, userId });
       });
 

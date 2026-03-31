@@ -26,7 +26,10 @@ export interface TrackedMessage {
     | "result"
     | "stream_event"
     | "tool_progress"
-    | "auth_status";
+    | "auth_status"
+    | "tool_use_summary"
+    | "rate_limit_event"
+    | "prompt_suggestion";
 
   // メッセージ内容
   content: unknown;

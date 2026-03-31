@@ -1,20 +1,21 @@
 /**
- * Chat SDK Client
+ * Chat SDK Client (V2)
  *
- * Thin wrapper around Claude SDK for chat-specific operations
- * Extends ClaudeSDKBase with minimal chat-specific logic
+ * Uses ChatSessionService (V2 Session API) for session lifecycle management.
+ * Replaces query()-based implementation with send()/stream() pattern.
  */
 
 import { v4 as uuidv4 } from "uuid";
-import { query } from "@anthropic-ai/claude-agent-sdk";
 import { logger } from "../utils/logger.js";
-import { ClaudeSDKBase } from "../claude/sdk/base.js";
+import { ChatSessionService } from "../claude/session/chat-session-service.js";
+import type { ManagedSession } from "../claude/session/chat-session-service.js";
 import type {
   IChatExecutor,
   ChatExecutorOptions,
   ChatExecutorResult,
   ChatStreamEvent,
 } from "./types.js";
+import { config } from "../config/index.js";
 
 /**
  * Helper to create timestamped events
@@ -31,140 +32,187 @@ function createEvent<T extends ChatStreamEvent["type"]>(
 }
 
 /**
- * Chat SDK Client implementation using unified SDK base
+ * Chat SDK Client implementation using V2 Session API
  *
  * Responsibilities:
- * - WebSocket-specific streaming
+ * - WebSocket-specific streaming via V2 send()/stream()
  * - Minimal event normalization (3 types: session, text_delta, tool_use)
- * - Other events (reasoning, todo, etc.) are passed through transparently
+ * - Draft session materialization handling
+ * - Session detach/terminate lifecycle
  */
-export class ChatSDKClient extends ClaudeSDKBase implements IChatExecutor {
+export class ChatSDKClient implements IChatExecutor {
+  private service: ChatSessionService;
+  private currentManaged: ManagedSession | null = null;
+
+  constructor(service: ChatSessionService) {
+    this.service = service;
+  }
+
   async execute(
     message: string,
     options: ChatExecutorOptions,
-    onEvent: (event: ChatStreamEvent) => void,
+    onEvent: (event: ChatStreamEvent) => void | Promise<void>,
   ): Promise<ChatExecutorResult> {
     const messageId = uuidv4();
 
-    onEvent(
+    await onEvent(
       createEvent("start", {
         sessionId: options.sessionId,
         messageId,
       }),
     );
 
-    return this.withApiKey(async () => {
-      try {
-        // Use createQueryOptions for basic options
-        const baseOptions = this.createQueryOptions(message, {
-          resume: !!options.sdkSessionId,
-          sdkSessionId: options.sdkSessionId,
+    // Set API key in env for SDK
+    const originalApiKey = process.env.CLAUDE_API_KEY;
+    process.env.CLAUDE_API_KEY = config.claude.apiKey;
+
+    try {
+      // resume or create
+      if (options.sdkSessionId) {
+        this.currentManaged = this.service.resume(options.sdkSessionId, {
           systemPrompt: options.systemPrompt,
-          cwd: options.workingDirectory,
+          permissionMode: "bypassPermissions" as any,
         });
+      } else {
+        this.currentManaged = this.service.create({
+          systemPrompt: options.systemPrompt,
+          permissionMode: "bypassPermissions" as any,
+        });
+      }
 
-        // Add chat-specific options
-        const queryOptions = {
-          prompt: baseOptions.prompt,
-          stream: true,
-          abortController: new AbortController(),
-          options: {
-            maxTurns: 10,
-            includePartialMessages: true,
-            customSystemPrompt: baseOptions.systemPrompt,
-            permissionMode: "bypassPermissions" as const,
-            cwd: baseOptions.cwd,
-            resume: baseOptions.sdkSessionId,
+      let fullText = "";
+      let resultSessionId: string | null = this.currentManaged.sdkSessionId;
+      let hasStreamEvents = false;
+
+      for await (const event of this.service.sendAndStream(
+        this.currentManaged,
+        message,
+        {
+          onMaterialized: async (id) => {
+            resultSessionId = id;
+            await onEvent(
+              createEvent("done", {
+                sdkSessionId: id,
+                sessionId: options.sessionId,
+                messageId: "__session_materialized__",
+              }),
+            );
           },
-        };
+          onStateChanged: (state) => {
+            // State changes are tracked internally; no need to emit for now
+            logger.debug("Session state changed", { state });
+          },
+        },
+      )) {
+        // Minimal event normalization (same 3 types as V1)
 
-        let fullText = "";
-        let sdkSessionId: string | undefined;
-        let hasStreamEvents = false;
-
-        for await (const event of query(queryOptions)) {
-          // Minimal event normalization (3 types only)
-
-          // 1. session: Extract sessionId (both formats supported)
-          if (event.type === "system") {
-            sdkSessionId = this.extractSessionId(event);
-          }
-
-          // 2. text_delta: Text streaming
-          if (event.type === "stream_event") {
-            const streamEvent = event as any;
-            if (
-              streamEvent.event?.type === "content_block_delta" &&
-              streamEvent.event?.delta?.type === "text_delta" &&
-              streamEvent.event?.delta?.text
-            ) {
-              const text = streamEvent.event.delta.text;
-              fullText += text;
-              onEvent(createEvent("text", { text }));
-              hasStreamEvents = true;
-            }
-          }
-
-          // Process assistant messages
-          // Only process text if we haven't received stream events (to avoid duplicates)
-          if (event.type === "assistant" && event.message) {
-            for (const content of event.message.content || []) {
-              if (content.type === "text" && !hasStreamEvents) {
-                // Only add text if we didn't get stream_event deltas
-                const newText = content.text;
-                if (newText) {
-                  fullText += newText;
-                  onEvent(createEvent("text", { text: newText }));
-                }
-              } else if (content.type === "tool_use") {
-                // 3. tool_use: Tool execution
-                onEvent(
-                  createEvent("tool_use", {
-                    tool: content.name,
-                    toolInput: content.input,
-                  }),
-                );
-              }
-            }
-          }
-
-          // Capture session ID from result if not already captured
-          if (event.type === "result" && !sdkSessionId) {
-            sdkSessionId = this.extractSessionId(event);
+        // 1. session: Extract sessionId
+        if (event.type === "system") {
+          const sid = (event as any).sessionId ?? (event as any).session_id;
+          if (sid && !resultSessionId) {
+            resultSessionId = sid;
           }
         }
 
-        onEvent(
-          createEvent("done", {
-            sessionId: options.sessionId,
-            messageId,
-            sdkSessionId,
-          }),
-        );
+        // 2. text_delta: Text streaming
+        if (event.type === "stream_event") {
+          const streamEvent = event as any;
+          if (
+            streamEvent.event?.type === "content_block_delta" &&
+            streamEvent.event?.delta?.type === "text_delta" &&
+            streamEvent.event?.delta?.text
+          ) {
+            const text = streamEvent.event.delta.text;
+            fullText += text;
+            await onEvent(createEvent("text", { text }));
+            hasStreamEvents = true;
+          }
+        }
 
-        return {
-          messageId,
-          content: fullText,
-          sdkSessionId,
-        };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        // Process assistant messages
+        if (event.type === "assistant" && (event as any).message) {
+          for (const content of (event as any).message.content || []) {
+            if (content.type === "text" && !hasStreamEvents) {
+              const newText = content.text;
+              if (newText) {
+                fullText += newText;
+                await onEvent(createEvent("text", { text: newText }));
+              }
+            } else if (content.type === "tool_use") {
+              await onEvent(
+                createEvent("tool_use", {
+                  tool: content.name,
+                  toolInput: content.input,
+                }),
+              );
+            }
+          }
+        }
 
-        logger.error("Chat execution failed", {
-          sessionId: options.sessionId,
-          error: errorMessage,
-        });
-
-        onEvent(
-          createEvent("error", {
-            error: errorMessage,
-            sessionId: options.sessionId,
-            messageId,
-          }),
-        );
-
-        throw error;
+        // Capture session ID from result
+        if (event.type === "result" && !resultSessionId) {
+          const sid = (event as any).sessionId ?? (event as any).session_id;
+          if (sid) resultSessionId = sid;
+        }
       }
-    });
+
+      await onEvent(
+        createEvent("done", {
+          sessionId: options.sessionId,
+          messageId,
+          sdkSessionId: resultSessionId || undefined,
+        }),
+      );
+
+      return {
+        messageId,
+        content: fullText,
+        sdkSessionId: resultSessionId || undefined,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      logger.error("Chat execution failed", {
+        sessionId: options.sessionId,
+        error: errorMessage,
+      });
+
+      await onEvent(
+        createEvent("error", {
+          error: errorMessage,
+          sessionId: options.sessionId,
+          messageId,
+        }),
+      );
+
+      throw error;
+    } finally {
+      // Restore API key
+      if (originalApiKey !== undefined) {
+        process.env.CLAUDE_API_KEY = originalApiKey;
+      } else {
+        delete process.env.CLAUDE_API_KEY;
+      }
+    }
+  }
+
+  /**
+   * WS 切断時: pool から外すだけ。セッションは resume 可能な状態を維持。
+   */
+  detach(): void {
+    if (this.currentManaged) {
+      this.service.detach(this.currentManaged);
+      this.currentManaged = null;
+    }
+  }
+
+  /**
+   * 明示的終了: セッションを完全に close。resume 不可になる。
+   */
+  terminate(): void {
+    if (this.currentManaged) {
+      this.service.terminate(this.currentManaged);
+      this.currentManaged = null;
+    }
   }
 }
