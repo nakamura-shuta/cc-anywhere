@@ -39,7 +39,12 @@
 					class="flex-1 text-left"
 					onclick={() => onSelect(session.id)}
 				>
-					<div class="text-sm font-medium">{session.characterId}</div>
+					<div class="flex items-center gap-1.5">
+						<span class="text-sm font-medium">{session.characterId}</span>
+						{#if session.sdkSessionId}
+							<span class="inline-block h-1.5 w-1.5 rounded-full bg-green-500" title="SDK session active"></span>
+						{/if}
+					</div>
 					<div class="text-muted-foreground text-xs">
 						{formatDate(session.updatedAt)}
 					</div>

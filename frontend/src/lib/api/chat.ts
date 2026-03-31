@@ -104,6 +104,7 @@ export interface ChatWebSocketCallbacks {
 	onToolUse?: (tool: string, input: unknown) => void;
 	onError?: (error: string) => void;
 	onComplete?: (data: ChatCompleteData) => void;
+	onSessionState?: (state: 'idle' | 'running' | 'requires_action') => void;
 	onClose?: () => void;
 }
 
@@ -191,6 +192,9 @@ export function createChatWebSocket(
 				case 'complete':
 					callbacks.onComplete?.(message.data as ChatCompleteData);
 					break;
+				case 'session_state':
+					callbacks.onSessionState?.((message.data as { state: string }).state as 'idle' | 'running' | 'requires_action');
+					break;
 			}
 		} catch (error) {
 			console.error('Failed to parse WebSocket message:', error);
@@ -242,4 +246,28 @@ export async function updateCharacter(characterId: string, request: UpdateCharac
 
 export async function deleteCharacter(characterId: string): Promise<void> {
 	await apiClient.delete(`/api/chat/characters/${characterId}`);
+}
+
+/**
+ * SDK Session V2 APIs
+ */
+
+export interface SDKSessionInfo {
+	sessionId: string;
+	summary: string;
+	lastModified: number;
+	customTitle?: string;
+	firstPrompt?: string;
+	gitBranch?: string;
+	cwd?: string;
+	tag?: string;
+	createdAt?: number;
+}
+
+export async function getSDKSessionInfo(sdkSessionId: string): Promise<SDKSessionInfo> {
+	return apiClient.get<SDKSessionInfo>(`/api/sdk-sessions/${sdkSessionId}/info`);
+}
+
+export async function forkSDKSession(sdkSessionId: string, opts?: { title?: string }): Promise<{ sdkSessionId: string }> {
+	return apiClient.post<{ sdkSessionId: string }>(`/api/sdk-sessions/${sdkSessionId}/fork`, opts || {});
 }

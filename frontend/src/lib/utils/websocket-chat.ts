@@ -9,6 +9,7 @@ export interface WebSocketChatCallbacks {
 	onTextChunk?: (text: string) => void;
 	onComplete: (result: WebSocketChatResult) => void;
 	onError: (error: Error) => void;
+	onSessionState?: (state: 'idle' | 'running' | 'requires_action') => void;
 }
 
 export interface WebSocketChatResult {
@@ -52,6 +53,9 @@ export async function sendMessageViaWebSocket(
 				if (!completed) {
 					callbacks.onError(new Error(errorMessage));
 				}
+			},
+			onSessionState: (state) => {
+				callbacks.onSessionState?.(state);
 			},
 			onComplete: (data: ChatCompleteData) => {
 				completed = true;

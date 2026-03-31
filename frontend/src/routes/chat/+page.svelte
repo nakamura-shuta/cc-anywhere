@@ -114,7 +114,11 @@
 					messages={chatStore.messages}
 					character={chatStore.getCharacterById(chatStore.currentSession.characterId)}
 					isLoading={chatStore.isStreaming}
+					sessionState={chatStore.sessionState}
+					sdkSessionInfo={chatStore.sdkSessionInfo}
+					lastChatMode={chatStore.lastChatMode}
 					onSendMessage={(content) => chatStore.sendMessage(content)}
+					onFork={() => chatStore.forkSession()}
 				/>
 			{:else}
 				<Card.Root class="flex min-h-0 flex-1 items-center justify-center">
@@ -143,9 +147,4 @@
 	</div>
 {/if}
 
-{#if chatStore.lastChatMode}
-	<div class="fixed bottom-4 left-4 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground shadow">
-		Mode: {chatStore.lastChatMode === 'resume' ? 'Session Resume' : 'New Session'}
-	</div>
-{/if}
 </div>

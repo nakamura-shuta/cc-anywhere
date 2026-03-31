@@ -3,7 +3,7 @@
  */
 
 import * as chatApi from '$lib/api/chat';
-import type { ChatSession, ChatMessage, Character } from '$lib/api/chat';
+import type { ChatSession, ChatMessage, Character, SDKSessionInfo } from '$lib/api/chat';
 import {
 	sendMessageViaWebSocket,
 	createTempUserMessage,
@@ -27,6 +27,8 @@ class ChatStore {
 	error = $state<Error | null>(null);
 	isStreaming = $state(false);
 	lastChatMode = $state<'resume' | 'new_session' | null>(null);
+	sessionState = $state<'idle' | 'running' | 'requires_action' | null>(null);
+	sdkSessionInfo = $state<SDKSessionInfo | null>(null);
 
 	// Derived state
 	allCharacters = $derived([...this.characters.builtIn, ...this.characters.custom]);
@@ -78,6 +80,17 @@ class ChatStore {
 			const messagesResponse = await chatApi.getMessages(sessionId);
 			this.messages = messagesResponse.messages;
 			this.lastChatMode = null;
+			this.sessionState = null;
+			this.sdkSessionInfo = null;
+
+			// Load SDK session info if available
+			if (session.sdkSessionId) {
+				try {
+					this.sdkSessionInfo = await chatApi.getSDKSessionInfo(session.sdkSessionId);
+				} catch {
+					// SDK info not available (session may not exist on disk)
+				}
+			}
 		} catch (err) {
 			this.error = err instanceof Error ? err : new Error('Failed to load session');
 		} finally {
@@ -133,6 +146,9 @@ class ChatStore {
 
 			return new Promise<boolean>((resolve) => {
 				sendMessageViaWebSocket(sessionId, content, {
+					onSessionState: (state) => {
+						this.sessionState = state;
+					},
 					onTextChunk: (text) => {
 						// Update the streaming agent message with new text
 						this.messages = this.messages.map(m =>
@@ -239,6 +255,33 @@ class ChatStore {
 		}
 	}
 
+	// Fork current session
+	async forkSession(): Promise<boolean> {
+		if (!this.currentSession?.sdkSessionId) {
+			this.error = new Error('No SDK session to fork');
+			return false;
+		}
+		try {
+			this.loading = true;
+			const result = await chatApi.forkSDKSession(this.currentSession.sdkSessionId, {
+				title: `Fork of ${this.sdkSessionInfo?.summary || this.currentSession.id}`,
+			});
+			// Create a new chat session pointing to the forked SDK session
+			const newSession = await chatApi.createSession({
+				characterId: this.currentSession.characterId,
+				workingDirectory: this.currentSession.workingDirectory,
+				executor: this.currentSession.executor,
+			});
+			this.sessions = [newSession, ...this.sessions];
+			return true;
+		} catch (err) {
+			this.error = err instanceof Error ? err : new Error('Failed to fork session');
+			return false;
+		} finally {
+			this.loading = false;
+		}
+	}
+
 	// Helper to get character by ID
 	getCharacterById(characterId: string): Character | undefined {
 		return this.allCharacters.find(c => c.id === characterId);
@@ -248,6 +291,8 @@ class ChatStore {
 	clearCurrentSession(): void {
 		this.currentSession = null;
 		this.messages = [];
+		this.sessionState = null;
+		this.sdkSessionInfo = null;
 	}
 
 	// Clear error
