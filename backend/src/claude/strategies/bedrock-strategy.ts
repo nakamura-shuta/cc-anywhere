@@ -50,23 +50,23 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
         hasResume: !!options.options?.resume,
       });
 
-      const sessionOptions = {
+      const opts = options.options;
+      const sessionOptions: any = {
         model: this.getModelName(),
-        allowedTools: options.options?.allowedTools,
-        disallowedTools: options.options?.disallowedTools,
-        hooks: options.options?.hooks,
-        permissionMode: options.options?.permissionMode as any,
+        allowedTools: opts?.allowedTools,
+        disallowedTools: opts?.disallowedTools,
+        hooks: opts?.hooks,
+        permissionMode: opts?.permissionMode,
+        executable: opts?.executable,
+        executableArgs: opts?.executableArgs,
         env: {
           ...process.env,
-          ...(options.options?.cwd ? {
-            CLAUDE_CODE_DEFAULT_CWD: options.options.cwd,
-            PWD: options.options.cwd,
-          } : {}),
+          ...(opts?.cwd ? { CLAUDE_CODE_DEFAULT_CWD: opts.cwd, PWD: opts.cwd } : {}),
         },
       };
 
-      if (options.options?.customSystemPrompt) {
-        const systemPrompt = options.options.customSystemPrompt;
+      if (opts?.customSystemPrompt) {
+        const systemPrompt = opts.customSystemPrompt;
         sessionOptions.hooks = {
           ...sessionOptions.hooks,
           SessionStart: [
@@ -76,19 +76,21 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
         };
       }
 
-      const session = options.options?.resume
-        ? unstable_v2_resumeSession(options.options.resume, sessionOptions)
+      const session = opts?.resume
+        ? unstable_v2_resumeSession(opts.resume, sessionOptions)
         : unstable_v2_createSession(sessionOptions);
 
       const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
       await session.send(prompt);
 
-      try {
-        for await (const message of session.stream()) {
-          yield message;
+      const signal = options.abortController?.signal;
+
+      for await (const message of session.stream()) {
+        if (signal?.aborted) {
+          session.close();
+          break;
         }
-      } finally {
-        // Don't close session - allow resume later
+        yield message;
       }
     } catch (error) {
       if (error instanceof Error) {

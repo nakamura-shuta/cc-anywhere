@@ -30,46 +30,24 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
         hasResume: !!options.options?.resume,
       });
 
-      // Build V2 session options from QueryOptions
-      const sessionOptions = {
-        model: this.getModelName(),
-        allowedTools: options.options?.allowedTools,
-        disallowedTools: options.options?.disallowedTools,
-        hooks: options.options?.hooks,
-        permissionMode: options.options?.permissionMode as any,
-        ...(options.options?.cwd ? {
-          env: { ...process.env, CLAUDE_CODE_DEFAULT_CWD: options.options.cwd, PWD: options.options.cwd },
-        } : {}),
-      };
+      const sessionOptions = this.buildSessionOptions(options);
 
-      // Inject systemPrompt via SessionStart hook
-      if (options.options?.customSystemPrompt) {
-        const systemPrompt = options.options.customSystemPrompt;
-        sessionOptions.hooks = {
-          ...sessionOptions.hooks,
-          SessionStart: [
-            ...(sessionOptions.hooks?.SessionStart || []),
-            { hooks: [async () => ({ decision: "approve" as const, systemPrompt })] },
-          ],
-        };
-      }
-
-      // Create or resume session
       const session = options.options?.resume
         ? unstable_v2_resumeSession(options.options.resume, sessionOptions)
         : unstable_v2_createSession(sessionOptions);
 
-      // Send prompt
       const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
       await session.send(prompt);
 
-      // Stream messages (same SDKMessage type as query())
-      try {
-        for await (const message of session.stream()) {
-          yield message;
+      const signal = options.abortController?.signal;
+
+      for await (const message of session.stream()) {
+        // Respect abortController for timeout/cancel support
+        if (signal?.aborted) {
+          session.close();
+          break;
         }
-      } finally {
-        // Don't close session - allow resume later
+        yield message;
       }
     } finally {
       if (originalApiKey !== undefined) {
@@ -94,5 +72,45 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
 
   getExecutionMode(): ExecutionMode {
     return "api-key";
+  }
+
+  private buildSessionOptions(options: QueryOptions) {
+    const opts = options.options;
+    const sessionOptions: any = {
+      model: this.getModelName(),
+      allowedTools: opts?.allowedTools,
+      disallowedTools: opts?.disallowedTools,
+      hooks: opts?.hooks,
+      permissionMode: opts?.permissionMode,
+      // V2 SDKSessionOptions supports these
+      executable: opts?.executable,
+      executableArgs: opts?.executableArgs,
+      // V2 SDKSessionOptions does NOT support:
+      // - maxTurns (no equivalent; Claude Code manages turns internally)
+      // - mcpServers (not in SDKSessionOptions; MCP configured at CLI level)
+    };
+
+    // Pass cwd via env (SDKSessionOptions lacks cwd parameter)
+    if (opts?.cwd) {
+      sessionOptions.env = {
+        ...process.env,
+        CLAUDE_CODE_DEFAULT_CWD: opts.cwd,
+        PWD: opts.cwd,
+      };
+    }
+
+    // Inject systemPrompt via SessionStart hook
+    if (opts?.customSystemPrompt) {
+      const systemPrompt = opts.customSystemPrompt;
+      sessionOptions.hooks = {
+        ...sessionOptions.hooks,
+        SessionStart: [
+          ...(sessionOptions.hooks?.SessionStart || []),
+          { hooks: [async () => ({ decision: "approve" as const, systemPrompt })] },
+        ],
+      };
+    }
+
+    return sessionOptions;
   }
 }
