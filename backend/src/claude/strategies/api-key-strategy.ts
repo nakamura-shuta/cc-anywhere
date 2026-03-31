@@ -37,17 +37,26 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
         : unstable_v2_createSession(sessionOptions);
 
       const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
-      await session.send(prompt);
 
+      // Register abort listener to close session immediately on cancel/timeout
       const signal = options.abortController?.signal;
+      const onAbort = () => { try { session.close(); } catch { /* ignore */ } };
+      if (signal) {
+        if (signal.aborted) throw new DOMException("The operation was aborted", "AbortError");
+        signal.addEventListener("abort", onAbort, { once: true });
+      }
 
-      for await (const message of session.stream()) {
-        // Respect abortController for timeout/cancel support
-        if (signal?.aborted) {
-          session.close();
-          break;
+      try {
+        await session.send(prompt);
+
+        for await (const message of session.stream()) {
+          if (signal?.aborted) {
+            throw new DOMException("The operation was aborted", "AbortError");
+          }
+          yield message;
         }
-        yield message;
+      } finally {
+        signal?.removeEventListener("abort", onAbort);
       }
     } finally {
       if (originalApiKey !== undefined) {

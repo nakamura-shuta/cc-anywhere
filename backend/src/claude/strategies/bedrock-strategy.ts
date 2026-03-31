@@ -81,16 +81,25 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
         : unstable_v2_createSession(sessionOptions);
 
       const prompt = typeof options.prompt === "string" ? options.prompt : String(options.prompt);
-      await session.send(prompt);
 
       const signal = options.abortController?.signal;
+      const onAbort = () => { try { session.close(); } catch { /* ignore */ } };
+      if (signal) {
+        if (signal.aborted) throw new DOMException("The operation was aborted", "AbortError");
+        signal.addEventListener("abort", onAbort, { once: true });
+      }
 
-      for await (const message of session.stream()) {
-        if (signal?.aborted) {
-          session.close();
-          break;
+      try {
+        await session.send(prompt);
+
+        for await (const message of session.stream()) {
+          if (signal?.aborted) {
+            throw new DOMException("The operation was aborted", "AbortError");
+          }
+          yield message;
         }
-        yield message;
+      } finally {
+        signal?.removeEventListener("abort", onAbort);
       }
     } catch (error) {
       if (error instanceof Error) {
