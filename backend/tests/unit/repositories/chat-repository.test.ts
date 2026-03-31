@@ -126,6 +126,43 @@ describe("ChatRepository", () => {
       const found = await chatRepository.sessions.findById("non-existent");
       expect(found).toBeNull();
     });
+
+    it("should not find task sessions via chat findById", async () => {
+      // Insert a task session directly
+      db.prepare(
+        `INSERT INTO sessions (id, user_id, session_type, status, executor, created_at, updated_at)
+         VALUES ('task-session-1', 'user-1', 'task', 'active', 'claude', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      ).run();
+
+      const found = await chatRepository.sessions.findById("task-session-1");
+      expect(found).toBeNull();
+    });
+
+    it("should not delete task sessions via chat delete", async () => {
+      db.prepare(
+        `INSERT INTO sessions (id, user_id, session_type, status, executor, created_at, updated_at)
+         VALUES ('task-session-2', 'user-1', 'task', 'active', 'claude', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      ).run();
+
+      const deleted = await chatRepository.sessions.delete("task-session-2");
+      expect(deleted).toBe(false);
+
+      // Verify task session still exists
+      const row = db.prepare("SELECT * FROM sessions WHERE id = ?").get("task-session-2");
+      expect(row).not.toBeUndefined();
+    });
+
+    it("should not list task sessions in findByUserId", async () => {
+      await chatRepository.sessions.create(testSession);
+      db.prepare(
+        `INSERT INTO sessions (id, user_id, session_type, status, executor, created_at, updated_at)
+         VALUES ('task-session-3', 'user-1', 'task', 'active', 'claude', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      ).run();
+
+      const result = await chatRepository.sessions.findByUserId("user-1");
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].id).toBe("session-1");
+    });
   });
 
   describe("ChatMessageRepository", () => {

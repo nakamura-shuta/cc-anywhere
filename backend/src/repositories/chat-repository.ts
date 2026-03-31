@@ -115,14 +115,44 @@ export class ChatSessionRepository extends BaseRepository<ChatSession> {
   }
 
   /**
-   * Update SDK session ID
+   * Override findById to enforce session_type='chat' boundary
+   */
+  async findById(id: string): Promise<ChatSession | null> {
+    try {
+      const stmt = this.db.prepare(
+        `SELECT * FROM ${this.tableName} WHERE id = ? AND session_type = 'chat'`,
+      );
+      const row = stmt.get(id);
+      return row ? this.mapRowToEntity(row) : null;
+    } catch (error) {
+      logger.error("Error finding chat session by id", { id, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Override delete to enforce session_type='chat' boundary
+   */
+  async delete(id: string): Promise<boolean> {
+    try {
+      const result = this.db.prepare(
+        `DELETE FROM ${this.tableName} WHERE id = ? AND session_type = 'chat'`,
+      ).run(id);
+      return result.changes > 0;
+    } catch (error) {
+      logger.error("Error deleting chat session", { id, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Update SDK session ID (scoped to chat sessions)
    */
   async updateSdkSessionId(id: string, sdkSessionId: string): Promise<void> {
     try {
-      const stmt = this.db.prepare(
-        `UPDATE ${this.tableName} SET sdk_session_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      );
-      stmt.run(sdkSessionId, id);
+      this.db.prepare(
+        `UPDATE ${this.tableName} SET sdk_session_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND session_type = 'chat'`,
+      ).run(sdkSessionId, id);
     } catch (error) {
       logger.error("Error updating SDK session ID", { id, sdkSessionId, error });
       throw error;
@@ -130,14 +160,13 @@ export class ChatSessionRepository extends BaseRepository<ChatSession> {
   }
 
   /**
-   * Touch session to update updated_at timestamp
+   * Touch session to update updated_at timestamp (scoped to chat sessions)
    */
   async touchSession(id: string): Promise<void> {
     try {
-      const stmt = this.db.prepare(
-        `UPDATE ${this.tableName} SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      );
-      stmt.run(id);
+      this.db.prepare(
+        `UPDATE ${this.tableName} SET updated_at = CURRENT_TIMESTAMP WHERE id = ? AND session_type = 'chat'`,
+      ).run(id);
     } catch (error) {
       logger.error("Error touching session", { id, error });
       throw error;
