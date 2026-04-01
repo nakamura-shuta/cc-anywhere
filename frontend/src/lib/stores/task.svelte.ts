@@ -114,28 +114,42 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
     }
   }
   
+  /** Re-fetch task list from API */
+  async refresh(): Promise<void> {
+    try {
+      const tasks = await taskService.list({ limit: 100, offset: 0 });
+      this.items = tasks;
+    } catch (err) {
+      console.error('[TaskStore] refresh failed:', err);
+    }
+  }
+
   // カスタムWebSocketメッセージハンドラー
   override handleCustomMessage(message: WebSocketMessage): void {
     const { type, payload } = message;
-    
+
     switch (type) {
       case 'task:update':
         this.handleTaskUpdate(payload);
         break;
-        
+
       case 'task:status':
       case 'task:running':
       case 'task:completed':
       case 'task:failed':
       case 'task:cancelled':
-        // 旧形式のサポート
         this.handleLegacyTaskStatus(message);
         break;
-        
+
       case 'task:progress':
         this.updateLocalByTaskId(payload.taskId, {
           progressData: payload.progressData
         });
+        break;
+
+      case 'task:created':
+        // New task created → re-fetch list to include it
+        this.refresh();
         break;
     }
   }

@@ -103,8 +103,16 @@ export async function configureWebSocket(
   // Set WebSocket server for task group store
   taskGroupStore.setWebSocketServer(wsServer);
 
-  // Listen for task started events
+  // Listen for task events
   const eventBus = getTypedEventBus();
+
+  // Broadcast task:created → WebSocket
+  void eventBus.on("task.created", (event) => {
+    wsServer.broadcastToAll({
+      type: "task:created",
+      payload: { taskId: event.taskId },
+    });
+  });
   void eventBus.on("task.started", (payload) => {
     const task = taskQueue.get(payload.taskId);
     if (task) {
