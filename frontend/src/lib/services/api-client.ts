@@ -17,7 +17,7 @@ class ApiClient {
     // Get API key from URL params or localStorage
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
-      const apiKey = urlParams.get('api_key') || localStorage.getItem('api_key') || '';
+      const apiKey = urlParams.get('api_key') || localStorage.getItem('cc-anywhere-api-key') || '';
       return apiKey;
     }
     return '';

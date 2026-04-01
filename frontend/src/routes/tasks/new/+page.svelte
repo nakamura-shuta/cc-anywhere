@@ -314,7 +314,7 @@
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-API-Key': localStorage.getItem('apiKey') || ''
+					'X-API-Key': localStorage.getItem('cc-anywhere-api-key') || ''
 				},
 				body: JSON.stringify(groupData)
 			});
