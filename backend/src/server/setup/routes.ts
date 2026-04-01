@@ -40,12 +40,16 @@ function getSharedSessionService(): UnifiedSessionService {
 
 // TTL eviction interval (every 5 minutes)
 const EVICTION_INTERVAL_MS = 5 * 60 * 1000;
+let sharedWorkspace: WorkspaceService | null = null;
+
 setInterval(() => {
   if (sharedSessionService) {
     const evicted = sharedSessionService.runtime.evictIdle();
-    if (evicted > 0) {
-      logger.info(`Evicted ${evicted} idle V2 sessions`);
-    }
+    if (evicted > 0) logger.info(`Evicted ${evicted} idle V2 sessions`);
+  }
+  if (sharedWorkspace) {
+    const cleaned = sharedWorkspace.cleanupExpired();
+    if (cleaned > 0) logger.info(`Cleaned up ${cleaned} expired workspaces`);
   }
 }, EVICTION_INTERVAL_MS);
 
@@ -73,6 +77,7 @@ export async function registerRoutes(
   const db = getSharedDbProvider().getDb();
   const workspaceService = new WorkspaceService(db);
   setSharedWorkspaceService(workspaceService);
+  sharedWorkspace = workspaceService;
 
   const userService = new UserService(db);
   setUserServiceForAuth(userService);
