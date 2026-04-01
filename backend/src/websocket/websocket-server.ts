@@ -3,6 +3,7 @@ import fastifyWebsocket from "@fastify/websocket";
 import { randomUUID } from "crypto";
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
+import { getSharedUserService } from "../services/user-service-shared.js";
 import type {
   AuthenticatedWebSocket,
   WebSocketMessage,
@@ -163,16 +164,30 @@ export class WebSocketServer {
   private handleAuth(ws: AuthenticatedWebSocket, message: AuthMessage): void {
     const { apiKey } = message.payload;
 
-    if (!config.auth.enabled) {
-      // If auth is disabled, always authenticate
+    // Check users table
+    let userAuthenticated = false;
+    if (apiKey) {
+      const userService = getSharedUserService();
+      if (userService) {
+        const user = userService.getByApiKey(apiKey);
+        if (user) userAuthenticated = true;
+      }
+    }
+
+    const hasEnvKey = !!config.auth.apiKey;
+    const hasUsers = (getSharedUserService()?.count() ?? 0) > 0;
+
+    if (!hasEnvKey && !hasUsers) {
+      // Auth disabled
       ws.authenticated = true;
       ws.apiKey = "no-auth";
+    } else if (userAuthenticated) {
+      ws.authenticated = true;
+      ws.apiKey = apiKey;
     } else if (apiKey && apiKey === config.auth.apiKey) {
-      // Validate API key
       ws.authenticated = true;
       ws.apiKey = apiKey;
     } else {
-      // Invalid API key
       const errorMessage: ErrorMessage = {
         type: "error",
         payload: {

@@ -24,6 +24,7 @@ import { WorkspaceService } from "../../services/workspace-service.js";
 import { UserService } from "../../services/user-service.js";
 import { setSharedWorkspaceService } from "../../services/workspace-resolver.js";
 import { setUserServiceForAuth } from "../middleware/global-auth.js";
+import { setSharedUserService } from "../../services/user-service-shared.js";
 import { getSharedDbProvider } from "../../db/shared-instance.js";
 import { logger } from "../../utils/logger.js";
 
@@ -81,6 +82,7 @@ export async function registerRoutes(
 
   const userService = new UserService(db);
   setUserServiceForAuth(userService);
+  setSharedUserService(userService);
   await app.register(workspaceRoutes, { prefix: "/api", workspaceService });
   await app.register(authRoutes, { prefix: "/api", userService });
 
