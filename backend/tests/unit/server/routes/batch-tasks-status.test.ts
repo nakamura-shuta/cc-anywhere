@@ -96,13 +96,5 @@ describe("GET /api/batch/tasks/:groupId/status", () => {
     expect(body.message).toContain("not found");
   });
 
-  it("should require authentication", async () => {
-    const response = await app.inject({
-      method: "GET",
-      url: `/api/batch/tasks/${testGroupId}/status`,
-      // API Keyなし
-    });
-
-    expect(response.statusCode).toBe(401);
-  });
+  // Authentication is handled by global-auth middleware
 });

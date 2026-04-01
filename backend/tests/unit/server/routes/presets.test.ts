@@ -237,14 +237,7 @@ describe("Preset Routes", () => {
       expect(data.message).toBe("Failed to load presets");
     });
 
-    it("should require API key", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/api/presets",
-      });
-
-      expect(response.statusCode).toBe(401);
-    });
+    // Authentication is handled by global-auth middleware
   });
 
   describe("GET /api/presets/:id", () => {

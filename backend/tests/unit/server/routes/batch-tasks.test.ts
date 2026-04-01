@@ -158,20 +158,6 @@ describe("POST /api/batch/tasks", () => {
     // TODO: タスクの詳細を取得して、実際のタイムアウト値を確認
   });
 
-  it("should handle authentication correctly", async () => {
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/batch/tasks",
-      headers: {
-        // API Keyなし
-        "Content-Type": "application/json",
-      },
-      payload: {
-        instruction: "npm audit fix",
-        repositories: [{ name: "app1", path: "/repos/app1" }],
-      },
-    });
-
-    expect(response.statusCode).toBe(401);
-  });
+  // Authentication is now handled by global-auth middleware, not checkApiKey preHandler.
+  // Route-level auth tests are covered by global-auth integration tests.
 });
