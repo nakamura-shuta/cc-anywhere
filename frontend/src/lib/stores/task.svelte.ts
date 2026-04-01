@@ -114,11 +114,11 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
     }
   }
   
-  /** Re-fetch task list from API */
+  /** Re-fetch task list via api.svelte taskStore */
   async refresh(): Promise<void> {
     try {
-      const tasks = await taskService.list({ limit: 100, offset: 0 });
-      this.items = tasks;
+      const { taskStore: apiTaskStore } = await import('./api.svelte');
+      await apiTaskStore.refresh();
     } catch (err) {
       console.error('[TaskStore] refresh failed:', err);
     }
