@@ -19,6 +19,16 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   const taskQueue = fastify.queue;
   const repository = fastify.repository;
 
+  /** Check task ownership. Admin can access all tasks. */
+  const checkTaskOwnership = (record: any, request: any): void => {
+    const userId = request.user?.id;
+    if (userId && userId !== "admin" && userId !== "default-user") {
+      if (record.user_id && record.user_id !== userId) {
+        throw new TaskNotFoundError(record.id); // Return 404 instead of 403 to avoid leaking task existence
+      }
+    }
+  };
+
   // Get all tasks
   fastify.get<{
     Querystring: {
@@ -733,10 +743,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     },
     (request, reply) => {
       const record = repository.getById(request.params.taskId);
-
-      if (!record) {
-        throw new TaskNotFoundError(request.params.taskId);
-      }
+      if (!record) throw new TaskNotFoundError(request.params.taskId);
+      checkTaskOwnership(record, request);
 
       const queuedTask = repository.toQueuedTask(record);
       const task: TaskResponse = {
@@ -785,10 +793,8 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     },
     (request, reply) => {
       const record = repository.getById(request.params.taskId);
-
-      if (!record) {
-        throw new TaskNotFoundError(request.params.taskId);
-      }
+      if (!record) throw new TaskNotFoundError(request.params.taskId);
+      checkTaskOwnership(record, request);
 
       const logResponse: TaskLogResponse = {
         taskId: request.params.taskId,
@@ -809,7 +815,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const record = repository.getById(request.params.taskId);
-
+      if (record) checkTaskOwnership(record, request);
       if (!record) {
         const errorResponse: ErrorResponse = {
           error: {
@@ -851,7 +857,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const record = repository.getById(request.params.taskId);
-
+      if (record) checkTaskOwnership(record, request);
       if (!record) {
         const errorResponse: ErrorResponse = {
           error: {

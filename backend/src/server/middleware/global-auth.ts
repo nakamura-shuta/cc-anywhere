@@ -35,7 +35,10 @@ export function setUserServiceForAuth(service: any): void {
 export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
   // 認証検証エンドポイント
   fastify.get("/api/auth/verify", async (request, reply) => {
-    if (!config.auth.enabled) {
+    const hasEnvKey = !!config.auth.apiKey;
+    const hasUsers = userServiceRef ? userServiceRef.count() > 0 : false;
+
+    if (!hasEnvKey && !hasUsers) {
       return reply.send({ valid: true, message: "Auth is disabled" });
     }
 
@@ -59,9 +62,14 @@ export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
 
   // 認証状態確認エンドポイント
   fastify.get("/api/auth/status", async (_request, reply) => {
+    const hasEnvKey = !!config.auth.apiKey;
+    const hasUsers = userServiceRef ? userServiceRef.count() > 0 : false;
+    const authActive = hasEnvKey || hasUsers;
+
     return reply.send({
-      enabled: config.auth.enabled,
-      requiresAuth: config.auth.enabled && !!config.auth.apiKey,
+      enabled: authActive,
+      requiresAuth: authActive,
+      hasRegisteredUsers: hasUsers,
       qrEnabled: config.qrAuth.enabled,
     });
   });
