@@ -61,13 +61,13 @@ export class TaskRepositoryAdapter {
     // For synchronous compatibility, we'll use the db directly
     const stmt = this.db.prepare(`
       INSERT INTO tasks (
-        id, instruction, context, options, priority, status, 
-        result, error, created_at, updated_at, completed_at, 
+        id, instruction, context, options, priority, status,
+        result, error, created_at, updated_at, completed_at,
         started_at, cancelled_at, retry_count, max_retries,
         retry_metadata, group_id, repository_name, conversation_history, continued_from,
-        sdk_session_id, progress_data
+        sdk_session_id, progress_data, user_id, executed_by_username
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       )
     `);
 
@@ -94,6 +94,8 @@ export class TaskRepositoryAdapter {
       entity.continuedFrom || null,
       null, // sdk_session_id - initially null
       null, // progress_data - initially null
+      (entity as any).userId || null,
+      (entity as any).executedByUsername || null,
     );
 
     return this.entityToRecord(entity);
@@ -145,6 +147,11 @@ export class TaskRepositoryAdapter {
     if (filter.repositoryName) {
       whereClauses.push("repository_name = ?");
       params.push(filter.repositoryName);
+    }
+
+    if ((filter as any).userId) {
+      whereClauses.push("user_id = ?");
+      params.push((filter as any).userId);
     }
 
     if (filter.createdAfter) {

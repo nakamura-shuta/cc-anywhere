@@ -37,6 +37,8 @@ describe("TaskRepositoryAdapter SDK Session", () => {
         continued_from TEXT,
         sdk_session_id TEXT,
         progress_data TEXT,
+        user_id TEXT,
+        executed_by_username TEXT,
         UNIQUE(id)
       )
     `);

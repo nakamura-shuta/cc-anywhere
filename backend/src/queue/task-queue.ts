@@ -185,7 +185,9 @@ export class TaskQueueImpl implements TaskQueue {
         groupId: metadata?.groupId,
         repositoryName: metadata?.repositoryName,
         continuedFrom: continuedFrom || undefined,
-      });
+        ...((request as any).userId ? { userId: (request as any).userId } : {}),
+        ...((request as any).executedByUsername ? { executedByUsername: (request as any).executedByUsername } : {}),
+      } as any);
     } catch (error) {
       logger.error("Failed to persist task", { taskId, error });
     }

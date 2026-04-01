@@ -74,11 +74,18 @@ export const authRoutes: FastifyPluginAsync<{
     }
   });
 
-  // Get current user profile (auth required)
+  // Get current user profile (auth required, registered users only)
   fastify.get("/auth/me", async (request, reply) => {
     const user = (request as any).user;
-    if (!user) {
-      return reply.code(401).send({ error: "Not authenticated" });
+    if (!user || !user.createdAt) {
+      // admin or default-user (not a registered user)
+      return reply.code(200).send({
+        user: {
+          id: user?.id || "unknown",
+          username: user?.username || "unknown",
+          authProvider: "admin",
+        },
+      });
     }
 
     return {
@@ -88,16 +95,22 @@ export const authRoutes: FastifyPluginAsync<{
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
         authProvider: user.authProvider,
-        createdAt: user.createdAt.toISOString(),
+        createdAt: user.createdAt instanceof Date ? user.createdAt.toISOString() : user.createdAt,
       },
     };
   });
 
-  // Regenerate API Key (auth required)
+  // Regenerate API Key (registered users only)
   fastify.post("/auth/regenerate-key", async (request, reply) => {
     const user = (request as any).user;
-    if (!user) {
-      return reply.code(401).send({ error: "Not authenticated" });
+    if (!user || !user.createdAt) {
+      return reply.code(403).send({ error: "Only registered users can regenerate API keys" });
+    }
+
+    // Verify user exists in DB
+    const dbUser = userService.getById(user.id);
+    if (!dbUser) {
+      return reply.code(403).send({ error: "User not found in database" });
     }
 
     const newKey = userService.regenerateApiKey(user.id);

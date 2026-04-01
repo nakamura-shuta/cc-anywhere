@@ -68,9 +68,12 @@ export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
 
   // 認証チェックフック
   fastify.addHook("onRequest", async (request, reply) => {
-    // 認証が無効な場合はスキップ
-    if (!config.auth.enabled || !config.auth.apiKey) {
-      // Set default user
+    // 認証判定: .env の API_KEY があるか、users テーブルにユーザーがいるか
+    const hasEnvKey = !!config.auth.apiKey;
+    const hasUsers = userServiceRef ? userServiceRef.count() > 0 : false;
+
+    if (!hasEnvKey && !hasUsers) {
+      // 認証無効（管理者キーもユーザーも未設定）
       (request as any).user = { id: "default-user", username: "default" };
       return;
     }

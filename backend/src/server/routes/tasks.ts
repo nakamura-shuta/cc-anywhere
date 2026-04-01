@@ -94,11 +94,16 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     },
     (request, reply) => {
       const { status, repository: repositoryFilter, limit = 20, offset = 0 } = request.query;
+      const userId = (request as any).user?.id;
 
       // Get tasks from database
       const filter: TaskFilter = {};
       if (status) {
         filter.status = status;
+      }
+      // Filter by user (non-admin users see only their own tasks)
+      if (userId && userId !== "admin") {
+        (filter as any).userId = userId;
       }
 
       // Use partial matching for repository filter
@@ -621,6 +626,11 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
           originalSdkSessionId: previousTask.sdkSessionId,
         });
       }
+
+      // Attach user info for task recording
+      const user = (request as any).user;
+      (taskRequest as any).userId = user?.id || "default-user";
+      (taskRequest as any).executedByUsername = user?.username || "unknown";
 
       // Add task to queue
       const taskId = taskQueue.add(taskRequest, 0);
