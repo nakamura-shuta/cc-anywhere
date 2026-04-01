@@ -6,8 +6,8 @@
 <script lang="ts">
 	// グローバルCSSをインポート
 	import '../app.css';
-	// shadcn-svelteのButtonコンポーネントをインポート
 	import { Button } from '$lib/components/ui/button';
+	import { authStore } from '$lib/stores/auth.svelte';
 	
 	// Svelte 5の$props()を使用してchildrenを受け取る
 	let { children } = $props();
@@ -75,9 +75,9 @@
 					</div>
 					
 					<!-- デスクトップナビゲーションメニュー -->
-					<div class="hidden lg:flex gap-2">
+					<div class="hidden lg:flex items-center gap-2">
 						{#each navItems as item}
-							<Button 
+							<Button
 								href={item.href}
 								variant={$page.url.pathname === item.href ? 'default' : 'ghost'}
 								size="sm"
@@ -85,6 +85,15 @@
 								{item.label}
 							</Button>
 						{/each}
+
+						{#if authStore.user}
+							<span class="ml-2 text-sm text-muted-foreground">
+								{authStore.user.username}
+							</span>
+							<Button variant="ghost" size="sm" onclick={() => authStore.logout()}>
+								Logout
+							</Button>
+						{/if}
 					</div>
 				</nav>
 			</div>

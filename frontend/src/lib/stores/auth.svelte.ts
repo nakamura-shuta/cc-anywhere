@@ -1,161 +1,173 @@
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
+import { getApiBaseUrl } from '$lib/config';
 
 const AUTH_TOKEN_KEY = 'cc-anywhere-api-key';
-const AUTH_TOKEN_EXPIRY_KEY = 'cc-anywhere-api-key-expiry';
+
+export interface AuthUser {
+	id: string;
+	username: string;
+	displayName?: string;
+	avatarUrl?: string;
+	authProvider?: string;
+}
 
 class AuthStore {
 	private authenticated = $state(false);
 	private token = $state<string | null>(null);
 	private loading = $state(true);
+	user = $state<AuthUser | null>(null);
+
 	private initPromise: Promise<void> | null = null;
-	
+
 	constructor() {
 		if (browser) {
 			this.initPromise = this.initialize();
 		}
 	}
-	
+
+	async waitForInit(): Promise<void> {
+		if (this.initPromise) await this.initPromise;
+	}
+
 	private async initialize(): Promise<void> {
 		let savedToken: string | null = null;
-		let savedExpiry: string | null = null;
-		
-		// localStorageから読み込みを試みる
+
 		try {
 			savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-			savedExpiry = localStorage.getItem(AUTH_TOKEN_EXPIRY_KEY);
-		} catch {
-			// localStorageが利用不可
-		}
-		
-		// localStorageで見つからない場合、sessionStorageを試す
-		if (!savedToken) {
-			try {
-				savedToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
-				savedExpiry = sessionStorage.getItem(AUTH_TOKEN_EXPIRY_KEY);
-			} catch {
-				// sessionStorageも利用不可
-			}
-		}
-		
-		// トークンが見つかった場合、有効性をチェック
-		if (savedToken && savedExpiry) {
-			const expiryTime = parseInt(savedExpiry, 10);
-			if (Date.now() < expiryTime) {
-				this.token = savedToken;
-				this.authenticated = true;
-			} else {
-				// 期限切れの場合はクリア
+		} catch { /* ignore */ }
+
+		if (savedToken) {
+			// Verify token and load user info
+			const success = await this.loginWithKey(savedToken);
+			if (!success) {
 				this.clearAuth();
 			}
 		}
-		
+
 		this.loading = false;
 	}
-	
-	// 初期化が完了するまで待つ
-	async waitForInit(): Promise<void> {
-		if (this.initPromise) {
-			await this.initPromise;
-		}
-	}
-	
-	async checkAuth(): Promise<{ enabled: boolean; requiresAuth: boolean }> {
+
+	async checkAuth(): Promise<{ enabled: boolean; requiresAuth: boolean; hasRegisteredUsers?: boolean }> {
 		try {
-			const response = await fetch('/api/auth/status');
-			if (!response.ok) {
-				throw new Error('Failed to check auth status');
-			}
-			const status = await response.json();
-			return status;
+			const baseUrl = getApiBaseUrl();
+			const response = await fetch(`${baseUrl}/api/auth/status`);
+			if (!response.ok) return { enabled: false, requiresAuth: false };
+			return response.json();
 		} catch {
 			return { enabled: false, requiresAuth: false };
 		}
 	}
-	
-	async authenticate(token: string): Promise<boolean> {
+
+	async register(username: string): Promise<{ success: boolean; apiKey?: string; error?: string }> {
 		try {
-			// api_keyパラメータを使用
-			const response = await fetch(`/api/auth/verify?api_key=${token}`);
-			
+			const baseUrl = getApiBaseUrl();
+			const response = await fetch(`${baseUrl}/api/auth/register`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ username }),
+			});
+
 			if (!response.ok) {
-				throw new Error('Authentication failed');
+				const err = await response.json().catch(() => ({ error: 'Registration failed' }));
+				return { success: false, error: err.error };
 			}
-			
+
+			const data = await response.json();
+			// Auto-login after registration
+			this.token = data.apiKey;
+			this.user = data.user;
+			this.authenticated = true;
+			this.saveToken(data.apiKey);
+
+			return { success: true, apiKey: data.apiKey };
+		} catch (error) {
+			return { success: false, error: 'Registration failed' };
+		}
+	}
+
+	async loginWithKey(apiKey: string): Promise<boolean> {
+		try {
+			const baseUrl = getApiBaseUrl();
+			const response = await fetch(`${baseUrl}/api/auth/login`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ apiKey }),
+			});
+
+			if (!response.ok) return false;
+
+			const data = await response.json();
+			this.token = apiKey;
+			this.user = data.user;
+			this.authenticated = true;
+			this.saveToken(apiKey);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/** Legacy: authenticate with .env admin key */
+	async authenticate(token: string): Promise<boolean> {
+		// Try user login first
+		const userLogin = await this.loginWithKey(token);
+		if (userLogin) return true;
+
+		// Fallback to verify endpoint (admin key)
+		try {
+			const baseUrl = getApiBaseUrl();
+			const response = await fetch(`${baseUrl}/api/auth/verify?api_key=${token}`);
+			if (!response.ok) return false;
+
 			const result = await response.json();
-			
 			if (result.valid) {
 				this.token = token;
+				this.user = result.user || { id: 'admin', username: 'admin' };
 				this.authenticated = true;
-				
-				// トークンを保存（24時間有効）
-				const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
-				
-				// localStorageを試す
-				try {
-					localStorage.setItem(AUTH_TOKEN_KEY, token);
-					localStorage.setItem(AUTH_TOKEN_EXPIRY_KEY, expiryTime.toString());
-				} catch {
-					// localStorageが失敗した場合、sessionStorageを試す
-					try {
-						sessionStorage.setItem(AUTH_TOKEN_KEY, token);
-						sessionStorage.setItem(AUTH_TOKEN_EXPIRY_KEY, expiryTime.toString());
-					} catch {
-						// どちらも失敗した場合でも、メモリには保持される
-						console.warn('[Auth] Storage not available, token kept in memory only');
-					}
-				}
-				
+				this.saveToken(token);
 				return true;
 			}
-			
 			return false;
 		} catch {
 			return false;
 		}
 	}
-	
+
 	getAuthHeaders(): Record<string, string> {
 		if (this.token) {
 			return { 'X-API-Key': this.token };
 		}
 		return {};
 	}
-	
+
 	clearAuth() {
 		this.token = null;
+		this.user = null;
 		this.authenticated = false;
-		try {
-			localStorage.removeItem(AUTH_TOKEN_KEY);
-			localStorage.removeItem(AUTH_TOKEN_EXPIRY_KEY);
-		} catch {
-			// エラーは無視
-		}
-		try {
-			sessionStorage.removeItem(AUTH_TOKEN_KEY);
-			sessionStorage.removeItem(AUTH_TOKEN_EXPIRY_KEY);
-		} catch {
-			// エラーは無視
-		}
+		try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch { /* ignore */ }
 	}
-	
+
 	async logout() {
 		this.clearAuth();
-		await goto('/auth/error');
+		await goto('/auth');
 	}
-	
+
 	get isAuthenticated() {
 		return this.authenticated;
 	}
-	
+
 	get isLoading() {
 		return this.loading;
 	}
-	
+
 	get authToken() {
 		return this.token;
 	}
+
+	private saveToken(token: string) {
+		try { localStorage.setItem(AUTH_TOKEN_KEY, token); } catch { /* ignore */ }
+	}
 }
 
-// シングルトンインスタンス
 export const authStore = new AuthStore();
