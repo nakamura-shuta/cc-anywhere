@@ -16,15 +16,7 @@ export const workspaceRoutes: FastifyPluginAsync<{
   await fastify.register(multipart, { limits: { fileSize: 50 * 1024 * 1024 } });
 
   const getUserId = (request: any): string => {
-    const { config } = require("../../config/index.js");
-    if (!config.auth.enabled || !config.auth.apiKey) {
-      return "default-user";
-    }
-    const apiKey = request.headers?.["x-api-key"] || (request as any).apiKey;
-    if (!apiKey) return "default-user";
-    const crypto = require("crypto");
-    const hash = crypto.createHash("sha256").update(apiKey).digest("hex");
-    return `user-${hash.substring(0, 16)}`;
+    return request.user?.id || "default-user";
   };
 
   // Upload workspace (zip file)

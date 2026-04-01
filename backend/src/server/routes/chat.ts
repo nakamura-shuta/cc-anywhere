@@ -8,7 +8,6 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
 import { getSharedChatRepository } from "../../db/shared-instance.js";
 import { logger } from "../../utils/logger.js";
 import { config } from "../../config/index.js";
@@ -55,27 +54,9 @@ const chatRoutes: FastifyPluginAsync<{ sessionService: UnifiedSessionService }> 
   const chatSessionService = sessionService.runtime;
   const chatRepository = getSharedChatRepository();
 
-  // Helper to get user ID from request
-  // Uses API key hash as user identifier (authenticated via global-auth middleware)
+  // Get user ID from request (set by global-auth middleware)
   const getUserId = (request: any): string => {
-    // If auth is disabled, use default user
-    if (!config.auth.enabled || !config.auth.apiKey) {
-      return "default-user";
-    }
-
-    // Get API key from header or query
-    const apiKey =
-      (request.headers["x-api-key"] as string) ||
-      (request.query as Record<string, string>)?.api_key;
-
-    if (!apiKey) {
-      // Should not happen as global auth middleware validates this
-      return "default-user";
-    }
-
-    // Hash API key to create user ID (privacy + consistency)
-    const hash = crypto.createHash("sha256").update(apiKey).digest("hex");
-    return `user-${hash.substring(0, 16)}`;
+    return request.user?.id || "default-user";
   };
 
   // ======================

@@ -422,6 +422,29 @@ export class DatabaseProvider {
         CREATE INDEX IF NOT EXISTS idx_workspaces_user_id ON workspaces(user_id);
       `);
 
+      // Users table
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          username TEXT NOT NULL UNIQUE,
+          api_key TEXT UNIQUE,
+          display_name TEXT,
+          avatar_url TEXT,
+          auth_provider TEXT DEFAULT 'local',
+          external_id TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          last_login_at DATETIME
+        )
+      `);
+      this.db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key);
+        CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+      `);
+
+      // Add user columns to tasks
+      try { this.db.exec("ALTER TABLE tasks ADD COLUMN user_id TEXT"); } catch { /* exists */ }
+      try { this.db.exec("ALTER TABLE tasks ADD COLUMN executed_by_username TEXT"); } catch { /* exists */ }
+
       logger.debug("Database migrations completed");
     } catch (error) {
       logger.error("Database migration failed", { error });

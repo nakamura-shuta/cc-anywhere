@@ -3,27 +3,33 @@ import { config } from "../../config";
 import { logger } from "../../utils/logger";
 
 // 認証不要なパス
-const PUBLIC_PATHS = ["/health", "/api/auth/verify", "/api/auth/status"];
+const PUBLIC_PATHS = [
+  "/health",
+  "/api/auth/verify",
+  "/api/auth/status",
+  "/api/auth/register",
+  "/api/auth/login",
+];
 
-// パスが認証不要かチェック
 function isPublicPath(path: string): boolean {
   return PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
 }
 
-// トークンを取得
 function extractToken(request: FastifyRequest): string | undefined {
-  // ヘッダーから取得
   const headerToken = request.headers["x-api-key"] as string;
-
   if (headerToken) return headerToken;
 
-  // クエリパラメータから取得
   const query = request.query as Record<string, string>;
   const queryToken = query?.api_key;
-
   if (queryToken) return queryToken;
 
   return undefined;
+}
+
+// Shared UserService reference (set by routes.ts)
+let userServiceRef: any = null;
+export function setUserServiceForAuth(service: any): void {
+  userServiceRef = service;
 }
 
 export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
@@ -34,8 +40,17 @@ export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
     }
 
     const token = extractToken(request);
-    const valid = token === config.auth.apiKey;
 
+    // Check users table first
+    if (userServiceRef && token) {
+      const user = userServiceRef.getByApiKey(token);
+      if (user) {
+        return reply.send({ valid: true, message: "Authentication successful", user: { id: user.id, username: user.username } });
+      }
+    }
+
+    // Fallback to .env API Key
+    const valid = token === config.auth.apiKey;
     return reply.send({
       valid,
       message: valid ? "Authentication successful" : "Invalid token",
@@ -47,7 +62,7 @@ export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       enabled: config.auth.enabled,
       requiresAuth: config.auth.enabled && !!config.auth.apiKey,
-      qrEnabled: config.qrAuth.enabled, // QRコード表示機能の状態
+      qrEnabled: config.qrAuth.enabled,
     });
   });
 
@@ -55,6 +70,8 @@ export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
   fastify.addHook("onRequest", async (request, reply) => {
     // 認証が無効な場合はスキップ
     if (!config.auth.enabled || !config.auth.apiKey) {
+      // Set default user
+      (request as any).user = { id: "default-user", username: "default" };
       return;
     }
 
@@ -63,35 +80,48 @@ export const globalAuthMiddleware: FastifyPluginAsync = async (fastify) => {
       return;
     }
 
-    // APIルート以外（静的ファイル、SPAルート、WebSocket）はスキップ
+    // APIルート以外はスキップ
     if (!request.url.startsWith("/api/") || request.headers.upgrade === "websocket") {
       return;
     }
 
-    // トークン検証
     const token = extractToken(request);
 
-    if (token !== config.auth.apiKey) {
-      logger.warn("Unauthorized access attempt", {
-        path: request.url,
-        method: request.method,
-        ip: request.ip,
-        hasToken: !!token,
-      });
-
-      return reply.status(401).send({
-        error: {
-          message: "Unauthorized: Invalid or missing authentication token",
-          statusCode: 401,
-          code: "UNAUTHORIZED",
-        },
-      });
+    // 1. Check users table
+    if (userServiceRef && token) {
+      const user = userServiceRef.getByApiKey(token);
+      if (user) {
+        (request as any).user = user;
+        (request as any).apiKey = token;
+        return;
+      }
     }
+
+    // 2. Check .env admin API Key
+    if (token === config.auth.apiKey) {
+      (request as any).user = { id: "admin", username: "admin" };
+      (request as any).apiKey = token;
+      return;
+    }
+
+    // 3. Unauthorized
+    logger.warn("Unauthorized access attempt", {
+      path: request.url,
+      method: request.method,
+      ip: request.ip,
+    });
+
+    return reply.status(401).send({
+      error: {
+        message: "Unauthorized: Invalid or missing authentication token",
+        statusCode: 401,
+        code: "UNAUTHORIZED",
+      },
+    });
   });
 
   logger.info("Global authentication middleware initialized", {
     enabled: config.auth?.enabled ?? false,
     hasToken: !!config.auth?.apiKey,
-    qrEnabled: config.qrAuth?.enabled ?? false,
   });
 };
