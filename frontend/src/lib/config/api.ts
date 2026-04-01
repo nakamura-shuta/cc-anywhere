@@ -65,14 +65,7 @@ export const API_ENDPOINTS = {
 // APIキーの取得
 export const getApiKey = (): string | null => {
 	if (browser) {
-		// ローカルストレージから取得（設定画面で保存された場合）
-		const storedKey = localStorage.getItem('cc-anywhere-api-key');
-		if (storedKey) return storedKey;
-		
-		// 開発環境のデフォルトAPIキー
-		if (dev) {
-			return 'test-api-key';
-		}
+		return localStorage.getItem('cc-anywhere-api-key');
 	}
 	return null;
 };
