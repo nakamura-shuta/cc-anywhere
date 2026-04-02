@@ -53,7 +53,7 @@ export const load: PageLoad = async ({ url }) => {
 		}
 		
 		// Sync params to taskStore for WebSocket refresh
-		const { taskStore } = await import('$lib/stores/api.svelte');
+		const { taskStore } = await import('$lib/stores/task.svelte');
 		taskStore.setListParams(params);
 
 		const response = await apiClient.get<{ tasks: TaskResponse[], total: number, limit: number, offset: number }>('/api/tasks', {

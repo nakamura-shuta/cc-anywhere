@@ -41,6 +41,7 @@ export class EnhancedWebSocketStore {
   status = $state<WebSocketStatus>('disconnected');
   error = $state<Error | null>(null);
   isConnected = $derived(this.status === 'connected');
+  isAuthenticated = $state(false);
   
   // メッセージハンドラー
   private handlers = new Map<string, Set<MessageHandler>>();
@@ -101,6 +102,7 @@ export class EnhancedWebSocketStore {
     }
     
     this.status = 'disconnected';
+    this.isAuthenticated = false;
     this.reconnectAttempts = 0;
   }
   
@@ -161,29 +163,26 @@ export class EnhancedWebSocketStore {
   /**
    * 接続成功時の処理
    */
-  private handleOpen(): void {
+  private async handleOpen(): Promise<void> {
     console.log('[WebSocket] Connected');
     this.status = 'connected';
     this.error = null;
     this.reconnectAttempts = 0;
-    
+
     // ハートビート開始
     this.startHeartbeat();
-    
-    // 認証メッセージを送信
-    this.authenticate();
-    
-    // キューに溜まったメッセージを送信
-    this.flushMessageQueue();
+
+    // 認証メッセージを送信（キュー送信は auth:success 受信後に実行）
+    await this.authenticate();
   }
   
   /**
-   * 認証処理
+   * 認証処理（authStore初期化完了を待ってから送信）
    */
-  private authenticate(): void {
-    // 認証トークンを使用
+  private async authenticate(): Promise<void> {
+    await authStore.waitForInit();
     const apiKey = authStore.authToken || this.config.apiKey || '';
-    
+
     this.send({
       type: 'auth',
       payload: { apiKey }
@@ -201,6 +200,12 @@ export class EnhancedWebSocketStore {
       // pongメッセージは無視
       if (message.type === 'pong') {
         return;
+      }
+
+      // 認証成功：フラグをセットし、キューに溜まったメッセージを送信
+      if (message.type === 'auth:success') {
+        this.isAuthenticated = true;
+        this.flushMessageQueue();
       }
       
       // グローバルハンドラー
@@ -244,7 +249,8 @@ export class EnhancedWebSocketStore {
   private handleClose(event: CloseEvent): void {
     console.log('[WebSocket] Closed:', event.code, event.reason);
     this.status = 'disconnected';
-    
+    this.isAuthenticated = false;
+
     this.clearTimers();
     
     // 自動再接続

@@ -14,31 +14,36 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
   }
   
   private subscribeToAllTasks(): void {
-    // WebSocketストアを取得してタスクの更新を購読
     import('./websocket-enhanced.svelte').then(({ getWebSocketStore }) => {
       const ws = getWebSocketStore();
-      
-      // WebSocket接続後に全タスクを購読
-      const unsubscribe = ws.on('auth:success', () => {
-        // 全タスクの更新を購読
+
+      const sendSubscribe = () => {
         ws.send({
           type: 'subscribe',
           payload: { taskId: '*' }
         });
-        
-        // 一度だけ実行するので解除
+      };
+
+      // 既に認証済みなら即座に購読
+      if (ws.isAuthenticated) {
+        sendSubscribe();
+        return;
+      }
+
+      // まだ認証されていない場合は auth:success を待つ
+      const unsubscribe = ws.on('auth:success', () => {
+        sendSubscribe();
         unsubscribe();
       });
-      
-      // 既に接続済みの場合は即座に購読
-      if (ws.isConnected) {
-        ws.send({
-          type: 'subscribe',
-          payload: { taskId: '*' }
-        });
-      }
     });
   }
+  // 現在のリストパラメータ（WebSocket refresh時に使用）
+  private listParams: { status?: string; repository?: string; limit?: number; offset?: number } = { limit: 100, offset: 0 };
+
+  setListParams(params: { status?: string; repository?: string; limit?: number; offset?: number }): void {
+    this.listParams = params;
+  }
+
   // タスク固有の状態
   runningCount = $derived(
     this.items.filter(task => task.status === 'running').length
@@ -114,11 +119,11 @@ class TaskStore extends createEntityStore<TaskResponse>('task', taskService) {
     }
   }
   
-  /** Re-fetch task list via api.svelte taskStore */
+  /** Re-fetch task list using current listParams and update items */
   async refresh(): Promise<void> {
     try {
-      const { taskStore: apiTaskStore } = await import('./api.svelte');
-      await apiTaskStore.refresh();
+      const tasks = await taskService.list(this.listParams);
+      this.items = tasks;
     } catch (err) {
       console.error('[TaskStore] refresh failed:', err);
     }

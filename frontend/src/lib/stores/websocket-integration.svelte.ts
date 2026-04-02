@@ -79,30 +79,9 @@ function setupTaskGroupStoreHandlers() {
  */
 function setupTaskStoreHandlers() {
   const router = getGlobalMessageRouter();
-  
-  // タスクのCRUD操作
-  router.register('task.created', (msg) => {
-    taskStore.handleWebSocketUpdate(msg);
-  });
-  
-  router.register('task.updated', (msg) => {
-    taskStore.handleWebSocketUpdate(msg);
-  });
-  
-  router.register('task.deleted', (msg) => {
-    taskStore.handleWebSocketUpdate(msg);
-  });
-  
-  // タスク固有のイベント
-  router.register('task:update', (msg) => {
-    taskStore.handleWebSocketUpdate(msg);
-  });
-  
-  router.register('task:progress', (msg) => {
-    taskStore.handleWebSocketUpdate(msg);
-  });
-  
-  // レガシーイベントのサポート
+
+  // バックエンドはすべてコロン記法（task:update, task:created 等）で送信
+  // パターン一本で全タスクメッセージを処理
   router.registerPattern('task:*', (msg) => {
     taskStore.handleWebSocketUpdate(msg);
   });

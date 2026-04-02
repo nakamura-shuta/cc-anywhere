@@ -50,22 +50,6 @@ export class TaskStore {
 	// 個別タスクの状態（IDをキーとしたMap）
 	private taskStates = $state(new Map<string, ApiState<TaskResponse>>());
 
-	/** Current list params for WebSocket-triggered refresh */
-	private listParams: { status?: string; limit?: number; offset?: number } = { limit: 100, offset: 0 };
-
-	setListParams(params: { status?: string; limit?: number; offset?: number }): void {
-		this.listParams = params;
-	}
-
-	/** Re-fetch using current params (called from task.svelte.ts on task:created) */
-	async refresh(): Promise<void> {
-		try {
-			const { taskService } = await import('$lib/services/task.service');
-			const tasks = await taskService.list(this.listParams);
-			this.tasks = { tasks, total: tasks.length, limit: this.listParams.limit || 100, offset: this.listParams.offset || 0 } as any;
-		} catch { /* ignore */ }
-	}
-
 	// 特定のタスクの状態を取得（存在しない場合は作成）
 	getTaskState(taskId: string): ApiState<TaskResponse> {
 		if (!this.taskStates.has(taskId)) {

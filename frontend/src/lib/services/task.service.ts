@@ -9,6 +9,7 @@ import type { EntityService } from '$lib/stores/factory.svelte';
 export class TaskService implements EntityService<TaskResponse> {
   async list(params?: {
     status?: string;
+    repository?: string;
     limit?: number;
     offset?: number;
   }): Promise<TaskResponse[]> {
