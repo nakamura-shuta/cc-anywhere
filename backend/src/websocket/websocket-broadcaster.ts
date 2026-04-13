@@ -17,6 +17,7 @@ export type MessageType =
   | "task:reasoning"
   | "task:hook:pre_tool_use"
   | "task:hook:post_tool_use"
+  | "task:task_updated"
   | "schedule:update"
   | "schedule:execution"
   | "task-group:created"

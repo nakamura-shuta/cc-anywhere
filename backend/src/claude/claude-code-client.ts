@@ -226,6 +226,22 @@ export class ClaudeCodeClient {
           sessionId = (message as any).session_id;
         }
 
+        // Forward subagent task status updates (SDK v0.2.104+)
+        if (message.type === "system" && (message as any).subtype === "task_updated" && options.onProgress) {
+          const m = message as any;
+          await options.onProgress({
+            type: "task:updated",
+            message: `Task ${m.task_id}: ${m.patch?.status || "updated"}`,
+            data: {
+              taskId: m.task_id,
+              status: m.patch?.status,
+              description: m.patch?.description,
+              error: m.patch?.error,
+              isBackgrounded: m.patch?.is_backgrounded,
+            },
+          });
+        }
+
         // Track turns and tool usage
         if (message.type === "assistant") {
           turnCount++;

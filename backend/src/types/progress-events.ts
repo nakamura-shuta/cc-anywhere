@@ -192,6 +192,22 @@ export interface HookPostToolUseProgressEvent extends BaseProgressEvent {
   };
 }
 
+/**
+ * Subagent task status update event (SDK v0.2.104+)
+ * Emitted when a subagent's task status changes (e.g. pending → running → completed).
+ */
+export interface TaskUpdatedProgressEvent extends BaseProgressEvent {
+  type: "task:updated";
+  message: string;
+  data: {
+    taskId: string;
+    status?: "pending" | "running" | "completed" | "failed" | "killed";
+    description?: string;
+    error?: string;
+    isBackgrounded?: boolean;
+  };
+}
+
 // ==================== Union Type ====================
 
 /**
@@ -225,7 +241,8 @@ export type ProgressEvent =
   | StatisticsProgressEvent
   | ToolUsageProgressEvent
   | HookPreToolUseProgressEvent
-  | HookPostToolUseProgressEvent;
+  | HookPostToolUseProgressEvent
+  | TaskUpdatedProgressEvent;
 
 // ==================== Type Guards ====================
 

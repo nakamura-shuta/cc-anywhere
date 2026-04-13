@@ -125,6 +125,19 @@ export interface TaskProgressMessage extends WebSocketMessage {
   };
 }
 
+export interface TaskUpdatedMessage extends WebSocketMessage {
+  type: "task:task_updated";
+  payload: {
+    taskId: string;
+    subagentTaskId: string;
+    status?: "pending" | "running" | "completed" | "failed" | "killed";
+    description?: string;
+    error?: string;
+    isBackgrounded?: boolean;
+    timestamp: string;
+  };
+}
+
 export interface TodoUpdateMessage extends WebSocketMessage {
   type: "task:todo_update";
   payload: {

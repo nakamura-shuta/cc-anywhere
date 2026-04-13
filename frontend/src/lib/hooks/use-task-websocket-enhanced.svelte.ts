@@ -178,7 +178,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 			
 			// WebSocketメッセージがある場合はフォーマットして使用
 			const wsLogs = taskMessages
-				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update', 'task:hook:pre_tool_use', 'task:hook:post_tool_use'].includes(m.type))
+				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update', 'task:hook:pre_tool_use', 'task:hook:post_tool_use', 'task:task_updated'].includes(m.type))
 				.map(m => {
 					const timestamp = new Date(m.timestamp || Date.now()).toLocaleString('ja-JP');
 					
@@ -233,6 +233,14 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 						case 'task:hook:post_tool_use': {
 							const errorIcon = m.payload?.error ? '❌' : '✅';
 							return `🪝 PostToolUse ${errorIcon} ${m.payload?.toolName}\n${timestamp}`;
+						}
+						case 'task:task_updated': {
+							const statusIcon = m.payload?.status === 'completed' ? '✅' :
+								m.payload?.status === 'failed' ? '❌' :
+								m.payload?.status === 'running' ? '🔄' : '📋';
+							const desc = m.payload?.description ? `: ${m.payload.description}` : '';
+							const err = m.payload?.error ? `\n  Error: ${m.payload.error}` : '';
+							return `${statusIcon} Subtask ${m.payload?.status || 'updated'}${desc}${err}\n${timestamp}`;
 						}
 						default:
 							return JSON.stringify(m.payload);

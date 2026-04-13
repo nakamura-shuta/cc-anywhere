@@ -5,6 +5,7 @@ import { unstable_v2_createSession, unstable_v2_resumeSession } from "@anthropic
 const mockSend = vi.fn().mockResolvedValue(undefined);
 
 function createMockSession(messages: any[], opts?: { throwOnStream?: Error }) {
+  const close = vi.fn();
   return {
     get sessionId() { return "test-session"; },
     send: mockSend,
@@ -12,7 +13,8 @@ function createMockSession(messages: any[], opts?: { throwOnStream?: Error }) {
       for (const msg of messages) yield msg;
       if (opts?.throwOnStream) throw opts.throwOnStream;
     })()),
-    close: vi.fn(),
+    close,
+    [Symbol.asyncDispose]: vi.fn(async () => { close(); }),
   };
 }
 

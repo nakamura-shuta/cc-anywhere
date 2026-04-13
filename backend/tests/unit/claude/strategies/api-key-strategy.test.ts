@@ -5,13 +5,15 @@ import { unstable_v2_createSession } from "@anthropic-ai/claude-agent-sdk";
 const mockSend = vi.fn().mockResolvedValue(undefined);
 
 function createMockSession(messages: any[]) {
+  const close = vi.fn();
   return {
     get sessionId() { return "test-session"; },
     send: mockSend,
     stream: vi.fn().mockReturnValue((async function* () {
       for (const msg of messages) yield msg;
     })()),
-    close: vi.fn(),
+    close,
+    [Symbol.asyncDispose]: vi.fn(async () => { close(); }),
   };
 }
 
@@ -74,6 +76,69 @@ describe("ApiKeyStrategy", () => {
       expect(collected).toHaveLength(2);
       expect(mockCreateSession).toHaveBeenCalled();
       expect(mockSend).toHaveBeenCalledWith("test");
+    });
+
+    it("should call session.close() after normal completion", async () => {
+      const strategy = new ApiKeyStrategy("test-api-key");
+      const mockSession = createMockSession([
+        { type: "assistant", message: "done" },
+      ]);
+      mockCreateSession.mockReturnValue(mockSession as any);
+
+      for await (const _msg of strategy.executeQuery({ prompt: "test" })) {
+        // consume
+      }
+
+      expect(mockSession.close).toHaveBeenCalled();
+    });
+
+    it("should call session.close() when stream throws", async () => {
+      const strategy = new ApiKeyStrategy("test-api-key");
+      const close = vi.fn();
+      const mockSession = {
+        sessionId: "test-session",
+        send: vi.fn().mockResolvedValue(undefined),
+        stream: vi.fn().mockReturnValue((async function* () {
+          throw new Error("stream error");
+        })()),
+        close,
+        [Symbol.asyncDispose]: vi.fn(async () => { close(); }),
+      };
+      mockCreateSession.mockReturnValue(mockSession as any);
+
+      const collected: any[] = [];
+      try {
+        for await (const msg of strategy.executeQuery({ prompt: "test" })) {
+          collected.push(msg);
+        }
+      } catch {
+        // expected
+      }
+
+      expect(mockSession.close).toHaveBeenCalled();
+    });
+
+    it("should call session.close() when signal is already aborted", async () => {
+      const strategy = new ApiKeyStrategy("test-api-key");
+      const mockSession = createMockSession([]);
+      mockCreateSession.mockReturnValue(mockSession as any);
+
+      const controller = new AbortController();
+      controller.abort();
+
+      const collected: any[] = [];
+      try {
+        for await (const msg of strategy.executeQuery({
+          prompt: "test",
+          abortController: controller,
+        })) {
+          collected.push(msg);
+        }
+      } catch {
+        // expected: AbortError
+      }
+
+      expect(mockSession.close).toHaveBeenCalled();
     });
 
     it("should restore environment variables after execution", async () => {

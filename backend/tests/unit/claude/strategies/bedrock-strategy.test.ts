@@ -6,13 +6,15 @@ import { unstable_v2_createSession } from "@anthropic-ai/claude-agent-sdk";
 const mockSend = vi.fn().mockResolvedValue(undefined);
 
 function createMockSession(messages: any[]) {
+  const close = vi.fn();
   return {
     get sessionId() { return "test-session"; },
     send: mockSend,
     stream: vi.fn().mockReturnValue((async function* () {
       for (const msg of messages) yield msg;
     })()),
-    close: vi.fn(),
+    close,
+    [Symbol.asyncDispose]: vi.fn(async () => { close(); }),
   };
 }
 
@@ -73,6 +75,67 @@ describe("BedrockStrategy", () => {
 
       expect(collected).toHaveLength(1);
       expect(mockCreateSession).toHaveBeenCalled();
+    });
+
+    it("should call session.close() after normal completion", async () => {
+      const strategy = new BedrockStrategy("key", "secret", "us-east-1");
+      const mockSession = createMockSession([
+        { type: "assistant", message: "done" },
+      ]);
+      mockCreateSession.mockReturnValue(mockSession as any);
+
+      for await (const _msg of strategy.executeQuery({ prompt: "test" })) {
+        // consume
+      }
+
+      expect(mockSession.close).toHaveBeenCalled();
+    });
+
+    it("should call session.close() when stream throws", async () => {
+      const strategy = new BedrockStrategy("key", "secret", "us-east-1");
+      const close = vi.fn();
+      const mockSession = {
+        sessionId: "test-session",
+        send: vi.fn().mockResolvedValue(undefined),
+        stream: vi.fn().mockReturnValue((async function* () {
+          throw new Error("stream error");
+        })()),
+        close,
+        [Symbol.asyncDispose]: vi.fn(async () => { close(); }),
+      };
+      mockCreateSession.mockReturnValue(mockSession as any);
+
+      try {
+        for await (const _msg of strategy.executeQuery({ prompt: "test" })) {
+          // consume
+        }
+      } catch {
+        // expected
+      }
+
+      expect(mockSession.close).toHaveBeenCalled();
+    });
+
+    it("should call session.close() when signal is already aborted", async () => {
+      const strategy = new BedrockStrategy("key", "secret", "us-east-1");
+      const mockSession = createMockSession([]);
+      mockCreateSession.mockReturnValue(mockSession as any);
+
+      const controller = new AbortController();
+      controller.abort();
+
+      try {
+        for await (const _msg of strategy.executeQuery({
+          prompt: "test",
+          abortController: controller,
+        })) {
+          // consume
+        }
+      } catch {
+        // expected: AbortError
+      }
+
+      expect(mockSession.close).toHaveBeenCalled();
     });
 
     it("should restore environment variables after execution", async () => {

@@ -35,7 +35,9 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
 
       // V2 SDKSessionOptions lacks cwd; use mutex-protected chdir
       const cwd = options.options?.cwd;
-      const session = await withCwd(cwd, () =>
+
+      // await using: session is auto-closed when scope exits (normal, error, break, abort)
+      await using session = await withCwd(cwd, () =>
         options.options?.resume
           ? unstable_v2_resumeSession(options.options!.resume!, sessionOptions)
           : unstable_v2_createSession(sessionOptions),
@@ -47,11 +49,14 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
       const signal = options.abortController?.signal;
       const onAbort = () => { try { session.close(); } catch { /* ignore */ } };
       if (signal) {
-        if (signal.aborted) throw new DOMException("The operation was aborted", "AbortError");
         signal.addEventListener("abort", onAbort, { once: true });
       }
 
       try {
+        if (signal?.aborted) {
+          throw new DOMException("The operation was aborted", "AbortError");
+        }
+
         await session.send(prompt);
 
         for await (const message of session.stream()) {
@@ -63,6 +68,7 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
       } finally {
         signal?.removeEventListener("abort", onAbort);
       }
+      // session.close() is called automatically by await using when scope exits
     } finally {
       if (originalApiKey !== undefined) {
         process.env.CLAUDE_API_KEY = originalApiKey;
@@ -96,15 +102,10 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
       disallowedTools: opts?.disallowedTools,
       hooks: opts?.hooks,
       permissionMode: opts?.permissionMode,
-      // V2 SDKSessionOptions supports these
       executable: opts?.executable,
       executableArgs: opts?.executableArgs,
-      // V2 SDKSessionOptions does NOT support:
-      // - maxTurns (no equivalent; Claude Code manages turns internally)
-      // - mcpServers (not in SDKSessionOptions; MCP configured at CLI level)
     };
 
-    // Pass cwd and app identifier via env
     const envOverrides: Record<string, string> = {
       CLAUDE_AGENT_SDK_CLIENT_APP: "cc-anywhere/1.0.0",
     };
@@ -114,7 +115,6 @@ export class ApiKeyStrategy implements ClaudeCodeStrategy {
     }
     sessionOptions.env = { ...process.env, ...envOverrides };
 
-    // Inject systemPrompt via SessionStart hook
     if (opts?.customSystemPrompt) {
       const systemPrompt = opts.customSystemPrompt;
       sessionOptions.hooks = {

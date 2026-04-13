@@ -79,7 +79,9 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
       }
 
       const cwd = opts?.cwd;
-      const session = await withCwd(cwd, () =>
+
+      // await using: session is auto-closed when scope exits (normal, error, break, abort)
+      await using session = await withCwd(cwd, () =>
         opts?.resume
           ? unstable_v2_resumeSession(opts.resume!, sessionOptions)
           : unstable_v2_createSession(sessionOptions),
@@ -90,11 +92,14 @@ export class BedrockStrategy implements ClaudeCodeStrategy {
       const signal = options.abortController?.signal;
       const onAbort = () => { try { session.close(); } catch { /* ignore */ } };
       if (signal) {
-        if (signal.aborted) throw new DOMException("The operation was aborted", "AbortError");
         signal.addEventListener("abort", onAbort, { once: true });
       }
 
       try {
+        if (signal?.aborted) {
+          throw new DOMException("The operation was aborted", "AbortError");
+        }
+
         await session.send(prompt);
 
         for await (const message of session.stream()) {

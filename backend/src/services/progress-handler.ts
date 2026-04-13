@@ -106,6 +106,8 @@ export class ProgressHandler {
         return this.handleHookPreToolUseProgress(progress, timestamp);
       case "hook:post_tool_use":
         return this.handleHookPostToolUseProgress(progress, timestamp);
+      case "task:updated":
+        return this.handleTaskUpdatedProgress(progress, timestamp);
       default:
         return this.handleUnknownProgress(progress, timestamp);
     }
@@ -454,6 +456,26 @@ export class ProgressHandler {
     const hasError = progress.data?.error;
     const icon = hasError ? "❌" : "✅";
     return `🪝 PostToolUse ${icon} ${toolName}`;
+  }
+
+  /**
+   * サブエージェント タスク状態更新 (SDK v0.2.104+)
+   */
+  private handleTaskUpdatedProgress(progress: ProgressEvent, timestamp: number): string {
+    const data = (progress as any).data || {};
+    this.broadcaster?.task(this.taskId, "task:task_updated", {
+      subagentTaskId: data.taskId,
+      status: data.status,
+      description: data.description,
+      error: data.error,
+      isBackgrounded: data.isBackgrounded,
+      timestamp,
+    });
+
+    const statusIcon = data.status === "completed" ? "✅" :
+                       data.status === "failed" ? "❌" :
+                       data.status === "running" ? "🔄" : "📋";
+    return `${statusIcon} Task ${data.taskId?.slice(0, 8) || "?"}: ${data.status || "updated"}`;
   }
 
   /**
