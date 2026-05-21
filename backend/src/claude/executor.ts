@@ -346,7 +346,15 @@ export class TaskExecutorImpl implements TaskExecutor {
               progress.type === "statistics" ||
               progress.type === "reasoning" ||
               progress.type === "hook:pre_tool_use" ||
-              progress.type === "hook:post_tool_use"
+              progress.type === "hook:post_tool_use" ||
+              progress.type === "task:updated" ||
+              progress.type === "subagent:started" ||
+              progress.type === "subagent:progress" ||
+              progress.type === "subagent:completed" ||
+              progress.type === "api:retry" ||
+              progress.type === "session:status" ||
+              progress.type === "context:usage" ||
+              progress.type === "result:metadata"
             ) {
               await task.options.onProgress(progress);
             } else {

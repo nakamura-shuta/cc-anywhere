@@ -62,6 +62,14 @@ export interface CodexExecutorOptions {
 	model?: string;
 	networkAccess?: boolean; // ネットワークアクセス (v0.57.0+)
 	webSearch?: boolean; // Web検索 (v0.57.0+)
+	/** Web検索モード (Codex ThreadOptions)。指定時は webSearch boolean より優先 */
+	webSearchMode?: "disabled" | "cached" | "live";
+	/** モデルの推論努力レベル (Codex ThreadOptions) */
+	modelReasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
+	/** 承認ポリシー (Codex ThreadOptions) */
+	approvalPolicy?: "never" | "on-request" | "on-failure" | "untrusted";
+	/** 作業ディレクトリ外の追加読み取り許可ディレクトリ (絶対パス) */
+	additionalDirectories?: string[];
 	continueSession?: boolean;
 	resumeSession?: string; // Codex thread ID
 }

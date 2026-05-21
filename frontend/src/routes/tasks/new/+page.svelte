@@ -90,6 +90,10 @@
 	let codexModel = $state<string>('');
 	let codexNetworkAccess = $state(true); // デフォルトtrue
 	let codexWebSearch = $state(true); // デフォルトtrue
+	let codexWebSearchMode = $state<'' | 'disabled' | 'cached' | 'live'>('');
+	let codexModelReasoningEffort = $state<'' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'>('');
+	let codexApprovalPolicy = $state<'' | 'never' | 'on-request' | 'on-failure' | 'untrusted'>('');
+	let codexAdditionalDirectoriesText = $state<string>(''); // 1行1パス
 
 	// Geminiオプション
 	let geminiModel = $state<string>(''); // default: gemini-3-pro-preview
@@ -160,6 +164,10 @@
 						codexModel = previousTask.options.codex.model || codexModel;
 						codexNetworkAccess = previousTask.options.codex.networkAccess ?? true;
 						codexWebSearch = previousTask.options.codex.webSearch ?? true;
+						codexWebSearchMode = previousTask.options.codex.webSearchMode || '';
+						codexModelReasoningEffort = previousTask.options.codex.modelReasoningEffort || '';
+						codexApprovalPolicy = previousTask.options.codex.approvalPolicy || '';
+						codexAdditionalDirectoriesText = (previousTask.options.codex.additionalDirectories || []).join('\n');
 					}
 				}
 
@@ -253,6 +261,16 @@
 						networkAccess: codexNetworkAccess,
 						webSearch: codexWebSearch,
 						...(codexModel ? { model: codexModel } : {}),
+						...(codexWebSearchMode ? { webSearchMode: codexWebSearchMode } : {}),
+						...(codexModelReasoningEffort ? { modelReasoningEffort: codexModelReasoningEffort } : {}),
+						...(codexApprovalPolicy ? { approvalPolicy: codexApprovalPolicy } : {}),
+						...(() => {
+							const dirs = codexAdditionalDirectoriesText
+								.split('\n')
+								.map((s) => s.trim())
+								.filter((s) => s.length > 0);
+							return dirs.length > 0 ? { additionalDirectories: dirs } : {};
+						})(),
 						...(codexResumeSession ? {
 							continueSession: true,
 							resumeSession: codexResumeSession
@@ -539,6 +557,81 @@
 								id="codexWebSearch"
 								bind:checked={codexWebSearch}
 							/>
+						</div>
+
+						<!-- Web Search Mode -->
+						<div class="space-y-2">
+							<Label for="codexWebSearchMode">Web Search Mode (オプション)</Label>
+							<Select.Root type="single" bind:value={codexWebSearchMode}>
+								<Select.Trigger id="codexWebSearchMode">
+									{codexWebSearchMode || '指定なし (Web Search トグルに従う)'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="">指定なし</Select.Item>
+									<Select.Item value="disabled">disabled</Select.Item>
+									<Select.Item value="cached">cached</Select.Item>
+									<Select.Item value="live">live</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<p class="text-xs text-muted-foreground">
+								Web Search トグルより細かい制御。指定時は cached / live を選択可能。
+							</p>
+						</div>
+
+						<!-- Model Reasoning Effort -->
+						<div class="space-y-2">
+							<Label for="codexModelReasoningEffort">Model Reasoning Effort (オプション)</Label>
+							<Select.Root type="single" bind:value={codexModelReasoningEffort}>
+								<Select.Trigger id="codexModelReasoningEffort">
+									{codexModelReasoningEffort || '指定なし (モデルのデフォルト)'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="">指定なし</Select.Item>
+									<Select.Item value="minimal">minimal</Select.Item>
+									<Select.Item value="low">low</Select.Item>
+									<Select.Item value="medium">medium</Select.Item>
+									<Select.Item value="high">high</Select.Item>
+									<Select.Item value="xhigh">xhigh</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<p class="text-xs text-muted-foreground">
+								モデルの推論努力レベル。深く考えさせる場合は high / xhigh。
+							</p>
+						</div>
+
+						<!-- Approval Policy -->
+						<div class="space-y-2">
+							<Label for="codexApprovalPolicy">Approval Policy (オプション)</Label>
+							<Select.Root type="single" bind:value={codexApprovalPolicy}>
+								<Select.Trigger id="codexApprovalPolicy">
+									{codexApprovalPolicy || '指定なし (SDK デフォルト)'}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="">指定なし</Select.Item>
+									<Select.Item value="never">never</Select.Item>
+									<Select.Item value="on-request">on-request</Select.Item>
+									<Select.Item value="on-failure">on-failure</Select.Item>
+									<Select.Item value="untrusted">untrusted</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<p class="text-xs text-muted-foreground">
+								機密操作の承認ポリシー。never で承認スキップ。
+							</p>
+						</div>
+
+						<!-- Additional Directories -->
+						<div class="space-y-2">
+							<Label for="codexAdditionalDirectories">Additional Directories (オプション)</Label>
+							<Textarea
+								id="codexAdditionalDirectories"
+								bind:value={codexAdditionalDirectoriesText}
+								placeholder="絶対パスを1行ずつ&#10;例:&#10;/Users/me/shared&#10;/var/data"
+								rows={3}
+								class="font-mono text-sm"
+							/>
+							<p class="text-xs text-muted-foreground">
+								作業ディレクトリ外で読み取り可能にしたい絶対パスを1行ずつ。
+							</p>
 						</div>
 					</div>
 				{/if}

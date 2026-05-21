@@ -410,6 +410,34 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
                       type: "string",
                       description: "Model to use for execution",
                     },
+                    networkAccess: {
+                      type: "boolean",
+                      description: "Enable network access (Codex SDK v0.57.0+)",
+                    },
+                    webSearch: {
+                      type: "boolean",
+                      description: "Enable web search (Codex SDK v0.57.0+)",
+                    },
+                    webSearchMode: {
+                      type: "string",
+                      enum: ["disabled", "cached", "live"],
+                      description: "Web search mode (overrides webSearch when set)",
+                    },
+                    modelReasoningEffort: {
+                      type: "string",
+                      enum: ["minimal", "low", "medium", "high", "xhigh"],
+                      description: "Model reasoning effort level",
+                    },
+                    approvalPolicy: {
+                      type: "string",
+                      enum: ["never", "on-request", "on-failure", "untrusted"],
+                      description: "Approval policy for sensitive operations",
+                    },
+                    additionalDirectories: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Additional directories accessible beyond the working directory",
+                    },
                     continueSession: {
                       type: "boolean",
                       description: "Continue session (requires resumeSession thread ID)",

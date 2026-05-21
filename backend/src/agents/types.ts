@@ -296,6 +296,36 @@ export interface CodexAgentOptions extends CommonExecutorOptions {
   /** Web検索を有効化 (Codex SDK v0.57.0+) */
   webSearch?: boolean;
 
+  /**
+   * Web 検索モード (Codex SDK ThreadOptions)
+   * `webSearch` boolean よりも細かい制御。指定時は `webSearch` を上書き相当。
+   * - `disabled`: 検索しない
+   * - `cached`: キャッシュ済みインデックスからのみ検索
+   * - `live`: ライブ検索
+   */
+  webSearchMode?: "disabled" | "cached" | "live";
+
+  /**
+   * モデルの推論努力レベル (Codex SDK ThreadOptions)
+   * `minimal` / `low` / `medium` / `high` / `xhigh`
+   */
+  modelReasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
+
+  /**
+   * 承認ポリシー (Codex SDK ThreadOptions)
+   * - `never`: 承認を求めない
+   * - `on-request`: 必要時に要求
+   * - `on-failure`: 失敗時のみ要求
+   * - `untrusted`: untrusted 操作のみ要求
+   */
+  approvalPolicy?: "never" | "on-request" | "on-failure" | "untrusted";
+
+  /**
+   * 作業ディレクトリ以外の追加読み取り許可ディレクトリ (Codex SDK ThreadOptions)
+   * 絶対パスを推奨。
+   */
+  additionalDirectories?: string[];
+
   // ⚠️ 以下のパラメータは CommonExecutorOptions から継承されているが、
   /** セッション再開用のスレッドID */
   resumeSession?: string;

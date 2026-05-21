@@ -208,6 +208,149 @@ export interface TaskUpdatedProgressEvent extends BaseProgressEvent {
   };
 }
 
+/**
+ * Subagent started event (SDK 0.2.46+ `SDKTaskStartedMessage`).
+ * Emitted when the Agent tool spawns a subagent task.
+ */
+export interface SubagentStartedProgressEvent extends BaseProgressEvent {
+  type: "subagent:started";
+  message: string;
+  data: {
+    taskId: string;
+    toolUseId?: string;
+    description: string;
+    subagentType?: string;
+    taskType?: string;
+    prompt?: string;
+  };
+}
+
+/**
+ * Subagent progress event (SDK 0.2.51+ `SDKTaskProgressMessage`).
+ * Emitted periodically while a subagent is running. When the parent session
+ * is started with `agentProgressSummaries: true`, `summary` carries a short
+ * present-tense description (e.g. "Analyzing authentication module").
+ */
+export interface SubagentProgressProgressEvent extends BaseProgressEvent {
+  type: "subagent:progress";
+  message: string;
+  data: {
+    taskId: string;
+    toolUseId?: string;
+    description: string;
+    subagentType?: string;
+    lastToolName?: string;
+    summary?: string;
+    usage?: {
+      totalTokens: number;
+      toolUses: number;
+      durationMs: number;
+    };
+  };
+}
+
+/**
+ * Subagent completed event (SDK 0.2.46+ `SDKTaskNotificationMessage`).
+ * Emitted when a subagent settles (completed/failed/stopped).
+ */
+export interface SubagentCompletedProgressEvent extends BaseProgressEvent {
+  type: "subagent:completed";
+  message: string;
+  data: {
+    taskId: string;
+    toolUseId?: string;
+    status: "completed" | "failed" | "stopped";
+    summary: string;
+    usage?: {
+      totalTokens: number;
+      toolUses: number;
+      durationMs: number;
+    };
+  };
+}
+
+/**
+ * API retry event (Claude SDK 0.2.78+).
+ * Emitted when the SDK retries a transient API error.
+ */
+export interface ApiRetryProgressEvent extends BaseProgressEvent {
+  type: "api:retry";
+  message: string;
+  data: {
+    attempt: number;
+    maxRetries: number;
+    retryDelayMs: number;
+    errorStatus: number | null;
+    errorMessage?: string;
+  };
+}
+
+/**
+ * Session status event (Claude SDK 0.2.108+).
+ * Emitted when the SDK reports an in-flight status (`requesting`, `compacting`).
+ */
+export interface SessionStatusProgressEvent extends BaseProgressEvent {
+  type: "session:status";
+  message: string;
+  data: {
+    status: "requesting" | "compacting" | "idle";
+    /** Optional permission mode reported by the SDK. */
+    permissionMode?: string;
+    /** Compaction outcome when status transitions out of `compacting`. */
+    compactResult?: "success" | "failed";
+    compactError?: string;
+  };
+}
+
+/**
+ * Context window usage event (Claude SDK 0.2.86+).
+ * Emitted periodically during task execution so the UI can show how much of the
+ * model's context window is consumed.
+ */
+export interface ContextUsageProgressEvent extends BaseProgressEvent {
+  type: "context:usage";
+  message: string;
+  data: {
+    totalTokens: number;
+    maxTokens: number;
+    percentage: number;
+    model?: string;
+    /** Top-level breakdown by category (system prompt, messages, MCP tools, ...). */
+    categories?: Array<{ name: string; tokens: number }>;
+  };
+}
+
+/**
+ * Result-message metadata event (Claude SDK 0.2.32 / 0.2.95 / 0.3.144).
+ * Surfaces `terminal_reason`, `stop_reason`, and `api_error_status` from the
+ * end-of-turn result message so the UI can show *why* a task ended.
+ */
+export interface ResultMetadataProgressEvent extends BaseProgressEvent {
+  type: "result:metadata";
+  message: string;
+  data: {
+    /** result message subtype: success / error_during_execution / error_max_turns / ... */
+    subtype: string;
+    isError: boolean;
+    /**
+     * Why the query loop terminated. See SDK `TerminalReason` for full list:
+     * `completed` / `aborted_tools` / `max_turns` / `blocking_limit` /
+     * `prompt_too_long` / `model_error` / etc.
+     */
+    terminalReason?: string;
+    /** Model-level stop reason (e.g. `end_turn`, `tool_use`, `max_tokens`). */
+    stopReason?: string | null;
+    /** HTTP status if the failure was an API error (e.g. 401, 404, 500). */
+    apiErrorStatus?: number | null;
+    /** Errors reported in result.errors[]. */
+    errors?: string[];
+    /** Permission denials reported in result.permission_denials. */
+    permissionDenials?: number;
+    durationMs?: number;
+    numTurns?: number;
+  };
+}
+
 // ==================== Union Type ====================
 
 /**
@@ -242,7 +385,14 @@ export type ProgressEvent =
   | ToolUsageProgressEvent
   | HookPreToolUseProgressEvent
   | HookPostToolUseProgressEvent
-  | TaskUpdatedProgressEvent;
+  | TaskUpdatedProgressEvent
+  | SubagentStartedProgressEvent
+  | SubagentProgressProgressEvent
+  | SubagentCompletedProgressEvent
+  | ApiRetryProgressEvent
+  | SessionStatusProgressEvent
+  | ContextUsageProgressEvent
+  | ResultMetadataProgressEvent;
 
 // ==================== Type Guards ====================
 
@@ -287,4 +437,3 @@ export function isTodoUpdateEvent(event: ProgressEvent): event is TodoUpdateProg
 export function isStatisticsEvent(event: ProgressEvent): event is StatisticsProgressEvent {
   return event.type === "statistics";
 }
-

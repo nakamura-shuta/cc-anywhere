@@ -1,37 +1,38 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ClaudeCodeClient } from "../../../src/claude/claude-code-client";
-import { unstable_v2_createSession, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
-const mockSend = vi.fn().mockResolvedValue(undefined);
-
-function createMockSession(messages: any[], opts?: { throwOnStream?: Error }) {
-  return {
-    get sessionId() { return "test-session"; },
-    send: mockSend,
-    stream: vi.fn().mockReturnValue((async function* () {
-      for (const msg of messages) {
-        yield msg;
-      }
-      if (opts?.throwOnStream) throw opts.throwOnStream;
-    })()),
-    close: vi.fn(),
-    [Symbol.asyncDispose]: vi.fn(),
-  };
+function createMockQuery(messages: any[], opts?: { throwOnStream?: Error }) {
+  const close = vi.fn();
+  const gen = (async function* () {
+    for (const msg of messages) {
+      yield msg;
+    }
+    if (opts?.throwOnStream) throw opts.throwOnStream;
+  })() as AsyncGenerator<any, void> & { close: () => void };
+  return Object.assign(gen, { close });
 }
 
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
-  unstable_v2_createSession: vi.fn(),
-  unstable_v2_resumeSession: vi.fn(),
+  query: vi.fn(),
 }));
 
-const mockCreateSession = vi.mocked(unstable_v2_createSession);
+vi.mock("../../../src/config", () => ({
+  config: {
+    claude: { apiKey: "test-api-key" },
+    claudeCodeSDK: { defaultMaxTurns: 3 },
+    logging: { level: "error", logFile: undefined },
+  },
+}));
+
+const mockQuery = vi.mocked(query);
 
 describe("ClaudeCodeClient", () => {
   let client: ClaudeCodeClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.ANTHROPIC_API_KEY = "test-api-key";
+    process.env.CLAUDE_API_KEY = "test-api-key";
     client = new ClaudeCodeClient();
   });
 
@@ -47,18 +48,20 @@ describe("ClaudeCodeClient", () => {
         { type: "assistant", message: "Hello", parent_tool_use_id: null, session_id: "test-session" },
         { type: "assistant", message: "Done", parent_tool_use_id: null, session_id: "test-session" },
       ];
-      mockCreateSession.mockReturnValue(createMockSession(mockMessages) as any);
+      mockQuery.mockReturnValue(createMockQuery(mockMessages) as any);
 
       const result = await client.executeTask("Test task");
 
       expect(result.success).toBe(true);
       expect(result.messages).toHaveLength(2);
-      expect(mockSend).toHaveBeenCalledWith("Test task");
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ prompt: "Test task" }),
+      );
     });
 
     it("should handle errors during stream", async () => {
       const error = new Error("API Error");
-      mockCreateSession.mockReturnValue(createMockSession([], { throwOnStream: error }) as any);
+      mockQuery.mockReturnValue(createMockQuery([], { throwOnStream: error }) as any);
 
       const result = await client.executeTask("Failing task");
 
@@ -70,7 +73,7 @@ describe("ClaudeCodeClient", () => {
       const messages = [
         { type: "assistant", message: "Starting...", parent_tool_use_id: null, session_id: "test-session" },
       ];
-      mockCreateSession.mockReturnValue(createMockSession(messages, { throwOnStream: new Error("Mid-error") }) as any);
+      mockQuery.mockReturnValue(createMockQuery(messages, { throwOnStream: new Error("Mid-error") }) as any);
 
       const result = await client.executeTask("Partial execution");
 
@@ -84,7 +87,7 @@ describe("ClaudeCodeClient", () => {
         { type: "system", session_id: "extracted-session-id" },
         { type: "assistant", message: "Done", parent_tool_use_id: null },
       ];
-      mockCreateSession.mockReturnValue(createMockSession(messages) as any);
+      mockQuery.mockReturnValue(createMockQuery(messages) as any);
 
       const result = await client.executeTask("Test");
 

@@ -108,6 +108,20 @@ export class ProgressHandler {
         return this.handleHookPostToolUseProgress(progress, timestamp);
       case "task:updated":
         return this.handleTaskUpdatedProgress(progress, timestamp);
+      case "subagent:started":
+        return this.handleSubagentStartedProgress(progress, timestamp);
+      case "subagent:progress":
+        return this.handleSubagentProgressProgress(progress, timestamp);
+      case "subagent:completed":
+        return this.handleSubagentCompletedProgress(progress, timestamp);
+      case "api:retry":
+        return this.handleApiRetryProgress(progress, timestamp);
+      case "session:status":
+        return this.handleSessionStatusProgress(progress, timestamp);
+      case "context:usage":
+        return this.handleContextUsageProgress(progress, timestamp);
+      case "result:metadata":
+        return this.handleResultMetadataProgress(progress, timestamp);
       default:
         return this.handleUnknownProgress(progress, timestamp);
     }
@@ -472,10 +486,131 @@ export class ProgressHandler {
       timestamp,
     });
 
-    const statusIcon = data.status === "completed" ? "✅" :
-                       data.status === "failed" ? "❌" :
-                       data.status === "running" ? "🔄" : "📋";
+    const statusIcon =
+      data.status === "completed"
+        ? "✅"
+        : data.status === "failed"
+          ? "❌"
+          : data.status === "running"
+            ? "🔄"
+            : "📋";
     return `${statusIcon} Task ${data.taskId?.slice(0, 8) || "?"}: ${data.status || "updated"}`;
+  }
+
+  /**
+   * Subagent: started (SDK 0.2.46+)
+   */
+  private handleSubagentStartedProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "subagent:started") return "";
+    const d = progress.data;
+    this.broadcaster?.task(this.taskId, "task:subagent:started", { ...d, timestamp });
+    const label = d.subagentType ? `[${d.subagentType}] ` : "";
+    return `🚀 Subagent ${d.taskId.slice(0, 8)} started ${label}${d.description}`;
+  }
+
+  /**
+   * Subagent: progress (SDK 0.2.51+, summary requires agentProgressSummaries: true)
+   */
+  private handleSubagentProgressProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "subagent:progress") return "";
+    const d = progress.data;
+    this.broadcaster?.task(this.taskId, "task:subagent:progress", { ...d, timestamp });
+    const u = d.usage;
+    const usageStr = u
+      ? ` (${u.totalTokens.toLocaleString()}tok, ${u.toolUses}tools, ${u.durationMs}ms)`
+      : "";
+    const summary = d.summary ? `: ${d.summary}` : d.description ? `: ${d.description}` : "";
+    return `🔄 Subagent ${d.taskId.slice(0, 8)} progress${summary}${usageStr}`;
+  }
+
+  /**
+   * Subagent: completed (SDK 0.2.46+)
+   */
+  private handleSubagentCompletedProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "subagent:completed") return "";
+    const d = progress.data;
+    this.broadcaster?.task(this.taskId, "task:subagent:completed", { ...d, timestamp });
+    const icon = d.status === "completed" ? "✅" : d.status === "failed" ? "❌" : "⏹";
+    const u = d.usage;
+    const usageStr = u
+      ? ` (${u.totalTokens.toLocaleString()}tok, ${u.toolUses}tools, ${u.durationMs}ms)`
+      : "";
+    return `${icon} Subagent ${d.taskId.slice(0, 8)} ${d.status}: ${d.summary}${usageStr}`;
+  }
+
+  /**
+   * API リトライ通知 (SDK 0.2.78+)
+   */
+  private handleApiRetryProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "api:retry") return "";
+    const { attempt, maxRetries, retryDelayMs, errorStatus, errorMessage } = progress.data;
+    this.broadcaster?.task(this.taskId, "task:api:retry", {
+      attempt,
+      maxRetries,
+      retryDelayMs,
+      errorStatus,
+      errorMessage,
+      timestamp,
+    });
+    const statusInfo = errorStatus ? ` (HTTP ${errorStatus})` : "";
+    return `🔁 API リトライ ${attempt}/${maxRetries}${statusInfo} delay=${retryDelayMs}ms`;
+  }
+
+  /**
+   * コンテキスト使用量 (SDK 0.2.86+: getContextUsage)
+   */
+  private handleContextUsageProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "context:usage") return "";
+    const { totalTokens, maxTokens, percentage, model, categories } = progress.data;
+    this.broadcaster?.task(this.taskId, "task:context:usage", {
+      totalTokens,
+      maxTokens,
+      percentage,
+      model,
+      categories,
+      timestamp,
+    });
+    return `📊 Context ${totalTokens.toLocaleString()} / ${maxTokens.toLocaleString()} (${percentage.toFixed(1)}%)`;
+  }
+
+  /**
+   * セッションステータス (SDK 0.2.108+: requesting / compacting)
+   */
+  private handleSessionStatusProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "session:status") return "";
+    const { status, permissionMode, compactResult, compactError } = progress.data;
+    this.broadcaster?.task(this.taskId, "task:session:status", {
+      status,
+      permissionMode,
+      compactResult,
+      compactError,
+      timestamp,
+    });
+    const label =
+      status === "requesting"
+        ? "📤 API リクエスト中"
+        : status === "compacting"
+          ? "🗜 コンテキスト圧縮中"
+          : "⏸ アイドル";
+    return label;
+  }
+
+  /**
+   * 結果メタデータ (terminal_reason / stop_reason / api_error_status)
+   */
+  private handleResultMetadataProgress(progress: ProgressEvent, timestamp: number): string {
+    if (progress.type !== "result:metadata") return "";
+    const data = progress.data;
+    this.broadcaster?.task(this.taskId, "task:result:metadata", {
+      ...data,
+      timestamp,
+    });
+    const icon = data.isError ? "❌" : "🏁";
+    const parts = [`${icon} 結果: ${data.subtype}`];
+    if (data.terminalReason) parts.push(`terminal=${data.terminalReason}`);
+    if (data.stopReason) parts.push(`stop=${data.stopReason}`);
+    if (data.apiErrorStatus) parts.push(`http=${data.apiErrorStatus}`);
+    return parts.join(" ");
   }
 
   /**

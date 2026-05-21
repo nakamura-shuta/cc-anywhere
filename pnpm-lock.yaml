@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@openai/codex-sdk':
-        specifier: ^0.58.0
-        version: 0.58.0
       execa:
         specifier: ^9.6.0
         version: 9.6.0
@@ -39,10 +36,6 @@ packages:
   '@babel/runtime@7.28.4':
     resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
     engines: {node: '>=6.9.0'}
-
-  '@openai/codex-sdk@0.58.0':
-    resolution: {integrity: sha512-Z5vK294gUS9cn7bpU/lJtgzqJy1UqIGee7WMP+1Z4a6AxDcTxFCLZI4YkH9praJfrgoj5bFeu+3V9HIoBBTzcw==}
-    engines: {node: '>=18'}
 
   '@playwright/test@1.57.0':
     resolution: {integrity: sha512-6TyEnHgd6SArQO8UO2OMTxshln3QMWBtPGrOCgs3wVEmQmwyuNtB10IZMfmYDE0riwNR1cu4q+pPcxMVtaG3TA==}
@@ -114,7 +107,7 @@ packages:
     engines: {node: '>=18'}
 
   fsevents@2.3.2:
-    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==, tarball: https://registry.npmjs.org/fsevents/-/fsevents-2.3.2.tgz}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
@@ -281,8 +274,6 @@ packages:
 snapshots:
 
   '@babel/runtime@7.28.4': {}
-
-  '@openai/codex-sdk@0.58.0': {}
 
   '@playwright/test@1.57.0':
     dependencies:

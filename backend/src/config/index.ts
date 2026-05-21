@@ -79,7 +79,7 @@ const envSchema = z.object({
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   AWS_REGION: z.string().default("us-east-1"),
-  BEDROCK_MODEL_ID: z.string().default("us.anthropic.claude-opus-4-20250514-v1:0"),
+  BEDROCK_MODEL_ID: z.string().default("us.anthropic.claude-opus-4-7"),
   // 実行モード設定
   FORCE_EXECUTION_MODE: z.enum(["api-key", "bedrock"]).optional(),
   // QR認証設定
@@ -118,12 +118,18 @@ const envSchema = z.object({
         : path.resolve(process.cwd(), worktreeBasePath);
 
       // ワークスペースルート
-      const workspaceRoot = process.env.WORKSPACE_ROOT
-        || path.resolve(process.cwd(), "../workspaces");
+      const workspaceRoot =
+        process.env.WORKSPACE_ROOT || path.resolve(process.cwd(), "../workspaces");
 
       // すべてを結合して重複を削除
       const allPaths = [
-        ...new Set([projectRoot, absoluteWorktreeBasePath, workspaceRoot, ...envPaths, ...repoPaths]),
+        ...new Set([
+          projectRoot,
+          absoluteWorktreeBasePath,
+          workspaceRoot,
+          ...envPaths,
+          ...repoPaths,
+        ]),
       ];
 
       return allPaths;

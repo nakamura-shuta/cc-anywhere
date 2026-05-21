@@ -1,29 +1,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { BedrockStrategy } from "../../../../src/claude/strategies/bedrock-strategy";
 import { BedrockRegionError } from "../../../../src/claude/errors";
-import { unstable_v2_createSession } from "@anthropic-ai/claude-agent-sdk";
+import { query } from "@anthropic-ai/claude-agent-sdk";
 
-const mockSend = vi.fn().mockResolvedValue(undefined);
-
-function createMockSession(messages: any[]) {
+function createMockQuery(messages: any[]) {
   const close = vi.fn();
-  return {
-    get sessionId() { return "test-session"; },
-    send: mockSend,
-    stream: vi.fn().mockReturnValue((async function* () {
-      for (const msg of messages) yield msg;
-    })()),
-    close,
-    [Symbol.asyncDispose]: vi.fn(async () => { close(); }),
-  };
+  const gen = (async function* () {
+    for (const msg of messages) yield msg;
+  })() as AsyncGenerator<any, void> & { close: () => void };
+  return Object.assign(gen, { close });
+}
+
+function createThrowingMockQuery(error: Error) {
+  const close = vi.fn();
+  const gen = (async function* () {
+    throw error;
+
+    yield undefined;
+  })() as AsyncGenerator<any, void> & { close: () => void };
+  return Object.assign(gen, { close });
 }
 
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
-  unstable_v2_createSession: vi.fn(),
-  unstable_v2_resumeSession: vi.fn(),
+  query: vi.fn(),
 }));
 
-const mockCreateSession = vi.mocked(unstable_v2_createSession);
+const mockQuery = vi.mocked(query);
 
 describe("BedrockStrategy", () => {
   let originalEnv: Record<string, string | undefined>;
@@ -56,17 +58,32 @@ describe("BedrockStrategy", () => {
       expect(() => new BedrockStrategy("key", "secret", "eu-west-1")).toThrow(BedrockRegionError);
     });
 
-    it("should throw if credentials are missing", () => {
-      expect(() => new BedrockStrategy("", "secret", "us-east-1")).toThrow();
+    it("should allow missing access keys (default AWS credential chain is used)", () => {
+      // SSO / instance profile / AWS_PROFILE は constructor では検証しない
+      expect(() => new BedrockStrategy(undefined, undefined, "us-east-1")).not.toThrow();
+    });
+
+    it("should reject partial AWS credentials (access key only)", () => {
+      expect(() => new BedrockStrategy("key", undefined, "us-east-1")).toThrow(
+        /Incomplete AWS credentials/,
+      );
+    });
+
+    it("should reject partial AWS credentials (secret key only)", () => {
+      expect(() => new BedrockStrategy(undefined, "secret", "us-east-1")).toThrow(
+        /Incomplete AWS credentials/,
+      );
+    });
+
+    it("should throw if region is missing", () => {
+      expect(() => new BedrockStrategy("key", "secret", "")).toThrow(/region/i);
     });
   });
 
   describe("executeQuery", () => {
-    it("should set Bedrock environment and execute V2 session", async () => {
+    it("should set Bedrock environment and call query()", async () => {
       const strategy = new BedrockStrategy("key", "secret", "us-east-1");
-      mockCreateSession.mockReturnValue(createMockSession([
-        { type: "assistant", message: "Hello" },
-      ]) as any);
+      mockQuery.mockReturnValue(createMockQuery([{ type: "assistant", message: "Hello" }]) as any);
 
       const collected: any[] = [];
       for await (const msg of strategy.executeQuery({ prompt: "test" })) {
@@ -74,77 +91,66 @@ describe("BedrockStrategy", () => {
       }
 
       expect(collected).toHaveLength(1);
-      expect(mockCreateSession).toHaveBeenCalled();
+      expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ prompt: "test" }));
     });
 
-    it("should call session.close() after normal completion", async () => {
+    it("should call query.close() after normal completion", async () => {
       const strategy = new BedrockStrategy("key", "secret", "us-east-1");
-      const mockSession = createMockSession([
-        { type: "assistant", message: "done" },
-      ]);
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const mockQ = createMockQuery([{ type: "assistant", message: "done" }]);
+      mockQuery.mockReturnValue(mockQ as any);
 
-      for await (const _msg of strategy.executeQuery({ prompt: "test" })) {
-        // consume
+      for await (const msg of strategy.executeQuery({ prompt: "test" })) {
+        void msg;
       }
 
-      expect(mockSession.close).toHaveBeenCalled();
+      expect(mockQ.close).toHaveBeenCalled();
     });
 
-    it("should call session.close() when stream throws", async () => {
+    it("should call query.close() when stream throws", async () => {
       const strategy = new BedrockStrategy("key", "secret", "us-east-1");
-      const close = vi.fn();
-      const mockSession = {
-        sessionId: "test-session",
-        send: vi.fn().mockResolvedValue(undefined),
-        stream: vi.fn().mockReturnValue((async function* () {
-          throw new Error("stream error");
-        })()),
-        close,
-        [Symbol.asyncDispose]: vi.fn(async () => { close(); }),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const mockQ = createThrowingMockQuery(new Error("stream error"));
+      mockQuery.mockReturnValue(mockQ as any);
 
       try {
-        for await (const _msg of strategy.executeQuery({ prompt: "test" })) {
-          // consume
+        for await (const msg of strategy.executeQuery({ prompt: "test" })) {
+          void msg;
         }
       } catch {
         // expected
       }
 
-      expect(mockSession.close).toHaveBeenCalled();
+      expect(mockQ.close).toHaveBeenCalled();
     });
 
-    it("should call session.close() when signal is already aborted", async () => {
+    it("should call query.close() when signal is already aborted", async () => {
       const strategy = new BedrockStrategy("key", "secret", "us-east-1");
-      const mockSession = createMockSession([]);
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const mockQ = createMockQuery([]);
+      mockQuery.mockReturnValue(mockQ as any);
 
       const controller = new AbortController();
       controller.abort();
 
       try {
-        for await (const _msg of strategy.executeQuery({
+        for await (const msg of strategy.executeQuery({
           prompt: "test",
           abortController: controller,
         })) {
-          // consume
+          void msg;
         }
       } catch {
         // expected: AbortError
       }
 
-      expect(mockSession.close).toHaveBeenCalled();
+      expect(mockQ.close).toHaveBeenCalled();
     });
 
     it("should restore environment variables after execution", async () => {
       process.env.CLAUDE_API_KEY = "original";
       const strategy = new BedrockStrategy("key", "secret", "us-east-1");
-      mockCreateSession.mockReturnValue(createMockSession([]) as any);
+      mockQuery.mockReturnValue(createMockQuery([]) as any);
 
-      for await (const _msg of strategy.executeQuery({ prompt: "test" })) {
-        // consume
+      for await (const msg of strategy.executeQuery({ prompt: "test" })) {
+        void msg;
       }
 
       expect(process.env.CLAUDE_API_KEY).toBe("original");

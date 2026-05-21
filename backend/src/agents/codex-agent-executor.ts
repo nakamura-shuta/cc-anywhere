@@ -97,6 +97,12 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
       // gpt-5.2がリリースされたのでデフォルトに設定
       const model = codexOptions?.model || "gpt-5.2";
 
+      // Advanced ThreadOptions (Codex SDK 0.117.0+ already exposes these in the type)
+      const webSearchMode = codexOptions?.webSearchMode;
+      const modelReasoningEffort = codexOptions?.modelReasoningEffort;
+      const approvalPolicy = codexOptions?.approvalPolicy;
+      const additionalDirectories = codexOptions?.additionalDirectories;
+
       const threadOptions = {
         skipGitRepoCheck,
         sandboxMode,
@@ -104,6 +110,12 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
         networkAccessEnabled: networkAccess,
         webSearchEnabled: webSearch,
         model,
+        ...(webSearchMode ? { webSearchMode } : {}),
+        ...(modelReasoningEffort ? { modelReasoningEffort } : {}),
+        ...(approvalPolicy ? { approvalPolicy } : {}),
+        ...(additionalDirectories && additionalDirectories.length > 0
+          ? { additionalDirectories }
+          : {}),
       };
 
       logger.debug("Codex thread options", {
@@ -112,6 +124,10 @@ export class CodexAgentExecutor extends BaseTaskExecutor {
         networkAccessEnabled: networkAccess,
         webSearchEnabled: webSearch,
         sandboxMode,
+        webSearchMode,
+        modelReasoningEffort,
+        approvalPolicy,
+        additionalDirectoriesCount: additionalDirectories?.length ?? 0,
       });
 
       // Create or resume thread

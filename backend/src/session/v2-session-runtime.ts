@@ -1,34 +1,34 @@
 /**
- * V2SessionRuntime - SDKSession pool + SDK utilities
+ * V2SessionRuntime - Session pool + SDK utilities (query()-based)
  *
- * ChatSessionService と SessionV2Service を統合。
+ * Wraps the 0.3.x `query()` API via CompatSession so existing call sites keep
+ * their SDKSession-like usage. Stand-alone SDK utilities (listSessions, fork, etc.)
+ * are still exposed unchanged.
  */
 
 import {
-  unstable_v2_createSession,
-  unstable_v2_resumeSession,
   forkSession,
   getSessionInfo,
   getSessionMessages,
   listSessions,
   renameSession,
   tagSession,
-  type SDKSession,
-  type SDKSessionOptions,
   type SDKMessage,
   type SDKSessionInfo,
   type SessionMessage as SDKSessionMessage,
   type HookEvent,
   type HookCallbackMatcher,
   type PermissionMode,
+  type Options,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { SessionState } from "./types.js";
-import { withCwd } from "../utils/cwd-mutex.js";
+import type { CompatSession } from "./session-compat.js";
+import { createCompatSession, resumeCompatSession } from "./session-compat.js";
 
-const DEFAULT_MODEL = "claude-opus-4-20250514";
+const DEFAULT_MODEL = "claude-opus-4-7";
 
 export interface ManagedSession {
-  session: SDKSession;
+  session: CompatSession;
   sdkSessionId: string | null;
   state: SessionState;
   lastActivityAt: Date;
@@ -52,24 +52,24 @@ export interface SendOptions {
 export class V2SessionRuntime {
   private pool = new Map<string, ManagedSession>();
 
-  // === SDKSession pool ===
+  // === Session pool ===
 
   async createSession(params: V2CreateParams): Promise<ManagedSession> {
-    const session = await withCwd(params.cwd, () =>
-      unstable_v2_createSession(this.buildOptions(params)),
-    );
+    const session = createCompatSession(this.buildOptions(params));
     return { session, sdkSessionId: null, state: "idle", lastActivityAt: new Date() };
   }
 
   async resumeSession(sdkSessionId: string, params: V2CreateParams): Promise<ManagedSession> {
-    const session = await withCwd(params.cwd, () =>
-      unstable_v2_resumeSession(sdkSessionId, this.buildOptions(params)),
-    );
-    const managed: ManagedSession = { session, sdkSessionId, state: "idle", lastActivityAt: new Date() };
+    const session = resumeCompatSession(sdkSessionId, this.buildOptions(params));
+    const managed: ManagedSession = {
+      session,
+      sdkSessionId,
+      state: "idle",
+      lastActivityAt: new Date(),
+    };
     this.pool.set(sdkSessionId, managed);
     return managed;
   }
-
 
   async *sendAndStream(
     managed: ManagedSession,
@@ -95,13 +95,13 @@ export class V2SessionRuntime {
           this.pool.set(id, managed);
           await options?.onMaterialized?.(id);
         } catch {
-          // not yet available
+          // not yet available; will retry on next event
         }
       }
 
-      if (event.type === "system" && (event as any).subtype === "session_state_changed") {
-        managed.state = (event as any).state;
-        options?.onStateChanged?.((event as any).state);
+      if (event.type === "system" && event.subtype === "session_state_changed") {
+        managed.state = event.state as SessionState;
+        options?.onStateChanged?.(event.state as SessionState);
       }
 
       yield event;
@@ -164,7 +164,10 @@ export class V2SessionRuntime {
     return listSessions(opts);
   }
 
-  async fork(sdkSessionId: string, opts?: { upToMessageId?: string; title?: string }): Promise<{ sdkSessionId: string }> {
+  async fork(
+    sdkSessionId: string,
+    opts?: { upToMessageId?: string; title?: string },
+  ): Promise<{ sdkSessionId: string }> {
     const result = await forkSession(sdkSessionId, opts);
     return { sdkSessionId: result.sessionId };
   }
@@ -179,23 +182,34 @@ export class V2SessionRuntime {
 
   // === Internal ===
 
-  private buildOptions(params: V2CreateParams): SDKSessionOptions {
-    const options: SDKSessionOptions = {
+  private buildOptions(params: V2CreateParams): Options {
+    // 0.2.83+ : session_state_changed is opt-in. Preserve current state tracking by enabling it.
+    const env: Record<string, string> = {
+      ...(Object.fromEntries(
+        Object.entries(process.env).filter(([, v]) => v !== undefined),
+      ) as Record<string, string>),
+      CLAUDE_AGENT_SDK_CLIENT_APP: "cc-anywhere/1.0.0",
+      CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: "1",
+    };
+    if (params.cwd) {
+      env.CLAUDE_CODE_DEFAULT_CWD = params.cwd;
+      env.PWD = params.cwd;
+    }
+
+    const options: Options = {
       model: params.model || process.env.CLAUDE_MODEL || DEFAULT_MODEL,
       allowedTools: params.allowedTools,
       disallowedTools: params.disallowedTools,
       hooks: this.buildHooksWithSystemPrompt(params.hooks, params.systemPrompt),
       permissionMode: params.permissionMode,
+      cwd: params.cwd,
+      env,
+      // Chat session consumers depend on stream_event (text_delta) for incremental rendering.
+      includePartialMessages: true,
+      ...(params.permissionMode === "bypassPermissions"
+        ? { allowDangerouslySkipPermissions: true }
+        : {}),
     };
-
-    const envOverrides: Record<string, string> = {
-      CLAUDE_AGENT_SDK_CLIENT_APP: "cc-anywhere/1.0.0",
-    };
-    if (params.cwd) {
-      envOverrides.CLAUDE_CODE_DEFAULT_CWD = params.cwd;
-      envOverrides.PWD = params.cwd;
-    }
-    options.env = { ...process.env, ...envOverrides };
 
     return options;
   }

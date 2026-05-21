@@ -6,6 +6,19 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 
 /**
+ * Subset of `SDKControlGetContextUsageResponse` exposed to strategy consumers.
+ * Kept loose with `unknown` for forward compatibility — strategies may pass
+ * through the raw SDK response.
+ */
+export interface ContextUsageSnapshot {
+  totalTokens: number;
+  maxTokens: number;
+  percentage: number;
+  model?: string;
+  categories?: Array<{ name: string; tokens: number }>;
+}
+
+/**
  * Prompt type - can be a simple string or an async iterable for streaming input
  */
 export type PromptInput = string | AsyncIterable<SDKUserMessage>;
@@ -38,6 +51,17 @@ export interface QueryOptions {
     // Hooks: PreToolUse/PostToolUse callbacks
     // Reference: https://docs.claude.com/en/api/agent-sdk/typescript
     hooks?: Partial<Record<HookEvent, HookCallbackMatcher[]>>;
+    /**
+     * Callback invoked with a context-window usage snapshot after each
+     * assistant message (throttled). Best-effort: control requests are only
+     * supported in streaming-input mode, so this may never fire for string
+     * prompts. Errors are silently ignored.
+     */
+    onContextUsage?: (usage: ContextUsageSnapshot) => void | Promise<void>;
+    /** Forward subagent text/thinking blocks (SDK 0.2.119+). */
+    forwardSubagentText?: boolean;
+    /** Generate AI summaries on `task_progress` events (SDK 0.2.72+). */
+    agentProgressSummaries?: boolean;
   };
 }
 

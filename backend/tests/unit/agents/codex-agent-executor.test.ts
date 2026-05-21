@@ -279,6 +279,95 @@ describe("CodexAgentExecutor", () => {
       });
     });
 
+    it("should forward advanced ThreadOptions (modelReasoningEffort, approvalPolicy, webSearchMode, additionalDirectories)", async () => {
+      const request: AgentTaskRequest = {
+        instruction: "tuned task",
+        options: {
+          codex: {
+            sandboxMode: "workspace-write",
+            modelReasoningEffort: "high",
+            approvalPolicy: "on-request",
+            webSearchMode: "cached",
+            additionalDirectories: ["/extra/path"],
+          },
+        },
+      };
+
+      const options: AgentExecutionOptions = { taskId: "test-task-advanced" };
+
+      const asyncIterator = (async function* () {
+        yield { type: "turn.completed", usage: {} };
+      })();
+      mockThread.runStreamed.mockResolvedValue({ events: asyncIterator });
+
+      for await (const event of executor.executeTask(request, options)) {
+        void event;
+      }
+
+      expect(mockCodex.startThread).toHaveBeenCalledWith({
+        skipGitRepoCheck: true,
+        sandboxMode: "workspace-write",
+        networkAccessEnabled: false,
+        webSearchEnabled: true,
+        workingDirectory: undefined,
+        model: "gpt-5.2",
+        modelReasoningEffort: "high",
+        approvalPolicy: "on-request",
+        webSearchMode: "cached",
+        additionalDirectories: ["/extra/path"],
+      });
+    });
+
+    it("should omit advanced ThreadOptions when not provided", async () => {
+      const request: AgentTaskRequest = {
+        instruction: "no advanced opts",
+        options: { codex: { sandboxMode: "workspace-write" } },
+      };
+
+      const options: AgentExecutionOptions = { taskId: "test-task-no-advanced" };
+
+      const asyncIterator = (async function* () {
+        yield { type: "turn.completed", usage: {} };
+      })();
+      mockThread.runStreamed.mockResolvedValue({ events: asyncIterator });
+
+      for await (const event of executor.executeTask(request, options)) {
+        void event;
+      }
+
+      const passedOptions = mockCodex.startThread.mock.calls[0]?.[0];
+      expect(passedOptions).not.toHaveProperty("modelReasoningEffort");
+      expect(passedOptions).not.toHaveProperty("approvalPolicy");
+      expect(passedOptions).not.toHaveProperty("webSearchMode");
+      expect(passedOptions).not.toHaveProperty("additionalDirectories");
+    });
+
+    it("should omit additionalDirectories when array is empty", async () => {
+      const request: AgentTaskRequest = {
+        instruction: "empty extra dirs",
+        options: {
+          codex: {
+            sandboxMode: "workspace-write",
+            additionalDirectories: [],
+          },
+        },
+      };
+
+      const options: AgentExecutionOptions = { taskId: "test-task-empty-dirs" };
+
+      const asyncIterator = (async function* () {
+        yield { type: "turn.completed", usage: {} };
+      })();
+      mockThread.runStreamed.mockResolvedValue({ events: asyncIterator });
+
+      for await (const event of executor.executeTask(request, options)) {
+        void event;
+      }
+
+      const passedOptions = mockCodex.startThread.mock.calls[0]?.[0];
+      expect(passedOptions).not.toHaveProperty("additionalDirectories");
+    });
+
     it("should enable both network access and web search when specified", async () => {
       const request: AgentTaskRequest = {
         instruction: "fetch and search data",

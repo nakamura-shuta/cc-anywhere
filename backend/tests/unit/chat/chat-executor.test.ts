@@ -4,8 +4,7 @@ import { ChatSDKClient } from "../../../src/chat/chat-sdk-client";
 import { V2SessionRuntime } from "../../../src/session/v2-session-runtime";
 
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
-  unstable_v2_createSession: vi.fn(),
-  unstable_v2_resumeSession: vi.fn(),
+  query: vi.fn(),
   forkSession: vi.fn(),
   getSessionInfo: vi.fn(),
   getSessionMessages: vi.fn(),

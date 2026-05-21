@@ -178,7 +178,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 			
 			// WebSocketメッセージがある場合はフォーマットして使用
 			const wsLogs = taskMessages
-				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update', 'task:hook:pre_tool_use', 'task:hook:post_tool_use', 'task:task_updated'].includes(m.type))
+				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update', 'task:hook:pre_tool_use', 'task:hook:post_tool_use', 'task:task_updated', 'task:subagent:started', 'task:subagent:progress', 'task:subagent:completed', 'task:api:retry', 'task:session:status', 'task:context:usage', 'task:result:metadata'].includes(m.type))
 				.map(m => {
 					const timestamp = new Date(m.timestamp || Date.now()).toLocaleString('ja-JP');
 					
@@ -241,6 +241,68 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 							const desc = m.payload?.description ? `: ${m.payload.description}` : '';
 							const err = m.payload?.error ? `\n  Error: ${m.payload.error}` : '';
 							return `${statusIcon} Subtask ${m.payload?.status || 'updated'}${desc}${err}\n${timestamp}`;
+						}
+						case 'task:api:retry': {
+							const status = m.payload?.errorStatus ? ` (HTTP ${m.payload.errorStatus})` : '';
+							const errMsg = m.payload?.errorMessage ? `\n  ${m.payload.errorMessage}` : '';
+							return `🔁 API リトライ ${m.payload?.attempt}/${m.payload?.maxRetries}${status}\n  delay: ${m.payload?.retryDelayMs}ms${errMsg}\n${timestamp}`;
+						}
+						case 'task:subagent:started': {
+							const id = String(m.payload?.taskId || '').slice(0, 8);
+							const type = m.payload?.subagentType ? ` [${m.payload.subagentType}]` : '';
+							const desc = m.payload?.description ? `: ${m.payload.description}` : '';
+							return `🚀 Subagent ${id} started${type}${desc}\n${timestamp}`;
+						}
+						case 'task:subagent:progress': {
+							const id = String(m.payload?.taskId || '').slice(0, 8);
+							const u = m.payload?.usage;
+							const usageStr = u ? ` (${Number(u.totalTokens).toLocaleString()}tok, ${u.toolUses}tools, ${u.durationMs}ms)` : '';
+							const summary = m.payload?.summary
+								? `: ${m.payload.summary}`
+								: m.payload?.description ? `: ${m.payload.description}` : '';
+							return `🔄 Subagent ${id} progress${summary}${usageStr}\n${timestamp}`;
+						}
+						case 'task:subagent:completed': {
+							const id = String(m.payload?.taskId || '').slice(0, 8);
+							const status = m.payload?.status;
+							const icon = status === 'completed' ? '✅' : status === 'failed' ? '❌' : '⏹';
+							const u = m.payload?.usage;
+							const usageStr = u ? ` (${Number(u.totalTokens).toLocaleString()}tok, ${u.toolUses}tools, ${u.durationMs}ms)` : '';
+							const summary = m.payload?.summary ? `: ${m.payload.summary}` : '';
+							return `${icon} Subagent ${id} ${status}${summary}${usageStr}\n${timestamp}`;
+						}
+						case 'task:context:usage': {
+							const total = Number(m.payload?.totalTokens || 0);
+							const max = Number(m.payload?.maxTokens || 0);
+							const pct = Number(m.payload?.percentage || 0);
+							const model = m.payload?.model ? ` [${m.payload.model}]` : '';
+							const cats = Array.isArray(m.payload?.categories) && m.payload.categories.length > 0
+								? '\n  ' + m.payload.categories
+									.map((c: any) => `${c.name}: ${Number(c.tokens).toLocaleString()}`)
+									.join(', ')
+								: '';
+							return `📊 Context ${total.toLocaleString()} / ${max.toLocaleString()} (${pct.toFixed(1)}%)${model}${cats}\n${timestamp}`;
+						}
+						case 'task:session:status': {
+							const statusLabel = m.payload?.status === 'requesting' ? '📤 API リクエスト中'
+								: m.payload?.status === 'compacting' ? '🗜 コンテキスト圧縮中'
+								: m.payload?.status === 'idle' ? '⏸ アイドル'
+								: m.payload?.status;
+							const compact = m.payload?.compactResult
+								? ` (${m.payload.compactResult}${m.payload.compactError ? ': ' + m.payload.compactError : ''})`
+								: '';
+							return `${statusLabel}${compact}\n${timestamp}`;
+						}
+						case 'task:result:metadata': {
+							const terminal = m.payload?.terminalReason ? ` terminal=${m.payload.terminalReason}` : '';
+							const stop = m.payload?.stopReason ? ` stop=${m.payload.stopReason}` : '';
+							const apiErr = m.payload?.apiErrorStatus ? ` http=${m.payload.apiErrorStatus}` : '';
+							const denials = m.payload?.permissionDenials ? `\n  permission_denials: ${m.payload.permissionDenials}` : '';
+							const errors = Array.isArray(m.payload?.errors) && m.payload.errors.length > 0
+								? `\n  errors:\n    - ${m.payload.errors.join('\n    - ')}`
+								: '';
+							const icon = m.payload?.isError ? '❌' : '🏁';
+							return `${icon} 結果: ${m.payload?.subtype || 'result'}${terminal}${stop}${apiErr}${denials}${errors}\n${timestamp}`;
 						}
 						default:
 							return JSON.stringify(m.payload);

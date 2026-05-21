@@ -1,4 +1,4 @@
-import { type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { type SDKMessage, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import { logger } from "../utils/logger";
 import { config } from "../config";
 import { messageTracker } from "./types/message-tracking";
@@ -11,6 +11,7 @@ import { ClaudeCodeClientFactory } from "./claude-code-client-factory";
 import type { ProgressEvent } from "../types/progress-events.js";
 import { buildHooks } from "./hooks/build-hooks.js";
 import type { HookConfig } from "./types/hooks.js";
+import { TodoBridge } from "./todo-bridge.js";
 
 export interface ClaudeCodeOptions {
   maxTurns?: number;
@@ -33,6 +34,10 @@ export interface ClaudeCodeOptions {
   webSearchConfig?: WebSearchConfig;
   enableHooks?: boolean;
   hookConfig?: HookConfig;
+  /** Forward subagent text/thinking blocks as messages (SDK 0.2.119+). */
+  forwardSubagentText?: boolean;
+  /** Generate periodic AI summaries on `task_progress` events (SDK 0.2.72+). */
+  agentProgressSummaries?: boolean;
 }
 
 export class ClaudeCodeClient {
@@ -72,6 +77,38 @@ export class ClaudeCodeClient {
     // Tool tracking for duration calculation (タスクごとに独立)
     const toolStartTimes: Map<string, number> = new Map();
     const toolNameMap: Map<string, string> = new Map();
+
+    // Bridge: synthesize TodoWrite-shaped snapshots from Task tool calls (SDK 0.3.142+).
+    // The existing UI listens for `todo_update` events with `{ todos: [...] }`.
+    // Remove once the UI is migrated to Task tools natively (feature phase F3–F5).
+    const todoBridge = new TodoBridge();
+
+    // When resuming a session, seed the bridge with historical Task tool state so
+    // the TODO UI reflects work done in earlier turns rather than starting blank.
+    if (options.resumeSession) {
+      try {
+        const history = await getSessionMessages(options.resumeSession);
+        for (const msg of history) {
+          todoBridge.observe(msg as SDKMessage);
+        }
+        const seeded = todoBridge.snapshot();
+        if (seeded.length > 0) {
+          tracker.updateTodos(seeded as any);
+          if (options.onProgress) {
+            await options.onProgress({
+              type: "todo_update",
+              message: `Todoリスト復元: ${seeded.length}件`,
+              data: { todos: seeded },
+            });
+          }
+        }
+      } catch (error) {
+        logger.warn("Failed to seed TodoBridge from session history", {
+          sessionId: options.resumeSession,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     try {
       logger.debug("Executing task with Claude Code SDK", {
@@ -186,6 +223,35 @@ export class ClaudeCodeClient {
           // to resolve the session ID, which is passed via 'resume'
           // Hooks: PreToolUse/PostToolUse callbacks
           ...(hooks ? { hooks } : {}),
+          // Subagent observability (SDK 0.2.72 / 0.2.119)
+          ...(options.forwardSubagentText ? { forwardSubagentText: true } : {}),
+          ...(options.agentProgressSummaries ? { agentProgressSummaries: true } : {}),
+          // Best-effort context-usage polling. Strategy calls back after each
+          // assistant message (throttled). Only works in streaming-input mode;
+          // single-shot string prompts silently skip.
+          ...(options.onProgress
+            ? {
+                onContextUsage: async (usage) => {
+                  const cats = Array.isArray(usage?.categories)
+                    ? usage.categories
+                        .map((c) => ({ name: c.name, tokens: c.tokens }))
+                        .sort((a, b) => b.tokens - a.tokens)
+                        .slice(0, 6)
+                    : undefined;
+                  await options.onProgress!({
+                    type: "context:usage",
+                    message: `Context: ${usage.totalTokens.toLocaleString()} / ${usage.maxTokens.toLocaleString()} tokens (${usage.percentage.toFixed(1)}%)`,
+                    data: {
+                      totalTokens: usage.totalTokens,
+                      maxTokens: usage.maxTokens,
+                      percentage: usage.percentage,
+                      model: usage.model,
+                      categories: cats,
+                    },
+                  });
+                },
+              }
+            : {}),
         },
       };
 
@@ -226,8 +292,91 @@ export class ClaudeCodeClient {
           sessionId = (message as any).session_id;
         }
 
+        // API retry notification (SDK 0.2.78+).
+        if (
+          message.type === "system" &&
+          (message as any).subtype === "api_retry" &&
+          options.onProgress
+        ) {
+          const m = message as any;
+          const errStatus = m.error_status as number | null;
+          await options.onProgress({
+            type: "api:retry",
+            message: `API リトライ ${m.attempt}/${m.max_retries}${errStatus ? ` (status ${errStatus})` : ""}`,
+            data: {
+              attempt: m.attempt,
+              maxRetries: m.max_retries,
+              retryDelayMs: m.retry_delay_ms,
+              errorStatus: errStatus,
+              errorMessage:
+                typeof m.error === "string" ? m.error : m.error?.message || m.error?.error?.message,
+            },
+          });
+        }
+
+        // Session status (`requesting` / `compacting` / idle, SDK 0.2.108+).
+        if (
+          message.type === "system" &&
+          (message as any).subtype === "status" &&
+          options.onProgress
+        ) {
+          const m = message as any;
+          const status = (m.status as string | null) ?? "idle";
+          await options.onProgress({
+            type: "session:status",
+            message: `Status: ${status}`,
+            data: {
+              status: status as "requesting" | "compacting" | "idle",
+              permissionMode: m.permissionMode,
+              compactResult: m.compact_result,
+              compactError: m.compact_error,
+            },
+          });
+        }
+
+        // Result-message metadata (terminal_reason / stop_reason / api_error_status).
+        if (message.type === "result" && options.onProgress) {
+          const m = message as any;
+          await options.onProgress({
+            type: "result:metadata",
+            message: m.terminal_reason ? `Terminated: ${m.terminal_reason}` : m.subtype || "result",
+            data: {
+              subtype: m.subtype,
+              isError: !!m.is_error,
+              terminalReason: m.terminal_reason,
+              stopReason: m.stop_reason ?? null,
+              apiErrorStatus: m.api_error_status ?? null,
+              errors: Array.isArray(m.errors) ? m.errors : undefined,
+              permissionDenials: Array.isArray(m.permission_denials)
+                ? m.permission_denials.length
+                : undefined,
+              durationMs: m.duration_ms,
+              numTurns: m.num_turns,
+            },
+          });
+        }
+
+        // Task tools → TodoWrite snapshot bridge.
+        // Watches TaskCreate / TaskUpdate to keep the existing todo_update UI alive
+        // while the SDK no longer emits TodoWrite. Remove with F3–F5.
+        if (todoBridge.observe(message)) {
+          const todos = todoBridge.snapshot();
+          tracker.updateTodos(todos as any);
+          if (options.onProgress) {
+            await options.onProgress({
+              type: "todo_update",
+              message: `Todoリスト更新: ${todos.length}件`,
+              data: { todos },
+            });
+          }
+        }
+
         // Forward subagent task status updates (SDK v0.2.104+)
-        if (message.type === "system" && (message as any).subtype === "task_updated" && options.onProgress) {
+        if (
+          message.type === "system" &&
+          (message as any).subtype === "task_updated" &&
+          options.onProgress
+        ) {
           const m = message as any;
           await options.onProgress({
             type: "task:updated",
@@ -238,6 +387,83 @@ export class ClaudeCodeClient {
               description: m.patch?.description,
               error: m.patch?.error,
               isBackgrounded: m.patch?.is_backgrounded,
+            },
+          });
+        }
+
+        // Subagent lifecycle: started (SDK 0.2.46+)
+        if (
+          message.type === "system" &&
+          (message as any).subtype === "task_started" &&
+          options.onProgress
+        ) {
+          const m = message as any;
+          await options.onProgress({
+            type: "subagent:started",
+            message: `Subagent started: ${m.description || m.subagent_type || m.task_id}`,
+            data: {
+              taskId: m.task_id,
+              toolUseId: m.tool_use_id,
+              description: m.description,
+              subagentType: m.subagent_type,
+              taskType: m.task_type,
+              prompt: m.prompt,
+            },
+          });
+        }
+
+        // Subagent lifecycle: progress (SDK 0.2.51+)
+        if (
+          message.type === "system" &&
+          (message as any).subtype === "task_progress" &&
+          options.onProgress
+        ) {
+          const m = message as any;
+          const u = m.usage || {};
+          await options.onProgress({
+            type: "subagent:progress",
+            message: m.summary
+              ? `Subagent ${m.task_id}: ${m.summary}`
+              : `Subagent ${m.task_id} progress`,
+            data: {
+              taskId: m.task_id,
+              toolUseId: m.tool_use_id,
+              description: m.description,
+              subagentType: m.subagent_type,
+              lastToolName: m.last_tool_name,
+              summary: m.summary,
+              usage: {
+                totalTokens: u.total_tokens ?? 0,
+                toolUses: u.tool_uses ?? 0,
+                durationMs: u.duration_ms ?? 0,
+              },
+            },
+          });
+        }
+
+        // Subagent lifecycle: completed (SDK 0.2.46+)
+        if (
+          message.type === "system" &&
+          (message as any).subtype === "task_notification" &&
+          options.onProgress
+        ) {
+          const m = message as any;
+          const u = m.usage;
+          await options.onProgress({
+            type: "subagent:completed",
+            message: `Subagent ${m.task_id} ${m.status}: ${m.summary || ""}`,
+            data: {
+              taskId: m.task_id,
+              toolUseId: m.tool_use_id,
+              status: m.status,
+              summary: m.summary || "",
+              usage: u
+                ? {
+                    totalTokens: u.total_tokens ?? 0,
+                    toolUses: u.tool_uses ?? 0,
+                    durationMs: u.duration_ms ?? 0,
+                  }
+                : undefined,
             },
           });
         }

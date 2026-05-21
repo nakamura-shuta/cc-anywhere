@@ -55,15 +55,24 @@ export class ClaudeCodeClientFactory {
       }
 
       case "bedrock": {
+        // Access keys are optional — when both are omitted, the AWS SDK default
+        // credential chain (SSO / instance profile / AWS_PROFILE) is used.
+        // But supplying ONE without the other is a configuration mistake: the SDK
+        // sees it as incomplete static credentials and refuses to fall through.
         const accessKeyId = factoryConfig?.awsAccessKeyId || config.aws?.accessKeyId;
         const secretAccessKey = factoryConfig?.awsSecretAccessKey || config.aws?.secretAccessKey;
-        const region = factoryConfig?.awsRegion || config.aws?.region || "us-east-1";
-
-        if (!accessKeyId || !secretAccessKey) {
+        if (!!accessKeyId !== !!secretAccessKey) {
           throw new Error(
-            "AWS credentials (access key and secret key) are required for bedrock mode",
+            "Incomplete AWS credentials: set BOTH AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, " +
+              "or leave both unset to use the default credential chain (SSO / AWS_PROFILE).",
           );
         }
+        const region =
+          factoryConfig?.awsRegion ||
+          config.aws?.region ||
+          process.env.AWS_REGION ||
+          process.env.AWS_DEFAULT_REGION ||
+          "us-east-1";
 
         const modelId = config.bedrockModelId;
         return new BedrockStrategy(accessKeyId, secretAccessKey, region, modelId);
@@ -100,14 +109,29 @@ export class ClaudeCodeClientFactory {
       return "api-key";
     }
 
-    // Check for Bedrock credentials
-    if (mergedConfig.awsAccessKeyId && mergedConfig.awsSecretAccessKey) {
-      logger.info("AWS credentials detected, using bedrock mode");
+    // Bedrock auto-detect: only trigger on signals that actually carry / locate credentials.
+    // - explicit access key + secret key pair (BOTH)
+    // - AWS_PROFILE (resolves SSO / instance / .aws/credentials chain by name)
+    // - AWS_BEARER_TOKEN_BEDROCK (Bedrock-specific bearer auth)
+    // AWS_REGION / AWS_DEFAULT_REGION / AWS_SESSION_TOKEN alone are NOT credentials and
+    // can be set in shells unrelated to AWS auth — relying on them produces false positives.
+    // Default profile / instance profile users should opt in via FORCE_EXECUTION_MODE=bedrock.
+    const hasExplicitAwsKeys = !!mergedConfig.awsAccessKeyId && !!mergedConfig.awsSecretAccessKey;
+    const hasAwsContext = !!process.env.AWS_PROFILE || !!process.env.AWS_BEARER_TOKEN_BEDROCK;
+    if (hasExplicitAwsKeys || hasAwsContext) {
+      logger.info("AWS context detected, using bedrock mode", {
+        hasExplicitAwsKeys,
+        hasAwsProfile: !!process.env.AWS_PROFILE,
+        hasBearerToken: !!process.env.AWS_BEARER_TOKEN_BEDROCK,
+      });
       return "bedrock";
     }
 
     throw new Error(
-      "No valid credentials found for Claude Code execution. Please provide either CLAUDE_API_KEY or AWS credentials (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).",
+      "No valid credentials found for Claude Code execution. Please set CLAUDE_API_KEY, " +
+        "or for Bedrock: explicit AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY, AWS_PROFILE, " +
+        "or AWS_BEARER_TOKEN_BEDROCK. For default profile / instance profile auth, set " +
+        "FORCE_EXECUTION_MODE=bedrock explicitly.",
     );
   }
 }

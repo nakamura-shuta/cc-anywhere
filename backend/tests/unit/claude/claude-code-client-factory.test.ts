@@ -202,22 +202,29 @@ describe("ClaudeCodeClientFactory", () => {
         expect(strategy.getModelName()).toContain("us.anthropic");
       });
 
-      it("should throw error when AWS access key is missing", () => {
+      it("should reject incomplete AWS credentials (secret key only)", () => {
         expect(() =>
           ClaudeCodeClientFactory.createStrategy("bedrock", {
             awsSecretAccessKey: "test-secret-key",
             awsRegion: "us-east-1",
           }),
-        ).toThrow("AWS credentials (access key and secret key) are required for bedrock mode");
+        ).toThrow(/Incomplete AWS credentials/);
       });
 
-      it("should throw error when AWS secret key is missing", () => {
+      it("should reject incomplete AWS credentials (access key only)", () => {
         expect(() =>
           ClaudeCodeClientFactory.createStrategy("bedrock", {
             awsAccessKeyId: "test-access-key",
             awsRegion: "us-east-1",
           }),
-        ).toThrow("AWS credentials (access key and secret key) are required for bedrock mode");
+        ).toThrow(/Incomplete AWS credentials/);
+      });
+
+      it("should allow neither key (full default credential chain)", () => {
+        const strategy = ClaudeCodeClientFactory.createStrategy("bedrock", {
+          awsRegion: "us-east-1",
+        });
+        expect(strategy).toBeInstanceOf(BedrockStrategy);
       });
     });
 
@@ -285,30 +292,110 @@ describe("ClaudeCodeClientFactory", () => {
       expect(mode).toBe("bedrock");
     });
 
-    it("should throw error when no credentials are available", () => {
+    it("should throw error when no credentials and no AWS context are available", () => {
       vi.mocked(config).claude.apiKey = "";
       vi.mocked(config).aws = {
         accessKeyId: "",
         secretAccessKey: "",
         region: "",
       };
-
-      expect(() => ClaudeCodeClientFactory.determineExecutionMode()).toThrow(
-        "No valid credentials found for Claude Code execution. Please provide either CLAUDE_API_KEY or AWS credentials (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).",
-      );
+      // AWS env vars must also be cleared for this test to be deterministic.
+      const saved = {
+        AWS_PROFILE: process.env.AWS_PROFILE,
+        AWS_BEARER_TOKEN_BEDROCK: process.env.AWS_BEARER_TOKEN_BEDROCK,
+        AWS_SESSION_TOKEN: process.env.AWS_SESSION_TOKEN,
+        AWS_REGION: process.env.AWS_REGION,
+        AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION,
+      };
+      delete process.env.AWS_PROFILE;
+      delete process.env.AWS_BEARER_TOKEN_BEDROCK;
+      delete process.env.AWS_SESSION_TOKEN;
+      delete process.env.AWS_REGION;
+      delete process.env.AWS_DEFAULT_REGION;
+      try {
+        expect(() => ClaudeCodeClientFactory.determineExecutionMode()).toThrow(
+          /No valid credentials found for Claude Code execution/,
+        );
+      } finally {
+        Object.entries(saved).forEach(([k, v]) => {
+          if (v !== undefined) process.env[k] = v;
+        });
+      }
     });
 
-    it("should throw error when only partial AWS credentials are provided", () => {
+    it("should pick bedrock mode when AWS_PROFILE is set (SSO/default credential chain)", () => {
       vi.mocked(config).claude.apiKey = "";
+      vi.mocked(config).aws = { accessKeyId: "", secretAccessKey: "", region: "" };
+      const prev = process.env.AWS_PROFILE;
+      process.env.AWS_PROFILE = "dev";
+      try {
+        const mode = ClaudeCodeClientFactory.determineExecutionMode();
+        expect(mode).toBe("bedrock");
+      } finally {
+        if (prev !== undefined) process.env.AWS_PROFILE = prev;
+        else delete process.env.AWS_PROFILE;
+      }
+    });
 
-      expect(() =>
-        ClaudeCodeClientFactory.determineExecutionMode({
-          awsAccessKeyId: "test-access-key",
-          // Missing secret key
-        }),
-      ).toThrow(
-        "No valid credentials found for Claude Code execution. Please provide either CLAUDE_API_KEY or AWS credentials (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY).",
-      );
+    it("should NOT auto-detect bedrock from AWS_REGION alone", () => {
+      vi.mocked(config).claude.apiKey = "";
+      vi.mocked(config).aws = { accessKeyId: "", secretAccessKey: "", region: "" };
+      const saved = {
+        AWS_PROFILE: process.env.AWS_PROFILE,
+        AWS_BEARER_TOKEN_BEDROCK: process.env.AWS_BEARER_TOKEN_BEDROCK,
+        AWS_REGION: process.env.AWS_REGION,
+      };
+      delete process.env.AWS_PROFILE;
+      delete process.env.AWS_BEARER_TOKEN_BEDROCK;
+      process.env.AWS_REGION = "us-east-1";
+      try {
+        expect(() => ClaudeCodeClientFactory.determineExecutionMode()).toThrow(
+          /No valid credentials found/,
+        );
+      } finally {
+        Object.entries(saved).forEach(([k, v]) => {
+          if (v !== undefined) process.env[k] = v;
+          else delete process.env[k];
+        });
+      }
+    });
+
+    it("should NOT auto-detect bedrock from AWS_SESSION_TOKEN alone", () => {
+      vi.mocked(config).claude.apiKey = "";
+      vi.mocked(config).aws = { accessKeyId: "", secretAccessKey: "", region: "" };
+      const saved = {
+        AWS_PROFILE: process.env.AWS_PROFILE,
+        AWS_BEARER_TOKEN_BEDROCK: process.env.AWS_BEARER_TOKEN_BEDROCK,
+        AWS_SESSION_TOKEN: process.env.AWS_SESSION_TOKEN,
+        AWS_REGION: process.env.AWS_REGION,
+      };
+      delete process.env.AWS_PROFILE;
+      delete process.env.AWS_BEARER_TOKEN_BEDROCK;
+      delete process.env.AWS_REGION;
+      process.env.AWS_SESSION_TOKEN = "AQoDYXdzE...";
+      try {
+        expect(() => ClaudeCodeClientFactory.determineExecutionMode()).toThrow(
+          /No valid credentials found/,
+        );
+      } finally {
+        Object.entries(saved).forEach(([k, v]) => {
+          if (v !== undefined) process.env[k] = v;
+          else delete process.env[k];
+        });
+      }
+    });
+
+    it("should pick bedrock when AWS_BEARER_TOKEN_BEDROCK is set", () => {
+      vi.mocked(config).claude.apiKey = "";
+      vi.mocked(config).aws = { accessKeyId: "", secretAccessKey: "", region: "" };
+      const prev = process.env.AWS_BEARER_TOKEN_BEDROCK;
+      process.env.AWS_BEARER_TOKEN_BEDROCK = "bedrock-token";
+      try {
+        expect(ClaudeCodeClientFactory.determineExecutionMode()).toBe("bedrock");
+      } finally {
+        if (prev !== undefined) process.env.AWS_BEARER_TOKEN_BEDROCK = prev;
+        else delete process.env.AWS_BEARER_TOKEN_BEDROCK;
+      }
     });
   });
 });
