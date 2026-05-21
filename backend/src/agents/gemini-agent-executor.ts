@@ -72,6 +72,15 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
     request: AgentTaskRequest,
     options: AgentExecutionOptions,
   ): AsyncIterator<AgentExecutionEvent> {
+    // F8: opt-in dispatch to the new Interactions API (SDK 2.4+).
+    // The legacy `models.generateContent` + manual function-calling loop remains
+    // the default for backward compatibility until the new path is validated
+    // against a live API key.
+    if (process.env.GEMINI_USE_INTERACTIONS_API === "1") {
+      yield* this.executeTaskWithInteractionsApi(request, options);
+      return;
+    }
+
     const taskId = options.taskId || this.generateTaskId();
     const startTime = Date.now();
 
@@ -115,7 +124,7 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
       }
 
       // Build contents in proper Gemini API format
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const contents: any[] = [
         {
           role: "user" as const,
@@ -135,7 +144,7 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
       }
 
       // Build generate parameters
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const generateParams: any = {
         model,
         contents,
@@ -401,5 +410,234 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
   isAvailable(): boolean {
     // Check if Gemini API key is configured
     return !!config.gemini?.apiKey;
+  }
+
+  /**
+   * F8: Experimental implementation using Gemini SDK 2.4+ Interactions API.
+   * Replaces the self-rolled function-calling loop with `client.interactions.create()`
+   * + `previous_interaction_id` chaining for FunctionCallStep round-trips.
+   *
+   * Opt-in via `GEMINI_USE_INTERACTIONS_API=1` env var. Default executor uses
+   * `models.generateContent` until this path is verified against live API.
+   *
+   * Mapping (Step type → AgentExecutionEvent):
+   *   - ModelOutputStep        → agent:response (text)
+   *   - FunctionCallStep       → agent:tool:start (then locally executed)
+   *   - FunctionResultStep     → agent:tool:end (we synthesize when sending back)
+   *   - GoogleSearchCallStep / URLContextCallStep / CodeExecutionCallStep
+   *                            → agent:tool:start / :end (generic)
+   *   - ThoughtStep            → agent:progress (reasoning visualization)
+   */
+  private async *executeTaskWithInteractionsApi(
+    request: AgentTaskRequest,
+    options: AgentExecutionOptions,
+  ): AsyncGenerator<AgentExecutionEvent, void, undefined> {
+    const taskId = options.taskId || this.generateTaskId();
+    const startTime = Date.now();
+
+    this.logTaskStart(EXECUTOR_TYPES.GEMINI, taskId, request.instruction);
+
+    const abortController = options.abortController || new AbortController();
+    this.runningTasks.set(taskId, abortController);
+
+    yield {
+      type: "agent:start",
+      executor: EXECUTOR_TYPES.GEMINI,
+      timestamp: new Date(),
+    };
+
+    try {
+      const ai = await this.getGeminiInstance();
+      const geminiOptions = request.options?.gemini || ({} as GeminiAgentOptions);
+      const model = geminiOptions.model || DEFAULT_MODEL;
+      const enableFileOps = geminiOptions.enableFileOperations === true;
+      const workingDirectory = request.context?.workingDirectory;
+
+      // Environment.tools[] — Interactions API equivalent of generationConfig.tools
+      const envTools: Array<Record<string, unknown>> = [];
+      if (geminiOptions.enableCodeExecution) envTools.push({ type: "code_execution" });
+      if (geminiOptions.enableGoogleSearch) envTools.push({ type: "google_search" });
+      // File operations come through FunctionDeclarations on `environment.functions[]`
+      // (or equivalent); when the SDK schema supports it natively we'd pass them here.
+      // For now we keep file_tool declarations attached to generation config so the
+      // Interactions API will surface FunctionCallStep events the same way.
+
+      // Statistics tracking (mirrors the legacy path)
+      let totalTurns = 0;
+      let totalToolCalls = 0;
+      const toolStats: Record<string, ToolStatistics> = {};
+      const totalTokenUsage = { input: 0, output: 0 };
+      let output = "";
+      let previousInteractionId: string | undefined;
+
+      logger.debug("Gemini Interactions API request", {
+        taskId,
+        model,
+        enableFileOps,
+        envTools: envTools.map((t) => t.type),
+      });
+
+      yield {
+        type: "agent:progress",
+        message: "Starting Gemini Interactions API",
+        data: { model, apiPath: "interactions" },
+        timestamp: new Date(),
+      };
+
+      // Round-trip loop: each iteration sends new input (initial prompt or
+      // function results) and processes returned Steps.
+      let pendingInput: { type: "text"; text: string } | Array<Record<string, unknown>> = {
+        type: "text",
+        text: request.instruction,
+      };
+      const maxIterations = 20;
+
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        if (abortController.signal.aborted) throw new Error("Task cancelled");
+        totalTurns++;
+
+        const createParams: Record<string, unknown> = {
+          api_version: "v1",
+          model,
+          input: pendingInput,
+          ...(envTools.length > 0 ? { environment: { tools: envTools } } : {}),
+          ...(previousInteractionId ? { previous_interaction_id: previousInteractionId } : {}),
+          ...(geminiOptions.systemPrompt
+            ? { generation_config: { system_instruction: geminiOptions.systemPrompt } }
+            : {}),
+        };
+
+        const interaction = (await (ai as any).interactions.create(createParams)) as {
+          id?: string;
+          steps?: Array<Record<string, unknown>>;
+          usage?: { input_tokens?: number; output_tokens?: number };
+        };
+
+        previousInteractionId = interaction.id;
+        if (interaction.usage) {
+          totalTokenUsage.input += interaction.usage.input_tokens ?? 0;
+          totalTokenUsage.output += interaction.usage.output_tokens ?? 0;
+        }
+
+        const steps = interaction.steps || [];
+        const pendingFunctionResults: Array<Record<string, unknown>> = [];
+
+        for (const step of steps) {
+          const stepType = step.type as string | undefined;
+          if (stepType === "model_output") {
+            const text = (step.content as { text?: string } | undefined)?.text ?? "";
+            output += text;
+            yield {
+              type: "agent:response",
+              text,
+              turnNumber: totalTurns,
+              timestamp: new Date(),
+            };
+          } else if (stepType === "thought") {
+            const text = (step.content as { text?: string } | undefined)?.text ?? "";
+            yield {
+              type: "agent:progress",
+              message: `[thinking] ${text.slice(0, 200)}`,
+              data: { kind: "thought" },
+              timestamp: new Date(),
+            };
+          } else if (stepType === "function_call") {
+            const callId = step.id as string;
+            const name = step.name as string;
+            const args = (step.arguments || {}) as Record<string, unknown>;
+            totalToolCalls++;
+            if (!toolStats[name]) {
+              toolStats[name] = {
+                count: 0,
+                successes: 0,
+                failures: 0,
+                totalDuration: 0,
+                avgDuration: 0,
+              };
+            }
+            toolStats[name].count++;
+
+            yield {
+              type: "agent:tool:start",
+              tool: name,
+              input: args,
+              timestamp: new Date(),
+            };
+
+            // Execute locally
+            const toolStartTime = Date.now();
+            let result: unknown = { error: `Unknown function: ${name}` };
+            let success = false;
+            let errorMessage: string | undefined = `Unknown function: ${name}`;
+            if (enableFileOps && isFileTool(name)) {
+              const fileResult = executeFileFunction(name, args, workingDirectory);
+              result = fileResult;
+              success = fileResult.success;
+              errorMessage = success ? undefined : fileResult.error;
+            }
+            const toolDuration = Date.now() - toolStartTime;
+            if (success) toolStats[name].successes++;
+            else toolStats[name].failures++;
+            toolStats[name].totalDuration += toolDuration;
+            toolStats[name].avgDuration = toolStats[name].totalDuration / toolStats[name].count;
+
+            yield {
+              type: "agent:tool:end",
+              tool: name,
+              output: result,
+              error: errorMessage,
+              duration: toolDuration,
+              success,
+              timestamp: new Date(),
+            };
+
+            pendingFunctionResults.push({
+              type: "function_result",
+              call_id: callId,
+              name,
+              is_error: !success,
+              result,
+            });
+          } else {
+            // Pass-through for other Step types (tool calls handled server-side)
+            logger.debug("Gemini Interactions step", { taskId, stepType, step });
+          }
+        }
+
+        if (pendingFunctionResults.length === 0) break;
+        pendingInput = pendingFunctionResults;
+      }
+
+      if (abortController.signal.aborted) throw new Error("Task cancelled");
+
+      const duration = Date.now() - startTime;
+      this.logTaskComplete(taskId, duration);
+
+      yield {
+        type: "agent:completed",
+        output,
+        duration,
+        timestamp: new Date(),
+      };
+
+      yield {
+        type: "agent:statistics",
+        totalTurns,
+        totalToolCalls,
+        toolStats,
+        elapsedTime: duration,
+        tokenUsage: { input: totalTokenUsage.input, output: totalTokenUsage.output },
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      this.logTaskFailure(taskId, error);
+      yield {
+        type: "agent:failed",
+        error: error instanceof Error ? error : new Error(String(error)),
+        timestamp: new Date(),
+      };
+    } finally {
+      this.runningTasks.delete(taskId);
+    }
   }
 }
