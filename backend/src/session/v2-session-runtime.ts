@@ -24,8 +24,28 @@ import {
 import type { SessionState } from "./types.js";
 import type { CompatSession } from "./session-compat.js";
 import { createCompatSession, resumeCompatSession } from "./session-compat.js";
+import { config } from "../config/index.js";
 
-const DEFAULT_MODEL = "claude-opus-4-7";
+const DEFAULT_API_KEY_MODEL = "claude-opus-4-7";
+
+/**
+ * Pick the appropriate Claude model identifier for the current execution mode.
+ *
+ * - Bedrock mode requires an inference profile ID (e.g. `us.anthropic.claude-opus-4-7`).
+ *   Direct API-key mode requires the short id (e.g. `claude-opus-4-7`).
+ * - `params.model` always wins (caller knows best).
+ * - `CLAUDE_MODEL` env var wins for API-key mode; ignored in Bedrock mode where
+ *   `BEDROCK_MODEL_ID` is the proper override.
+ */
+function resolveDefaultModel(): string {
+  const isBedrock =
+    process.env.CLAUDE_CODE_USE_BEDROCK === "1" ||
+    config.forceExecutionMode === "bedrock";
+  if (isBedrock) {
+    return config.bedrockModelId || "us.anthropic.claude-opus-4-7";
+  }
+  return process.env.CLAUDE_MODEL || DEFAULT_API_KEY_MODEL;
+}
 
 export interface ManagedSession {
   session: CompatSession;
@@ -197,7 +217,7 @@ export class V2SessionRuntime {
     }
 
     const options: Options = {
-      model: params.model || process.env.CLAUDE_MODEL || DEFAULT_MODEL,
+      model: params.model || resolveDefaultModel(),
       allowedTools: params.allowedTools,
       disallowedTools: params.disallowedTools,
       hooks: this.buildHooksWithSystemPrompt(params.hooks, params.systemPrompt),
