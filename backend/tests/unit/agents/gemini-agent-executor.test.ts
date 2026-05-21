@@ -53,7 +53,8 @@ vi.mock("@google/genai", () => ({
 }));
 
 // Import after mocking
-const { GeminiAgentExecutor } = await import("../../../src/agents/gemini-agent-executor.js");
+const { GeminiAgentExecutor, __test_toInteractionsJsonSchema } =
+  await import("../../../src/agents/gemini-agent-executor.js");
 const { EXECUTOR_TYPES } = await import("../../../src/agents/types.js");
 
 describe("GeminiAgentExecutor", () => {
@@ -669,6 +670,97 @@ describe("GeminiAgentExecutor", () => {
       // system_instruction is top-level, not nested under generation_config
       expect(params.system_instruction).toBe("be terse");
       expect(params.generation_config).toBeUndefined();
+    });
+
+    it("converts FILE_TOOL_DECLARATIONS schema from UPPERCASE to JSON Schema lowercase", async () => {
+      mockInteractionsCreate.mockResolvedValue({
+        id: "int-schema",
+        steps: [{ type: "model_output", content: [{ type: "text", text: "ok" }] }],
+        usage: { total_input_tokens: 1, total_output_tokens: 1 },
+      });
+
+      await collect(
+        executor.executeTask(
+          {
+            instruction: "go",
+            options: { gemini: { enableFileOperations: true } },
+          },
+          { taskId: "t-schema" },
+        ),
+      );
+
+      const params = mockInteractionsCreate.mock.calls[0]?.[0] as {
+        tools?: Array<{
+          type?: string;
+          name?: string;
+          parameters?: { type?: string; properties?: Record<string, { type?: string }> };
+        }>;
+      };
+      const createFile = params.tools?.find((t) => t.name === "createFile");
+      expect(createFile?.parameters?.type).toBe("object"); // not "OBJECT"
+      // Nested property types should also be lowercased
+      const props = createFile?.parameters?.properties ?? {};
+      const propTypes = Object.values(props).map((p) => p.type);
+      // sanity: at least one nested property exists and is lowercase
+      expect(propTypes.length).toBeGreaterThan(0);
+      for (const t of propTypes) {
+        if (typeof t === "string") expect(t).toBe(t.toLowerCase());
+      }
+    });
+
+    it("extracts text from ThoughtStep.summary (not .content)", async () => {
+      mockInteractionsCreate.mockResolvedValue({
+        id: "int-thought",
+        steps: [
+          {
+            type: "thought",
+            summary: [
+              { type: "text", text: "Considering the request..." },
+              { type: "text", text: " choosing tools." },
+            ],
+          },
+          { type: "model_output", content: [{ type: "text", text: "ok" }] },
+        ],
+        usage: { total_input_tokens: 1, total_output_tokens: 1 },
+      });
+
+      const events = await collect(
+        executor.executeTask({ instruction: "ping" }, { taskId: "t-thought" }),
+      );
+      const thought = events.find(
+        (e) =>
+          e.type === "agent:progress" && /\[thinking\]/.test((e as { message: string }).message),
+      ) as { message: string } | undefined;
+      expect(thought).toBeDefined();
+      expect(thought?.message).toContain("Considering the request");
+      expect(thought?.message).toContain("choosing tools");
+    });
+
+    it("toInteractionsJsonSchema converts nested types correctly", () => {
+      const input = {
+        type: "OBJECT",
+        properties: {
+          path: { type: "STRING", description: "path" },
+          tags: { type: "ARRAY", items: { type: "STRING" } },
+          nested: {
+            type: "OBJECT",
+            properties: { flag: { type: "BOOLEAN" } },
+          },
+        },
+        required: ["path"],
+      };
+      const result = __test_toInteractionsJsonSchema(input) as {
+        type: string;
+        properties: Record<string, { type: string; items?: { type: string }; properties?: any }>;
+        required: string[];
+      };
+      expect(result.type).toBe("object");
+      expect(result.properties.path.type).toBe("string");
+      expect(result.properties.tags.type).toBe("array");
+      expect(result.properties.tags.items?.type).toBe("string");
+      expect(result.properties.nested.type).toBe("object");
+      expect(result.properties.nested.properties?.flag.type).toBe("boolean");
+      expect(result.required).toEqual(["path"]); // non-schema fields preserved
     });
 
     it("round-trips function calls via previous_interaction_id + function_result input", async () => {

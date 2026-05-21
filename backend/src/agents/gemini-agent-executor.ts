@@ -459,11 +459,14 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
       if (geminiOptions.enableGoogleSearch) tools.push({ type: "google_search" });
       if (enableFileOps) {
         for (const decl of FILE_TOOL_DECLARATIONS) {
+          // FILE_TOOL_DECLARATIONS use the legacy uppercase Schema vocabulary
+          // ("OBJECT", "STRING", ...). The Interactions API expects JSON Schema
+          // lowercase types ("object", "string", ...). Convert before sending.
           tools.push({
             type: "function",
             name: decl.name,
             description: decl.description,
-            parameters: decl.parameters,
+            parameters: toInteractionsJsonSchema(decl.parameters as unknown),
           });
         }
       }
@@ -554,9 +557,10 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
               };
             }
           } else if (stepType === "thought") {
-            const contentArr =
-              (step.content as Array<{ type?: string; text?: string }> | undefined) || [];
-            const text = contentArr
+            // ThoughtStep.summary is Array<TextContent | ImageContent>, not `content`.
+            const summaryArr =
+              (step.summary as Array<{ type?: string; text?: string }> | undefined) || [];
+            const text = summaryArr
               .filter((c) => c.type === "text" && typeof c.text === "string")
               .map((c) => c.text as string)
               .join("");
@@ -666,3 +670,37 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
     }
   }
 }
+
+/**
+ * Convert the legacy `GeminiType` schema vocabulary (UPPERCASE) used by
+ * FILE_TOOL_DECLARATIONS to JSON Schema lowercase expected by the new
+ * Interactions API. Walks `type`, `items`, `properties`, `anyOf`, `oneOf`,
+ * `allOf` recursively. Other fields are passed through unchanged.
+ */
+function toInteractionsJsonSchema(schema: unknown): unknown {
+  if (schema === null || typeof schema !== "object") return schema;
+  if (Array.isArray(schema)) return schema.map((s) => toInteractionsJsonSchema(s));
+  const obj = schema as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === "type" && typeof v === "string") {
+      // OBJECT -> object, STRING -> string, ... ; pass-through if already lowercase
+      out[k] = v === v.toUpperCase() ? v.toLowerCase() : v;
+    } else if (k === "properties" && v && typeof v === "object") {
+      out[k] = Object.fromEntries(
+        Object.entries(v as Record<string, unknown>).map(([pk, pv]) => [
+          pk,
+          toInteractionsJsonSchema(pv),
+        ]),
+      );
+    } else if (k === "items" || k === "anyOf" || k === "oneOf" || k === "allOf") {
+      out[k] = toInteractionsJsonSchema(v);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+// Exposed for unit testing.
+export const __test_toInteractionsJsonSchema = toInteractionsJsonSchema;
