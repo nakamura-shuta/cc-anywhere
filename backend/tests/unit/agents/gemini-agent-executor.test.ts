@@ -36,11 +36,15 @@ vi.mock("../../../src/utils/logger.js", () => ({
 // Mock Gemini SDK
 const mockGenerateContent = vi.fn();
 const mockGenerateContentStream = vi.fn();
+const mockInteractionsCreate = vi.fn();
 
 const mockGoogleGenAI = vi.fn(() => ({
   models: {
     generateContent: mockGenerateContent,
     generateContentStream: mockGenerateContentStream,
+  },
+  interactions: {
+    create: mockInteractionsCreate,
   },
 }));
 
@@ -559,6 +563,176 @@ describe("GeminiAgentExecutor", () => {
     it("should handle cancellation of non-existent task gracefully", async () => {
       // Should not throw
       await expect(executor.cancelTask("non-existent-task")).resolves.not.toThrow();
+    });
+  });
+
+  // F8: Opt-in Interactions API path (GEMINI_USE_INTERACTIONS_API=1)
+  describe("executeTaskWithInteractionsApi (opt-in)", () => {
+    const ORIGINAL_FLAG = process.env.GEMINI_USE_INTERACTIONS_API;
+
+    beforeEach(() => {
+      process.env.GEMINI_USE_INTERACTIONS_API = "1";
+      mockInteractionsCreate.mockReset();
+    });
+
+    afterEach(() => {
+      if (ORIGINAL_FLAG !== undefined) process.env.GEMINI_USE_INTERACTIONS_API = ORIGINAL_FLAG;
+      else delete process.env.GEMINI_USE_INTERACTIONS_API;
+    });
+
+    async function collect(iter: AsyncIterator<AgentExecutionEvent>) {
+      const out: AgentExecutionEvent[] = [];
+      while (true) {
+        const r = await iter.next();
+        if (r.done) break;
+        out.push(r.value);
+      }
+      return out;
+    }
+
+    it("extracts text from ModelOutputStep.content array", async () => {
+      mockInteractionsCreate.mockResolvedValue({
+        id: "int-1",
+        steps: [
+          {
+            type: "model_output",
+            content: [
+              { type: "text", text: "Hello " },
+              { type: "text", text: "world" },
+            ],
+          },
+        ],
+        usage: { total_input_tokens: 5, total_output_tokens: 2 },
+      });
+
+      const events = await collect(
+        executor.executeTask({ instruction: "ping" }, { taskId: "t-1" }),
+      );
+
+      const response = events.find((e) => e.type === "agent:response") as
+        | { type: "agent:response"; text: string }
+        | undefined;
+      expect(response?.text).toBe("Hello world");
+      const completed = events.find((e) => e.type === "agent:completed") as
+        | { type: "agent:completed"; output: string }
+        | undefined;
+      expect(completed?.output).toBe("Hello world");
+      const stats = events.find((e) => e.type === "agent:statistics") as
+        | { type: "agent:statistics"; tokenUsage: { input: number; output: number } }
+        | undefined;
+      expect(stats?.tokenUsage).toEqual({ input: 5, output: 2 });
+    });
+
+    it("places tools at top-level (NOT under environment) and includes file functions when enabled", async () => {
+      mockInteractionsCreate.mockResolvedValue({
+        id: "int-2",
+        steps: [{ type: "model_output", content: [{ type: "text", text: "ok" }] }],
+        usage: { total_input_tokens: 1, total_output_tokens: 1 },
+      });
+
+      await collect(
+        executor.executeTask(
+          {
+            instruction: "go",
+            options: {
+              gemini: {
+                enableGoogleSearch: true,
+                enableCodeExecution: true,
+                enableFileOperations: true,
+                systemPrompt: "be terse",
+              },
+            },
+          },
+          { taskId: "t-2" },
+        ),
+      );
+
+      expect(mockInteractionsCreate).toHaveBeenCalledTimes(1);
+      const params = mockInteractionsCreate.mock.calls[0]?.[0] as {
+        tools?: Array<{ type?: string; name?: string }>;
+        environment?: unknown;
+        system_instruction?: string;
+        generation_config?: unknown;
+      };
+
+      // tools is top-level, not under environment
+      expect(Array.isArray(params.tools)).toBe(true);
+      expect(params.environment).toBeUndefined();
+      // includes server-side tool flags
+      expect(params.tools?.some((t) => t.type === "google_search")).toBe(true);
+      expect(params.tools?.some((t) => t.type === "code_execution")).toBe(true);
+      // file ops surfaced as { type: 'function', name: 'createFile', ... }
+      expect(params.tools?.some((t) => t.type === "function" && t.name === "createFile")).toBe(
+        true,
+      );
+
+      // system_instruction is top-level, not nested under generation_config
+      expect(params.system_instruction).toBe("be terse");
+      expect(params.generation_config).toBeUndefined();
+    });
+
+    it("round-trips function calls via previous_interaction_id + function_result input", async () => {
+      // First call: model asks to call createFile
+      mockInteractionsCreate.mockResolvedValueOnce({
+        id: "int-a",
+        steps: [
+          {
+            type: "function_call",
+            id: "call-1",
+            name: "createFile",
+            arguments: { path: "/tmp/note.txt", content: "hi" },
+          },
+        ],
+        usage: { total_input_tokens: 4, total_output_tokens: 3 },
+      });
+      // Second call: model returns final text after seeing tool result
+      mockInteractionsCreate.mockResolvedValueOnce({
+        id: "int-b",
+        steps: [{ type: "model_output", content: [{ type: "text", text: "done" }] }],
+        usage: { total_input_tokens: 1, total_output_tokens: 1 },
+      });
+
+      const events = await collect(
+        executor.executeTask(
+          {
+            instruction: "write a file",
+            context: { workingDirectory: "/tmp", files: [] },
+            options: { gemini: { enableFileOperations: true } },
+          },
+          { taskId: "t-3" },
+        ),
+      );
+
+      expect(mockInteractionsCreate).toHaveBeenCalledTimes(2);
+
+      // Second call must chain via previous_interaction_id and send function_result input
+      const secondParams = mockInteractionsCreate.mock.calls[1]?.[0] as {
+        previous_interaction_id?: string;
+        input?: Array<{ type?: string; call_id?: string; name?: string; is_error?: boolean }>;
+      };
+      expect(secondParams.previous_interaction_id).toBe("int-a");
+      expect(Array.isArray(secondParams.input)).toBe(true);
+      expect(secondParams.input?.[0]).toMatchObject({
+        type: "function_result",
+        call_id: "call-1",
+        name: "createFile",
+      });
+
+      // Tool start / end events emitted for the local execution
+      const start = events.find(
+        (e) => e.type === "agent:tool:start" && (e as { tool: string }).tool === "createFile",
+      );
+      const end = events.find(
+        (e) => e.type === "agent:tool:end" && (e as { tool: string }).tool === "createFile",
+      );
+      expect(start).toBeDefined();
+      expect(end).toBeDefined();
+
+      // Final agent:completed surfaces "done"
+      const completed = events.find((e) => e.type === "agent:completed") as
+        | { type: "agent:completed"; output: string }
+        | undefined;
+      expect(completed?.output).toBe("done");
     });
   });
 });

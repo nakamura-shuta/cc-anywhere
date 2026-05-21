@@ -453,14 +453,20 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
       const enableFileOps = geminiOptions.enableFileOperations === true;
       const workingDirectory = request.context?.workingDirectory;
 
-      // Environment.tools[] — Interactions API equivalent of generationConfig.tools
-      const envTools: Array<Record<string, unknown>> = [];
-      if (geminiOptions.enableCodeExecution) envTools.push({ type: "code_execution" });
-      if (geminiOptions.enableGoogleSearch) envTools.push({ type: "google_search" });
-      // File operations come through FunctionDeclarations on `environment.functions[]`
-      // (or equivalent); when the SDK schema supports it natively we'd pass them here.
-      // For now we keep file_tool declarations attached to generation config so the
-      // Interactions API will surface FunctionCallStep events the same way.
+      // Top-level `tools` (Tool_2[]) — server-side tools + Function_2 for local file ops.
+      const tools: Array<Record<string, unknown>> = [];
+      if (geminiOptions.enableCodeExecution) tools.push({ type: "code_execution" });
+      if (geminiOptions.enableGoogleSearch) tools.push({ type: "google_search" });
+      if (enableFileOps) {
+        for (const decl of FILE_TOOL_DECLARATIONS) {
+          tools.push({
+            type: "function",
+            name: decl.name,
+            description: decl.description,
+            parameters: decl.parameters,
+          });
+        }
+      }
 
       // Statistics tracking (mirrors the legacy path)
       let totalTurns = 0;
@@ -474,7 +480,7 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
         taskId,
         model,
         enableFileOps,
-        envTools: envTools.map((t) => t.type),
+        tools: tools.map((t) => t.type),
       });
 
       yield {
@@ -496,27 +502,32 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
         if (abortController.signal.aborted) throw new Error("Task cancelled");
         totalTurns++;
 
+        // Per SDK BaseCreateModelInteractionParams: tools and system_instruction are
+        // top-level fields. `environment` is reserved for remote-environment configs
+        // (network policy / sources), not for tools.
         const createParams: Record<string, unknown> = {
           api_version: "v1",
           model,
           input: pendingInput,
-          ...(envTools.length > 0 ? { environment: { tools: envTools } } : {}),
+          ...(tools.length > 0 ? { tools } : {}),
           ...(previousInteractionId ? { previous_interaction_id: previousInteractionId } : {}),
-          ...(geminiOptions.systemPrompt
-            ? { generation_config: { system_instruction: geminiOptions.systemPrompt } }
-            : {}),
+          ...(geminiOptions.systemPrompt ? { system_instruction: geminiOptions.systemPrompt } : {}),
         };
 
-        const interaction = (await (ai as any).interactions.create(createParams)) as {
+        const interaction = (await (
+          ai as unknown as {
+            interactions: { create: (p: unknown) => Promise<unknown> };
+          }
+        ).interactions.create(createParams)) as {
           id?: string;
           steps?: Array<Record<string, unknown>>;
-          usage?: { input_tokens?: number; output_tokens?: number };
+          usage?: { total_input_tokens?: number; total_output_tokens?: number };
         };
 
         previousInteractionId = interaction.id;
         if (interaction.usage) {
-          totalTokenUsage.input += interaction.usage.input_tokens ?? 0;
-          totalTokenUsage.output += interaction.usage.output_tokens ?? 0;
+          totalTokenUsage.input += interaction.usage.total_input_tokens ?? 0;
+          totalTokenUsage.output += interaction.usage.total_output_tokens ?? 0;
         }
 
         const steps = interaction.steps || [];
@@ -525,16 +536,30 @@ export class GeminiAgentExecutor extends BaseTaskExecutor {
         for (const step of steps) {
           const stepType = step.type as string | undefined;
           if (stepType === "model_output") {
-            const text = (step.content as { text?: string } | undefined)?.text ?? "";
-            output += text;
-            yield {
-              type: "agent:response",
-              text,
-              turnNumber: totalTurns,
-              timestamp: new Date(),
-            };
+            // ModelOutputStep.content is Array<Content_2> (TextContent | ImageContent | ...).
+            // Extract text by filtering type === 'text' and concatenating .text fields.
+            const contentArr =
+              (step.content as Array<{ type?: string; text?: string }> | undefined) || [];
+            const text = contentArr
+              .filter((c) => c.type === "text" && typeof c.text === "string")
+              .map((c) => c.text as string)
+              .join("");
+            if (text) {
+              output += text;
+              yield {
+                type: "agent:response",
+                text,
+                turnNumber: totalTurns,
+                timestamp: new Date(),
+              };
+            }
           } else if (stepType === "thought") {
-            const text = (step.content as { text?: string } | undefined)?.text ?? "";
+            const contentArr =
+              (step.content as Array<{ type?: string; text?: string }> | undefined) || [];
+            const text = contentArr
+              .filter((c) => c.type === "text" && typeof c.text === "string")
+              .map((c) => c.text as string)
+              .join("");
             yield {
               type: "agent:progress",
               message: `[thinking] ${text.slice(0, 200)}`,
