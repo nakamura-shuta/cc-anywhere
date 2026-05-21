@@ -178,7 +178,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 			
 			// WebSocketメッセージがある場合はフォーマットして使用
 			const wsLogs = taskMessages
-				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude:response', 'task:todo_update', 'task:hook:pre_tool_use', 'task:hook:post_tool_use', 'task:task_updated', 'task:subagent:started', 'task:subagent:progress', 'task:subagent:completed', 'task:api:retry', 'task:session:status', 'task:context:usage', 'task:result:metadata'].includes(m.type))
+				.filter(m => ['task:log', 'task:tool:start', 'task:tool:end', 'task:claude_response', 'task:todo_update', 'task:hook:pre_tool_use', 'task:hook:post_tool_use', 'task:task_updated', 'task:subagent:started', 'task:subagent:progress', 'task:subagent:completed', 'task:api:retry', 'task:session:status', 'task:context:usage', 'task:result:metadata'].includes(m.type))
 				.map(m => {
 					const timestamp = new Date(m.timestamp || Date.now()).toLocaleString('ja-JP');
 					
@@ -213,7 +213,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 							const duration = m.payload?.duration ? `\n実行時間: ${m.payload.duration}ms` : '';
 							return `${status}\n${m.payload?.tool}${duration}\n${timestamp}`;
 						}
-						case 'task:claude:response': {
+						case 'task:claude_response': {
 							const turnInfo = m.payload?.turnNumber && m.payload?.maxTurns 
 								? ` (ターン ${m.payload.turnNumber}/${m.payload.maxTurns})` 
 								: '';
@@ -549,7 +549,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 		(() => {
 			// WebSocketメッセージから取得
 			const wsResponses = taskMessages
-				.filter(m => m.type === 'task:claude:response')
+				.filter(m => m.type === 'task:claude_response')
 				.map(m => ({
 					response: m.payload?.text || '',
 					turnNumber: m.payload?.turnNumber,
@@ -649,7 +649,7 @@ export function useTaskWebSocket(taskId: string, initialStatistics?: any, initia
 		(() => {
 			// 進捗メッセージとClaude応答から進捗を計算
 			const progressMessages = taskMessages.filter(m => m.type === 'task:progress');
-			const claudeMessages = taskMessages.filter(m => m.type === 'task:claude:response');
+			const claudeMessages = taskMessages.filter(m => m.type === 'task:claude_response');
 			
 			// 最新のClaude応答からturn情報を取得
 			const latestClaude = claudeMessages[claudeMessages.length - 1];
