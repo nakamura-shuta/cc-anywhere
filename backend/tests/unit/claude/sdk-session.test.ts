@@ -175,6 +175,188 @@ describe("ClaudeCodeClient SDK Session", () => {
     expect(restore?.data.todos).toEqual([{ content: "Refactor module", status: "in_progress" }]);
   });
 
+  it("should pass forwardSubagentText / agentProgressSummaries to query options when enabled", async () => {
+    mockQuery.mockReturnValue(
+      createMockQuery([
+        { type: "assistant", message: { content: [{ type: "text", text: "ok" }] } },
+      ]) as any,
+    );
+
+    await client.executeTask("Test", {
+      forwardSubagentText: true,
+      agentProgressSummaries: true,
+    });
+
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          forwardSubagentText: true,
+          agentProgressSummaries: true,
+        }),
+      }),
+    );
+  });
+
+  it("should omit subagent options when not enabled", async () => {
+    mockQuery.mockReturnValue(
+      createMockQuery([
+        { type: "assistant", message: { content: [{ type: "text", text: "ok" }] } },
+      ]) as any,
+    );
+
+    await client.executeTask("Test", {});
+
+    const calledWith = mockQuery.mock.calls[0]?.[0] as { options?: Record<string, unknown> };
+    expect(calledWith?.options).not.toHaveProperty("forwardSubagentText");
+    expect(calledWith?.options).not.toHaveProperty("agentProgressSummaries");
+  });
+
+  it("should surface subagent:completed with status=failed including error context", async () => {
+    mockQuery.mockReturnValue(
+      createMockQuery([
+        {
+          type: "system",
+          subtype: "task_notification",
+          task_id: "sub-fail",
+          tool_use_id: "tu-x",
+          status: "failed",
+          summary: "Subagent encountered a syntax error",
+          output_file: "/tmp/x",
+          usage: { total_tokens: 500, tool_uses: 2, duration_ms: 800 },
+        },
+        { type: "assistant", message: { content: [{ type: "text", text: "ok" }] } },
+      ]) as any,
+    );
+
+    const events: Array<{ type: string; data?: any }> = [];
+    await client.executeTask("Test", {
+      onProgress: (e) => {
+        events.push({ type: e.type, data: (e as any).data });
+      },
+    });
+
+    const completed = events.find((e) => e.type === "subagent:completed");
+    expect(completed?.data).toMatchObject({
+      taskId: "sub-fail",
+      status: "failed",
+      summary: "Subagent encountered a syntax error",
+    });
+  });
+
+  it("should surface subagent:completed with status=stopped", async () => {
+    mockQuery.mockReturnValue(
+      createMockQuery([
+        {
+          type: "system",
+          subtype: "task_notification",
+          task_id: "sub-stopped",
+          status: "stopped",
+          summary: "Aborted by user",
+          output_file: "/tmp/x",
+        },
+        { type: "assistant", message: { content: [{ type: "text", text: "ok" }] } },
+      ]) as any,
+    );
+
+    const events: Array<{ type: string; data?: any }> = [];
+    await client.executeTask("Test", {
+      onProgress: (e) => {
+        events.push({ type: e.type, data: (e as any).data });
+      },
+    });
+
+    const completed = events.find((e) => e.type === "subagent:completed");
+    expect(completed?.data).toMatchObject({
+      taskId: "sub-stopped",
+      status: "stopped",
+    });
+    // No usage given by SDK in stopped path → omitted
+    expect(completed?.data?.usage).toBeUndefined();
+  });
+
+  it("should track multiple concurrent subagents independently", async () => {
+    mockQuery.mockReturnValue(
+      createMockQuery([
+        {
+          type: "system",
+          subtype: "task_started",
+          task_id: "sub-a",
+          description: "task A",
+          subagent_type: "agent-a",
+        },
+        {
+          type: "system",
+          subtype: "task_started",
+          task_id: "sub-b",
+          description: "task B",
+          subagent_type: "agent-b",
+        },
+        {
+          type: "system",
+          subtype: "task_notification",
+          task_id: "sub-a",
+          status: "completed",
+          summary: "A done",
+          output_file: "/tmp/a",
+        },
+        {
+          type: "system",
+          subtype: "task_notification",
+          task_id: "sub-b",
+          status: "completed",
+          summary: "B done",
+          output_file: "/tmp/b",
+        },
+        { type: "assistant", message: { content: [{ type: "text", text: "ok" }] } },
+      ]) as any,
+    );
+
+    const events: Array<{ type: string; data?: any }> = [];
+    await client.executeTask("Test", {
+      onProgress: (e) => {
+        events.push({ type: e.type, data: (e as any).data });
+      },
+    });
+
+    const starts = events.filter((e) => e.type === "subagent:started");
+    const dones = events.filter((e) => e.type === "subagent:completed");
+    expect(starts.map((e) => e.data.taskId).sort()).toEqual(["sub-a", "sub-b"]);
+    expect(dones.map((e) => e.data.taskId).sort()).toEqual(["sub-a", "sub-b"]);
+    expect(dones.find((e) => e.data.taskId === "sub-a")?.data.summary).toBe("A done");
+    expect(dones.find((e) => e.data.taskId === "sub-b")?.data.summary).toBe("B done");
+  });
+
+  it("should fall back to description when subagent:progress lacks summary (agentProgressSummaries off)", async () => {
+    mockQuery.mockReturnValue(
+      createMockQuery([
+        {
+          type: "system",
+          subtype: "task_progress",
+          task_id: "sub-1",
+          description: "scanning files",
+          subagent_type: "scanner",
+          // no summary field — happens when agentProgressSummaries is false
+          usage: { total_tokens: 100, tool_uses: 1, duration_ms: 200 },
+        },
+        { type: "assistant", message: { content: [{ type: "text", text: "ok" }] } },
+      ]) as any,
+    );
+
+    const events: Array<{ type: string; data?: any; message?: string }> = [];
+    await client.executeTask("Test", {
+      onProgress: (e) => {
+        events.push({ type: e.type, data: (e as any).data, message: e.message });
+      },
+    });
+
+    const progress = events.find((e) => e.type === "subagent:progress");
+    expect(progress).toBeDefined();
+    expect(progress?.data.summary).toBeUndefined();
+    expect(progress?.data.description).toBe("scanning files");
+    // Message should mention progress (without specific summary text)
+    expect(progress?.message).toContain("sub-1");
+  });
+
   it("should emit subagent:started / :progress / :completed for task_* system messages", async () => {
     mockQuery.mockReturnValue(
       createMockQuery([
