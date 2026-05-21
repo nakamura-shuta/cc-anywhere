@@ -140,8 +140,16 @@ export class ClaudeAgentExecutor extends BaseTaskExecutor {
   }
 
   isAvailable(): boolean {
-    // Check if Claude API key is configured
-    return !!config.claude.apiKey;
+    // Claude is available when ANY of the following execution modes are usable:
+    // - direct Anthropic API key (CLAUDE_API_KEY)
+    // - AWS Bedrock with explicit access keys OR an opt-in (FORCE_EXECUTION_MODE=bedrock
+    //   covers SSO / instance profile / AWS_PROFILE), or AWS_BEARER_TOKEN_BEDROCK
+    if (config.claude.apiKey) return true;
+    if (config.forceExecutionMode === "bedrock") return true;
+    const aws = config.aws;
+    if (aws?.accessKeyId && aws?.secretAccessKey) return true;
+    if (process.env.AWS_PROFILE || process.env.AWS_BEARER_TOKEN_BEDROCK) return true;
+    return false;
   }
 
   /**
